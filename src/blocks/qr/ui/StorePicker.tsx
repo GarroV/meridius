@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
@@ -46,12 +47,12 @@ export async function StorePicker({
       ) : (
         <div className={LIST_CLASS}>
           {stores.map((store) => (
-            <a key={store.id} href={store.href} className={ITEM_CLASS}>
+            <Link key={store.id} href={store.href} className={ITEM_CLASS}>
               <span>{`${store.countryName} · ${store.name}`}</span>
               <span className={ITEM_META_CLASS}>
                 {t("picker.stations", { count: store.stationCount })}
               </span>
-            </a>
+            </Link>
           ))}
         </div>
       )}

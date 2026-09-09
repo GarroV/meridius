@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactElement } from "react";
@@ -99,9 +100,9 @@ export async function RemoveChecklistScreen({
                 : t("remove.confirmDelete")}
             </button>
           </form>
-          <a href={CHECKLISTS_PATH} className={BTN_GHOST_CLASS}>
+          <Link href={CHECKLISTS_PATH} className={BTN_GHOST_CLASS}>
             {t("remove.cancel")}
-          </a>
+          </Link>
         </div>
       </div>
     </AdminShell>

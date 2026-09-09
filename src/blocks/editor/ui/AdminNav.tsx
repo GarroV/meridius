@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
@@ -42,28 +43,32 @@ export function AdminNav({
 
       <div className="flex flex-col">
         <div className={LABEL_CLASS}>{t("work")}</div>
-        <a
+        <Link
           className={active === "checklists" ? ITEM_ACTIVE_CLASS : ITEM_CLASS}
           href={ADMIN_SECTIONS.checklists.path}
+          data-testid="nav-checklists"
+          {...(active === "checklists"
+            ? { "aria-current": "page" as const }
+            : {})}
         >
           {t("checklists")}
-        </a>
+        </Link>
         <span className={ITEM_SOON_CLASS} aria-disabled="true" title={soon}>
           {t("library")}
         </span>
-        <a className={ITEM_CLASS} href={ADMIN_SECTIONS.feed.path}>
+        <Link className={ITEM_CLASS} href={ADMIN_SECTIONS.feed.path}>
           {t("feed")}
-        </a>
+        </Link>
       </div>
 
       <div className="flex flex-col">
         <div className={LABEL_CLASS}>{t("reference")}</div>
-        <a className={ITEM_CLASS} href={ADMIN_SECTIONS.catalog.path}>
+        <Link className={ITEM_CLASS} href={ADMIN_SECTIONS.catalog.path}>
           {t("catalog")}
-        </a>
-        <a className={ITEM_CLASS} href={ADMIN_SECTIONS.qr.path}>
+        </Link>
+        <Link className={ITEM_CLASS} href={ADMIN_SECTIONS.qr.path}>
           {t("qr")}
-        </a>
+        </Link>
       </div>
 
       <div className="mt-auto px-[var(--space-7)] text-[length:var(--fs-meta)] text-[var(--ink-3)]">

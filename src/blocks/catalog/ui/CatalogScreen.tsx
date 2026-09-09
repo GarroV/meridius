@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
@@ -70,9 +71,9 @@ function ConfirmDeleteStore({
             {t("actions.confirmDelete")}
           </button>
         </form>
-        <a href={cancelHref} className={BTN_GHOST_CLASS}>
+        <Link href={cancelHref} className={BTN_GHOST_CLASS}>
           {t("actions.cancel")}
-        </a>
+        </Link>
       </div>
     </div>
   );
@@ -107,9 +108,9 @@ function ConfirmDeleteStation({
             {t("actions.confirmDelete")}
           </button>
         </form>
-        <a href={cancelHref} className={BTN_GHOST_CLASS}>
+        <Link href={cancelHref} className={BTN_GHOST_CLASS}>
           {t("actions.cancel")}
-        </a>
+        </Link>
       </div>
     </div>
   );

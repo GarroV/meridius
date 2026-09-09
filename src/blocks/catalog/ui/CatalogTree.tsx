@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement, ReactNode } from "react";
 
@@ -96,9 +97,9 @@ function CreateForm({
         <button type="submit" className={BTN_PRIMARY_SM_CLASS}>
           {t(KEY_ACTION_ADD)}
         </button>
-        <a href={cancelHref} className={BTN_GHOST_SM_CLASS}>
+        <Link href={cancelHref} className={BTN_GHOST_SM_CLASS}>
           {t(KEY_ACTION_CANCEL)}
-        </a>
+        </Link>
       </div>
     </form>
   );
@@ -148,16 +149,16 @@ function TreeColumn({
     <div className={COL_BORDERED_CLASS}>
       <div className={COL_HEAD_CLASS}>
         <span>{headLabel}</span>
-        <a href={createHref} className={`${BTN_GHOST_SM_CLASS} ml-auto`}>
+        <Link href={createHref} className={`${BTN_GHOST_SM_CLASS} ml-auto`}>
           {createLabel}
-        </a>
+        </Link>
       </div>
       {createForm}
       {items.length === 0 ? (
         <p className={EMPTY_COL_CLASS}>{emptyLabel}</p>
       ) : (
         items.map((item) => (
-          <a
+          <Link
             key={item.id}
             href={item.href}
             data-testid={testId}
@@ -165,7 +166,7 @@ function TreeColumn({
           >
             <span>{item.name}</span>
             <span className={LI_META_CLASS}>{metaText(item)}</span>
-          </a>
+          </Link>
         ))
       )}
     </div>
@@ -196,9 +197,9 @@ function StationRow({
       className={station.selected ? TABLE_ROW_SELECTED_CLASS : TABLE_ROW_CLASS}
     >
       <td className={TABLE_TD_CLASS}>
-        <a href={station.href} className="text-ink no-underline">
+        <Link href={station.href} className="text-ink no-underline">
           {station.name}
-        </a>
+        </Link>
       </td>
       <td className={TABLE_TD_CLASS}>
         {checklistText ?? (
@@ -250,12 +251,12 @@ function StationsColumn({
     <div className={COL_CLASS}>
       <div className={COL_HEAD_CLASS}>
         <span>{headLabel}</span>
-        <a
+        <Link
           href={model.hrefs.createStation}
           className={`${BTN_SM_CLASS} ml-auto`}
         >
           {t("add.station")}
-        </a>
+        </Link>
       </div>
       {createForm}
       {stations.length > 0 && storeId !== null && countryId !== null ? (

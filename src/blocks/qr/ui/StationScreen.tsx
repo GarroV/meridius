@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
@@ -47,12 +48,12 @@ export async function StationScreen({
         </div>
       </div>
 
-      <a
+      <Link
         href={model.backHref}
         className="fixed top-[var(--space-6)] left-[var(--space-6)] text-[length:var(--fs-meta)] text-[var(--ink-3)] no-underline hover:text-[var(--ink-2)]"
       >
         {t("screen.back")}
-      </a>
+      </Link>
     </div>
   );
 }
