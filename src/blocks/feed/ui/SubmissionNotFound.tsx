@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import { AdminShell } from "@/blocks/core/ui/AdminShell";
+
 import { FEED_PATH } from "../routes";
-import { AdminShell } from "./AdminShell";
 
 /**
  * Заполнения с таким идентификатором нет: объяснение и кнопка обратно в ленту.
@@ -27,11 +29,12 @@ export async function SubmissionNotFound(): Promise<ReactElement> {
   return (
     <AdminShell
       testId="submission-not-found"
+      active="feed"
       narrow
       breadcrumb={
-        <a href={FEED_PATH} className="underline">
+        <Link href={FEED_PATH} className="underline">
           {t("back")}
-        </a>
+        </Link>
       }
       // В шапке — раздел, а не тот же текст, что в карточке: заголовок дважды
       // подряд читается как сбой вёрстки, а объяснение всё равно ниже.
@@ -42,9 +45,9 @@ export async function SubmissionNotFound(): Promise<ReactElement> {
         <div className={EMPTY_CLASS}>
           <p className={TITLE_CLASS}>{t("notFoundTitle")}</p>
           <p className={TEXT_CLASS}>{t("notFoundText")}</p>
-          <a href={FEED_PATH} className={BTN_CLASS}>
+          <Link href={FEED_PATH} className={BTN_CLASS}>
             {t("notFoundAction")}
-          </a>
+          </Link>
         </div>
       </div>
     </AdminShell>
