@@ -1,5 +1,7 @@
 import { useFormatter, useTranslations } from "next-intl";
 
+import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
+
 import type { VersionSummary } from "../drafts";
 import type { LibraryEntry } from "../library-links";
 
@@ -72,14 +74,11 @@ export function LibraryPanel({
   library,
   insertedBlockIds,
   locale,
-  soonLabel,
   onInsert,
 }: {
   readonly library: readonly LibraryEntry[];
   readonly insertedBlockIds: readonly string[];
   readonly locale: string;
-  /** Подпись «раздел ещё не готов»: экрана библиотеки в продукте пока нет. */
-  readonly soonLabel: string;
   readonly onInsert: (blockId: string) => void;
 }) {
   const t = useTranslations("editor.library");
@@ -90,14 +89,12 @@ export function LibraryPanel({
         <h2 className="text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold">
           {t("title")}
         </h2>
-        {/* Раздел библиотеки строит блок library — пока его нет, пункт не ведёт в 404. */}
-        <span
-          className="ml-auto text-[length:var(--fs-dense)] font-medium text-[var(--ink-3)]"
-          aria-disabled="true"
-          title={soonLabel}
+        <a
+          className="text-accent ml-auto text-[length:var(--fs-dense)] font-medium no-underline hover:underline"
+          href={ADMIN_SECTIONS.library.path}
         >
           {t("all")}
-        </span>
+        </a>
       </div>
       <div className="flex flex-col">
         {library.length === 0 ? (

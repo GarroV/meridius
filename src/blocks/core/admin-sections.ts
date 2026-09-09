@@ -19,9 +19,7 @@ export interface AdminSection {
 
 export const ADMIN_SECTIONS = {
   checklists: { path: "/admin/checklists", ready: true },
-  // Библиотеки блоков в продукте нет: вставить существующий блок можно, а завести — нельзя
-  // (задачи T027–T031). Ссылка вела бы на несуществующий экран.
-  library: { path: "/admin/library", ready: false },
+  library: { path: "/admin/library", ready: true },
   feed: { path: "/admin/feed", ready: true },
   catalog: { path: "/admin/catalog", ready: true },
   qr: { path: "/admin/qr", ready: true },

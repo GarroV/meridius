@@ -14,15 +14,16 @@ import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
  * Что готово и куда ведёт — не решается здесь: адреса и готовность лежат в
  * `core/admin-sections`. Список в этом файле однажды отстал от продукта, и
  * «Заполнения» показывались надписью «Раздел ещё не готов», хотя раздел работал (#11).
- * Неготовое по-прежнему рисуется `<span aria-disabled>`, а не `<a>`: ссылка вела бы в 404.
+ *
+ * Все пять разделов кабинета готовы — библиотека блоков была последним неготовым.
+ * Механики «раздел ещё не готов» здесь больше нет: понадобится снова — вернётся вместе
+ * с новым разделом, а не будет висеть мёртвым кодом.
  */
 
 const NAV_LABEL_CLASS =
   "px-[var(--space-7)] pb-[var(--space-3)] text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
 const NAV_ITEM_CLASS =
   "flex items-center gap-[var(--space-5)] border-l-2 border-transparent px-[var(--space-7)] py-[var(--space-4)] text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-ink";
-const NAV_ITEM_SOON_CLASS =
-  "flex items-center gap-[var(--space-5)] border-l-2 border-transparent px-[var(--space-7)] py-[var(--space-4)] text-[var(--ink-3)]";
 const NAV_ITEM_ACTIVE_CLASS =
   "flex items-center gap-[var(--space-5)] border-l-2 border-[var(--accent)] bg-[var(--accent-soft)] px-[var(--space-7)] py-[var(--space-4)] font-medium text-accent no-underline";
 const H1_CLASS =
@@ -45,7 +46,6 @@ export async function AdminShell({
   children,
 }: AdminShellProps): Promise<ReactElement> {
   const t = await getTranslations("qr");
-  const soonTitle = t("nav.soon");
 
   return (
     <div
@@ -65,13 +65,9 @@ export async function AdminShell({
           <a className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.checklists.path}>
             {t("nav.templates")}
           </a>
-          <span
-            className={NAV_ITEM_SOON_CLASS}
-            aria-disabled="true"
-            title={soonTitle}
-          >
+          <a className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.library.path}>
             {t("nav.library")}
-          </span>
+          </a>
           <a className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.feed.path}>
             {t("nav.feed")}
           </a>

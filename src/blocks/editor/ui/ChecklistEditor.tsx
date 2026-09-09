@@ -313,7 +313,6 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
                   library={props.library}
                   insertedBlockIds={insertedBlockIds}
                   locale={locale}
-                  soonLabel={t("nav.soon")}
                   onInsert={insertBlock}
                 />
               </div>
@@ -368,7 +367,6 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               library={props.library}
               insertedBlockIds={insertedBlockIds}
               locale={locale}
-              soonLabel={t("nav.soon")}
               onInsert={insertBlock}
             />
             <StationNotice station={props.station} />

@@ -9,16 +9,17 @@ import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
  * Адреса соседних разделов и их готовность приходят из `core/admin-sections`: границы модулей
  * запрещают ленте зависеть от редактора, справочника и QR (.dependency-cruiser.cjs), а `core`
  * доступен каждому блоку. Раньше каждое меню держало свой список строками, и списки разъехались
- * молча (#11). Библиотека блоков ещё не существует, поэтому она `<span aria-disabled>`, а не
- * ссылка: ссылка вела бы в 404.
+ * молча (#11).
+ *
+ * Все пять разделов кабинета готовы — библиотека блоков была последним неготовым.
+ * Механики «раздел ещё не готов» здесь больше нет: понадобится снова — вернётся вместе
+ * с новым разделом, а не будет висеть мёртвым кодом.
  */
 
 const LABEL_CLASS =
   "px-[var(--space-7)] pb-[var(--space-3)] text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
 const ITEM_CLASS =
   "flex items-center gap-[var(--space-5)] border-l-2 border-transparent px-[var(--space-7)] py-[var(--space-4)] text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-[var(--ink)]";
-const ITEM_SOON_CLASS =
-  "flex items-center gap-[var(--space-5)] border-l-2 border-transparent px-[var(--space-7)] py-[var(--space-4)] text-[var(--ink-3)]";
 const ITEM_ACTIVE_CLASS =
   "text-accent flex items-center gap-[var(--space-5)] border-l-2 border-[var(--accent)] bg-[var(--accent-soft)] px-[var(--space-7)] py-[var(--space-4)] font-medium no-underline";
 
@@ -39,13 +40,9 @@ export function AdminNav() {
         <a className={ITEM_CLASS} href={ADMIN_SECTIONS.checklists.path}>
           {t("checklists")}
         </a>
-        <span
-          className={ITEM_SOON_CLASS}
-          aria-disabled="true"
-          title={t("soon")}
-        >
+        <a className={ITEM_CLASS} href={ADMIN_SECTIONS.library.path}>
           {t("library")}
-        </span>
+        </a>
         <a
           className={ITEM_ACTIVE_CLASS}
           href={ADMIN_SECTIONS.feed.path}

@@ -6,20 +6,21 @@ import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
  * Левое меню админки по эталону (`docs/forge/design/screens/editor.html`): 208 px,
  * две группы разделов, внизу — кто вошёл.
  *
- * Разделы, которых в продукте ещё нет, — `<span aria-disabled>`, а не ссылка: ссылка
- * вела бы в 404. Что готово и куда ведёт — не решается здесь: адреса и готовность лежат
+ * Что готово и куда ведёт — не решается здесь: адреса и готовность лежат
  * в `core/admin-sections`. Раньше каждая навигация держала свой список, и они разъехались:
  * заполнения и коды показывались неготовыми, хотя работали (#11). Границы модулей
  * (.dependency-cruiser.cjs) не дают редактору зависеть от блоков соседних разделов, а `core`
  * доступен всем — поэтому общее знание живёт там.
+ *
+ * Все пять разделов кабинета готовы — библиотека блоков была последним неготовым.
+ * Механики «раздел ещё не готов» здесь больше нет: понадобится снова — вернётся вместе
+ * с новым разделом, а не будет висеть мёртвым кодом.
  */
 
 const LABEL_CLASS =
   "px-[var(--space-7)] pb-[var(--space-3)] text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
 const ITEM_CLASS =
   "flex items-center gap-[var(--space-5)] border-l-2 border-transparent px-[var(--space-7)] py-[var(--space-4)] text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-[var(--ink)]";
-const ITEM_SOON_CLASS =
-  "flex items-center gap-[var(--space-5)] border-l-2 border-transparent px-[var(--space-7)] py-[var(--space-4)] text-[var(--ink-3)]";
 const ITEM_ACTIVE_CLASS =
   "text-accent flex items-center gap-[var(--space-5)] border-l-2 border-[var(--accent)] bg-[var(--accent-soft)] px-[var(--space-7)] py-[var(--space-4)] font-medium no-underline";
 
@@ -29,7 +30,6 @@ export function AdminNav({
   readonly active?: "checklists" | undefined;
 }) {
   const t = useTranslations("editor.nav");
-  const soon = t("soon");
 
   return (
     <nav className="bg-surface flex flex-col gap-[var(--space-8)] border-r border-[var(--line-strong)] py-[var(--space-7)]">
@@ -48,9 +48,9 @@ export function AdminNav({
         >
           {t("checklists")}
         </a>
-        <span className={ITEM_SOON_CLASS} aria-disabled="true" title={soon}>
+        <a className={ITEM_CLASS} href={ADMIN_SECTIONS.library.path}>
           {t("library")}
-        </span>
+        </a>
         <a className={ITEM_CLASS} href={ADMIN_SECTIONS.feed.path}>
           {t("feed")}
         </a>

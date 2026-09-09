@@ -14,6 +14,7 @@ import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 // посмотреть заполнения → поправить справочник. Что готово, решает `core/admin-sections`.
 const SECTIONS = [
   { key: "checklists", section: ADMIN_SECTIONS.checklists },
+  { key: "library", section: ADMIN_SECTIONS.library },
   { key: "qr", section: ADMIN_SECTIONS.qr },
   { key: "feed", section: ADMIN_SECTIONS.feed },
   { key: "catalog", section: ADMIN_SECTIONS.catalog },
