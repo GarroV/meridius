@@ -150,9 +150,13 @@ test.describe("фильтры списка чек-листов", () => {
 
     await expect(rowOf(page, kept)).toBeVisible();
     await expect(rowOf(page, dropped)).toHaveCount(0);
-    // И выбор виден в самих списках, а не только в результате.
+    // И выбор виден в самих списках, а не только в результате. Пиццерия при этом
+    // подставлена по станции: выбрав «Кухню Алматы», методист выбрал и Алматы.
     await expect(page.getByTestId("checklist-filter-station")).toHaveValue(
       mine.stationId,
+    );
+    await expect(page.getByTestId("checklist-filter-store")).not.toHaveValue(
+      "",
     );
   });
 

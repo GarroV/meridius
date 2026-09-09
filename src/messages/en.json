@@ -162,7 +162,7 @@
       "filterAll": "All",
       "filterApply": "Show",
       "filterEmpty": "Nothing matches the filter",
-      "filterEmptyHint": "The selected station has no checklists yet — or none have been created.",
+      "filterEmptyHint": "Nothing has been created under the current selection yet. Change it or create the first one.",
       "filterReset": "Show all"
     },
     "form": {

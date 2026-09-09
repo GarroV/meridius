@@ -76,8 +76,57 @@ export function buildFilterCatalog(
   };
 }
 
+/**
+ * Крошка над заголовком: где именно методист сейчас смотрит. На эталоне на её месте
+ * стоит «Казахстан» — то есть выбранная страна, а не постоянная надпись. Без этого
+ * сужённый список выглядит как весь список сети, и «пропавшие» чек-листы ищут заново.
+ */
+export function filterCrumb(
+  selection: ChecklistFilterSelection,
+  allLabel: string,
+): string {
+  const chosen: [readonly FilterOption[], string | null][] = [
+    [selection.countries, selection.filter.countryId],
+    [selection.stores, selection.filter.storeId],
+    [selection.stations, selection.filter.stationId],
+  ];
+
+  const steps = chosen
+    .map(([options, id]) => options.find((option) => option.id === id)?.name)
+    .filter((name) => name !== undefined);
+
+  return steps.length === 0 ? allLabel : steps.join(" · ");
+}
+
 function exists(options: readonly FilterOption[], id: string | null): boolean {
   return id !== null && options.some((option) => option.id === id);
+}
+
+/**
+ * Ступень вверх достраивается по нижней: выбрав «Кухню Алматы», методист выбрал и
+ * пиццерию, и страну. Без этого экран списка одной станции подписан «Все страны», а
+ * название станции в списке остаётся путём («Алматы, Абая 44 · Кухня») и не влезает
+ * в поле — обрезанное посреди слова значение прочесть нельзя.
+ *
+ * Достраивается только пустое: явный выбор не переписывается, поэтому несогласованную
+ * пару (станция Казахстана при выбранном Узбекистане) подстановка не спасает — её
+ * по-прежнему отбрасывает сужение ниже.
+ */
+function completeFilter(
+  filter: ChecklistFilter,
+  catalog: ChecklistFilterCatalog,
+): ChecklistFilter {
+  const station = catalog.stations.find(
+    (option) => option.id === filter.stationId,
+  );
+  const storeId = filter.storeId ?? station?.storeId ?? null;
+  const store = catalog.stores.find((option) => option.id === storeId);
+
+  return {
+    countryId: filter.countryId ?? store?.countryId ?? null,
+    storeId,
+    stationId: filter.stationId,
+  };
 }
 
 /**
@@ -85,9 +134,10 @@ function exists(options: readonly FilterOption[], id: string | null): boolean {
  * существующие и согласованные между собой) и списки, уже суженные выбором.
  */
 export function resolveChecklistFilter(
-  filter: ChecklistFilter,
+  chosen: ChecklistFilter,
   catalog: ChecklistFilterCatalog,
 ): ChecklistFilterSelection {
+  const filter = completeFilter(chosen, catalog);
   const countryId = exists(catalog.countries, filter.countryId)
     ? filter.countryId
     : null;

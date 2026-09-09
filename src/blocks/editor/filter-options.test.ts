@@ -3,7 +3,11 @@
 // чек-листов, и экран молча показывает «ничего не найдено» там, где найтись не могло.
 import { describe, expect, test } from "vitest";
 
-import { buildFilterCatalog, resolveChecklistFilter } from "./filter-options";
+import {
+  buildFilterCatalog,
+  filterCrumb,
+  resolveChecklistFilter,
+} from "./filter-options";
 import type { StationOption } from "./listing";
 
 const KZ = "11111111-1111-4111-8111-111111111111";
@@ -149,6 +153,37 @@ describe("resolveChecklistFilter", () => {
     expect(selection.filter.storeId).toStrictEqual(ALMATY);
   });
 
+  test("выбранная станция подставляет свою пиццерию и страну", () => {
+    // Выбрав «Кухню Алматы», методист выбрал и пиццерию, и страну — списки обязаны
+    // это показать, иначе экран говорит «все страны» о списке одной станции.
+    const selection = resolveChecklistFilter(
+      { countryId: null, storeId: null, stationId: KITCHEN_ALMATY },
+      catalog,
+    );
+
+    expect(selection.filter).toStrictEqual({
+      countryId: KZ,
+      storeId: ALMATY,
+      stationId: KITCHEN_ALMATY,
+    });
+    // И раз пиццерия теперь выбрана, путь из названия станции уходит: он не нужен.
+    expect(names(selection.stations)).toStrictEqual(["Кухня", "Касса"]);
+  });
+
+  test("подстановка не спасает несогласованный выбор", () => {
+    // Станция Казахстана при выбранном Узбекистане — не повод подставить Казахстан.
+    const selection = resolveChecklistFilter(
+      { countryId: UZ, storeId: null, stationId: KITCHEN_ALMATY },
+      catalog,
+    );
+
+    expect(selection.filter).toStrictEqual({
+      countryId: UZ,
+      storeId: null,
+      stationId: null,
+    });
+  });
+
   test("несуществующий выбор отбрасывается целиком", () => {
     // Пиццерию могли удалить из справочника, пока ссылка лежала в чате.
     const selection = resolveChecklistFilter(
@@ -174,5 +209,42 @@ describe("resolveChecklistFilter", () => {
     expect(resolveChecklistFilter(filter, catalog).filter).toStrictEqual(
       filter,
     );
+  });
+});
+
+describe("filterCrumb", () => {
+  const catalog = buildFilterCatalog(STATIONS);
+
+  function crumbOf(filter: {
+    countryId: string | null;
+    storeId: string | null;
+    stationId: string | null;
+  }): string {
+    return filterCrumb(resolveChecklistFilter(filter, catalog), "Все страны");
+  }
+
+  test("без сужения крошка говорит «все страны», как и было", () => {
+    expect(
+      crumbOf({ countryId: null, storeId: null, stationId: null }),
+    ).toStrictEqual("Все страны");
+  });
+
+  test("выбранная страна попадает в крошку — так на эталоне", () => {
+    expect(
+      crumbOf({ countryId: KZ, storeId: null, stationId: null }),
+    ).toStrictEqual("Казахстан");
+  });
+
+  test("крошка собирает весь выбранный путь, а не одну его ступень", () => {
+    expect(
+      crumbOf({ countryId: KZ, storeId: ALMATY, stationId: KITCHEN_ALMATY }),
+    ).toStrictEqual("Казахстан · Алматы, Абая 44 · Кухня");
+  });
+
+  test("несогласованная ступень в крошку не попадает: её нет и в списке", () => {
+    // Пиццерия чужой страны выпала из выбора — крошка обязана показать то же, что фильтр.
+    expect(
+      crumbOf({ countryId: KZ, storeId: TASHKENT, stationId: null }),
+    ).toStrictEqual("Казахстан");
   });
 });
