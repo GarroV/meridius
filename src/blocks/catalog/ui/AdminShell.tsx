@@ -4,7 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 
 /**
- * Каркас админки по эталону (`docs/forge/design/screens/*.html`): левое меню
+ * Каркас админки по эталону (`docs/furca/design/screens/*.html`): левое меню
  * шириной 208px и верхняя полоса с крошкой и заголовком раздела. Каркас общий для
  * будущих экранов справочника, поэтому сам не решает, какой раздел активен, —
  * это решает вызывающий экран через пропы.
