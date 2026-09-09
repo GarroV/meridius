@@ -171,6 +171,8 @@ describe("resolveChecklistFilter", () => {
       stationId: KITCHEN_ALMATY,
     };
 
-    expect(resolveChecklistFilter(filter, catalog).filter).toStrictEqual(filter);
+    expect(resolveChecklistFilter(filter, catalog).filter).toStrictEqual(
+      filter,
+    );
   });
 });

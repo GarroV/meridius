@@ -61,12 +61,9 @@ const MAX_HOUR = 24;
 
 // Опознаватели строк базы — uuid. Проверка нужна до запроса: чужая строка в колонке uuid
 // роняет драйвер ошибкой 22P02, а экрану нужен обычный «не найдено».
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export function isUuid(value: string): boolean {
-  return UUID_PATTERN.test(value);
-}
+// Сама проверка живёт в `./uuid` — файле без импортов: её зовут и с сервера, и из
+// разметки, которая уезжает в браузер, а этот файл тянет за собой слой данных.
+export { isUuid } from "./uuid";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

@@ -5,8 +5,10 @@
 //
 // Всё, что приходит из адреса, разбирается строго: это ввод от кого угодно, а не от
 // нашей же формы.
+// Импорты этого файла держатся пустыми нарочно: он уезжает в браузер вместе со
+// списками фильтра, а `./validation` тянет за собой слой данных и драйвер базы.
 import { CHECKLISTS_PATH } from "./routes";
-import { isUuid } from "./validation";
+import { isUuid } from "./uuid";
 
 export const COUNTRY_PARAM = "country";
 export const STORE_PARAM = "store";
