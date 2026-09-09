@@ -155,7 +155,15 @@
       "noStation": "no station",
       "noStore": "No store",
       "empty": "No checklists yet",
-      "emptyHint": "Create the first one: title, station, window — then start typing items."
+      "emptyHint": "Create the first one: title, station, window — then start typing items.",
+      "filterCountry": "Country",
+      "filterStore": "Store",
+      "filterStation": "Station",
+      "filterAll": "All",
+      "filterApply": "Show",
+      "filterEmpty": "Nothing matches the filter",
+      "filterEmptyHint": "The selected station has no checklists yet — or none have been created.",
+      "filterReset": "Show all"
     },
     "form": {
       "title": "Title",
