@@ -5,6 +5,7 @@ import type { ReactElement } from "react";
 import { COUNTRY_PARAM, STATION_PARAM, STORE_PARAM } from "../filter";
 import type { ChecklistFilterSelection, FilterOption } from "../filter-options";
 import { SELECT_ARROW } from "./select-style";
+import { useLive } from "./use-live";
 
 /**
  * Три списка фильтра (эталон `docs/furca/design/screens/templates.html`, строки 48–57):
@@ -19,6 +20,13 @@ import { SELECT_ARROW } from "./select-style";
  * модулей запрещают `editor` зависеть от `feed` (`.dependency-cruiser.cjs`), поэтому
  * классы скопированы, а не переиспользованы. Стрелка списка — не дублируется: она
  * уже есть в editor (`./select-style`).
+ *
+ * Каждый список говорит `data-live="true"`, когда применение выбора действительно
+ * включилось. До этого момента список в разметке, с правильными вариантами, принимает
+ * выбор — и не делает ничего: обработчика ещё нет, событие `change` уходит в пустоту,
+ * и перехода, которого ждёт следующий шаг, не будет никогда. Снаружи эти два состояния
+ * неразличимы (T121, тот же класс, что T106 в ленте). Почему признак ставится эффектом
+ * и почему он живёт в `./use-live` — там же в пояснении.
  */
 
 const FIELD_BASE_CLASS = "flex flex-col gap-[var(--space-3)]";
@@ -50,6 +58,7 @@ interface FilterFieldProps {
   readonly allLabel: string;
   readonly widthClass: string;
   readonly options: readonly FilterOption[];
+  readonly live: boolean;
 }
 
 function FilterField({
@@ -59,6 +68,7 @@ function FilterField({
   allLabel,
   widthClass,
   options,
+  live,
 }: FilterFieldProps): ReactElement {
   const fieldId = `checklist-filter-${name}`;
 
@@ -73,6 +83,7 @@ function FilterField({
         defaultValue={value}
         onChange={applyOnChange}
         data-testid={fieldId}
+        data-live={live ? "true" : undefined}
         className={SELECT_CLASS}
         style={SELECT_ARROW}
       >
@@ -91,9 +102,12 @@ export function ChecklistFilterSelects({
   selection,
   labels,
 }: ChecklistFilterSelectsProps): ReactElement {
+  const live = useLive();
+
   return (
     <>
       <FilterField
+        live={live}
         name={COUNTRY_PARAM}
         label={labels.country}
         value={selection.filter.countryId ?? ""}
@@ -102,6 +116,7 @@ export function ChecklistFilterSelects({
         options={selection.countries}
       />
       <FilterField
+        live={live}
         name={STORE_PARAM}
         label={labels.store}
         value={selection.filter.storeId ?? ""}
@@ -110,6 +125,7 @@ export function ChecklistFilterSelects({
         options={selection.stores}
       />
       <FilterField
+        live={live}
         name={STATION_PARAM}
         label={labels.station}
         value={selection.filter.stationId ?? ""}

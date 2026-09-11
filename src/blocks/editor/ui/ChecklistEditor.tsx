@@ -39,6 +39,7 @@ import type { WindowValue } from "./PropertiesCard";
 import { PropertiesCard } from "./PropertiesCard";
 import { SectionCard } from "./SectionCard";
 import { LibraryPanel, StationNotice, VersionsPanel } from "./SidePanels";
+import { useLive } from "./use-live";
 
 export interface ChecklistEditorProps {
   readonly checklistId: string;
@@ -98,6 +99,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
   }, []);
   // Вставка блока доступна из двух мест эталона: правой колонки и кнопки под секциями.
   const [pickingBlock, setPickingBlock] = useState(false);
+  const live = useLive();
 
   const [saveState, saveAction, saving] = useActionState(
     submitSaveDraft,
@@ -337,6 +339,12 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               <button
                 type="button"
                 data-testid="insert-block"
+                // Кнопка клиентская и запасного пути не имеет: до того как редактор
+                // оживёт, она в разметке, принимает нажатие и не открывает ничего.
+                // Панель библиотеки при этом стоит в правой колонке всегда, поэтому
+                // потерянное нажатие снаружи не видно вовсе — признак `data-live`
+                // делает эту разницу наблюдаемой (T121).
+                data-live={live ? "true" : undefined}
                 className={BUTTON_CLASS}
                 onClick={() => {
                   setPickingBlock((open) => !open);

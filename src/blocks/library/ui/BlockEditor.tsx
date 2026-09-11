@@ -23,6 +23,7 @@ import {
 } from "@/blocks/editor/editing";
 import { parsePastedLines, parsePastedList } from "@/blocks/editor/paste";
 import { itemInputId, ItemRow } from "@/blocks/editor/ui/ItemRow";
+import { useLive } from "@/blocks/editor/ui/use-live";
 
 import type { LibraryActionState } from "../action-state";
 import { INITIAL_LIBRARY_STATE } from "../action-state";
@@ -72,6 +73,7 @@ export function BlockEditor(props: BlockEditorProps) {
   );
   const [title, setTitle] = useState(props.initialTitle);
   const [focusItemId, setFocusItemId] = useState<string | null>(null);
+  const live = useLive();
 
   const [state, saveAction, saving] = useActionState(
     submitSaveBlock,
@@ -138,7 +140,23 @@ export function BlockEditor(props: BlockEditorProps) {
   }
 
   return (
-    <form action={saveAction} data-testid="block-editor" className={CARD_CLASS}>
+    // Два факта о разметке, без которых снаружи не отличить рабочий экран от
+    // неотличимо похожего на него (T121):
+    //  • `data-block-id` — ЧЕЙ это блок. Экран библиотеки показывает правку блока
+    //    всегда, поэтому во время перехода к другому блоку на экране стоит форма
+    //    ПРЕЖНЕГО блока с тем же `data-testid`. Правка, попавшая в неё, исчезает
+    //    молча: переход доезжает, компонент перемонтируется по `key`, и в поле
+    //    возвращается название пришедшего блока.
+    //  • `data-live` — ожил ли экран. До этого поле названия принимает ввод, но в
+    //    состояние он не попадает (обработчика ещё нет), и первый же перерисов
+    //    возвращает в поле прежнее значение — правка снова исчезает молча.
+    <form
+      action={saveAction}
+      data-testid="block-editor"
+      data-block-id={props.blockId}
+      data-live={live ? "true" : undefined}
+      className={CARD_CLASS}
+    >
       <input type="hidden" name="blockId" value={props.blockId} />
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="items" value={JSON.stringify(items)} />
