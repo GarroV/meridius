@@ -15,6 +15,7 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 
 import { repositoryRoot } from "./repo-copy";
+import { withoutComments } from "./source-text";
 
 /** Где ищем: вся разметка продукта. */
 const ROOTS = ["src/app", "src/blocks"];
@@ -30,18 +31,9 @@ const ALLOWED = /\bdownload\b|href=["'](?:https?:|mailto:|tel:|#)/;
 
 const OPENING_TAG = /<a[\s>][^>]*>/g;
 
-/**
- * Комментарии из текста убираются: правило про `<a href>` объясняется словами в самих
- * файлах, и без этого сторож ловил бы собственное объяснение. Убираются целые строки —
- * так `//` внутри строкового литерала (`https://…`) не режет код на середине.
- */
-function withoutComments(source: string): string {
-  return source
-    .replaceAll(/\{?\/\*[\S\s]*?\*\/\}?/g, "")
-    .split("\n")
-    .filter((line) => !/^\s*(?:\/\/|\*)/.test(line))
-    .join("\n");
-}
+// Комментарии снимает общий помощник `source-text`: правило про `<a href>` объясняется
+// словами в самих файлах, и без этого сторож ловил бы собственное объяснение. Приём
+// понадобился третьему сторожу подряд, поэтому переехал из копий в один модуль (T123).
 
 function tsxFiles(directory: string): string[] {
   const found: string[] = [];
