@@ -33,9 +33,10 @@ import {
 import type { LibraryEntry } from "../library-links";
 import type { StationOption } from "../listing";
 import { parsePastedLines, parsePastedList } from "../paste";
+import type { WindowValue } from "../window-field";
+import { WINDOW_FIELD, windowFieldValue } from "../window-field";
 import { EditorStatus } from "./EditorStatus";
 import { itemInputId } from "./ItemRow";
-import type { WindowValue } from "./PropertiesCard";
 import { PropertiesCard } from "./PropertiesCard";
 import { SectionCard } from "./SectionCard";
 import { LibraryPanel, StationNotice, VersionsPanel } from "./SidePanels";
@@ -418,8 +419,15 @@ function HiddenState({
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="title" value={title} />
       <input type="hidden" name="stationId" value={stationId} />
-      <input type="hidden" name="windowStart" value={window.start} />
-      <input type="hidden" name="windowEnd" value={window.end} />
+      {/* Окно едет одним полем — тем же, каким его отправляет список на заведении
+          (`window-field.ts`): два разных вида одного свойства на одном контракте
+          расходятся молча. Здесь список стоит ВНЕ обеих форм, поэтому отправляет
+          его по-прежнему состояние экрана. */}
+      <input
+        type="hidden"
+        name={WINDOW_FIELD}
+        value={windowFieldValue(window)}
+      />
       <input type="hidden" name="sections" value={JSON.stringify(sections)} />
     </>
   );

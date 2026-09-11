@@ -10,6 +10,7 @@ import type { EditorActionState } from "./action-state";
 import type { ChecklistInput } from "./drafts";
 import type { EditorErrorCode } from "./validation";
 import { EditorInputError, LIMITS, parseSections } from "./validation";
+import { WINDOW_FIELD, parseWindowField } from "./window-field";
 
 // Предел, о котором говорит сообщение об отказе: «не больше N пунктов».
 const LIMIT_BY_CODE: Partial<Record<EditorErrorCode, number>> = {
@@ -35,16 +36,19 @@ export function sectionsFrom(form: FormData): Section[] {
   return parseSections(parsed);
 }
 
-/** Свойства чек-листа из формы. Проверку значений делает слой черновика. */
+/**
+ * Свойства чек-листа из формы. Проверку значений делает слой черновика.
+ *
+ * Окно приходит ОДНИМ полем, и отправляет его сам список на экране (`window-field.ts`).
+ * Пара полей `windowStart`/`windowEnd` считалась из состояния React и отставала от
+ * выбора, сделанного до того как экран ожил: на сервер уезжала не та смена (T129).
+ */
 export function checklistInputFrom(form: FormData): ChecklistInput {
   const stationId = formText(form, "stationId");
   return {
     stationId: stationId === "" ? null : stationId,
     title: { [formText(form, "locale")]: formText(form, "title") },
-    window: {
-      start: formText(form, "windowStart"),
-      end: formText(form, "windowEnd"),
-    },
+    window: parseWindowField(formText(form, WINDOW_FIELD)),
   };
 }
 

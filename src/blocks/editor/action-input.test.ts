@@ -70,8 +70,7 @@ describe("checklistInputFrom", () => {
         locale: "en",
         title: "Kitchen opening",
         stationId: "0f3a1f6e-6c1a-4c2e-9f2a-1f2b3c4d5e6f",
-        windowStart: "06:00",
-        windowEnd: "11:00",
+        window: "06:00|11:00",
       }),
     );
 
@@ -79,6 +78,23 @@ describe("checklistInputFrom", () => {
       stationId: "0f3a1f6e-6c1a-4c2e-9f2a-1f2b3c4d5e6f",
       title: { en: "Kitchen opening" },
       window: { start: "06:00", end: "11:00" },
+    });
+  });
+
+  test("окно берётся из формы, а не из умолчания", () => {
+    // Прямая проверка дефекта T129: пришёл вечер — уехать обязан вечер. Пока окно
+    // считалось из состояния React, форма присылала утро при выбранном вечере.
+    expect(
+      checklistInputFrom(form({ window: "20:00|00:00" })).window,
+    ).toStrictEqual({ start: "20:00", end: "00:00" });
+  });
+
+  test("поля окна нет вовсе — пустые границы, а не тихое утро", () => {
+    // Пустые границы дальше получат внятный отказ. Подставленное здесь окно означало бы
+    // чек-лист, заведённый на смену, которой никто не выбирал.
+    expect(checklistInputFrom(form({})).window).toStrictEqual({
+      start: "",
+      end: "",
     });
   });
 

@@ -2,31 +2,13 @@ import { useTranslations } from "next-intl";
 import type { ChangeEvent } from "react";
 
 import type { StationOption } from "../listing";
+import type { WindowValue } from "../window-field";
+import {
+  WINDOW_PRESETS,
+  parseWindowField,
+  windowFieldValue,
+} from "../window-field";
 import { SELECT_ARROW } from "./select-style";
-
-/** Окно времени в форме: варианты из эталона плюс то, что уже записано у чек-листа. */
-export interface WindowValue {
-  start: string;
-  end: string;
-}
-
-const WINDOW_PRESETS: readonly {
-  key: "windowMorning" | "windowEvening" | "windowAny";
-  value: WindowValue;
-}[] = [
-  { key: "windowMorning", value: { start: "06:00", end: "11:00" } },
-  { key: "windowEvening", value: { start: "20:00", end: "00:00" } },
-  { key: "windowAny", value: { start: "00:00", end: "24:00" } },
-];
-
-function windowKey(value: WindowValue): string {
-  return `${value.start}|${value.end}`;
-}
-
-function parseWindowKey(key: string): WindowValue {
-  const [start = "", end = ""] = key.split("|");
-  return { start, end };
-}
 
 const FIELD_LABEL_CLASS =
   "text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
@@ -57,9 +39,9 @@ export function PropertiesCard({
   readonly onWindow: (value: WindowValue) => void;
 }) {
   const t = useTranslations("editor.form");
-  const current = windowKey(window);
+  const current = windowFieldValue(window);
   const isPreset = WINDOW_PRESETS.some(
-    (preset) => windowKey(preset.value) === current,
+    (preset) => windowFieldValue(preset.value) === current,
   );
 
   return (
@@ -115,12 +97,15 @@ export function PropertiesCard({
             style={SELECT_ARROW}
             value={current}
             onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-              onWindow(parseWindowKey(event.target.value));
+              onWindow(parseWindowField(event.target.value));
             }}
           >
             {WINDOW_PRESETS.map((preset) => (
-              <option key={preset.key} value={windowKey(preset.value)}>
-                {t(preset.key)}
+              <option
+                key={preset.labelKey}
+                value={windowFieldValue(preset.value)}
+              >
+                {t(preset.labelKey)}
               </option>
             ))}
             {isPreset ? null : (

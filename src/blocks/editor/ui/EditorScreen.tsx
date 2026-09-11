@@ -9,8 +9,8 @@ import type { LocalizedText } from "@/blocks/data";
 import { loadEditor } from "../drafts";
 import { listStations } from "../listing";
 import { checklistPreviewPath } from "../routes";
+import type { WindowValue } from "../window-field";
 import { ChecklistEditor } from "./ChecklistEditor";
-import type { WindowValue } from "./PropertiesCard";
 
 /** Текст на языке интерфейса, а если его нет — любой имеющийся: пустой заголовок хуже чужого. */
 function pickText(text: LocalizedText, locale: string): string {
