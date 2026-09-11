@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 
 import type { FeedSelection } from "../model";
@@ -19,7 +20,26 @@ import {
  *
  * Тексты приходят пропами, а не через `useTranslations`: провайдера next-intl на
  * клиенте в проекте нет (так же устроена форма входа `src/blocks/auth/ui/LoginForm.tsx`).
+ *
+ * Каждый список говорит `data-live="true"`, когда применение выбора действительно
+ * включилось. Разметку списков отдаёт сервер, и до гидратации они выглядят рабочими,
+ * принимают выбор и НИЧЕГО не делают: обработчика ещё нет, событие уходит в пустоту.
+ * Снаружи эти два состояния неразличимы, а разница между ними — целая навигация
+ * (T106). Атрибут ставится эффектом, то есть после коммита гидратации: раз он
+ * появился, обработчик выбора уже на месте. Это тот же род фактов о разметке, что
+ * `data-testid` и `data-kind` рядом, и он же честно описывает вторую половину
+ * прогрессивного улучшения — первую описывает кнопка в `<noscript>`.
  */
+
+/** `true`, когда компонент смонтирован на клиенте, то есть выбор уже применяется сам. */
+function useAppliesOnChange(): boolean {
+  const [live, setLive] = useState(false);
+  // Пустые зависимости: факт «гидратация доехала» случается один раз за жизнь страницы.
+  useEffect(() => {
+    setLive(true);
+  }, []);
+  return live;
+}
 
 const FIELD_CLASS = "flex min-w-[150px] flex-col gap-[var(--space-3)]";
 const LABEL_CLASS =
@@ -63,6 +83,7 @@ interface FilterFieldProps {
   readonly value: string;
   readonly allLabel: string;
   readonly options: readonly { readonly id: string; readonly name: string }[];
+  readonly live: boolean;
 }
 
 function FilterField({
@@ -71,6 +92,7 @@ function FilterField({
   value,
   allLabel,
   options,
+  live,
 }: FilterFieldProps): ReactElement {
   return (
     <div className={FIELD_CLASS}>
@@ -86,6 +108,7 @@ function FilterField({
         name={name}
         defaultValue={value}
         onChange={applyOnChange}
+        data-live={live ? "true" : undefined}
         className={SELECT_CLASS}
         style={SELECT_ARROW}
       >
@@ -104,6 +127,8 @@ export function FeedFilterSelects({
   selection,
   labels,
 }: FeedFilterSelectsProps): ReactElement {
+  const live = useAppliesOnChange();
+
   const periodLabels: Record<string, string> = {
     today: labels.periodToday,
     week: labels.periodWeek,
@@ -113,6 +138,7 @@ export function FeedFilterSelects({
   return (
     <>
       <FilterField
+        live={live}
         name={COUNTRY_PARAM}
         label={labels.country}
         value={selection.countryId ?? ""}
@@ -120,6 +146,7 @@ export function FeedFilterSelects({
         options={selection.countries}
       />
       <FilterField
+        live={live}
         name={STORE_PARAM}
         label={labels.store}
         value={selection.storeId ?? ""}
@@ -127,6 +154,7 @@ export function FeedFilterSelects({
         options={selection.stores}
       />
       <FilterField
+        live={live}
         name={STATION_PARAM}
         label={labels.station}
         value={selection.stationId ?? ""}
@@ -144,6 +172,7 @@ export function FeedFilterSelects({
           name={PERIOD_PARAM}
           defaultValue={selection.period}
           onChange={applyOnChange}
+          data-live={live ? "true" : undefined}
           className={SELECT_CLASS}
           style={SELECT_ARROW}
         >
