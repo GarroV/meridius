@@ -36,6 +36,8 @@ export interface StationItem {
   checklists: StationChecklistItem[];
   selected: boolean;
   href: string;
+  /** Кнопка «QR» строки: раздел QR с этой станцией выбранной. */
+  qrHref: string;
 }
 
 export interface CountryDetail {
@@ -68,6 +70,8 @@ interface CatalogHrefs {
   createStation: string;
   /** Свернуть любую форму создания или подтверждение. */
   cancel: string;
+  /** Кнопка верхней полосы: коды станций выбранной пиццерии в разделе QR. */
+  qrStations: string;
 }
 
 export interface CatalogModel {

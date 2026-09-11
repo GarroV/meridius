@@ -3,7 +3,7 @@
 // не доезжает до запроса как есть.
 import { describe, expect, test } from "vitest";
 
-import { catalogHref, parseCatalogView } from "./view";
+import { catalogHref, parseCatalogView, qrStationsHref } from "./view";
 
 const ID = "8f14e45f-ceea-467a-9c2b-3f2a1b7e0d11";
 const OTHER_ID = "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed";
@@ -104,5 +104,33 @@ describe("сборка адреса экрана", () => {
     );
 
     expect(parsed).toStrictEqual({ ...view });
+  });
+});
+
+// Раздел QR — соседний блок, и справочник не имеет права его импортировать (границы
+// модулей: зависимость идёт в обратную сторону). Значит имена параметров адреса
+// совпадают у двух блоков только по договорённости — здесь закреплена половина
+// справочника, вторую половину держит сквозной сценарий `e2e/catalog-qr.spec.ts`.
+describe("адрес раздела QR (T107)", () => {
+  test("пиццерия не выбрана — ведём в сам раздел, там экран предложит выбрать", () => {
+    expect(qrStationsHref({ storeId: null })).toBe("/admin/qr");
+  });
+
+  test("пиццерия уезжает параметром store — тем же именем, что читает раздел QR", () => {
+    expect(qrStationsHref({ storeId: ID })).toBe(`/admin/qr?store=${ID}`);
+  });
+
+  test("станция добавляется к пиццерии, а не вместо неё", () => {
+    expect(qrStationsHref({ storeId: ID, stationId: OTHER_ID })).toBe(
+      `/admin/qr?store=${ID}&station=${OTHER_ID}`,
+    );
+  });
+
+  test("станция без пиццерии в адрес не попадает: половина ссылки никуда не ведёт", () => {
+    // Раздел QR ищет станцию внутри пиццерии и в одиночку её не находит — показал бы
+    // выбор пиццерии, молча забыв про станцию. Лучше не обещать того, чего не будет.
+    expect(qrStationsHref({ storeId: null, stationId: OTHER_ID })).toBe(
+      "/admin/qr",
+    );
   });
 });
