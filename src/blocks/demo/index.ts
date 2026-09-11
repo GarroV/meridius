@@ -5,3 +5,15 @@ export { seedDemo } from "./seed";
 
 export type { DemoDataset } from "./model";
 export { DEMO } from "./dataset";
+
+// Уборка за сквозным смоуком и перепись контура: зовёт `scripts/mvp-smoke.mjs`.
+export type { Census, SmokeNames, SmokeSweep } from "./smoke";
+export {
+  SMOKE_MARKER,
+  censusDifferences,
+  contourCensus,
+  countDetachedChecklists,
+  readCensus,
+  smokeNames,
+  sweepSmokeRuns,
+} from "./smoke";
