@@ -2,8 +2,9 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import { AdminShell } from "@/blocks/core/ui/AdminShell";
+
 import { submitDeleteStation, submitDeleteStore } from "./actions";
-import { AdminShell } from "./AdminShell";
 import { CatalogTree } from "./CatalogTree";
 import { DetailCards } from "./DetailCards";
 import type { CatalogModel, StationDetail, StoreDetail } from "./model";
@@ -167,6 +168,7 @@ export async function CatalogScreen({
   return (
     <AdminShell
       testId="catalog-screen"
+      active="catalog"
       breadcrumb={t("breadcrumb")}
       title={t("title")}
       topbarAction={

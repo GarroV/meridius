@@ -3,12 +3,12 @@ import type { AbstractIntlMessages } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
+import { AdminNav } from "@/blocks/core/ui/AdminNav";
 import type { LocalizedText } from "@/blocks/data";
 
 import { loadEditor } from "../drafts";
 import { listStations } from "../listing";
 import { checklistPreviewPath } from "../routes";
-import { AdminNav } from "./AdminNav";
 import { ChecklistEditor } from "./ChecklistEditor";
 import type { WindowValue } from "./PropertiesCard";
 

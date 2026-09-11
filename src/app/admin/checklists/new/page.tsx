@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
+import { AdminShell } from "@/blocks/core/ui/AdminShell";
 import { listStations } from "@/blocks/editor/listing";
-import { AdminShell } from "@/blocks/editor/ui/AdminShell";
 import type { NewChecklistLabels } from "@/blocks/editor/ui/NewChecklistForm";
 import { NewChecklistForm } from "@/blocks/editor/ui/NewChecklistForm";
 import { LIMITS } from "@/blocks/editor/validation";
@@ -43,6 +43,7 @@ export default async function NewChecklistPage() {
   return (
     <AdminShell
       testId="new-checklist-screen"
+      active="checklists"
       breadcrumb={t("list.title")}
       title={t("form.create")}
       topbarAction={null}
