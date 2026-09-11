@@ -1,6 +1,58 @@
-import { describe, expect, test } from "vitest";
+import { Buffer } from "node:buffer";
+
+import { describe, expect, test, vi } from "vitest";
 
 import { hashPassword, verifyPassword } from "./password";
+
+/**
+ * Журнал криптографических операций одной проверки пароля.
+ *
+ * Заведён через `vi.hoisted`, потому что фабрика `vi.mock` поднимается выше объявлений
+ * файла и обычную переменную из неё не видно.
+ */
+const { operations } = vi.hoisted(() => ({ operations: [] as string[] }));
+
+interface ScryptOptions {
+  readonly N: number;
+  readonly r: number;
+  readonly p: number;
+  readonly maxmem: number;
+}
+
+/**
+ * Настоящий `node:crypto`, но каждый вызов `scrypt` и `timingSafeEqual` попадает в журнал.
+ * Подменено только наблюдение: работу выполняет та же самая реализация, поэтому остальные
+ * проверки файла видят обычное поведение.
+ *
+ * Сам пароль в журнал НЕ пишется — он единственное, чему позволено различаться между
+ * ветками. Записывается только работа: соль, длина ключа, параметры scrypt, длины
+ * сравниваемых буферов и порядок вызовов.
+ */
+vi.mock("node:crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:crypto")>();
+
+  return {
+    ...actual,
+    scrypt(
+      password: string,
+      salt: Buffer,
+      keyLength: number,
+      options: ScryptOptions,
+      callback: (error: Error | null, key: Buffer) => void,
+    ): void {
+      operations.push(
+        `scrypt соль=${salt.toString("base64url")} ключ=${String(keyLength)} N=${String(options.N)} r=${String(options.r)} p=${String(options.p)}`,
+      );
+      actual.scrypt(password, salt, keyLength, options, callback);
+    },
+    timingSafeEqual(left: Buffer, right: Buffer): boolean {
+      operations.push(
+        `timingSafeEqual ${String(left.length)}=${String(right.length)}`,
+      );
+      return actual.timingSafeEqual(left, right);
+    },
+  };
+});
 
 // Параметры слабее рабочих: тесту нужна проверяемая логика, а не стойкость к перебору.
 // Формат хранит параметры внутри строки, поэтому рабочий хэш проверяется тем же кодом.
@@ -117,43 +169,56 @@ describe("verifyPassword", () => {
   });
 });
 
-// Проверка не на конкретную реализацию, а на наблюдаемое снаружи: неверный пароль
-// не отвечает быстрее верного. Берётся минимум выборки — он устойчив к посторонней
-// нагрузке на машине, в отличие от среднего.
-async function minDuration(
+/**
+ * Записывает работу, которую проверка пароля выполнила на самом деле.
+ *
+ * Журнал общий на файл, поэтому чистится дважды: перед замером — чтобы в него не попала
+ * подготовка хэша, и на выдаче — чтобы следующий замер начинался с пустого.
+ */
+async function operationsOf(
   password: string,
   stored: string,
-  runs: number,
-): Promise<number> {
-  let best = Number.POSITIVE_INFINITY;
-  for (let index = 0; index < runs; index += 1) {
-    const started = performance.now();
-    await verifyPassword(password, stored);
-    best = Math.min(best, performance.now() - started);
-  }
-  return best;
+): Promise<readonly string[]> {
+  operations.splice(0);
+  await verifyPassword(password, stored);
+  return operations.splice(0);
 }
 
+/**
+ * Проверка не настенных часов, а самой работы.
+ *
+ * Замер времени вокруг `scrypt` это свойство доказать не может: ветки «верный» и
+ * «неверный» выполняют одно и то же, поэтому измеряется чистый шум планировщика, а
+ * на общей машине он же и роняет прогон. Вместо него сверяется, что путь неверного
+ * пароля состоит из тех же операций, что путь верного: полный `scrypt` с теми же
+ * параметрами и сравнение целиком через `timingSafeEqual`.
+ */
 describe("сравнение постоянного времени", () => {
-  test("неверный пароль отвечает не быстрее верного", async () => {
-    const stored = await hashPassword(PASSWORD, {
-      cost: 16_384,
-      blockSize: 8,
-      parallelization: 1,
-    });
-    await minDuration(PASSWORD, stored, 2); // прогрев
+  test("неверный пароль проходит ровно ту же работу, что и верный", async () => {
+    const stored = await testHash();
+    const right = await operationsOf(PASSWORD, stored);
 
-    const right = await minDuration(PASSWORD, stored, 7);
-    // Три вида неверного: другой длины, той же длины, отличающийся одним знаком в конце.
-    const wrong = Math.min(
-      await minDuration("x", stored, 7),
-      await minDuration("п".repeat(PASSWORD.length), stored, 7),
-      await minDuration(`${PASSWORD.slice(0, -1)}!`, stored, 7),
-    );
+    // Четыре вида неверного: короче, той же длины, отличается одним знаком, пустой.
+    for (const wrong of [
+      "x",
+      "п".repeat(PASSWORD.length),
+      `${PASSWORD.slice(0, -1)}!`,
+      "",
+    ]) {
+      expect(await operationsOf(wrong, stored)).toStrictEqual(right);
+    }
+  });
 
-    // Ранний выход по длине или посимвольное сравнение дают разрыв в разы,
-    // а не в проценты: порог ловит именно это, не придираясь к шуму планировщика.
-    expect(wrong).toBeGreaterThan(right * 0.7);
-    expect(right).toBeGreaterThan(1);
+  test("путь неверного пароля доходит до scrypt и до timingSafeEqual, а не отваливается раньше", async () => {
+    const stored = await testHash();
+    const salt = stored.split(".")[4] ?? "";
+
+    // Раннего возврата нет: ровно один полный scrypt с параметрами из хэша, затем
+    // сравнение обоих ключей целиком. Сравнение через `Buffer.equals` или `===`
+    // оставило бы журнал без второй строки.
+    await expect(operationsOf("другой-пароль", stored)).resolves.toStrictEqual([
+      `scrypt соль=${salt} ключ=32 N=1024 r=8 p=1`,
+      "timingSafeEqual 32=32",
+    ]);
   });
 });
