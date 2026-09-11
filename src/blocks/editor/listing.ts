@@ -3,10 +3,13 @@
 // Оба запроса читают таблицы, которые ведут другие блоки — справочник (`catalog`)
 // и заполнения (`fill`). Это разрешено прямо: свои запросы блок пишет у себя, беря из
 // `data` схему и `getDb()`, а не заказывает функции в чужом блоке (D024).
-import { asc, sql } from "drizzle-orm";
+import { asc, sql, type SQL } from "drizzle-orm";
 
 import type { LocalizedText } from "@/blocks/data";
 import { countries, getDb, stations, stores } from "@/blocks/data";
+
+import type { ChecklistFilter } from "./filter";
+import { isUuid } from "./validation";
 
 /** Строка экрана «Чек-листы»: где чек-лист живёт, когда открывается и в каком он состоянии. */
 export interface ChecklistRow {
@@ -23,11 +26,18 @@ export interface ChecklistRow {
   submissions7d: number;
 }
 
-/** Станция в выпадающем списке свойств чек-листа. */
+/**
+ * Станция в выпадающем списке свойств чек-листа и в фильтре списка.
+ *
+ * Идентификаторы пиццерии и страны нужны фильтру: из этого же списка выводится весь
+ * его справочник (`buildFilterCatalog`), поэтому трёх отдельных запросов не заводится.
+ */
 export interface StationOption {
   id: string;
   name: string;
+  storeId: string;
   storeName: string;
+  countryId: string;
   countryName: string;
 }
 
@@ -50,13 +60,45 @@ interface ChecklistListRow extends Record<string, unknown> {
 const RECENT_DAYS = 7;
 
 /**
- * Все чек-листы, сгруппированные по пути «страна → пиццерия → станция».
+ * Условия отбора: «не снят с работы» плюс то, чем сужен список.
+ *
+ * Значение, не похожее на идентификатор, не сужает ничего. Оно приходит из адреса, и
+ * разбор его уже отбросил (`parseChecklistFilter`), но список — граница блока: строка
+ * «Казахстан» в `uuid` не приводится, и запрос упал бы отказом базы вместо экрана.
+ */
+function filterConditions(filter: ChecklistFilter): SQL[] {
+  // Снятые с работы не показываются: для методиста они удалены. Сама строка остаётся
+  // в базе только потому, что на её версии ссылаются заполнения (принцип 3, D002).
+  const conditions: SQL[] = [sql`c.archived_at is null`];
+  const chosen: [string, string | null][] = [
+    ["co.id", filter.countryId],
+    ["sto.id", filter.storeId],
+    ["c.station_id", filter.stationId],
+  ];
+
+  for (const [column, id] of chosen) {
+    if (id !== null && isUuid(id)) {
+      conditions.push(sql`${sql.raw(column)} = ${id}::uuid`);
+    }
+  }
+
+  return conditions;
+}
+
+/**
+ * Чек-листы, сгруппированные по пути «страна → пиццерия → станция», суженные фильтром.
+ *
+ * Сужение делает база, а не экран: под фильтром «Кухня Алматы» в браузер незачем
+ * привозить всю сеть, а на счётчики строк (пункты, заполнения) уходит по подзапросу.
  *
  * Пунктов считается столько, сколько их в опубликованной версии, а если её ещё нет —
  * в черновике: методисту нужен размер того, что видит сотрудник, а до первой публикации —
  * того, что он набрал.
  */
-export async function listChecklists(): Promise<ChecklistRow[]> {
+export async function listChecklists(
+  filter: ChecklistFilter,
+): Promise<ChecklistRow[]> {
+  const where = sql.join(filterConditions(filter), sql` and `);
   const rows = await getDb().execute<ChecklistListRow>(sql`
     select c.id::text as id, c.title, c.window_start, c.window_end,
            st.name as station_name, sto.name as store_name, co.name as country_name,
@@ -80,9 +122,7 @@ export async function listChecklists(): Promise<ChecklistRow[]> {
       left join stations st on st.id = c.station_id
       left join stores sto on sto.id = st.store_id
       left join countries co on co.id = sto.country_id
-     -- Снятые с работы не показываются: для методиста они удалены. Сама строка остаётся
-     -- в базе только потому, что на её версии ссылаются заполнения (принцип 3, D002).
-     where c.archived_at is null
+     where ${where}
      order by co.name nulls last, sto.name nulls last, st.name nulls last,
               coalesce(c.title->>'ru', c.title->>'en') nulls last, c.created_at`);
 
@@ -107,7 +147,9 @@ export async function listStations(): Promise<StationOption[]> {
     .select({
       id: stations.id,
       name: stations.name,
+      storeId: stores.id,
       storeName: stores.name,
+      countryId: countries.id,
       countryName: countries.name,
     })
     .from(stations)
