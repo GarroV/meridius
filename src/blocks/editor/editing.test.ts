@@ -13,6 +13,7 @@ import {
   insertItems,
   itemCount,
   insertLibrarySection,
+  linkedBlockId,
   moveItem,
   removeItem,
   removeSection,
@@ -287,5 +288,41 @@ describe("секции", () => {
 describe("itemCount", () => {
   test("считает пункты по всем секциям", () => {
     expect(itemCount(sections())).toBe(4);
+  });
+});
+
+describe("linkedBlockId (куда ведёт «Открыть блок», T115)", () => {
+  const BLOCK_ID = "0f3a1f6e-6c1a-4c2e-9f2a-1f2b3c4d5e6f";
+
+  function withLibraryBlock(): Section[] {
+    return insertLibrarySection(sections(), {
+      id: BLOCK_ID,
+      title: { ru: "Санитария" },
+      items: [item("l1")],
+    });
+  }
+
+  test("у секции-ссылки отдаёт опознаватель вставленного блока", () => {
+    const linked = withLibraryBlock()[2];
+
+    expect(linked === undefined ? null : linkedBlockId(linked)).toBe(BLOCK_ID);
+  });
+
+  test("у своей секции отдаёт null — открывать в библиотеке нечего", () => {
+    const own = sections()[0];
+
+    expect(own === undefined ? "нет секции" : linkedBlockId(own)).toBeNull();
+  });
+
+  test("после отвязки ссылки больше нет", () => {
+    // Иначе «Открыть блок» пережил бы отвязку и увёл бы в блок, к которому секция
+    // уже не имеет отношения.
+    const withBlock = withLibraryBlock();
+    const after = unlinkSection(withBlock, withBlock[2]?.id ?? "");
+    const unlinked = after[2];
+
+    expect(
+      unlinked === undefined ? "нет секции" : linkedBlockId(unlinked),
+    ).toBeNull();
   });
 });

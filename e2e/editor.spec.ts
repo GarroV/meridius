@@ -12,6 +12,7 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { seedStation } from "./database";
 
 const CHECKLISTS_PATH = "/admin/checklists";
+const LIBRARY_PATH = "/admin/library";
 
 // Список ровно в том виде, в каком его копируют из Word: маркеры, нумерация,
 // лишние пробелы и пустая строка посередине.
@@ -44,6 +45,43 @@ async function createChecklist(page: Page, title: string): Promise<string> {
   await page.getByTestId("create-checklist").click();
   await expect(page.getByTestId("editor-screen")).toBeVisible();
   return page.url();
+}
+
+/**
+ * Заводит блок библиотеки и возвращает его опознаватель. Блок нужен редактору как
+ * данные: его вставляют в чек-лист, и из чек-листа обязан быть путь обратно (T115).
+ * Сам экран библиотеки проверяет `library.spec.ts` — здесь он только источник блока.
+ */
+async function createLibraryBlock(
+  page: Page,
+  title: string,
+  itemTitle: string,
+): Promise<string> {
+  await page.goto(LIBRARY_PATH);
+  await page.getByTestId("new-block").click();
+  await expect(page.getByTestId("block-editor")).toBeVisible();
+
+  await page.getByTestId("block-title").fill(title);
+  await page.getByTestId("add-block-item").click();
+  await page.getByTestId("item-title").first().fill(itemTitle);
+  await page.getByTestId("save-block").click();
+  await expect(page.getByTestId("block-saved")).toBeVisible();
+
+  const blockId = new URL(page.url()).searchParams.get("block") ?? "";
+  expect(blockId).not.toBe("");
+  return blockId;
+}
+
+/** Вставляет блок библиотеки в открытый чек-лист — так же, как это делает методист. */
+async function insertBlockByTitle(page: Page, title: string): Promise<void> {
+  await page.getByTestId("insert-block").click();
+  await page
+    .getByTestId("library-panel")
+    .first()
+    .getByTestId("library-block")
+    .filter({ hasText: title })
+    .getByTestId("library-insert")
+    .click();
 }
 
 test.describe("редактор чек-листа", () => {
@@ -248,5 +286,85 @@ test.describe("редактор чек-листа", () => {
     await expect(page.getByTestId("item-title").first()).toHaveValue(
       "Выключить печь",
     );
+  });
+
+  // T115. Пункт «Открыть блок» полгода стоял серой надписью с пояснением «раздела
+  // библиотеки ещё нет»: его нарисовали до блока `library`, а когда раздел появился,
+  // надпись об этом не узнала. Это третий такой случай в продукте (справочник, меню
+  // кабинета, теперь редактор), и цена у него одна: методист видит серый пункт и решает,
+  // что дело в его правах, а не в недоделке, — и молчит.
+  test("из секции вставленного блока методист уходит в сам блок библиотеки", async ({
+    page,
+  }) => {
+    const blockTitle = `Санитария ${label()}`;
+    await signIn(page);
+    const blockId = await createLibraryBlock(
+      page,
+      blockTitle,
+      "Проверить мойку",
+    );
+
+    await createChecklist(page, `Открытие кухни ${label()}`);
+    await insertBlockByTitle(page, blockTitle);
+
+    // Пункт — настоящая ссылка, а не надпись, и ведёт на нужный блок: в библиотеке
+    // на полсотни блоков «просто в раздел» значит «ищи сам».
+    const openBlock = page.getByTestId("section-open-block");
+    await expect(openBlock).toHaveCount(1);
+    await expect(openBlock).toHaveAttribute(
+      "href",
+      `${LIBRARY_PATH}?block=${blockId}`,
+    );
+
+    // Метка переживает переход только у клиентского роутера. Обычному `<a href>` Next
+    // не приставляет базовый путь площадки, и на общем адресе такая ссылка уводит к
+    // чужому продукту (T088, D046) — здесь это проверяется поведением, а не разметкой.
+    await page.evaluate(() => {
+      (window as unknown as Record<string, unknown>)["openBlockProbe"] = "жив";
+    });
+
+    await openBlock.click();
+
+    await expect(page).toHaveURL(
+      new RegExp(`/admin/library\\?block=${blockId}$`),
+    );
+    await expect(page.getByTestId("block-editor")).toBeVisible();
+    await expect(page.getByTestId("block-title")).toHaveValue(blockTitle);
+    expect(
+      await page.evaluate(
+        () => (window as unknown as Record<string, unknown>)["openBlockProbe"],
+      ),
+    ).toBe("жив");
+  });
+
+  // Предпросмотр — показ, а не работающий экран заполнения: отвечает сотрудник, открыв
+  // чек-лист по QR-коду станции. Поэтому здесь не должно быть ни одного элемента, который
+  // выглядит нажимаемым и не нажимается: серая кнопка «осталось N» читалась как сломанная.
+  test("предпросмотр не показывает ни одной нажимаемой на вид, но мёртвой кнопки", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await createChecklist(page, `Предпросмотр ${label()}`);
+    await page.getByTestId("item-title").first().click();
+    await page.keyboard.type("Включить печь");
+    await page.getByTestId("save-draft").click();
+    await expect(page.getByTestId("editor-meta")).toHaveText(
+      "Черновик сохранён",
+    );
+
+    await page.getByRole("link", { name: "Предпросмотр" }).click();
+    const screen = page.getByTestId("preview-screen");
+    await expect(screen).toBeVisible();
+
+    // Футер экрана заполнения показан — методист обязан видеть, что увидит сотрудник.
+    await expect(page.getByTestId("preview-left")).toHaveText(
+      "остался 1 пункт",
+    );
+
+    // Но показан именно показом: ни кнопок, ни выключенных элементов управления.
+    await expect(screen.locator("button")).toHaveCount(0);
+    await expect(
+      screen.locator("[disabled], [aria-disabled='true']"),
+    ).toHaveCount(0);
   });
 });

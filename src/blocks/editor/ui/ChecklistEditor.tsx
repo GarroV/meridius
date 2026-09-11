@@ -261,7 +261,6 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
                   firstOrdinal={firstOrdinal}
                   locale={locale}
                   usageCount={usageOf(section, props.library)}
-                  soonLabel={t("nav.soon")}
                   onSectionTitle={(text) => {
                     setSections(
                       setSectionTitle(sections, section.id, locale, text),

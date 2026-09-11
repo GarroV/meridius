@@ -11,10 +11,16 @@ import { checklistPath } from "../routes";
 
 /**
  * Предпросмотр «как это увидит сотрудник» — та же разметка, что первый телефон
- * эталона `docs/forge/design/screens/fill.html` (класс `.fill`), но данные берутся
- * из живого черновика, а не из ответов сотрудника. Экран только для чтения:
- * ни одного обработчика, сохранение ответов появится вместе с блоком `fill` —
- * до тех пор это временный вид, и плашка сверху говорит об этом прямо.
+ * эталона `docs/furca/design/screens/fill.html` (класс `.fill`), но данные берутся
+ * из живого черновика, а не из ответов сотрудника.
+ *
+ * Экран — показ, и таким останется: отвечает сотрудник, открыв чек-лист по QR-коду
+ * станции (блок `fill`, адрес `/s/<код>`), и ответ принадлежит смене, а не черновику
+ * методиста. Поэтому здесь нет ни одного элемента управления — в том числе в футере
+ * (T115). Раньше футер был настоящей `<button disabled>`, повторявшей кнопку экрана
+ * заполнения: там она законна (сотрудник ответит на пункты, и она оживёт), здесь
+ * ожить не может никогда. Навсегда серая кнопка читается как сломанная, и человек
+ * идёт выяснять, чего ему не хватает в правах, — так продукт уже терял людей трижды.
  */
 
 type Translate = Awaited<ReturnType<typeof getTranslations>>;
@@ -37,8 +43,11 @@ const ITEM_HINT_CLASS =
   "mt-[var(--space-2)] block text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const FOOTER_CLASS =
   "mt-auto border-t border-[var(--line-strong)] px-[var(--space-7)] pt-[var(--space-6)] pb-[var(--space-8)]";
-const FOOTER_BUTTON_CLASS =
-  "h-[52px] w-full rounded-[var(--r-block)] border border-[var(--accent)] bg-accent text-[length:var(--fs-title)] font-medium text-[var(--ink-inverse)] opacity-45 disabled:cursor-not-allowed";
+// Футер экрана заполнения, показанный как есть на эталоне: тот же прямоугольник и та же
+// приглушённость непройденного чек-листа (`opacity:.45` в `fill.html`). Но это картинка,
+// а не кнопка, поэтому курсора «нажми меня» здесь нет — есть курсор текста.
+const FOOTER_NOTE_CLASS =
+  "flex h-[52px] w-full cursor-default items-center justify-center rounded-[var(--r-block)] border border-[var(--accent)] bg-accent text-[length:var(--fs-title)] font-medium text-[var(--ink-inverse)] opacity-45";
 
 /** Название на языке интерфейса; если его нет — первое, что есть. */
 function pickText(text: LocalizedText, locale: string): string {
@@ -249,9 +258,12 @@ export async function PreviewScreen({
               </div>
             ))}
             <div className={FOOTER_CLASS}>
-              <button type="button" disabled className={FOOTER_BUTTON_CLASS}>
+              {/* Показ футера, а не кнопка: нажимать здесь нечего и никогда не будет
+                  (см. объяснение у начала файла). Текст остаётся видимым и читаемым
+                  вслух — методист обязан видеть то же, что увидит сотрудник. */}
+              <div data-testid="preview-left" className={FOOTER_NOTE_CLASS}>
                 {t("preview.left", { count: total })}
-              </button>
+              </div>
             </div>
           </>
         )}

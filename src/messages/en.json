@@ -267,7 +267,7 @@
     "preview": {
       "title": "Preview",
       "back": "Back to the editor",
-      "notice": "This is what an employee sees. The preview shows the draft markup only: saving answers arrives with the fill block.",
+      "notice": "This is what an employee sees. It only shows: the employee answers and submits on their own phone, opening the checklist by the station QR code.",
       "progress": "{done} of {total}",
       "left": "{count, plural, one {# item left} other {# items left}}",
       "finish": "Finish",
