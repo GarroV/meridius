@@ -6,6 +6,7 @@
 // Поэтому Enter создаёт следующий пункт и переносит в него курсор, Alt+стрелки переставляют
 // пункт, а вставка многострочного текста превращается в пачку пунктов сразу — без единого
 // касания мыши между строками (принцип 5, D020).
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
@@ -193,9 +194,9 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
             saveState={saveState}
             publishState={publishState}
           />
-          <a className={BUTTON_CLASS} href={props.previewHref}>
+          <Link className={BUTTON_CLASS} href={props.previewHref}>
             {t("screen.preview")}
-          </a>
+          </Link>
           <form action={saveAction}>
             <HiddenState
               checklistId={props.checklistId}
@@ -313,7 +314,6 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
                   library={props.library}
                   insertedBlockIds={insertedBlockIds}
                   locale={locale}
-                  soonLabel={t("nav.soon")}
                   onInsert={insertBlock}
                 />
               </div>
@@ -368,7 +368,6 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               library={props.library}
               insertedBlockIds={insertedBlockIds}
               locale={locale}
-              soonLabel={t("nav.soon")}
               onInsert={insertBlock}
             />
             <StationNotice station={props.station} />

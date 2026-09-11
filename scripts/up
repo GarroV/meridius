@@ -75,6 +75,14 @@ DB_PORT="$(env_value DB_PORT 5433)"
 PROJECT="${COMPOSE_PROJECT_NAME:-$(env_value COMPOSE_PROJECT_NAME meridius)}"
 URL="http://localhost:${PORT}"
 
+# Порт задан дважды — контейнеру через DB_PORT и продукту внутри DATABASE_URL. Разошлись
+# они молча: контейнер встаёт на один порт, продукт идёт на другой, а на другом у соседней
+# копии стоит её база, и ответ приходит оттуда (T101). Поэтому расхождение — отказ.
+DB_URL_PORT="$(env_value DATABASE_URL '' | sed -n 's#^[^/]*//[^/]*:\([0-9]\{1,5\}\)/.*#\1#p')"
+if [ -n "$DB_URL_PORT" ] && [ "$DB_URL_PORT" != "$DB_PORT" ]; then
+  die "в .env DB_PORT=$DB_PORT, а DATABASE_URL смотрит на порт $DB_URL_PORT — база поднимется не там, куда пойдёт продукт"
+fi
+
 if [ ! -d node_modules ]; then
   step "Зависимости"
   npm ci
@@ -92,6 +100,11 @@ for _ in $(seq 1 60); do
 done
 [ "${state:-}" = "healthy" ] || die "база не поднялась за минуту (docker compose -p $PROJECT logs db)"
 printf ' готова\n'
+
+# Ответить может и чужой стенд: имя рабочей базы у всех копий одно, порт по умолчанию тоже.
+# Метка в самой базе — единственное, чем свой сервер отличается от соседского (T101).
+step "Свой ли стенд"
+node scripts/assert-own-stand.mjs || exit 1
 
 step "Миграции"
 npm run --silent db:migrate

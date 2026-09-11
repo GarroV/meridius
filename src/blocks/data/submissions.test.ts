@@ -143,6 +143,69 @@ describe("счёт пунктов идёт по режиму смены, а не
   });
 });
 
+describe("провалы в строке ленты", () => {
+  test("failedCount считает провалы всех уровней, failedCriticalCount — только критичные", async () => {
+    // Оба числа обязаны приходить из одной строки. Пока строка отдавала только
+    // критичные провалы, лента дочитывала остальные вторым запросом мимо слоя
+    // доступа — и правило провала жило в двух местах сразу (T100).
+    const { station, versionId } = await mixedVersion();
+
+    const id = await saveSubmission({
+      mode: "normal",
+      versionId,
+      answers: [
+        boolAnswer("i-gas", false),
+        boolAnswer("i-till", false),
+        boolAnswer("i-tables", true),
+      ],
+      startedAt: Date.now() - 60_000,
+    });
+
+    const [row] = await listSubmissions({ stationId: station.stationId });
+    expect(row?.id).toBe(id);
+    expect(row?.failedCount).toBe(2);
+    expect(row?.failedCriticalCount).toBe(1);
+    // Карточка собирается тем же преобразованием строки — число обязано совпасть.
+    expect((await getSubmission(id))?.failedCount).toBe(2);
+  });
+
+  test("заполнение без провалов даёт ноль", async () => {
+    const { station, versionId } = await mixedVersion();
+
+    await saveSubmission({
+      mode: "normal",
+      versionId,
+      answers: [
+        boolAnswer("i-gas", true),
+        boolAnswer("i-till", true),
+        boolAnswer("i-tables", true),
+      ],
+      startedAt: Date.now() - 60_000,
+    });
+
+    const [row] = await listSubmissions({ stationId: station.stationId });
+    expect(row?.failedCount).toBe(0);
+  });
+
+  test("пункт, которого в этом режиме не спрашивали, провалом не считается", async () => {
+    // Сокращённая смена не показывает обычные пункты; они остаются без ответа,
+    // а без ответа провала нет. Иначе лента объявила бы проваленным то,
+    // чего у сотрудника даже не спрашивали.
+    const { station, versionId } = await mixedVersion();
+
+    await saveSubmission({
+      mode: "critical",
+      versionId,
+      answers: [boolAnswer("i-gas", true)],
+      startedAt: Date.now() - 60_000,
+    });
+
+    const [row] = await listSubmissions({ stationId: station.stationId });
+    expect(row?.itemCount).toBe(1);
+    expect(row?.failedCount).toBe(0);
+  });
+});
+
 describe("saveSubmission", () => {
   test("сохраняет снимок пунктов версии и считает провалы по нему", async () => {
     const { station, sections, versionId } = await readyVersion("save");

@@ -12,10 +12,24 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 /** Разделы, готовые к работе: подпись ссылки и адрес, куда она обязана привести. */
 const SECTIONS = [
   { name: "Чек-листы", path: "/admin/checklists" },
+  { name: "Библиотека блоков", path: "/admin/library" },
   { name: "QR-коды", path: "/admin/qr" },
   { name: "Заполнения", path: "/admin/feed" },
   { name: "Страны и пиццерии", path: "/admin/catalog" },
 ] as const;
+
+/**
+ * Ссылка раздела по началу её подписи. Подпись карточки — это название раздела и
+ * пояснение под ним, поэтому поиск по вхождению стал неоднозначным, как только
+ * пояснение одного раздела упомянуло название другого («вставлять его в чек-листы»
+ * у библиотеки против раздела «Чек-листы»). Якорь на начало подписи ловит ровно тот
+ * раздел, который назван, и не зависит от слов в пояснении.
+ */
+function sectionLink(page: Page, name: string) {
+  return page
+    .getByTestId("admin-home")
+    .getByRole("link", { name: new RegExp(`^${name}`) });
+}
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/admin/login");
@@ -36,11 +50,10 @@ test.describe("первый экран после входа", () => {
     await expect(links).toHaveCount(SECTIONS.length);
 
     for (const section of SECTIONS) {
-      await expect(
-        page
-          .getByTestId("admin-home")
-          .getByRole("link", { name: section.name }),
-      ).toHaveAttribute("href", section.path);
+      await expect(sectionLink(page, section.name)).toHaveAttribute(
+        "href",
+        section.path,
+      );
     }
   });
 
@@ -50,10 +63,7 @@ test.describe("первый экран после входа", () => {
     await signIn(page);
 
     for (const section of SECTIONS) {
-      await page
-        .getByTestId("admin-home")
-        .getByRole("link", { name: section.name })
-        .click();
+      await sectionLink(page, section.name).click();
       await expect(page).toHaveURL(new RegExp(`${section.path}$`));
       // Возврат тем же путём, каким пришёл человек: раздел обязан вести назад в кабинет.
       await page.goBack();

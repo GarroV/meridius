@@ -1,12 +1,17 @@
+// Каркас экранов кабинета — один на весь продукт (T074).
+//
+// Эталон у всех экранов админки один (`docs/furca/design/screens/*.html`): меню 208 px
+// слева, верхняя полоса с крошкой, заголовком и действием справа. До T074 каркас был
+// четырьмя копиями по блокам — границы модулей не дают им импортировать друг у друга,
+// и каждый завёл свой. Здесь, в `core`, копия одна: `core` доступен каждому блоку.
+//
+// Каркас не решает, какой раздел активен и что стоит в шапке, — это говорит экран
+// пропами. Экран, которому нужна своя верхняя полоса (редактор: кнопки публикации
+// живут внутри клиентской формы и обязаны видеть её состояние), берёт только `AdminNav`.
 import type { ReactElement, ReactNode } from "react";
 
+import type { AdminSectionKey } from "../admin-sections";
 import { AdminNav } from "./AdminNav";
-
-/**
- * Каркас экранов ленты: левое меню и верхняя полоса с крошкой, заголовком и действием.
- * Ровно тот же каркас, что у остальных разделов админки, — эталон у всех экранов один
- * (`docs/forge/design/app.css`), а копия в каждом блоке своя из-за границ модулей.
- */
 
 const H1_CLASS =
   "text-[length:var(--fs-display)] leading-[var(--lh-display)] font-semibold";
@@ -14,16 +19,19 @@ const H1_CLASS =
 export interface AdminShellProps {
   /** Тестовый идентификатор корня: у каждого экрана свой. */
   readonly testId: string;
+  /** Раздел меню, в котором находится человек. */
+  readonly active?: AdminSectionKey | undefined;
   readonly breadcrumb: ReactNode;
   readonly title: string;
   readonly topbarAction: ReactNode;
   readonly children: ReactNode;
-  /** Узкая колонка (880 px) — карточка заполнения; лента идёт во всю ширину. */
+  /** Узкая колонка (880 px) — карточка заполнения; списки идут во всю ширину. */
   readonly narrow?: boolean;
 }
 
 export function AdminShell({
   testId,
+  active,
   breadcrumb,
   title,
   topbarAction,
@@ -35,7 +43,7 @@ export function AdminShell({
       data-testid={testId}
       className="grid min-h-screen grid-cols-[208px_1fr]"
     >
-      <AdminNav />
+      <AdminNav active={active} />
 
       <div className="flex min-w-0 flex-col">
         <header className="bg-surface flex items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)]">

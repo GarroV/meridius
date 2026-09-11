@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
@@ -62,9 +63,9 @@ export async function FeedEmpty({
       <div className={EMPTY_CLASS} data-testid="feed-empty" data-kind={kind}>
         <p className={TITLE_CLASS}>{t(content.title)}</p>
         <p className={TEXT_CLASS}>{t(content.text)}</p>
-        <a href={content.href} className={BTN_CLASS}>
+        <Link href={content.href} className={BTN_CLASS}>
           {t(content.action)}
-        </a>
+        </Link>
       </div>
     </div>
   );

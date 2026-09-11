@@ -63,6 +63,7 @@ export type {
 export { getSubmission, listSubmissions, saveSubmission } from "./submissions";
 
 export {
+  countFailed,
   countFailedCritical,
   countUnansweredCritical,
   flattenItems,

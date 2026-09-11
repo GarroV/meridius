@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
@@ -10,13 +11,12 @@ import type { CatalogModel, StationDetail, StoreDetail } from "./model";
 /**
  * Экран справочника «Страны и пиццерии» (T018) — сборка каркаса, дерева и
  * карточки правки/подтверждения по эталону
- * `docs/forge/design/screens/catalog.html`. Сам почти ничего не считает: всё
+ * `docs/furca/design/screens/catalog.html`. Сам почти ничего не считает: всё
  * нужное уже лежит в `model` (см. `ui/build-model.ts`).
  *
- * Карточки подтверждения удаления (`ConfirmCard`) держатся здесь, а не в
- * `DetailCards.tsx`: это отдельный режим экрана («что показано под деревом» —
- * решение композиции), и для двух небольших карточек здесь есть запас по
- * бюджету строк на файл, которого DetailCards.tsx уже не имеет.
+ * Карточки подтверждения удаления (`ConfirmCard`) держатся здесь, а не рядом с
+ * карточками правки: это отдельный режим экрана («что показано под деревом» —
+ * решение композиции), а не правка сущности.
  */
 
 type Translate = Awaited<ReturnType<typeof getTranslations>>;
@@ -70,9 +70,9 @@ function ConfirmDeleteStore({
             {t("actions.confirmDelete")}
           </button>
         </form>
-        <a href={cancelHref} className={BTN_GHOST_CLASS}>
+        <Link href={cancelHref} className={BTN_GHOST_CLASS}>
           {t("actions.cancel")}
-        </a>
+        </Link>
       </div>
     </div>
   );
@@ -107,9 +107,9 @@ function ConfirmDeleteStation({
             {t("actions.confirmDelete")}
           </button>
         </form>
-        <a href={cancelHref} className={BTN_GHOST_CLASS}>
+        <Link href={cancelHref} className={BTN_GHOST_CLASS}>
           {t("actions.cancel")}
-        </a>
+        </Link>
       </div>
     </div>
   );

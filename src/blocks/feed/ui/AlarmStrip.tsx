@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
@@ -87,13 +88,13 @@ async function AlarmStripRow({
       {/* Ссылка есть только у провала: у незаполненного чек-листа открывать нечего,
           и кнопка, ведущая в пустоту, хуже её отсутствия. */}
       {row.submissionId === null ? null : (
-        <a
+        <Link
           className={OPEN_CLASS}
           href={submissionHref(row.submissionId, selection)}
           data-testid="alarm-open"
         >
           {t("open")}
-        </a>
+        </Link>
       )}
     </li>
   );

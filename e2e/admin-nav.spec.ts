@@ -14,13 +14,11 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 /** Готовые разделы: адрес экрана и подпись, под которой он обязан быть виден с других экранов. */
 const READY = [
   { key: "checklists", path: "/admin/checklists", name: "Чек-листы" },
+  { key: "library", path: "/admin/library", name: "Библиотека блоков" },
   { key: "qr", path: "/admin/qr", name: "QR-коды" },
   { key: "feed", path: "/admin/feed", name: "Заполнения" },
   { key: "catalog", path: "/admin/catalog", name: "Страны и пиццерии" },
 ] as const;
-
-/** Библиотека блоков в продукте не заведена (T027–T031) — она обязана оставаться неактивной. */
-const NOT_READY_LABEL = "Библиотека блоков";
 
 test.describe("связность разделов кабинета", () => {
   test.use({ locale: "ru-RU" });
@@ -44,10 +42,45 @@ test.describe("связность разделов кабинета", () => {
         ).toHaveAttribute("href", to.path);
       }
 
-      // Неготовое обязано выглядеть неготовым, а не ссылкой в пустоту.
+      // Неготовых разделов в кабинете не осталось: библиотека блоков была последним,
+      // и она появилась вместе с блоком `library`. Появится новый неготовый раздел —
+      // сюда вернётся и проверка, что он не притворяется ссылкой.
+
+      // Экран называет, где человек находится, — не только цветом пункта.
       await expect(
-        nav.getByRole("link", { name: NOT_READY_LABEL, exact: true }),
-      ).toHaveCount(0);
+        nav.locator(`[data-testid="nav-${from.key}"]`),
+      ).toHaveAttribute("aria-current", "page");
     });
   }
+
+  // T088: переход обязан идти через роутер Next, а не обычным `<a href>`. Разница видна
+  // только на площадке с базовым путём — обычной ссылке Next префикс не приставляет, и
+  // она уводит на корень адреса, к чужому продукту. Проверяется не разметкой, а
+  // поведением: клиентский переход не перезагружает окно, и метка в нём переживает переход.
+  test("переход по меню идёт клиентским роутером, а не перезагрузкой страницы", async ({
+    page,
+  }) => {
+    await page.goto("/admin/login");
+    await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+    await page.getByTestId("login-submit").click();
+    await expect(page.getByTestId("admin-home")).toBeVisible();
+
+    await page.goto("/admin/checklists");
+    await page.evaluate(() => {
+      (window as unknown as Record<string, unknown>)["navProbe"] = "жив";
+    });
+
+    await page
+      .locator("nav")
+      .first()
+      .getByRole("link", { name: "Заполнения", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/admin\/feed$/);
+    await expect(page.getByTestId("feed-screen")).toBeVisible();
+
+    const survived = await page.evaluate(
+      () => (window as unknown as Record<string, unknown>)["navProbe"],
+    );
+    expect(survived).toBe("жив");
+  });
 });

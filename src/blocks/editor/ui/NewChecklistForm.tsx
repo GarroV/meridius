@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import type { ChangeEvent, ReactElement } from "react";
 
@@ -179,9 +180,9 @@ export function NewChecklistForm({
           >
             {labels.create}
           </button>
-          <a href={CHECKLISTS_PATH} className={BTN_GHOST_CLASS}>
+          <Link href={CHECKLISTS_PATH} className={BTN_GHOST_CLASS}>
             {labels.cancel}
-          </a>
+          </Link>
         </div>
       </div>
     </form>

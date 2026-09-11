@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  countFailed,
   countFailedCritical,
   countUnansweredCritical,
   flattenItems,
@@ -102,6 +103,53 @@ describe("countFailedCritical", () => {
 
   test("без ответов провалов нет", () => {
     expect(countFailedCritical(snapshot, [])).toBe(0);
+  });
+});
+
+describe("countFailed", () => {
+  const snapshot: Section[] = [
+    {
+      id: "s1",
+      title: { ru: "Открытие", en: "Opening" },
+      source: "own",
+      items: [
+        item({ id: "crit-1", type: "bool", severity: "critical" }),
+        item({ id: "major-1", type: "bool", severity: "major" }),
+        item({ id: "plain", type: "bool", severity: "normal" }),
+      ],
+    },
+    {
+      id: "s2",
+      title: { ru: "Оборудование", en: "Equipment" },
+      source: { blockId: "block-1" },
+      items: [item({ id: "temp", type: "number", severity: "normal", max: 6 })],
+    },
+  ];
+
+  test("считает провалы всех уровней, а не только критичные", () => {
+    // Ради этого числа и заводится счёт: столбец «Результат» обязан отличать
+    // «всё выполнено» от «два пункта не выполнены», а по одним критичным
+    // провалам обычный невыполненный пункт выглядит как чистое заполнение.
+    const answers = [
+      answer("crit-1", false),
+      answer("plain", false),
+      answer("temp", 4),
+    ];
+
+    expect(countFailed(snapshot, answers)).toBe(2);
+    expect(countFailedCritical(snapshot, answers)).toBe(1);
+  });
+
+  test("считает провалы во всех секциях, включая вставленный блок", () => {
+    const answers = [answer("major-1", false), answer("temp", 9)];
+
+    expect(countFailed(snapshot, answers)).toBe(2);
+  });
+
+  test("пункт без ответа не провален — его не показали или не заполнили", () => {
+    // Сокращённая смена приходит сюда именно так: пункт, которого не спрашивали,
+    // остаётся без ответа, и режим смены отдельно учитывать не нужно.
+    expect(countFailed(snapshot, [])).toBe(0);
   });
 });
 

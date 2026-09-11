@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
@@ -53,18 +54,20 @@ function StationRow({
   return (
     <tr className={TABLE_ROW_CLASS}>
       <td className={TABLE_TD_CLASS}>
-        <a
+        <Link
           href={qrHref({ storeId, stationId: station.id })}
           className={STATION_LINK_CLASS}
         >
           {station.name}
-        </a>
+        </Link>
       </td>
       <td className={TABLE_TD_NUM_CLASS}>{station.code}</td>
       <td className={TABLE_TD_META_CLASS}>{issuedAt}</td>
       <td className={TABLE_TD_ACTIONS_CLASS}>
         <div className="inline-flex items-center gap-[var(--space-4)]">
-          {/* Обычная ссылка с `download`: файл отдаёт маршрут, и скачивание работает
+          {/* T088: базовый путь площадки к этой ссылке НЕ приставляется — известный
+              остаток задачи T088.
+              Обычная ссылка с `download`: файл отдаёт маршрут, и скачивание работает
               без JavaScript — как и остальные действия продукта. */}
           <a
             href={qrStickerHref({ storeId, stationId: station.id })}

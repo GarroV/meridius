@@ -7,7 +7,7 @@ import type { SQL } from "drizzle-orm";
 
 import type { Database } from "./client";
 import { getDb } from "./client";
-import { countFailedCritical, flattenItems } from "./grading";
+import { countFailed, countFailedCritical, flattenItems } from "./grading";
 import { isItemInMode } from "./severity";
 import {
   checklistVersions,
@@ -66,6 +66,8 @@ export interface SubmissionRow {
   versionNumber: number | null;
   itemCount: number;
   answeredCount: number;
+  /** Провалено всего — критичных и остальных вместе: столбец «Результат» ленты. */
+  failedCount: number;
   failedCriticalCount: number;
   /** Режим смены, в котором заполняли: лента обязана показывать сокращённый прогон. */
   mode: ShiftMode;
@@ -148,6 +150,11 @@ function toSubmissionRow(row: SubmissionQueryRow): SubmissionRow {
       isItemInMode(item, row.mode),
     ).length,
     answeredCount: row.answers.length,
+    // Оба счёта провалов считаются здесь, по уже прочитанным снимку и ответам.
+    // Отдавать наружу только критичные значило заставлять экран дочитывать
+    // остальные вторым запросом и заводить второе место, где живёт правило
+    // провала: строка ленты обязана быть самодостаточной (T100).
+    failedCount: countFailed(row.snapshot, row.answers),
     failedCriticalCount: countFailedCritical(row.snapshot, row.answers),
     mode: row.mode,
   };

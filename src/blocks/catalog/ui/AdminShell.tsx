@@ -1,27 +1,28 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement, ReactNode } from "react";
 
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 
 /**
- * Каркас админки по эталону (`docs/forge/design/screens/*.html`): левое меню
+ * Каркас админки по эталону (`docs/furca/design/screens/*.html`): левое меню
  * шириной 208px и верхняя полоса с крошкой и заголовком раздела. Каркас общий для
  * будущих экранов справочника, поэтому сам не решает, какой раздел активен, —
  * это решает вызывающий экран через пропы.
  *
- * Разделы, которых ещё нет в продукте, рисуются `<span aria-disabled>`, а не
- * `<a>`: ссылка вела бы на несуществующий маршрут (404), а так пункт просто не
- * откликается ни на клик, ни на фокус в смысле навигации. Что именно готово —
+ * Что именно готово —
  * решает `core/admin-sections`, а не этот файл: свой список здесь однажды отстал от
  * продукта, и из справочника нельзя было уйти ни в один раздел, включая готовые (#11).
+ *
+ * Все пять разделов кабинета готовы — библиотека блоков была последним неготовым.
+ * Механики «раздел ещё не готов» здесь больше нет: понадобится снова — вернётся вместе
+ * с новым разделом, а не будет висеть мёртвым кодом.
  */
 
 const NAV_LABEL_CLASS =
   "px-[var(--space-7)] pb-[var(--space-3)] text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
 const NAV_ITEM_CLASS =
   "flex items-center gap-[var(--space-5)] border-l-2 border-transparent px-[var(--space-7)] py-[var(--space-4)] text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-[var(--ink)]";
-const NAV_ITEM_SOON_CLASS =
-  "flex items-center gap-[var(--space-5)] border-l-2 border-transparent px-[var(--space-7)] py-[var(--space-4)] text-[var(--ink-3)]";
 const NAV_ITEM_ACTIVE_CLASS =
   "flex items-center gap-[var(--space-5)] border-l-2 border-[var(--accent)] bg-[var(--accent-soft)] px-[var(--space-7)] py-[var(--space-4)] font-medium text-accent no-underline";
 const H1_CLASS =
@@ -44,7 +45,6 @@ export async function AdminShell({
   children,
 }: AdminShellProps): Promise<ReactElement> {
   const t = await getTranslations("catalog");
-  const soonTitle = t("nav.soon");
 
   return (
     <div
@@ -61,32 +61,33 @@ export async function AdminShell({
 
         <div className="flex flex-col">
           <div className={NAV_LABEL_CLASS}>{t("nav.workGroup")}</div>
-          <a className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.checklists.path}>
-            {t("nav.templates")}
-          </a>
-          <span
-            className={NAV_ITEM_SOON_CLASS}
-            aria-disabled="true"
-            title={soonTitle}
+          <Link
+            className={NAV_ITEM_CLASS}
+            href={ADMIN_SECTIONS.checklists.path}
           >
+            {t("nav.templates")}
+          </Link>
+          <Link className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.library.path}>
             {t("nav.library")}
-          </span>
-          <a className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.feed.path}>
+          </Link>
+          <Link className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.feed.path}>
             {t("nav.feed")}
-          </a>
+          </Link>
         </div>
 
         <div className="flex flex-col">
           <div className={NAV_LABEL_CLASS}>{t("nav.catalogGroup")}</div>
-          <a
+          <Link
             className={NAV_ITEM_ACTIVE_CLASS}
             href={ADMIN_SECTIONS.catalog.path}
+            aria-current="page"
+            data-testid="nav-catalog"
           >
             {t("nav.catalog")}
-          </a>
-          <a className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.qr.path}>
+          </Link>
+          <Link className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.qr.path}>
             {t("nav.qr")}
-          </a>
+          </Link>
         </div>
 
         <div className="mt-auto px-[var(--space-7)] text-[length:var(--fs-meta)] text-[var(--ink-3)]">

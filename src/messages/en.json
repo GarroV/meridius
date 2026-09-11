@@ -26,7 +26,20 @@
       "feed": "Submissions",
       "feedHint": "See what stations submitted",
       "catalog": "Countries and pizzerias",
-      "catalogHint": "Add a pizzeria and its stations"
+      "catalogHint": "Add a pizzeria and its stations",
+      "library": "Block library",
+      "libraryHint": "Create a block and insert it into checklists"
+    },
+    "nav": {
+      "brand": "MERIDIUS",
+      "brandMuted": "Dodo",
+      "soon": "Section is not ready yet",
+      "signedIn": "Signed in",
+      "role": "methodologist",
+      "groups": {
+        "work": "Work",
+        "reference": "Reference"
+      }
     }
   },
   "catalog": {
@@ -155,7 +168,15 @@
       "noStation": "no station",
       "noStore": "No store",
       "empty": "No checklists yet",
-      "emptyHint": "Create the first one: title, station, window — then start typing items."
+      "emptyHint": "Create the first one: title, station, window — then start typing items.",
+      "filterCountry": "Country",
+      "filterStore": "Store",
+      "filterStation": "Station",
+      "filterAll": "All",
+      "filterApply": "Show",
+      "filterEmpty": "Nothing matches the filter",
+      "filterEmptyHint": "Nothing has been created under the current selection yet. Change it or create the first one.",
+      "filterReset": "Show all"
     },
     "form": {
       "title": "Title",
@@ -286,20 +307,6 @@
     }
   },
   "qr": {
-    "nav": {
-      "brand": "MERIDIUS",
-      "brandMuted": "Dodo",
-      "workGroup": "Work",
-      "templates": "Checklists",
-      "library": "Block library",
-      "feed": "Submissions",
-      "catalogGroup": "Reference",
-      "catalog": "Countries and stores",
-      "qr": "QR codes",
-      "soon": "Section is not ready yet",
-      "signedIn": "Signed in",
-      "role": "methodologist"
-    },
     "title": "Station QR codes",
     "breadcrumb": {
       "pick": "All stores"
@@ -423,20 +430,6 @@
     }
   },
   "feed": {
-    "nav": {
-      "brand": "MERIDIUS",
-      "brandMuted": "Dodo",
-      "work": "Work",
-      "checklists": "Checklists",
-      "library": "Block library",
-      "feed": "Submissions",
-      "reference": "Reference",
-      "catalog": "Countries and stores",
-      "qr": "QR codes",
-      "soon": "Section is not ready yet",
-      "signedIn": "Signed in",
-      "role": "methodologist"
-    },
     "title": "Submissions",
     "crumbs": {
       "allCountries": "Whole network",
@@ -548,6 +541,45 @@
       },
       "modeLabel": "shift",
       "skippedByMode": "{count, plural, one {# item was not asked in this mode} other {# items were not asked in this mode}}"
+    }
+  },
+  "library": {
+    "crumbs": "Work",
+    "title": "Block library",
+    "new": "+ New block",
+    "newTitle": "New block",
+    "notice": "A block is created once and inserted into any number of checklists. Editing a block reaches every draft it sits in; already published checklist versions never change.",
+    "listTitle": "Blocks",
+    "items": "{count, plural, one {# item} other {# items}}",
+    "usedIn": "in {count}",
+    "usedNowhere": "nowhere",
+    "empty": "The library has no blocks yet",
+    "emptyHint": "Create a block once — then insert it into any number of checklists and edit it in one place.",
+    "blockTitleLabel": "Block title",
+    "save": "Save block",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "addItem": "+ Item",
+    "noItems": "The block has no items yet",
+    "usagesTitle": "Where it is used",
+    "usagesCount": "{count, plural, one {# checklist} other {# checklists}}",
+    "usagesEmpty": "The block is not inserted into any checklist.",
+    "impactDrafts": "The edit reaches {drafts, plural, one {# draft} other {# drafts}}.",
+    "impactPublished": "In {published, plural, one {# checklist} other {# checklists}} the block is part of a published version — those stay as they are until the next publish.",
+    "impactNoPublished": "No published version contains this block.",
+    "publishedTag": "Published",
+    "errors": {
+      "badFormat": "Block data was not accepted: check the fields and try again.",
+      "tooManySections": "Too many sections: no more than {limit}.",
+      "tooManyItems": "Too many items: no more than {limit}.",
+      "textTooLong": "Text is too long: no more than {limit} characters.",
+      "badRange": "The lower bound is above the upper bound.",
+      "emptyWindow": "The window starts and ends at the same time.",
+      "emptyTitle": "The block title is empty.",
+      "notFound": "Block not found.",
+      "nothingToPublish": "Nothing to publish.",
+      "unknownBlock": "Library block not found.",
+      "unknown": "Could not save. Try again."
     }
   }
 }

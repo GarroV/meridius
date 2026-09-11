@@ -19,6 +19,7 @@ import {
 } from "@/blocks/data/testing/fixtures";
 
 import { createChecklist, saveDraft } from "./drafts";
+import { NO_FILTER } from "./filter";
 import { listChecklists, listStations } from "./listing";
 
 afterAll(closeTestDb);
@@ -45,7 +46,7 @@ describe("listChecklists", () => {
       startedAt: Date.now(),
     });
 
-    const row = (await listChecklists()).find(
+    const row = (await listChecklists(NO_FILTER)).find(
       (entry) => entry.id === checklistId,
     );
 
@@ -71,7 +72,7 @@ describe("listChecklists", () => {
       window: MORNING,
     });
 
-    const row = (await listChecklists()).find(
+    const row = (await listChecklists(NO_FILTER)).find(
       (entry) => entry.id === checklistId,
     );
 
@@ -94,7 +95,7 @@ describe("listChecklists", () => {
       window: MORNING,
     });
 
-    const mine = (await listChecklists())
+    const mine = (await listChecklists(NO_FILTER))
       .filter((entry) => entry.id === first || entry.id === second)
       .map((entry) => entry.id);
 
@@ -123,9 +124,140 @@ describe("listChecklists и снятые с работы", () => {
       .set({ archivedAt: new Date() })
       .where(eq(checklists.id, removed));
 
-    const ids = (await listChecklists()).map((row) => row.id);
+    const ids = (await listChecklists(NO_FILTER)).map((row) => row.id);
     expect(ids).toContain(kept);
     expect(ids).not.toContain(removed);
+  });
+});
+
+describe("listChecklists под фильтром", () => {
+  test("выбранная страна оставляет свои чек-листы и убирает чужие", async () => {
+    const mine = await createStation();
+    const other = await createStation();
+    const kept = await createChecklist({
+      stationId: mine.stationId,
+      title: { ru: "Своя страна" },
+      window: MORNING,
+    });
+    const dropped = await createChecklist({
+      stationId: other.stationId,
+      title: { ru: "Чужая страна" },
+      window: MORNING,
+    });
+
+    const ids = (
+      await listChecklists({ ...NO_FILTER, countryId: mine.countryId })
+    ).map((row) => row.id);
+
+    expect(ids).toContain(kept);
+    expect(ids).not.toContain(dropped);
+  });
+
+  test("выбранная пиццерия сужает список до своих чек-листов", async () => {
+    const mine = await createStation();
+    const other = await createStation();
+    const kept = await createChecklist({
+      stationId: mine.stationId,
+      title: { ru: "Своя пиццерия" },
+      window: MORNING,
+    });
+    const dropped = await createChecklist({
+      stationId: other.stationId,
+      title: { ru: "Чужая пиццерия" },
+      window: MORNING,
+    });
+
+    const ids = (
+      await listChecklists({ ...NO_FILTER, storeId: mine.storeId })
+    ).map((row) => row.id);
+
+    expect(ids).toStrictEqual([kept]);
+    expect(ids).not.toContain(dropped);
+  });
+
+  test("выбранная станция сужает список до своих чек-листов", async () => {
+    const station = await createStation();
+    const db = getDb();
+    const [neighbour] = await db
+      .insert(stations)
+      .values({
+        storeId: station.storeId,
+        name: "Соседняя",
+        code: `n${station.stationCode}`.slice(0, 10),
+      })
+      .returning({ id: stations.id });
+    if (neighbour === undefined) throw new Error("Соседней станции нет");
+
+    const kept = await createChecklist({
+      stationId: station.stationId,
+      title: { ru: "Своя станция" },
+      window: MORNING,
+    });
+    await createChecklist({
+      stationId: neighbour.id,
+      title: { ru: "Соседняя станция" },
+      window: MORNING,
+    });
+
+    const ids = (
+      await listChecklists({ ...NO_FILTER, stationId: station.stationId })
+    ).map((row) => row.id);
+
+    expect(ids).toStrictEqual([kept]);
+  });
+
+  test("чек-лист без станции под фильтром по стране не показывается", async () => {
+    // У него нет ни страны, ни пиццерии: показать его в списке «Казахстана» значит
+    // соврать про то, где он живёт.
+    const station = await createStation();
+    const homeless = await createChecklist({
+      stationId: null,
+      title: { ru: "Без станции" },
+      window: MORNING,
+    });
+
+    const ids = (
+      await listChecklists({ ...NO_FILTER, countryId: station.countryId })
+    ).map((row) => row.id);
+
+    expect(ids).not.toContain(homeless);
+  });
+
+  test("несогласованный фильтр даёт пустой список, а не отказ базы", async () => {
+    // Страна одной сети и пиццерия другой: такой адрес приходит из ссылки, пролежавшей
+    // в чате, и экран обязан открыться пустым списком.
+    const first = await createStation();
+    const second = await createStation();
+    await createChecklist({
+      stationId: first.stationId,
+      title: { ru: "Есть" },
+      window: MORNING,
+    });
+
+    const rows = await listChecklists({
+      countryId: first.countryId,
+      storeId: second.storeId,
+      stationId: null,
+    });
+
+    expect(rows).toStrictEqual([]);
+  });
+
+  test("непохожий на идентификатор фильтр не роняет запрос, а просто не сужает", async () => {
+    // Значения приходят из адреса. Разбор их отбрасывает, но список — граница блока,
+    // и на ней тоже нельзя верить входу: строка «Казахстан» в uuid не приводится.
+    const station = await createStation();
+    const checklistId = await createChecklist({
+      stationId: station.stationId,
+      title: { ru: "Виден" },
+      window: MORNING,
+    });
+
+    const ids = (
+      await listChecklists({ ...NO_FILTER, countryId: "Казахстан" })
+    ).map((row) => row.id);
+
+    expect(ids).toContain(checklistId);
   });
 });
 
@@ -140,6 +272,17 @@ describe("listStations", () => {
     expect(option?.name).toContain("Станция");
     expect(option?.storeName).toContain("Пиццерия");
     expect(option?.countryName).toContain("Страна");
+  });
+
+  test("вместе с названиями приходят идентификаторы: из них строится справочник фильтра", async () => {
+    const station = await createStation();
+
+    const option = (await listStations()).find(
+      (entry) => entry.id === station.stationId,
+    );
+
+    expect(option?.storeId).toStrictEqual(station.storeId);
+    expect(option?.countryId).toStrictEqual(station.countryId);
   });
 
   test("станции одной пиццерии идут подряд и по алфавиту", async () => {

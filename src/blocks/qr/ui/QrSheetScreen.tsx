@@ -1,7 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
-import { AdminShell } from "./AdminShell";
+import { AdminShell } from "@/blocks/core/ui/AdminShell";
+
 import type { QrModel } from "./model";
 import { PrintButton } from "./PrintButton";
 import { PrintSheet } from "./PrintSheet";
@@ -50,6 +51,7 @@ export async function QrSheetScreen({
   return (
     <AdminShell
       testId="qr-screen"
+      active="qr"
       breadcrumb={breadcrumb}
       title={t("title")}
       topbarAction={

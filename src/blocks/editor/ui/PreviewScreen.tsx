@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactElement } from "react";
@@ -190,13 +191,16 @@ export async function PreviewScreen({
       <div className="mx-auto max-w-[420px] px-[var(--space-6)] pt-[var(--space-6)]">
         <div className={NOTICE_CLASS}>
           <div className="flex-1">{t("preview.notice")}</div>
-          <a href={checklistPath(id)} className="font-medium whitespace-nowrap">
+          <Link
+            href={checklistPath(id)}
+            className="font-medium whitespace-nowrap"
+          >
             {t("preview.back")}
-          </a>
+          </Link>
         </div>
         <div className={MODE_BAR_CLASS} data-testid="preview-mode-bar">
           {MODES.map((option) => (
-            <a
+            <Link
               key={option}
               href={`${checklistPath(id)}/preview?mode=${option}`}
               data-testid={`preview-mode-${option}`}
@@ -204,7 +208,7 @@ export async function PreviewScreen({
               className={`${MODE_TAB_CLASS} ${option === mode ? MODE_TAB_ON_CLASS : MODE_TAB_OFF_CLASS}`}
             >
               {t(`preview.mode.${option}`)}
-            </a>
+            </Link>
           ))}
         </div>
       </div>

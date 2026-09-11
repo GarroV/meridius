@@ -244,6 +244,43 @@ async function seedAdminScreens(label: string): Promise<AdminSeed> {
   }
 }
 
+/**
+ * Один блок библиотеки с одним пунктом. Отдельно от `seedAdminScreens`: библиотека
+ * не зависит ни от страны, ни от станции. Заводить блок обязательно — на пустой
+ * библиотеке рисуется другой экран, а проверить нужно тот, где есть и список,
+ * и правка пунктов, и «где используется».
+ */
+async function seedLibraryBlock(label: string): Promise<string> {
+  const suffix = randomUUID().slice(0, 8);
+  const pool = new Pool({ connectionString: e2eDatabaseUrl() });
+  try {
+    return firstId(
+      (
+        await pool.query<{ id: string }>(
+          "insert into blocks (title, items) values ($1::jsonb, $2::jsonb) returning id",
+          [
+            JSON.stringify({
+              ru: `Блок a11y ${label} ${suffix}`,
+              en: `Block a11y ${label} ${suffix}`,
+            }),
+            JSON.stringify([
+              {
+                id: `item-a11y-${suffix}`,
+                title: { ru: "Проверить холодильник", en: "Check the fridge" },
+                type: "bool",
+                critical: false,
+              },
+            ]),
+          ],
+        )
+      ).rows,
+      "blocks",
+    );
+  } finally {
+    await pool.end();
+  }
+}
+
 test.describe("доступность: экран заполнения по QR", () => {
   // Телефон на кухне, английская локаль — как в основном сценарии заполнения
   // (`fill.spec.ts`): именно так экран открывают в жизни.
@@ -375,6 +412,18 @@ test.describe("доступность: админка", () => {
 
     await page.goto(`/admin/feed/${seed.submissionId}`);
     await page.getByTestId("submission-screen").waitFor();
+
+    expectAccessible(await runAxe(page));
+  });
+
+  test("библиотека блоков без нарушений доступности", async ({ page }) => {
+    const blockId = await seedLibraryBlock("библиотека");
+    await signIn(page);
+
+    // Открываем блок по адресу, а не «первый в списке»: к этому моменту в базе лежат
+    // блоки от соседних сценариев, и без явного выбора проверялась бы разметка чужого.
+    await page.goto(`/admin/library?block=${blockId}`);
+    await page.getByTestId("block-editor").waitFor();
 
     expectAccessible(await runAxe(page));
   });

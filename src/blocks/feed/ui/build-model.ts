@@ -14,7 +14,6 @@ import {
 import type { AlarmList, AlarmScope } from "../alarms";
 import { listAlarms } from "../alarms";
 import { checklistHref } from "../checklist-link";
-import { loadFailedCounts } from "../failures";
 import { computeMetrics } from "../metrics";
 import type {
   AlarmRow,
@@ -89,10 +88,6 @@ export async function buildFeedModel(
     limit: FEED_LIMIT,
   });
 
-  // Провалы дочитываются по идентификаторам уже отобранных строк: набор строк
-  // остаётся целиком за слоем доступа, второго набора условий отбора не появляется.
-  const failedCounts = await loadFailedCounts(rows.map((row) => row.id));
-
   // Тревоги берутся своим запросом и без периода: полоса обязана показывать
   // состояние на сейчас, а не выборку, суженную фильтром периода (D053).
   const alarms = await listAlarms(scopeOf(selection), now);
@@ -100,7 +95,6 @@ export async function buildFeedModel(
   const feedRows = rows.map((row) =>
     toFeedRow(row, {
       locale,
-      failedCount: failedCounts.get(row.id) ?? 0,
       timeZone: storeTimeZone(catalog.stores, row.storeId, timeZone),
       now,
     }),
@@ -170,7 +164,6 @@ async function emptyKindOf(
 
 interface RowContext {
   readonly locale: Locale;
-  readonly failedCount: number;
   readonly timeZone: string;
   readonly now: Date;
 }
@@ -192,7 +185,10 @@ function toFeedRow(row: SubmissionRow, context: RowContext): FeedRow {
     outcome: outcomeOf({
       itemCount: row.itemCount,
       answeredCount: row.answeredCount,
-      failedCount: context.failedCount,
+      // Оба счёта провалов приходят из самой строки ленты: слой доступа считает их
+      // по снимку и ответам, которые всё равно читает (T100). До этого экран
+      // дочитывал общее число вторым запросом — второе место с правилом провала.
+      failedCount: row.failedCount,
       failedCriticalCount: row.failedCriticalCount,
     }),
   };
