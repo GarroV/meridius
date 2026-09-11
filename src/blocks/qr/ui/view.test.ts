@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
+
 import {
   QR_CODE_PATH,
   QR_PATH,
@@ -9,6 +11,7 @@ import {
   qrCodeHref,
   qrHref,
   qrScreenHref,
+  qrStickerHref,
 } from "./view";
 
 const STORE = "11111111-2222-4333-8444-555555555555";
@@ -67,5 +70,22 @@ describe("состояние экрана QR в адресе", () => {
     expect(parseStationRef({ store: STORE })).toBeNull();
     expect(parseStationRef({ station: STATION })).toBeNull();
     expect(parseStationRef({ store: "мусор", station: STATION })).toBeNull();
+  });
+});
+
+describe("адрес раздела — один факт, а не собственная копия (T116)", () => {
+  it("QR_PATH читает адрес у core/admin-sections, а не хранит свою строку", () => {
+    // Сравнение идёт с чужим модулем, а не с локальной переменной этого же файла:
+    // до T116 здесь стояла своя строка `"/admin/qr"`, и `qrHref` сверялась бы сама
+    // с собой — тест остался бы зелёным, даже разойдись раздел с боковым меню.
+    expect(QR_PATH).toBe(ADMIN_SECTIONS.qr.path);
+  });
+
+  it("подпути листа собраны из QR_PATH, а не заведены отдельными строками", () => {
+    expect(QR_SCREEN_PATH).toBe(`${QR_PATH}/screen`);
+    expect(QR_CODE_PATH).toBe(`${QR_PATH}/code`);
+    expect(qrStickerHref({ storeId: STORE, stationId: STATION })).toBe(
+      `${QR_PATH}/sticker?store=${STORE}&station=${STATION}`,
+    );
   });
 });
