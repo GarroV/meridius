@@ -1,4 +1,6 @@
-import { getTranslations } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
+import type { AbstractIntlMessages } from "next-intl";
+import { getMessages, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { submitCreateBlock } from "../actions";
@@ -60,9 +62,13 @@ function BlockRow({
         {row.usageCount === 0 ? (
           // Блок, не вставленный никуда, помечен явно (критерий готовности 5):
           // иначе методист не отличит его от вставленного и будет править вслепую.
-          <span data-testid="block-unused" className="text-[var(--ink-empty)]">
-            {t("usedNowhere")}
-          </span>
+          //
+          // Помечен СЛОВОМ, а не цветом. В эталоне (`library.html`, строка 64) «нигде»
+          // выкрашено в `--ink-empty`, но сам `tokens.css` отводит этот токен только под
+          // прочерк «значения нет», и на тексте он даёт контраст ниже порога — проверка
+          // доступности падала именно на нём. Порог сильнее буквальности эталона: так уже
+          // решено в D044, где ради него подвинули сам токен `--ink-3`.
+          <span data-testid="block-unused">{t("usedNowhere")}</span>
         ) : (
           t("usedIn", { count: row.usageCount })
         )}
@@ -152,7 +158,22 @@ export async function LibraryScreen({
   readonly model: LibraryModel;
   readonly locale: string;
 }): Promise<ReactElement> {
-  const t = await getTranslations("library");
+  const [t, messages] = await Promise.all([
+    getTranslations("library"),
+    getMessages(),
+  ]);
+
+  // Правка блока — клиентская часть, а `useTranslations` в браузере работает только
+  // через провайдер: без него страница отвечала бы ошибкой на СЕРВЕРЕ, ещё до
+  // гидратации, и вместо экрана приходила бы заглушка «страница не загрузилась»
+  // (поймано сквозным сценарием — модульные тесты разметку не рендерят).
+  // Наружу уходит только нужное: свой словарь и строка пункта, которую библиотека
+  // переиспользует из редактора вместе с самим компонентом строки.
+  const editorMessages = messages["editor"] as AbstractIntlMessages;
+  const clientMessages = {
+    library: messages["library"] as AbstractIntlMessages,
+    editor: { item: editorMessages["item"] } as AbstractIntlMessages,
+  };
 
   return (
     <AdminShell
@@ -193,13 +214,15 @@ export async function LibraryScreen({
           </section>
 
           <div className="flex min-w-0 flex-col gap-[var(--space-6)]">
-            <BlockEditor
-              key={model.selection.id}
-              blockId={model.selection.id}
-              locale={locale}
-              initialTitle={model.selection.title}
-              initialItems={model.selection.items}
-            />
+            <NextIntlClientProvider locale={locale} messages={clientMessages}>
+              <BlockEditor
+                key={model.selection.id}
+                blockId={model.selection.id}
+                locale={locale}
+                initialTitle={model.selection.title}
+                initialItems={model.selection.items}
+              />
+            </NextIntlClientProvider>
             <UsagesCard selection={model.selection} t={t} />
           </div>
         </div>
