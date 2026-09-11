@@ -1,8 +1,9 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import { AdminShell } from "@/blocks/core/ui/AdminShell";
+
 import type { FeedModel } from "../model";
-import { AdminShell } from "./AdminShell";
 import { AlarmStrip } from "./AlarmStrip";
 import { FeedEmpty } from "./FeedEmpty";
 import { FeedFilters } from "./FeedFilters";
@@ -78,6 +79,7 @@ export async function FeedScreen({
   return (
     <AdminShell
       testId="feed-screen"
+      active="feed"
       breadcrumb={breadcrumbOf(model, t)}
       title={t("title")}
       topbarAction={

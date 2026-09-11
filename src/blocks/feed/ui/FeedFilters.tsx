@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
@@ -71,9 +72,13 @@ export async function FeedFilters({
             </button>
           </noscript>
 
-          <a href={FEED_PATH} data-testid="feed-reset" className={RESET_CLASS}>
+          <Link
+            href={FEED_PATH}
+            data-testid="feed-reset"
+            className={RESET_CLASS}
+          >
             {t("reset")}
-          </a>
+          </Link>
         </form>
 
         {/* Пиццерии фильтра живут в разных поясах, и «сегодня» посчитано по поясу

@@ -21,12 +21,24 @@
     "sections": {
       "checklists": "Чек-листы",
       "checklistsHint": "Завести чек-лист и опубликовать версию",
+      "library": "Библиотека блоков",
       "qr": "QR-коды",
       "qrHint": "Напечатать наклейки станций",
       "feed": "Заполнения",
       "feedHint": "Посмотреть, что заполнили на станциях",
       "catalog": "Страны и пиццерии",
       "catalogHint": "Завести пиццерию и её станции"
+    },
+    "nav": {
+      "brand": "MERIDIUS",
+      "brandMuted": "Dodo",
+      "soon": "Раздел ещё не готов",
+      "signedIn": "Вход выполнен",
+      "role": "методист",
+      "groups": {
+        "work": "Работа",
+        "reference": "Справочник"
+      }
     }
   },
   "catalog": {
@@ -286,20 +298,6 @@
     }
   },
   "qr": {
-    "nav": {
-      "brand": "MERIDIUS",
-      "brandMuted": "Dodo",
-      "workGroup": "Работа",
-      "templates": "Чек-листы",
-      "library": "Библиотека блоков",
-      "feed": "Заполнения",
-      "catalogGroup": "Справочник",
-      "catalog": "Страны и пиццерии",
-      "qr": "QR-коды",
-      "soon": "Раздел ещё не готов",
-      "signedIn": "Вход выполнен",
-      "role": "методист"
-    },
     "title": "QR-коды станций",
     "breadcrumb": {
       "pick": "Все пиццерии"
@@ -423,20 +421,6 @@
     }
   },
   "feed": {
-    "nav": {
-      "brand": "MERIDIUS",
-      "brandMuted": "Dodo",
-      "work": "Работа",
-      "checklists": "Чек-листы",
-      "library": "Библиотека блоков",
-      "feed": "Заполнения",
-      "reference": "Справочник",
-      "catalog": "Страны и пиццерии",
-      "qr": "QR-коды",
-      "soon": "Раздел ещё не готов",
-      "signedIn": "Вход выполнен",
-      "role": "методист"
-    },
     "title": "Заполнения",
     "crumbs": {
       "allCountries": "Вся сеть",

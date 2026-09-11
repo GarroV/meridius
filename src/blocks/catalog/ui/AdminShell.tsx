@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement, ReactNode } from "react";
 
@@ -10,7 +11,7 @@ import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
  * это решает вызывающий экран через пропы.
  *
  * Разделы, которых ещё нет в продукте, рисуются `<span aria-disabled>`, а не
- * `<a>`: ссылка вела бы на несуществующий маршрут (404), а так пункт просто не
+ * `<Link>`: ссылка вела бы на несуществующий маршрут (404), а так пункт просто не
  * откликается ни на клик, ни на фокус в смысле навигации. Что именно готово —
  * решает `core/admin-sections`, а не этот файл: свой список здесь однажды отстал от
  * продукта, и из справочника нельзя было уйти ни в один раздел, включая готовые (#11).
@@ -61,9 +62,12 @@ export async function AdminShell({
 
         <div className="flex flex-col">
           <div className={NAV_LABEL_CLASS}>{t("nav.workGroup")}</div>
-          <a className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.checklists.path}>
+          <Link
+            className={NAV_ITEM_CLASS}
+            href={ADMIN_SECTIONS.checklists.path}
+          >
             {t("nav.templates")}
-          </a>
+          </Link>
           <span
             className={NAV_ITEM_SOON_CLASS}
             aria-disabled="true"
@@ -71,22 +75,24 @@ export async function AdminShell({
           >
             {t("nav.library")}
           </span>
-          <a className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.feed.path}>
+          <Link className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.feed.path}>
             {t("nav.feed")}
-          </a>
+          </Link>
         </div>
 
         <div className="flex flex-col">
           <div className={NAV_LABEL_CLASS}>{t("nav.catalogGroup")}</div>
-          <a
+          <Link
             className={NAV_ITEM_ACTIVE_CLASS}
             href={ADMIN_SECTIONS.catalog.path}
+            aria-current="page"
+            data-testid="nav-catalog"
           >
             {t("nav.catalog")}
-          </a>
-          <a className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.qr.path}>
+          </Link>
+          <Link className={NAV_ITEM_CLASS} href={ADMIN_SECTIONS.qr.path}>
             {t("nav.qr")}
-          </a>
+          </Link>
         </div>
 
         <div className="mt-auto px-[var(--space-7)] text-[length:var(--fs-meta)] text-[var(--ink-3)]">

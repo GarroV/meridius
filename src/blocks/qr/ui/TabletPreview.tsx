@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
@@ -52,13 +53,13 @@ export async function TabletPreview({
     <div data-testid="qr-tablet" className={CARD_CLASS}>
       <div className={CARD_HEAD_CLASS}>
         <h2 className={CARD_TITLE_CLASS}>{t("tablet.title")}</h2>
-        <a
+        <Link
           href={selected.screenHref}
           data-testid="qr-open-screen"
           className={`${BTN_SM_CLASS} ml-auto`}
         >
           {t("actions.openScreen")}
-        </a>
+        </Link>
       </div>
       <div className={CARD_BODY_CLASS}>
         <div className={TABLET_CLASS}>

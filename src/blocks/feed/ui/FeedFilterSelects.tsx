@@ -78,6 +78,10 @@ function FilterField({
         {label}
       </label>
       <select
+        // Ключ по выбранному значению перемонтирует список, когда его меняет сервер.
+        // Список неуправляемый (defaultValue), а «Сбросить» — клиентский переход без
+        // перезагрузки: без ключа поле показывало бы снятый фильтр как выбранный (T088).
+        key={value}
         id={`feed-filter-${name}`}
         name={name}
         defaultValue={value}
@@ -135,6 +139,7 @@ export function FeedFilterSelects({
           {labels.period}
         </label>
         <select
+          key={selection.period}
           id="feed-filter-period"
           name={PERIOD_PARAM}
           defaultValue={selection.period}

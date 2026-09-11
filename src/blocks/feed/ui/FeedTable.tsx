@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
@@ -106,9 +107,9 @@ async function FeedTableRow({
       </td>
       <td className={TD_NUM_CLASS}>{formatDuration(row.durationMs)}</td>
       <td className={TD_ACTIONS_CLASS}>
-        <a href={submissionHref(row.id, selection)} className={OPEN_CLASS}>
+        <Link href={submissionHref(row.id, selection)} className={OPEN_CLASS}>
           {t("open")}
-        </a>
+        </Link>
       </td>
     </tr>
   );

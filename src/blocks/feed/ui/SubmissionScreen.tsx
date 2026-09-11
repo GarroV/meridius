@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import { AdminShell } from "@/blocks/core/ui/AdminShell";
+
 import type { SubmissionModel } from "../model";
-import { AdminShell } from "./AdminShell";
 import { AnswersCard } from "./AnswersCard";
 import { OutcomeTag } from "./OutcomeTag";
 import { SubmissionFacts } from "./SubmissionFacts";
@@ -77,12 +79,13 @@ export async function SubmissionScreen({
   return (
     <AdminShell
       testId="submission-screen"
+      active="feed"
       narrow
       breadcrumb={
         <>
-          <a href={model.backHref} className="underline">
+          <Link href={model.backHref} className="underline">
             {t("back")}
-          </a>{" "}
+          </Link>{" "}
           · {breadcrumbText(model, format)}
         </>
       }
@@ -93,9 +96,9 @@ export async function SubmissionScreen({
       topbarAction={
         <>
           <OutcomeTag outcome={model.outcome} />
-          <a href={model.checklistHref} className={BTN_CLASS}>
+          <Link href={model.checklistHref} className={BTN_CLASS}>
             {checklistLinkText(model, t)}
-          </a>
+          </Link>
         </>
       }
     >

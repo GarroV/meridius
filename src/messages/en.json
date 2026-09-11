@@ -21,12 +21,24 @@
     "sections": {
       "checklists": "Checklists",
       "checklistsHint": "Create a checklist and publish a version",
+      "library": "Block library",
       "qr": "QR codes",
       "qrHint": "Print station stickers",
       "feed": "Submissions",
       "feedHint": "See what stations submitted",
       "catalog": "Countries and pizzerias",
       "catalogHint": "Add a pizzeria and its stations"
+    },
+    "nav": {
+      "brand": "MERIDIUS",
+      "brandMuted": "Dodo",
+      "soon": "Section is not ready yet",
+      "signedIn": "Signed in",
+      "role": "methodologist",
+      "groups": {
+        "work": "Work",
+        "reference": "Reference"
+      }
     }
   },
   "catalog": {
@@ -286,20 +298,6 @@
     }
   },
   "qr": {
-    "nav": {
-      "brand": "MERIDIUS",
-      "brandMuted": "Dodo",
-      "workGroup": "Work",
-      "templates": "Checklists",
-      "library": "Block library",
-      "feed": "Submissions",
-      "catalogGroup": "Reference",
-      "catalog": "Countries and stores",
-      "qr": "QR codes",
-      "soon": "Section is not ready yet",
-      "signedIn": "Signed in",
-      "role": "methodologist"
-    },
     "title": "Station QR codes",
     "breadcrumb": {
       "pick": "All stores"
@@ -423,20 +421,6 @@
     }
   },
   "feed": {
-    "nav": {
-      "brand": "MERIDIUS",
-      "brandMuted": "Dodo",
-      "work": "Work",
-      "checklists": "Checklists",
-      "library": "Block library",
-      "feed": "Submissions",
-      "reference": "Reference",
-      "catalog": "Countries and stores",
-      "qr": "QR codes",
-      "soon": "Section is not ready yet",
-      "signedIn": "Signed in",
-      "role": "methodologist"
-    },
     "title": "Submissions",
     "crumbs": {
       "allCountries": "Whole network",

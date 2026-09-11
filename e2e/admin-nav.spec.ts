@@ -48,6 +48,42 @@ test.describe("связность разделов кабинета", () => {
       await expect(
         nav.getByRole("link", { name: NOT_READY_LABEL, exact: true }),
       ).toHaveCount(0);
+
+      // Экран называет, где человек находится, — не только цветом пункта.
+      await expect(
+        nav.locator(`[data-testid="nav-${from.key}"]`),
+      ).toHaveAttribute("aria-current", "page");
     });
   }
+
+  // T088: переход обязан идти через роутер Next, а не обычным `<a href>`. Разница видна
+  // только на площадке с базовым путём — обычной ссылке Next префикс не приставляет, и
+  // она уводит на корень адреса, к чужому продукту. Проверяется не разметкой, а
+  // поведением: клиентский переход не перезагружает окно, и метка в нём переживает переход.
+  test("переход по меню идёт клиентским роутером, а не перезагрузкой страницы", async ({
+    page,
+  }) => {
+    await page.goto("/admin/login");
+    await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+    await page.getByTestId("login-submit").click();
+    await expect(page.getByTestId("admin-home")).toBeVisible();
+
+    await page.goto("/admin/checklists");
+    await page.evaluate(() => {
+      (window as unknown as Record<string, unknown>)["navProbe"] = "жив";
+    });
+
+    await page
+      .locator("nav")
+      .first()
+      .getByRole("link", { name: "Заполнения", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/admin\/feed$/);
+    await expect(page.getByTestId("feed-screen")).toBeVisible();
+
+    const survived = await page.evaluate(
+      () => (window as unknown as Record<string, unknown>)["navProbe"],
+    );
+    expect(survived).toBe("жив");
+  });
 });
