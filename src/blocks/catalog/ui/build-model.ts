@@ -13,7 +13,12 @@ import {
   type StationItem,
   type TreeItem,
 } from "./model";
-import { catalogHref, type CatalogFocus, type CatalogView } from "./view";
+import {
+  catalogHref,
+  qrStationsHref,
+  type CatalogFocus,
+  type CatalogView,
+} from "./view";
 
 /**
  * Первая страна и первая пиццерия выбираются сами, если в адресе ничего нет:
@@ -106,6 +111,7 @@ export async function buildCatalogModel(
       stationId: item.id,
       focus: "station",
     }),
+    qrHref: qrStationsHref({ storeId: item.storeId, stationId: item.id }),
   }));
 
   // Полтысячи зон и список свободных чек-листов нужны только раскрытой форме:
@@ -159,6 +165,9 @@ export async function buildCatalogModel(
         }))
       : [],
     hrefs: {
+      // Пиццерия не выбрана — ведём в сам раздел QR: там экран предложит выбрать.
+      // Неактивной кнопка не бывает ни в одном состоянии экрана (T107).
+      qrStations: qrStationsHref({ storeId }),
       createCountry: catalogHref({
         countryId: countryId ?? undefined,
         storeId: storeId ?? undefined,

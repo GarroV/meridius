@@ -210,9 +210,13 @@ function StationRow({
       </td>
       <td className={TABLE_TD_NUM_CLASS}>{station.code}</td>
       <td className={TABLE_TD_ACTIONS_CLASS}>
-        <button type="button" disabled className={BTN_GHOST_SM_CLASS}>
+        <Link
+          href={station.qrHref}
+          data-testid="catalog-station-qr"
+          className={BTN_GHOST_SM_CLASS}
+        >
           {t("actions.qr")}
-        </button>
+        </Link>
         <form action={submitReissueCode} className="inline">
           <input type="hidden" name={FIELD_COUNTRY_ID} value={countryId} />
           <input type="hidden" name={FIELD_STORE_ID} value={storeId} />

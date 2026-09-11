@@ -4,6 +4,8 @@
 //
 // Всё, что приходит из адреса, — ввод от кого угодно, поэтому разбирается строго
 // (принцип безопасности: проверка на границе), а не подставляется в запрос как есть.
+import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
+
 import { isCatalogErrorCode, type CatalogErrorCode } from "../errors";
 
 export const CATALOG_PATH = "/admin/catalog";
@@ -92,4 +94,44 @@ export function catalogHref(view: CatalogView): string {
 
   const search = query.toString();
   return search === "" ? CATALOG_PATH : `${CATALOG_PATH}?${search}`;
+}
+
+/**
+ * Куда ведёт кнопка «QR» из справочника: пиццерия целиком или одна её станция.
+ *
+ * `storeId` — `null`, когда пиццерия не выбрана: адрес тогда ведёт в сам раздел, где
+ * экран QR предлагает выбрать пиццерию. Неактивной кнопки в кабинете не остаётся ни в
+ * одном состоянии — обещание кнопки выполняется всегда (T107).
+ */
+export interface QrTarget {
+  readonly storeId: string | null;
+  /** Станция внутри этой пиццерии. Без пиццерии в адрес не попадает: см. ниже. */
+  readonly stationId?: string;
+}
+
+/**
+ * Адрес раздела QR с выбранной пиццерией (и, если нужно, станцией).
+ *
+ * Почему не берётся готовый `qrHref` из `blocks/qr/ui/view.ts`: границы модулей
+ * (`.dependency-cruiser.cjs`) запрещают справочнику импортировать блок `qr` — зависимость
+ * идёт в обратную сторону, это блок `qr` читает справочник. Обратный импорт дал бы цикл,
+ * и его отказывает отдельное правило. Поэтому общий факт берётся из того места, которое
+ * доступно обоим, — сам адрес раздела лежит в `core/admin-sections`, рядом с боковым меню.
+ *
+ * Имена параметров (`store`, `station`) остаются договорённостью двух блоков: типами их не
+ * связать через границу. Их совпадение держит сквозной сценарий `e2e/catalog-qr.spec.ts` —
+ * настоящим переходом в браузере, потому что разъехаться они могут только молча.
+ */
+export function qrStationsHref(target: QrTarget): string {
+  const path = ADMIN_SECTIONS.qr.path;
+  if (target.storeId === null) return path;
+
+  const query = new URLSearchParams({ store: target.storeId });
+  // Станция без пиццерии раздел QR не находит: он ищет её внутри пиццерии и молча
+  // показал бы выбор, забыв про станцию. Половину ссылки не строим вовсе.
+  if (target.stationId !== undefined && target.stationId !== "") {
+    query.set("station", target.stationId);
+  }
+
+  return `${path}?${query.toString()}`;
 }

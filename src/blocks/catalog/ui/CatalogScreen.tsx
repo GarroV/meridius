@@ -28,8 +28,11 @@ const FIELD_CONFIRMED = "confirmed";
 
 const ERROR_NOTICE_CLASS =
   "text-err flex gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)]";
-const TOPBAR_BUTTON_CLASS =
-  "text-ink bg-surface inline-flex h-[var(--control-h)] items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium disabled:cursor-not-allowed disabled:opacity-60";
+// Ссылка, а не кнопка: переход внутри кабинета идёт роутером Next (D046, T088).
+// Классы те же, что у кнопки верхней полосы в эталоне, минус вид «неактивна» —
+// неактивной эта кнопка больше не бывает.
+const TOPBAR_LINK_CLASS =
+  "text-ink bg-surface inline-flex h-[var(--control-h)] items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium no-underline hover:border-[var(--line-control-2)] hover:bg-[var(--surface-2)]";
 const CONFIRM_CARD_CLASS =
   "flex max-w-[880px] flex-col gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] p-[var(--space-7)] shadow-[var(--sh-xs)]";
 const CONFIRM_TITLE_CLASS =
@@ -167,9 +170,13 @@ export async function CatalogScreen({
       breadcrumb={t("breadcrumb")}
       title={t("title")}
       topbarAction={
-        <button type="button" disabled className={TOPBAR_BUTTON_CLASS}>
+        <Link
+          href={model.hrefs.qrStations}
+          data-testid="catalog-qr-stations"
+          className={TOPBAR_LINK_CLASS}
+        >
           {t("actions.qrStations")}
-        </button>
+        </Link>
       }
     >
       {model.errorCode !== null ? (

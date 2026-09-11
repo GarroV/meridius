@@ -192,4 +192,24 @@ describe("что показывает экран справочника", () => 
       `/admin/catalog?country=${fixture.countryId}&store=${fixture.firstStoreId}&focus=store`,
     );
   });
+
+  test("кнопки QR ведут в раздел кодов: пиццерии — её лист, станции — её код (T107)", async () => {
+    // Экран собирать эти адреса не должен: он не знает ни выбранной пиццерии до
+    // расчёта, ни того, что станция может быть чужой. Поэтому они в модели.
+    const fixture = await catalogFixture();
+
+    const model = await buildCatalogModel(
+      { countryId: fixture.countryId, storeId: fixture.firstStoreId },
+      "ru",
+    );
+
+    expect(model.hrefs.qrStations).toBe(
+      `/admin/qr?store=${fixture.firstStoreId}`,
+    );
+    expect(
+      model.stations.find((item) => item.id === fixture.stationId)?.qrHref,
+    ).toBe(
+      `/admin/qr?store=${fixture.firstStoreId}&station=${fixture.stationId}`,
+    );
+  });
 });
