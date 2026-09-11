@@ -18,7 +18,7 @@
 // смоук — `scripts/mvp-smoke.mjs` сверяет базу с контуром до и после себя.
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, test } from "vitest";
 
 import type { Section } from "@/blocks/data";
@@ -188,6 +188,32 @@ async function exists(
   return rows.length === 1;
 }
 
+/**
+ * Сколько отвязанных чек-листов ПРОГОНА лежит в базе. Метка в условии обязательна,
+ * а не для красоты: `countDetachedChecklists` считает отвязанные чек-листы всей базы,
+ * и на тестовой базе это число живёт своей жизнью — соседние файлы идут параллельно
+ * и заводят чек-листы без станции десятками (`Checklist <id>`, `… (copy)` в редакторе
+ * и библиотеке, `detachChecklist` в справочнике). Поэтому сравнивать общее число
+ * «до» и «после» нельзя: уборка снимает свой чек-лист, сосед в ту же миллисекунду
+ * заводит свой, и проверка падает на ровном месте — `expected 60 to be 59`.
+ * Воспроизведено принудительно: при вставке отвязанного чек-листа раз в 5 мс тест
+ * падал 3 раза из 3, и всегда на числе ровно на единицу больше ожидаемого, тогда как
+ * снятие самого чек-листа было верным. Общее число остаётся у смоука на стенде, где
+ * в базе только демо-контур и никто, кроме смоука, в неё не пишет.
+ */
+async function detachedSmokeChecklists(): Promise<number> {
+  const rows = await db
+    .select({ id: checklists.id })
+    .from(checklists)
+    .where(
+      and(
+        isNull(checklists.stationId),
+        sql`${checklists.title}::text like ${`%${SMOKE_MARKER}%`}`,
+      ),
+    );
+  return rows.length;
+}
+
 afterAll(async () => {
   await closeTestDb();
 });
@@ -241,14 +267,18 @@ describe("уборка за сквозным смоуком", () => {
     await db.delete(stores).where(eq(stores.id, run.storeId));
     await db.delete(countries).where(eq(countries.id, run.countryId));
 
-    const detachedBefore = await countDetachedChecklists();
     expect(await exists(checklists, run.checklistId)).toBe(true);
+    expect(await detachedSmokeChecklists()).toBe(1);
+    // Общий счётчик смоука видит тот же чек-лист: он и объясняет на стенде, почему
+    // чек-листов в базе больше, чем в контуре. Сравнение только «не меньше»: на общей
+    // тестовой базе отвязанные чек-листы заводят и снимают параллельные файлы.
+    expect(await countDetachedChecklists()).toBeGreaterThanOrEqual(1);
 
     const swept = await sweepSmokeRuns();
 
     expect(swept.checklists).toBe(1);
     expect(await exists(checklists, run.checklistId)).toBe(false);
-    expect(await countDetachedChecklists()).toBe(detachedBefore - 1);
+    expect(await detachedSmokeChecklists()).toBe(0);
   });
 
   test("чужих строк не касается: без метки остаётся всё, включая чек-лист", async () => {
