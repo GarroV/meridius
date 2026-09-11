@@ -24,7 +24,6 @@ const LABEL_CLASS =
 const ITEM_BASE_CLASS =
   "flex items-center gap-[var(--space-5)] border-l-2 px-[var(--space-7)] py-[var(--space-4)]";
 const ITEM_CLASS = `${ITEM_BASE_CLASS} border-transparent text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-[var(--ink)]`;
-const ITEM_SOON_CLASS = `${ITEM_BASE_CLASS} border-transparent text-[var(--ink-3)]`;
 const ITEM_ACTIVE_CLASS = `${ITEM_BASE_CLASS} text-accent border-[var(--accent)] bg-[var(--accent-soft)] font-medium no-underline`;
 
 export interface AdminNavProps {
@@ -41,7 +40,6 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
   // Первый экран кабинета уже звал разделы через `admin.sections.*`, и четыре копии
   // меню держали пятую, шестую и седьмую копию тех же слов.
   const t = useTranslations("admin");
-  const soon = t("nav.soon");
 
   return (
     <nav className="bg-surface flex flex-col gap-[var(--space-8)] border-r border-[var(--line-strong)] py-[var(--space-7)]">
@@ -55,31 +53,25 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
       {ADMIN_NAV_GROUPS.map((group) => (
         <div key={group.key} className="flex flex-col">
           <div className={LABEL_CLASS}>{t(`nav.groups.${group.key}`)}</div>
-          {group.items.map((key) =>
-            ADMIN_SECTIONS[key].ready ? (
-              // Переход внутри кабинета — только `Link`: обычному `<a href>` Next не
-              // приставляет базовый путь площадки, и такая ссылка уводит на корень
-              // адреса, где на общей площадке живёт чужой продукт (T088, D046).
-              <Link
-                key={key}
-                className={key === active ? ITEM_ACTIVE_CLASS : ITEM_CLASS}
-                href={ADMIN_SECTIONS[key].path}
-                data-testid={`nav-${key}`}
-                {...(key === active ? { "aria-current": "page" as const } : {})}
-              >
-                {t(`sections.${key}`)}
-              </Link>
-            ) : (
-              <span
-                key={key}
-                className={ITEM_SOON_CLASS}
-                aria-disabled="true"
-                title={soon}
-              >
-                {t(`sections.${key}`)}
-              </span>
-            ),
-          )}
+          {group.items.map((key) => (
+            // Переход внутри кабинета — только `Link`: обычному `<a href>` Next не
+            // приставляет базовый путь площадки, и такая ссылка уводит на корень
+            // адреса, где на общей площадке живёт чужой продукт (T088, D046).
+            //
+            // Ветки «раздел ещё не готов» здесь больше нет: библиотека блоков была
+            // последним неготовым разделом и появилась вместе с блоком `library`.
+            // Понадобится снова — вернётся вместе с новым разделом, а не будет висеть
+            // условием, которое не может быть ложным.
+            <Link
+              key={key}
+              className={key === active ? ITEM_ACTIVE_CLASS : ITEM_CLASS}
+              href={ADMIN_SECTIONS[key].path}
+              data-testid={`nav-${key}`}
+              {...(key === active ? { "aria-current": "page" as const } : {})}
+            >
+              {t(`sections.${key}`)}
+            </Link>
+          ))}
         </div>
       ))}
 

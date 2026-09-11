@@ -14,13 +14,11 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 /** Готовые разделы: адрес экрана и подпись, под которой он обязан быть виден с других экранов. */
 const READY = [
   { key: "checklists", path: "/admin/checklists", name: "Чек-листы" },
+  { key: "library", path: "/admin/library", name: "Библиотека блоков" },
   { key: "qr", path: "/admin/qr", name: "QR-коды" },
   { key: "feed", path: "/admin/feed", name: "Заполнения" },
   { key: "catalog", path: "/admin/catalog", name: "Страны и пиццерии" },
 ] as const;
-
-/** Библиотека блоков в продукте не заведена (T027–T031) — она обязана оставаться неактивной. */
-const NOT_READY_LABEL = "Библиотека блоков";
 
 test.describe("связность разделов кабинета", () => {
   test.use({ locale: "ru-RU" });
@@ -44,10 +42,9 @@ test.describe("связность разделов кабинета", () => {
         ).toHaveAttribute("href", to.path);
       }
 
-      // Неготовое обязано выглядеть неготовым, а не ссылкой в пустоту.
-      await expect(
-        nav.getByRole("link", { name: NOT_READY_LABEL, exact: true }),
-      ).toHaveCount(0);
+      // Неготовых разделов в кабинете не осталось: библиотека блоков была последним,
+      // и она появилась вместе с блоком `library`. Появится новый неготовый раздел —
+      // сюда вернётся и проверка, что он не притворяется ссылкой.
 
       // Экран называет, где человек находится, — не только цветом пункта.
       await expect(
