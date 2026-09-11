@@ -3,17 +3,23 @@
 // самом планшете и оставить навсегда.
 //
 // Всё, что приходит из адреса, разбирается строго: это ввод от кого угодно.
+import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 import type { CatalogErrorCode } from "@/blocks/catalog";
 
-/** Экран печати листа. */
-export const QR_PATH = "/admin/qr";
+/**
+ * Экран печати листа. Адрес раздела — один факт на весь продукт, и живёт он в
+ * `core/admin-sections` (боковое меню читает его оттуда же): здесь раньше стояла
+ * своя копия строкой, и она могла разъехаться с меню молча, как уже было с четырьмя
+ * копиями списка разделов до T074.
+ */
+export const QR_PATH = ADMIN_SECTIONS.qr.path;
 /** Полноэкранный QR для планшета станции. */
-export const QR_SCREEN_PATH = "/admin/qr/screen";
+export const QR_SCREEN_PATH = `${QR_PATH}/screen`;
 /** Опрос кода станции планшетом: отдаёт только код и время его выпуска. */
-export const QR_CODE_PATH = "/admin/qr/code";
+export const QR_CODE_PATH = `${QR_PATH}/code`;
 
 /** Наклейка станции файлом (SVG) — «Скачать» рядом с кодом. */
-const QR_STICKER_PATH = "/admin/qr/sticker";
+const QR_STICKER_PATH = `${QR_PATH}/sticker`;
 
 const STORE = "store";
 const STATION = "station";
