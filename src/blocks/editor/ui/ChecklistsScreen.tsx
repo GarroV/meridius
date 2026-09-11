@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import { AdminShell } from "@/blocks/core/ui/AdminShell";
 import type { LocalizedText } from "@/blocks/data";
 
 import { submitDuplicate } from "../actions";
@@ -18,7 +19,6 @@ import {
   checklistPath,
   NEW_CHECKLIST_PATH,
 } from "../routes";
-import { AdminShell } from "./AdminShell";
 import { ChecklistFilters } from "./ChecklistFilters";
 
 /**
@@ -307,6 +307,7 @@ export async function ChecklistsScreen({
   return (
     <AdminShell
       testId="checklists-screen"
+      active="checklists"
       breadcrumb={filterCrumb(selection, t("list.crumbs"))}
       title={t("list.title")}
       topbarAction={

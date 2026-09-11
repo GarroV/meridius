@@ -5,20 +5,64 @@
 // В итоге «Заполнения» и «QR-коды» показывались надписью «Раздел ещё не готов», хотя работали,
 // а из справочника нельзя было уйти вообще никуда. Продукт существовал как набор адресов, а не
 // как целое: пройти путь «завёл чек-лист → напечатал коды → посмотрел заполнения» мышью было
-// нельзя. Пока копии навигации не сведены в одну, эта проверка — единственное, что удерживает
-// их от расхождения.
-import { test, expect } from "@playwright/test";
+// нельзя. Копии сведены в один каркас (`core/ui/AdminShell.tsx`, T074 и T112), но проверка
+// остаётся: она держит не разметку, а сам факт, что из любой точки кабинета виден весь
+// кабинет, — и ловит расхождение раньше, чем его увидит человек.
+import { test, expect, type Page } from "@playwright/test";
 
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 
-/** Готовые разделы: адрес экрана и подпись, под которой он обязан быть виден с других экранов. */
+/**
+ * Готовые разделы: адрес экрана, подпись, под которой раздел обязан быть виден с других
+ * экранов, и метка самого экрана — по ней видно, что переход не просто сменил адрес,
+ * а действительно открыл раздел.
+ */
 const READY = [
-  { key: "checklists", path: "/admin/checklists", name: "Чек-листы" },
-  { key: "library", path: "/admin/library", name: "Библиотека блоков" },
-  { key: "qr", path: "/admin/qr", name: "QR-коды" },
-  { key: "feed", path: "/admin/feed", name: "Заполнения" },
-  { key: "catalog", path: "/admin/catalog", name: "Страны и пиццерии" },
+  {
+    key: "checklists",
+    path: "/admin/checklists",
+    name: "Чек-листы",
+    screen: "checklists-screen",
+  },
+  {
+    key: "library",
+    path: "/admin/library",
+    name: "Библиотека блоков",
+    screen: "library-screen",
+  },
+  { key: "qr", path: "/admin/qr", name: "QR-коды", screen: "qr-screen" },
+  {
+    key: "feed",
+    path: "/admin/feed",
+    name: "Заполнения",
+    screen: "feed-screen",
+  },
+  {
+    key: "catalog",
+    path: "/admin/catalog",
+    name: "Страны и пиццерии",
+    screen: "catalog-screen",
+  },
 ] as const;
+
+/** Вход как им пользуются: форма, пароль, первый экран кабинета. */
+async function signIn(page: Page): Promise<void> {
+  await page.goto("/admin/login");
+  await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+  await page.getByTestId("login-submit").click();
+  await expect(page.getByTestId("admin-home")).toBeVisible();
+}
+
+/** Все готовые разделы видны в меню и ведут туда, куда написано. */
+async function expectMenuLeadsEverywhere(page: Page): Promise<void> {
+  const nav = page.locator("nav").first();
+  for (const to of READY) {
+    // Собственный пункт тоже ссылка — так экран называет, где человек находится.
+    await expect(
+      nav.getByRole("link", { name: to.name, exact: true }),
+    ).toHaveAttribute("href", to.path);
+  }
+}
 
 test.describe("связность разделов кабинета", () => {
   test.use({ locale: "ru-RU" });
@@ -27,20 +71,12 @@ test.describe("связность разделов кабинета", () => {
     test(`с экрана «${from.name}» доступны все остальные готовые разделы`, async ({
       page,
     }) => {
-      await page.goto("/admin/login");
-      await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
-      await page.getByTestId("login-submit").click();
-      await expect(page.getByTestId("admin-home")).toBeVisible();
+      await signIn(page);
 
       await page.goto(from.path);
 
+      await expectMenuLeadsEverywhere(page);
       const nav = page.locator("nav").first();
-      for (const to of READY) {
-        // Собственный пункт тоже ссылка — так экран называет, где человек находится.
-        await expect(
-          nav.getByRole("link", { name: to.name, exact: true }),
-        ).toHaveAttribute("href", to.path);
-      }
 
       // Неготовых разделов в кабинете не осталось: библиотека блоков была последним,
       // и она появилась вместе с блоком `library`. Появится новый неготовый раздел —
@@ -53,6 +89,42 @@ test.describe("связность разделов кабинета", () => {
     });
   }
 
+  // T112. Первый экран после входа шёл БЕЗ каркаса: ни меню, ни верхней полосы — вошедший
+  // попадал на страницу, которая выглядит как другое приложение, и уйти с неё мог только
+  // по карточкам разделов. Ни один сценарий этого не ловил: список выше перебирает разделы,
+  // а главная разделом не является, и в перебор не попадала.
+  test("главная кабинета отдаёт меню, как и все остальные экраны", async ({
+    page,
+  }) => {
+    await signIn(page);
+
+    await expectMenuLeadsEverywhere(page);
+
+    // Главная — не раздел, поэтому подсвечивать в меню нечего. Это единственный экран
+    // кабинета без выбранного пункта, и каркас обязан его переживать.
+    await expect(
+      page.locator("nav").first().locator("[aria-current]"),
+    ).toHaveCount(0);
+  });
+
+  for (const to of READY) {
+    test(`с главной кабинета мышью по меню открывается раздел «${to.name}»`, async ({
+      page,
+    }) => {
+      await signIn(page);
+
+      await page
+        .locator("nav")
+        .first()
+        .getByRole("link", { name: to.name, exact: true })
+        .click();
+
+      await expect(page).toHaveURL(new RegExp(`${to.path}$`));
+      // Адрес сменился — мало: раздел обязан отрисоваться, а не отдать пустоту или отказ.
+      await expect(page.getByTestId(to.screen)).toBeVisible();
+    });
+  }
+
   // T088: переход обязан идти через роутер Next, а не обычным `<a href>`. Разница видна
   // только на площадке с базовым путём — обычной ссылке Next префикс не приставляет, и
   // она уводит на корень адреса, к чужому продукту. Проверяется не разметкой, а
@@ -60,10 +132,7 @@ test.describe("связность разделов кабинета", () => {
   test("переход по меню идёт клиентским роутером, а не перезагрузкой страницы", async ({
     page,
   }) => {
-    await page.goto("/admin/login");
-    await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
-    await page.getByTestId("login-submit").click();
-    await expect(page.getByTestId("admin-home")).toBeVisible();
+    await signIn(page);
 
     await page.goto("/admin/checklists");
     await page.evaluate(() => {

@@ -16,6 +16,7 @@
   },
   "admin": {
     "home": "Admin",
+    "crumbs": "Workspace",
     "signedIn": "You are signed in. Choose a section.",
     "signOut": "Sign out",
     "sections": {
@@ -45,20 +46,6 @@
   "catalog": {
     "title": "Countries and pizzerias",
     "breadcrumb": "Directory",
-    "nav": {
-      "brand": "MERIDIUS",
-      "brandMuted": "Dodo",
-      "workGroup": "Work",
-      "templates": "Checklists",
-      "library": "Block library",
-      "feed": "Submissions",
-      "catalogGroup": "Directory",
-      "catalog": "Countries and pizzerias",
-      "qr": "QR codes",
-      "soon": "This section is not ready yet",
-      "signedIn": "Signed in",
-      "role": "methodologist"
-    },
     "columns": {
       "countries": "Countries",
       "stores": "Pizzerias",
@@ -136,21 +123,6 @@
     }
   },
   "editor": {
-    "nav": {
-      "brand": "MERIDIUS",
-      "brandMuted": "Dodo",
-      "work": "Work",
-      "checklists": "Checklists",
-      "library": "Block library",
-      "feed": "Submissions",
-      "reference": "Reference",
-      "catalog": "Countries and stores",
-      "qr": "QR codes",
-      "signedIn": "Signed in",
-      "role": "methodologist",
-      "signOut": "Sign out",
-      "soon": "Section is not ready yet"
-    },
     "list": {
       "title": "Checklists",
       "crumbs": "All countries",

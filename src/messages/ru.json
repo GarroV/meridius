@@ -16,6 +16,7 @@
   },
   "admin": {
     "home": "Админка",
+    "crumbs": "Кабинет",
     "signedIn": "Вы вошли. Выберите раздел.",
     "signOut": "Выйти",
     "sections": {
@@ -45,20 +46,6 @@
   "catalog": {
     "title": "Страны и пиццерии",
     "breadcrumb": "Справочник",
-    "nav": {
-      "brand": "MERIDIUS",
-      "brandMuted": "Dodo",
-      "workGroup": "Работа",
-      "templates": "Чек-листы",
-      "library": "Библиотека блоков",
-      "feed": "Заполнения",
-      "catalogGroup": "Справочник",
-      "catalog": "Страны и пиццерии",
-      "qr": "QR-коды",
-      "soon": "Раздел ещё не готов",
-      "signedIn": "Вход выполнен",
-      "role": "методист"
-    },
     "columns": {
       "countries": "Страны",
       "stores": "Пиццерии",
@@ -136,21 +123,6 @@
     }
   },
   "editor": {
-    "nav": {
-      "brand": "MERIDIUS",
-      "brandMuted": "Dodo",
-      "work": "Работа",
-      "checklists": "Чек-листы",
-      "library": "Библиотека блоков",
-      "feed": "Заполнения",
-      "reference": "Справочник",
-      "catalog": "Страны и пиццерии",
-      "qr": "QR-коды",
-      "signedIn": "Вход выполнен",
-      "role": "методист",
-      "signOut": "Выйти",
-      "soon": "Раздел ещё не готов"
-    },
     "list": {
       "title": "Чек-листы",
       "crumbs": "Все страны",

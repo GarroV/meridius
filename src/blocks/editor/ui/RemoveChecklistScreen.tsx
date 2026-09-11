@@ -3,13 +3,13 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactElement } from "react";
 
+import { AdminShell } from "@/blocks/core/ui/AdminShell";
 import type { LocalizedText } from "@/blocks/data";
 
 import { submitDeleteChecklist } from "../actions";
 import { previewRemoval } from "../removal";
 import { CHECKLISTS_PATH } from "../routes";
 import { EditorInputError } from "../validation";
-import { AdminShell } from "./AdminShell";
 
 /**
  * Подтверждение удаления чек-листа.
@@ -63,6 +63,7 @@ export async function RemoveChecklistScreen({
   return (
     <AdminShell
       testId="remove-checklist-screen"
+      active="checklists"
       breadcrumb={t("remove.crumbs")}
       title={t("remove.title")}
       topbarAction={null}
