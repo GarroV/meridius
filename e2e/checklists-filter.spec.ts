@@ -11,6 +11,9 @@ import { seedStation, type SeededStation } from "./database";
 
 const CHECKLISTS_PATH = "/admin/checklists";
 
+/** Страна, пиццерия, станция — столько списков обязано ожить на приехавшей странице. */
+const FILTER_SELECT_COUNT = 3;
+
 function label(): string {
   return Math.random().toString(36).slice(2, 8);
 }
@@ -41,6 +44,41 @@ function rowOf(page: Page, title: string) {
   return page.getByTestId("checklist-row").filter({ hasText: title });
 }
 
+/**
+ * Выбирает значение в списке фильтра и дожидается, пока выбор доедет до адреса.
+ *
+ * Ожидание «список ожил» стоит ДО выбора, и это не перестраховка (T121). Разметку
+ * списков отдаёт сервер, а обработчик выбора появляется только после гидратации:
+ * в этом окне список в DOM, с правильными вариантами, принимает выбор — и не делает
+ * ничего, событие `change` уходит в пустоту. Дальше сценарий ждёт смены адреса,
+ * которой уже не будет никогда, и падает по таймауту. Снаружи два состояния списка
+ * неразличимы, поэтому спрашиваем сам продукт — он объявляет `data-live`, когда
+ * применение выбора включилось.
+ *
+ * Сегодня это окно не мигало случайно: в каждом тесте выбор ровно один и сразу после
+ * перехода, а переход уже дождался загрузки. Первый же тест с двумя выборами подряд
+ * получил бы ровно то, что получила лента (T106), — поэтому проверка стоит в помощнике,
+ * через который идут все выборы, а не в том тесте, который однажды первым покраснеет.
+ *
+ * Оба ожидания обязательны и не заменяют друг друга: `data-live` доказывает, что выбор
+ * вообще применится, а смена адреса — что он применился и сужение посчитано сервером.
+ */
+async function pick(
+  page: Page,
+  filter: "country" | "store" | "station",
+  option: { label: string } | string,
+  applied: RegExp,
+): Promise<void> {
+  await expect(
+    page.locator('[data-testid="checklist-filters"] select[data-live="true"]'),
+    "Фильтры приехавшей страницы так и не ожили: выбор ушёл бы в разметку без " +
+      "обработчика — молча и без перехода.",
+  ).toHaveCount(FILTER_SELECT_COUNT);
+
+  await page.getByTestId(`checklist-filter-${filter}`).selectOption(option);
+  await page.waitForURL(applied);
+}
+
 test.describe("фильтры списка чек-листов", () => {
   test.use({ locale: "ru-RU" });
 
@@ -58,12 +96,9 @@ test.describe("фильтры списка чек-листов", () => {
     await expect(rowOf(page, kept)).toBeVisible();
     await expect(rowOf(page, dropped)).toBeVisible();
 
-    await page
-      .getByTestId("checklist-filter-country")
-      .selectOption({ label: mine.countryName });
-
     // Список применяется в момент выбора — кнопки «Показать» на эталоне нет.
-    await page.waitForURL(/country=/);
+    await pick(page, "country", { label: mine.countryName }, /country=/);
+
     await expect(rowOf(page, kept)).toBeVisible();
     await expect(rowOf(page, dropped)).toHaveCount(0);
   });
@@ -76,11 +111,8 @@ test.describe("фильтры списка чек-листов", () => {
     const dropped = await createChecklist(page, neighbour);
 
     await page.goto(CHECKLISTS_PATH);
-    await page
-      .getByTestId("checklist-filter-station")
-      .selectOption(station.stationId);
+    await pick(page, "station", station.stationId, /station=/);
 
-    await page.waitForURL(/station=/);
     await expect(rowOf(page, kept)).toBeVisible();
     await expect(rowOf(page, dropped)).toHaveCount(0);
   });
@@ -100,10 +132,7 @@ test.describe("фильтры списка чек-листов", () => {
       stores.getByRole("option", { name: other.storeName }),
     ).toHaveCount(1);
 
-    await page
-      .getByTestId("checklist-filter-country")
-      .selectOption({ label: mine.countryName });
-    await page.waitForURL(/country=/);
+    await pick(page, "country", { label: mine.countryName }, /country=/);
 
     await expect(
       stores.getByRole("option", { name: mine.storeName }),
@@ -124,10 +153,7 @@ test.describe("фильтры списка чек-листов", () => {
     await createChecklist(page, filled);
 
     await page.goto(CHECKLISTS_PATH);
-    await page
-      .getByTestId("checklist-filter-station")
-      .selectOption(empty.stationId);
-    await page.waitForURL(/station=/);
+    await pick(page, "station", empty.stationId, /station=/);
 
     await expect(page.getByTestId("checklist-row")).toHaveCount(0);
     await expect(page.getByTestId("checklists-filtered-empty")).toBeVisible();
