@@ -22,8 +22,15 @@ function emptySection(): Section {
   return { id: newId(), title: {}, source: "own", items: [emptyItem()] };
 }
 
-export function isLinked(section: Section): boolean {
-  return typeof section.source !== "string";
+/**
+ * Опознаватель вставленного блока библиотеки — или `null`, если секция своя.
+ *
+ * Заменил прежний `isLinked`: тот отвечал «да/нет» и тип не сужал, поэтому разметке,
+ * которой нужен адрес блока, пришлось бы разбирать `source` второй раз, своими руками
+ * (T115). Одного ответа хватает обоим вопросам — «связана ли секция» это `!== null`.
+ */
+export function linkedBlockId(section: Section): string | null {
+  return typeof section.source === "string" ? null : section.source.blockId;
 }
 
 export function itemCount(sections: readonly Section[]): number {

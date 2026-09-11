@@ -1,10 +1,12 @@
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from "react";
 
 import type { Item, Section } from "@/blocks/data";
 
-import { isLinked } from "../editing";
+import { linkedBlockId } from "../editing";
+import { libraryBlockPath } from "../routes";
 import { ItemRow } from "./ItemRow";
 import { LinkedItemRow } from "./LinkedItemRow";
 
@@ -29,8 +31,6 @@ export interface SectionCardProps {
   readonly locale: string;
   /** Сколько ещё чек-листов используют вставленный блок — «используется ещё в 6». */
   readonly usageCount: number;
-  /** Подпись «раздел ещё не готов» для пунктов, которых в продукте пока нет. */
-  readonly soonLabel: string;
   readonly onSectionTitle: (text: string) => void;
   readonly onRemoveSection: () => void;
   readonly onUnlink: () => void;
@@ -58,7 +58,9 @@ export interface SectionCardProps {
 export function SectionCard(props: SectionCardProps) {
   const t = useTranslations("editor.section");
   const { section, firstOrdinal, locale } = props;
-  const linked = isLinked(section);
+  // Один разбор `source` на всю разметку: вид секции и адрес её блока — один и тот же факт.
+  const blockId = linkedBlockId(section);
+  const linked = blockId !== null;
   const [pasting, setPasting] = useState(false);
   const [pasted, setPasted] = useState("");
   // Свёрнутая секция из эталона: в чек-листе на полсотни пунктов иначе не найти нужную.
@@ -105,27 +107,7 @@ export function SectionCard(props: SectionCardProps) {
             : ""}
         </span>
 
-        {linked ? (
-          <>
-            {/* Раздела библиотеки в продукте ещё нет (его строит блок library), поэтому
-                пункт показан, но не ведёт в 404 — так же, как разделы в левом меню. */}
-            <span
-              className={`${GHOST_BUTTON_CLASS} ml-auto`}
-              aria-disabled="true"
-              title={props.soonLabel}
-            >
-              {t("openBlock")}
-            </span>
-            <button
-              type="button"
-              data-testid="section-unlink"
-              className={GHOST_BUTTON_CLASS}
-              onClick={props.onUnlink}
-            >
-              {t("unlink")}
-            </button>
-          </>
-        ) : (
+        {blockId === null ? (
           <>
             <button
               type="button"
@@ -144,6 +126,27 @@ export function SectionCard(props: SectionCardProps) {
               onClick={props.onRemoveSection}
             >
               {t("delete")}
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Ведёт сразу на нужный блок, а не в список: в библиотеке их полсотни.
+                `Link`, а не `<a href>`: базовый путь площадки Next приставляет только
+                тому, что идёт через его роутер (T088, D046). */}
+            <Link
+              data-testid="section-open-block"
+              className={`${GHOST_BUTTON_CLASS} ml-auto no-underline`}
+              href={libraryBlockPath(blockId)}
+            >
+              {t("openBlock")}
+            </Link>
+            <button
+              type="button"
+              data-testid="section-unlink"
+              className={GHOST_BUTTON_CLASS}
+              onClick={props.onUnlink}
+            >
+              {t("unlink")}
             </button>
           </>
         )}
