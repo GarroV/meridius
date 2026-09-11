@@ -15,6 +15,7 @@ import {
   FIELD_LABEL_CLASS,
   FIELD_NAME,
   FIELD_TIMEZONE,
+  FIELD_VALUE_CLASS,
   INLINE_CLASS,
   INPUT_CLASS,
   KEY_ACTION_SAVE,
@@ -65,18 +66,20 @@ export function StoreCard({
             />
           </div>
           <div className={FIELD_CLASS}>
-            <label htmlFor="store-country" className={FIELD_LABEL_CLASS}>
+            <span id="store-country-label" className={FIELD_LABEL_CLASS}>
               {t("fields.country")}
-            </label>
-            {/* Перенос пиццерии между странами эта версия не делает — только для чтения. */}
-            <select
+            </span>
+            {/* Перенос пиццерии между странами эта версия не делает — значение только
+                для чтения (T117). Не элемент формы: обычный текст, а не `<select disabled>`,
+                который читался как «сломано» или «нет прав». */}
+            <p
               id="store-country"
-              disabled
-              defaultValue={store.countryName}
-              className={SELECT_CLASS}
+              aria-labelledby="store-country-label"
+              data-testid="store-country-value"
+              className={FIELD_VALUE_CLASS}
             >
-              <option value={store.countryName}>{store.countryName}</option>
-            </select>
+              {store.countryName}
+            </p>
           </div>
           <div className={FIELD_CLASS}>
             <label htmlFor="store-timezone" className={FIELD_LABEL_CLASS}>
