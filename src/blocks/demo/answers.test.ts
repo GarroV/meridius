@@ -144,4 +144,89 @@ describe("ответы демонстрационного заполнения",
       }),
     ).toThrow("i-note");
   });
+
+  test("исключённого пункта в ответах нет вовсе, остальные отвечены как обычно", () => {
+    const answers = answersFor(SECTIONS, {
+      note: NOTE,
+      unanswered: ["i-labels"],
+    });
+
+    // Не пустая строка и не `false` — пункта нет в результате совсем.
+    expect(answers.map((answer) => answer.itemId)).toStrictEqual([
+      "i-oven",
+      "i-fryer",
+      "i-note",
+    ]);
+    expect(answers.every((answer) => answer.itemId !== "i-labels")).toBe(true);
+  });
+
+  test("неизвестный опознаватель в unanswered — ошибка, а не молчаливое полное заполнение", () => {
+    // Иначе опечатка в id молча даёт полное заполнение, и тревоги на показе не будет.
+    expect(() =>
+      answersFor(SECTIONS, { note: NOTE, unanswered: ["i-nope"] }),
+    ).toThrow("i-nope");
+  });
+
+  test("один и тот же пункт нельзя одновременно провалить и оставить без ответа", () => {
+    expect(() =>
+      answersFor(SECTIONS, {
+        note: NOTE,
+        unanswered: ["i-labels"],
+        failed: { itemId: "i-labels", comment: "Two sauces without labels." },
+      }),
+    ).toThrow("i-labels");
+  });
+
+  test("numbers раздаётся оставшимся числовым пунктам по порядку, после исключения", () => {
+    const sections: Section[] = [
+      {
+        id: "s-numbers",
+        title: { en: "Numbers" },
+        source: "own",
+        items: [
+          {
+            id: "i-first",
+            title: { en: "First number" },
+            type: "number",
+            critical: false,
+            min: 0,
+            max: 10,
+          },
+          {
+            id: "i-second",
+            title: { en: "Second number" },
+            type: "number",
+            critical: false,
+            min: 0,
+            max: 10,
+          },
+        ],
+      },
+    ];
+
+    // Исключение идёт ДО сборки ответов: `numbers[0]` достаётся первому
+    // ОСТАВШЕМУСЯ числовому пункту, то есть `i-second`, а не `i-first`.
+    const answers = answersFor(sections, {
+      unanswered: ["i-first"],
+      numbers: [7],
+    });
+
+    expect(answers).toHaveLength(1);
+    expect(answers[0]?.itemId).toBe("i-second");
+    expect(answers[0]?.value).toBe(7);
+  });
+
+  test("исключённый текстовый пункт снимает требование заметки", () => {
+    // Единственный текстовый пункт разметки — `i-note`; без него `note` не нужен.
+    expect(() =>
+      answersFor(SECTIONS, { unanswered: ["i-note"] }),
+    ).not.toThrow();
+
+    const answers = answersFor(SECTIONS, { unanswered: ["i-note"] });
+    expect(answers.map((answer) => answer.itemId)).toStrictEqual([
+      "i-oven",
+      "i-fryer",
+      "i-labels",
+    ]);
+  });
 });

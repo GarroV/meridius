@@ -14,12 +14,29 @@ BOLD=$'\033[1m'; GREEN=$'\033[32m'; RED=$'\033[31m'; OFF=$'\033[0m'
 step() { printf '\n%s▸ %s%s\n' "$BOLD" "$1" "$OFF"; }
 die()  { printf '%sПРОВАЛ: %s%s\n' "$RED" "$1" "$OFF" >&2; exit 1; }
 
-# Значение из .env, не исполняя файл: `source .env` отдал бы файлу оболочку.
-env_value() {
-  local key="$1" fallback="$2" line
-  line="$(grep -E "^[[:space:]]*${key}=" .env 2>/dev/null | tail -1 || true)"
+# Значение из файла окружения, не исполняя его: `source .env` отдал бы файлу оболочку.
+value_from() {
+  local file="$1" key="$2" fallback="${3-}" line
+  line="$(grep -E "^[[:space:]]*${key}=" "$file" 2>/dev/null | tail -1 || true)"
   [ -z "$line" ] && { printf '%s' "$fallback"; return; }
   printf '%s' "${line#*=}"
+}
+env_value() { value_from .env "$1" "$2"; }
+
+# Заменить значение в .env, не печатая его: секрет в выводе команды остался бы в журнале.
+set_env_value() {
+  local key="$1" value="$2" tmp
+  tmp="$(mktemp)"
+  grep -v -E "^[[:space:]]*${key}=" .env > "$tmp" || true
+  printf '%s=%s\n' "$key" "$value" >> "$tmp"
+  cat "$tmp" > .env
+  rm -f "$tmp"
+}
+
+# Значение то же, что опубликовано в .env.example? Сравниваем с самим файлом, а не с
+# копией константы: константы в двух местах разъезжаются, а файл — источник истины.
+same_as_example() {
+  [ "$(env_value "$1" "")" = "$(value_from .env.example "$1" "")" ]
 }
 
 command -v docker >/dev/null 2>&1 || die "нет docker — база продукта живёт в контейнере"
@@ -27,7 +44,30 @@ command -v docker >/dev/null 2>&1 || die "нет docker — база проду�
 if [ ! -f .env ]; then
   step "Окружения нет — беру пример"
   cp .env.example .env
-  printf 'Создан .env из .env.example. Значения в нём демонстрационные: на площадке замените пароль админки и секрет подписи.\n'
+  printf 'Создан .env из .env.example.\n'
+fi
+
+# Продукт ОТКАЗЫВАЕТ во входе, если секрет подписи или хэш пароля взяты из .env.example:
+# файл лежит в git, и на боевом запуске (`next start` — это NODE_ENV=production) такие
+# значения открыли бы кабинет любому читателю репозитория (см. src/blocks/auth/config.ts).
+# Без замены стенд поднимался «успешно», страницы отдавали 200, а вход отвечал пятисоткой
+# `SESSION_SECRET: значение взято из .env.example` — то есть одной командой поднимался
+# стенд, на котором нельзя работать. Поэтому опубликованные значения здесь заменяются
+# своими, а не оставляются с напоминанием: напоминание читают после того, как упёрлись.
+if same_as_example SESSION_SECRET; then
+  step "Секрет подписи сессии — свой"
+  command -v openssl >/dev/null 2>&1 || die "нет openssl — нечем сгенерировать SESSION_SECRET"
+  set_env_value SESSION_SECRET "$(openssl rand -base64 48 | tr -d '\n')"
+  printf 'Секрет из .env.example заменён своим (в вывод не печатается).\n'
+fi
+
+if same_as_example ADMIN_PASSWORD_HASH; then
+  step "Пароль кабинета — свой"
+  command -v openssl >/dev/null 2>&1 || die "нет openssl — нечем сгенерировать пароль"
+  NEW_ADMIN_PASSWORD="$(openssl rand -base64 18 | tr -d '\n/+=' | cut -c1-16)"
+  NEW_HASH_LINE="$(printf '%s' "$NEW_ADMIN_PASSWORD" | node scripts/hash-admin-password.mjs)" \
+    || die "не удалось посчитать хэш пароля"
+  set_env_value ADMIN_PASSWORD_HASH "${NEW_HASH_LINE#*=}"
 fi
 
 PORT="$(env_value PORT 3100)"
@@ -66,6 +106,13 @@ npx --no-install next build
 
 printf '\n%sПродукт поднят: %s%s\n' "$GREEN" "$URL" "$OFF"
 printf 'Админка: %s/admin · экран заполнения открывается по ссылке станции из вывода сида.\n' "$URL"
+# Пароль печатается ровно один раз и только когда его завёл этот запуск: нигде больше
+# его нет (в .env лежит хэш), а стенд без пароля — это стенд, на который нельзя войти.
+if [ -n "${NEW_ADMIN_PASSWORD:-}" ]; then
+  printf '%sПароль кабинета (запишите, второй раз он не покажется): %s%s\n' \
+    "$BOLD" "$NEW_ADMIN_PASSWORD" "$OFF"
+  printf 'Сменить: node scripts/hash-admin-password.mjs, затем ADMIN_PASSWORD_HASH в .env и пересборка.\n'
+fi
 printf 'Остановить: Ctrl-C. Убрать базу: docker compose -p %s down -v\n\n' "$PROJECT"
 
 exec npx --no-install next start --port "$PORT"

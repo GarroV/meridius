@@ -13,10 +13,45 @@
 //                              [--out reports/mvp-smoke]
 //
 // Каждый шаг снимается в PNG: снимки — это то, что показывают человеку, а не пересказ.
+//
+// СМОУК УБИРАЕТ ЗА СОБОЙ САМ (T089). Он проходит продукт настоящими действиями, значит
+// оставляет настоящие строки, а средствами самого продукта их не удалить: заполнения
+// не удаляются вовсе (история неприкосновенна), а чек-лист с заполнениями продукт
+// снимает с работы, а не стирает. Поэтому уборка идёт через слой доступа и требует
+// базы: без DATABASE_URL смоук ОТКАЗЫВАЕТСЯ СТАРТОВАТЬ, а не заводит данные, которые
+// потом некому убрать. Прежний ручной рецепт уборки соблюдался ровно до первого раза,
+// когда о нём забыли, — и к 07.09.2026 в базе висело восемь лишних чек-листов.
+//
+// Уборка идёт трижды, и это не перестраховка:
+//   на входе  — снять брошенное прошлыми прогонами (убитый Ctrl-C до `finally` не доходит);
+//   в finally — снять своё, в том числе после падения посередине;
+//   по сигналу — то же самое, когда прогон обрывают руками.
+// После уборки перепись базы сверяется с описанием демо-контура: расхождение значит
+// либо остаток прогона, либо потерянные демо-данные, и молчать о нём нельзя.
 import { mkdirSync } from "node:fs";
+import { register } from "node:module";
 import path from "node:path";
 
 import { chromium } from "@playwright/test";
+
+// Хук ставится ДО первого импорта из src/: Node не знает ни псевдонима `@/`,
+// ни импортов без расширения, на которых написан весь код продукта.
+register("./src-resolve-hook.mjs", import.meta.url);
+
+try {
+  process.loadEnvFile();
+} catch {
+  // .env может не быть — тогда работают переменные окружения снаружи.
+}
+
+const {
+  censusDifferences,
+  contourCensus,
+  countDetachedChecklists,
+  readCensus,
+  smokeNames,
+  sweepSmokeRuns,
+} = await import("../src/blocks/demo/index.ts");
 
 const PHONE = { width: 375, height: 812 };
 const DESKTOP = { width: 1440, height: 960 };
@@ -91,10 +126,17 @@ const PASSWORD = argument("password");
 const OUT_DIR = path.resolve(argument("out", "reports/mvp-smoke"));
 
 const label = Math.random().toString(36).slice(2, 7);
-const COUNTRY = `Smokeland ${label}`;
-const STORE = `Smokeland, Harbour ${label}`;
-const STATION = `Kitchen ${label}`;
-const CHECKLIST = `Kitchen opening ${label}`;
+// Имена берутся у блока demo, а не сочиняются здесь: уборка ищет свои строки по той же
+// метке. Разъедься эти два места — смоук заводил бы одно, а убирал другое, и остатки
+// снова копились бы молча. Метку несёт и название чек-листа: он переживает свою станцию
+// (`checklists.station_id` — `on delete set null`), и без метки отвязанный чек-лист было
+// бы нечем отличить от чек-листа, который методист отвязал сам.
+const {
+  country: COUNTRY,
+  store: STORE,
+  station: STATION,
+  checklist: CHECKLIST,
+} = smokeNames(label);
 const COMMENT = "Two sauce buckets are unlabelled, moved to the fridge.";
 
 let step = 0;
@@ -235,12 +277,17 @@ async function createChecklist(page, catalog) {
   await page.getByTestId("item-type").nth(1).selectOption("number");
   await page.getByTestId("item-min").first().fill("160");
   await page.getByTestId("item-max").first().fill("180");
-  await page.getByTestId("item-critical").nth(2).click();
+  // Уровень пункта, а не флажок «критичный»: с появлением режимов смены (D055/D056)
+  // редактор переключает три уровня переключателем `item-severity-<уровень>`, а
+  // прежнего `item-critical` в разметке нет вовсе. Смоук на него всё ещё нажимал и
+  // потому падал в редакторе — то есть сквозной сценарий не проходил с 07.09.2026,
+  // и заметно это стало только когда смоук снова прогнали целиком.
+  await page.getByTestId("item-severity-critical").nth(2).click();
   check(
     (await page
       .getByTestId("editor-item")
       .nth(2)
-      .getAttribute("data-critical")) === "true",
+      .getAttribute("data-severity")) === "critical",
     "третий пункт помечен критичным",
   );
 
@@ -369,9 +416,76 @@ async function findInFeed(page) {
   await shot(page, "submission");
 }
 
+/** Снять данные прогонов смоука и рассказать, сколько сняли. */
+async function sweep(what) {
+  const swept = await sweepSmokeRuns();
+  if (swept.total === 0) {
+    say(`${what}: снимать нечего`);
+    return swept;
+  }
+  say(
+    `${what}: снято строк ${swept.total} — стран ${swept.countries}, пиццерий ${swept.stores}, ` +
+      `станций ${swept.stations}, чек-листов ${swept.checklists}, версий ${swept.versions}, ` +
+      `заполнений ${swept.submissions}, режимов смены ${swept.shiftModes}`,
+  );
+  return swept;
+}
+
+/**
+ * Сверка переписи базы с описанием демо-контура. Возвращает текст расхождения или
+ * `undefined`. Число отвязанных чек-листов печатается рядом: именно оно объясняет,
+ * откуда взялись лишние чек-листы, — в демо-контуре их нет ни одного.
+ */
+async function contourMismatch() {
+  const differences = censusDifferences(await readCensus(), contourCensus());
+  if (differences.length === 0) return undefined;
+
+  const detached = await countDetachedChecklists();
+  return (
+    `в базе не демонстрационный контур:\n    ${differences.join("\n    ")}\n` +
+    `  чек-листов без станции: ${detached} (в контуре их нет ни одного)`
+  );
+}
+
 mkdirSync(OUT_DIR, { recursive: true });
 console.log(`Сквозной смоук MVP по адресу ${BASE_URL}`);
 console.log(`Снимки: ${OUT_DIR}\n`);
+
+if (!process.env.DATABASE_URL) {
+  console.error(
+    "Нет DATABASE_URL. Смоук заводит настоящие данные, и убрать их может только\n" +
+      "через базу: продукт заполнения не удаляет вовсе (история неприкосновенна).\n" +
+      "Без доступа к базе прогон не начинается — иначе он оставил бы за собой мусор,\n" +
+      "который потом никто не найдёт. Запустите смоук там, где база видна, или\n" +
+      "пробросьте её к себе (ssh -L) и задайте DATABASE_URL.",
+  );
+  process.exit(1);
+}
+
+heading("Уборка до прогона: остатки брошенных прогонов");
+try {
+  await sweep("остатки прошлых прогонов");
+} catch (error) {
+  console.error(
+    `\nБаза недоступна, прогон не начат: ${error.message}\n` +
+      "Смоук не заводит данные, которые потом некому убрать.",
+  );
+  await globalThis.meridiusPool?.end();
+  process.exit(1);
+}
+
+const mismatchBefore = await contourMismatch();
+if (mismatchBefore !== undefined) {
+  console.error(
+    `\nПРОГОН НЕ НАЧАТ: ${mismatchBefore}\n` +
+      "  Смоук сверяет базу с контуром и до, и после себя: на неизвестном стенде\n" +
+      "  проверка «после прогона в базе ровно демо-контур» ничего не значила бы.\n" +
+      "  Приведите стенд к эталону: npm run seed:demo",
+  );
+  await globalThis.meridiusPool?.end();
+  process.exit(1);
+}
+say("перепись сходится с демо-контуром");
 
 const browser = await chromium.launch();
 const context = await browser.newContext({
@@ -379,6 +493,29 @@ const context = await browser.newContext({
   locale: "en-US",
 });
 const page = await context.newPage();
+
+// Прогон, оборванный руками, до `finally` не доходит: `process.exit` внутри обработчика
+// сигнала обрывает всё немедленно. Поэтому уборка вызывается прямо здесь.
+let interrupted = false;
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, () => {
+    if (interrupted) return;
+    interrupted = true;
+    console.log(`\nПрогон оборван (${signal}) — убираю за собой.`);
+    void (async () => {
+      try {
+        await sweep("данные оборванного прогона");
+      } catch (error) {
+        console.error(`уборка не удалась: ${error.message}`);
+      } finally {
+        await browser.close().catch(() => undefined);
+        await globalThis.meridiusPool?.end();
+        process.exit(130);
+      }
+    })();
+  });
+}
+
 let failure;
 try {
   await signIn(page);
@@ -399,9 +536,29 @@ try {
   await browser.close();
 }
 
+// Уборка идёт и после падения посередине: данные прогона существуют независимо от того,
+// дошёл ли сценарий до конца, и незаконченный прогон оставляет их ровно так же.
+heading("Уборка после прогона");
+let cleanupFailure;
+try {
+  await sweep("данные этого прогона");
+  const mismatchAfter = await contourMismatch();
+  if (mismatchAfter !== undefined) cleanupFailure = mismatchAfter;
+  else say("после прогона в базе ровно демо-контур");
+} catch (error) {
+  cleanupFailure = `уборка не удалась: ${error.message}`;
+}
+
+await globalThis.meridiusPool?.end();
+
 if (failure !== undefined) {
   console.error(`\nСМОУК НЕ ПРОШЁЛ: ${failure.message}`);
   process.exitCode = 1;
-} else {
+}
+if (cleanupFailure !== undefined) {
+  console.error(`\nУБОРКА НЕ ЗАКРЫЛАСЬ: ${cleanupFailure}`);
+  process.exitCode = 1;
+}
+if (failure === undefined && cleanupFailure === undefined) {
   console.log(`\nСКВОЗНОЙ СЦЕНАРИЙ MVP ПРОЙДЕН. Снимков: ${done.length}`);
 }

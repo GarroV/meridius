@@ -613,6 +613,23 @@ const SUBMISSIONS: DemoSubmission[] = [
     answersFor(sectionsForMode(CHECKLIST_EVENING_SECTIONS_V1, "critical")),
     "critical",
   ),
+  // Третий вид тревоги (T099): критичный пункт, оставленный БЕЗ ОТВЕТА, а не
+  // проваленный. Заполнение отправлено, но один критичный числовой пункт ушёл из
+  // надзора молча — ни «нет», ни числа вне диапазона, просто пустое место в ответах.
+  // Ровно этот случай отличает `criticalUnanswered` от `criticalFailed`, и без такого
+  // заполнения в демо-контуре третий вид тревоги на показе не появляется никогда.
+  submission(
+    "d7000000-0000-4000-8000-000000000014",
+    VERSION_MORNING_V2_ID,
+    STATION_CENTRAL_KITCHEN_ID,
+    0,
+    "09:15",
+    7,
+    answersFor(CHECKLIST_MORNING_SECTIONS_V2, {
+      note: "Extra delivery boxes this morning, took longer than usual to sort the walk-in.",
+      unanswered: ["item-delivery-temperature"],
+    }),
+  ),
 ];
 
 /**

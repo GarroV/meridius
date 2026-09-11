@@ -8,6 +8,7 @@ import { STATION_CODE_ALPHABET, STATION_CODE_LENGTH } from "@/blocks/catalog";
 import type { Answer, Item, LocalizedText, Section } from "@/blocks/data";
 import {
   countFailedCritical,
+  countUnansweredCritical,
   flattenItems,
   sectionsForMode,
   severityOf,
@@ -27,6 +28,17 @@ const EXPECTED_CHECKLISTS = 3;
 const MIN_SUBMISSIONS = 10;
 const MIN_SECTIONS_PER_CHECKLIST = 2;
 const MIN_REUSE_CHECKLISTS = 2;
+
+/**
+ * Заполнение T099: единственное в контуре, которое сознательно оставляет один
+ * критичный пункт БЕЗ ОТВЕТА — так на показе появляется третий вид тревоги
+ * (`criticalUnanswered`), отдельный от провала. Инвариант «ответы покрывают ровно
+ * то, что спросили» ниже намеренно на него не распространяется: непроверенный
+ * останов и есть его единственное назначение, а не недосмотр авторов данных.
+ */
+const UNANSWERED_CRITICAL_SUBMISSION_ID =
+  "d7000000-0000-4000-8000-000000000014";
+const UNANSWERED_CRITICAL_ITEM_ID = "item-delivery-temperature";
 
 function publishedVersion(checklist: DemoChecklist): DemoVersion {
   const found = checklist.versions.find(
@@ -284,6 +296,20 @@ describe("состав демонстрационного контура", () =>
       const answered = submission.answers.map((answer) => answer.itemId);
 
       expect(new Set(answered).size).toBe(answered.length);
+
+      if (submission.id === UNANSWERED_CRITICAL_SUBMISSION_ID) {
+        // Единственное официальное исключение (T099, см. константу выше): один
+        // критичный пункт нарочно остаётся без ответа, чтобы поднять тревогу
+        // `criticalUnanswered`. Остальные пункты по-прежнему отвечены полностью.
+        const expectedAnswered = asked.filter(
+          (id) => id !== UNANSWERED_CRITICAL_ITEM_ID,
+        );
+        expect([...answered].sort()).toStrictEqual(
+          [...expectedAnswered].sort(),
+        );
+        continue;
+      }
+
       // Недозаполненных пунктов в демо нет: лента показывала бы «отвечено 3 из 7»,
       // и это читалось бы как недоделка продукта, а не как замысел данных.
       expect([...answered].sort()).toStrictEqual([...asked].sort());
@@ -315,6 +341,38 @@ describe("состав демонстрационного контура", () =>
     );
     expect(failed?.length).toBe(1);
     expect((failed?.[0]?.comment ?? "").length).toBeGreaterThan(0);
+  });
+
+  test("ровно одно заполнение оставляет критичный пункт без ответа, и оно за сегодня", () => {
+    // Требование к ДАННЫМ, а не к продукту: тревога «критичный пункт без ответа»
+    // (`criticalUnanswered` в блоке feed) считается только по заполнениям за ТЕКУЩИЕ
+    // местные сутки пиццерии. Заведи это заполнение вчерашним числом или не заведи
+    // вовсе — и третий вид тревоги на показе не появится никогда, при том что
+    // продуктовый код тревоги всё это время работает правильно.
+    const sectionsByVersion = new Map(
+      allVersions().map((version) => [version.id, [...version.sections]]),
+    );
+
+    const withUnanswered = DEMO.submissions.filter(
+      (submission) =>
+        countUnansweredCritical(
+          sectionsByVersion.get(submission.versionId) ?? [],
+          withAnswerTime(submission.answers),
+        ) > 0,
+    );
+
+    expect(withUnanswered).toHaveLength(1);
+    expect(withUnanswered[0]?.daysAgo).toBe(0);
+    // Это ровно то заполнение, которому проверка покрытия выше делает исключение, и
+    // без ответа в нём остался ровно тот пункт. Без двух строк ниже требования могли бы
+    // разъехаться молча: исключение осталось бы на одном заполнении, а тревогу поднимало
+    // бы другое — и «ровно одно» перестало бы значить «то самое одно».
+    expect(withUnanswered[0]?.id).toBe(UNANSWERED_CRITICAL_SUBMISSION_ID);
+    expect(
+      withUnanswered[0]?.answers.some(
+        (answer) => answer.itemId === UNANSWERED_CRITICAL_ITEM_ID,
+      ),
+    ).toBe(false);
   });
 
   test("числовые пункты заданы диапазоном, а ответы на них — числа", () => {

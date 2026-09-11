@@ -25,6 +25,16 @@ export interface AnswerOptions {
   readonly numbers?: readonly number[];
   /** Единственный проваленный пункт заполнения. */
   readonly failed?: FailedItem;
+  /**
+   * Пункты, оставленные без ответа вовсе: их в результате не будет — ни пустой строки,
+   * ни `false`, а именно отсутствие элемента.
+   *
+   * Исключение происходит из разметки ДО сборки ответов, и у этого два следствия:
+   * `numbers` раздаётся ОСТАВШИМСЯ числовым пунктам по порядку (исключённый числовой
+   * пункт номера не занимает), а `note` не требуется, если единственный пункт
+   * свободного текста разметки оказался среди исключённых.
+   */
+  readonly unanswered?: readonly string[];
 }
 
 /** Середина заданного диапазона: обычный ответ на числовой пункт. */
@@ -74,6 +84,36 @@ function assertFailable(items: readonly Item[], failed: FailedItem): Item {
 }
 
 /**
+ * Опечатка в опознавателе `unanswered` иначе молча дала бы полное заполнение —
+ * пункт остался бы отвеченным, и задуманной тревоги на показе бы не было.
+ */
+function assertUnanswerable(
+  items: readonly Item[],
+  unanswered: readonly string[],
+): void {
+  for (const itemId of unanswered) {
+    const exists = items.some((item) => item.id === itemId);
+    if (!exists) {
+      throw new Error(
+        `Пункт ${itemId} нельзя оставить без ответа: его нет в разметке этой версии`,
+      );
+    }
+  }
+}
+
+/** Провалить пункт и одновременно оставить его без ответа — требования взаимоисключающие. */
+function assertNotBothFailedAndUnanswered(
+  unanswered: readonly string[],
+  failed: FailedItem | undefined,
+): void {
+  if (failed === undefined) return;
+  if (!unanswered.includes(failed.itemId)) return;
+  throw new Error(
+    `Пункт ${failed.itemId} указан и в unanswered, и в failed: нельзя одновременно провалить пункт и оставить его без ответа`,
+  );
+}
+
+/**
  * Ответы на все пункты версии подряд. Порядок — тот же, что на экране заполнения:
  * секции по порядку, внутри секции пункты по порядку.
  */
@@ -81,7 +121,15 @@ export function answersFor(
   sections: readonly Section[],
   options: AnswerOptions = {},
 ): DemoAnswer[] {
-  const items = sections.flatMap((section) => section.items);
+  const allItems = sections.flatMap((section) => section.items);
+  const unanswered = options.unanswered ?? [];
+  assertUnanswerable(allItems, unanswered);
+  assertNotBothFailedAndUnanswered(unanswered, options.failed);
+
+  // Исключение — до сборки ответов: пункт выпадает из разметки целиком, а не
+  // получает пустой ответ. Отсюда и `numbers`, и `assertNoteGiven` ниже работают
+  // уже с оставшимися пунктами, не подозревая об исключённых.
+  const items = allItems.filter((item) => !unanswered.includes(item.id));
   assertNoteGiven(items, options.note);
   if (options.failed !== undefined) assertFailable(items, options.failed);
 
