@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 
 import { afterAll, describe, expect, test } from "vitest";
 
+import { getDb, stores } from "@/blocks/data";
 import { closeTestDb } from "@/blocks/data/testing/db";
 import { createChecklist } from "@/blocks/data/testing/fixtures";
 
@@ -211,5 +212,76 @@ describe("что показывает экран справочника", () => 
     ).toBe(
       `/admin/qr?store=${fixture.firstStoreId}&station=${fixture.stationId}`,
     );
+  });
+});
+
+// Пиццерия, чей пояс база уже не признаёт, существует: так его пишет сид, миграция или
+// любой код мимо справочника (T062 закрыл только путь через `createStore`/`updateStore`).
+// По D060 такую пиццерию ловят в справочнике при сохранении, а публичный маршрут
+// оставляют громко падающим. Чтобы это сработало, карточка обязана показать НАСТОЯЩЕЕ
+// значение: пока она молчала, `<select>` без совпадающего пункта показывал первую зону
+// по алфавиту, то есть врал о состоянии, а сохранение тихо переписывало пояс на чужой.
+describe("пиццерия с непризнаваемым поясом видна в карточке (T102, D060)", () => {
+  const TYPO = "Asia/Almatyy";
+
+  /** Пояс пишется мимо справочника — ровно так он и попадает в базу в жизни. */
+  async function storeWithBrokenTimezone(): Promise<{
+    countryId: string;
+    storeId: string;
+  }> {
+    const suffix = randomUUID().slice(0, 8);
+    const countryId = await createCountry({
+      name: `Страна ${suffix}`,
+      locale: "ru",
+    });
+    const [store] = await getDb()
+      .insert(stores)
+      .values({
+        countryId,
+        name: `Пиццерия ${suffix}`,
+        timezone: TYPO,
+      })
+      .returning({ id: stores.id });
+    if (store === undefined) throw new Error("пиццерия не завелась");
+    return { countryId, storeId: store.id };
+  }
+
+  test("карточка отдаёт сохранённое значение и признаётся, что база его не знает", async () => {
+    const { countryId, storeId } = await storeWithBrokenTimezone();
+
+    const model = await buildCatalogModel(
+      { countryId, storeId, focus: "store" },
+      "ru",
+    );
+
+    expect(model.store?.timezone).toBe(TYPO);
+    expect(model.store?.timezoneKnown).toBe(false);
+  });
+
+  test("исправный пояс остаётся признанным: признак не взведён у всех подряд", async () => {
+    const fixture = await catalogFixture();
+
+    const model = await buildCatalogModel(
+      {
+        countryId: fixture.countryId,
+        storeId: fixture.firstStoreId,
+        focus: "store",
+      },
+      "ru",
+    );
+
+    expect(model.store?.timezone).toBe(TIMEZONE);
+    expect(model.store?.timezoneKnown).toBe(true);
+  });
+
+  test("сломанного значения нет среди пунктов списка: выбрать его заново нельзя", async () => {
+    const { countryId, storeId } = await storeWithBrokenTimezone();
+
+    const model = await buildCatalogModel(
+      { countryId, storeId, focus: "store" },
+      "ru",
+    );
+
+    expect(model.timezones.map((zone) => zone.name)).not.toContain(TYPO);
   });
 });

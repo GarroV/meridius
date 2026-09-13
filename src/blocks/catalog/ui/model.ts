@@ -49,7 +49,15 @@ export interface CountryDetail {
 export interface StoreDetail {
   id: string;
   name: string;
+  /** Пояс как он лежит в базе, даже если база его уже не признаёт (T102). */
   timezone: string;
+  /**
+   * Знает ли PostgreSQL этот пояс. `false` — пиццерия записана мимо справочника
+   * (сид, миграция, правка руками): публичный маршрут её станций падает на каждом
+   * сканировании, и карточка обязана сказать об этом вслух, а не подставить молча
+   * первую зону по алфавиту (D060).
+   */
+  timezoneKnown: boolean;
   countryName: string;
   stationCount: number;
 }

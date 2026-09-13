@@ -6,7 +6,7 @@ import type { Locale } from "@/blocks/core/locale";
 import { listCountries } from "../countries";
 import { listStations, listUnassignedChecklists } from "../stations";
 import { listStores } from "../stores";
-import { listTimezones } from "../timezone";
+import { isKnownTimezone, listTimezones } from "../timezone";
 import {
   localized,
   type CatalogModel,
@@ -119,6 +119,17 @@ export async function buildCatalogModel(
   const needsTimezones = view.create === "store" || focus === "store";
   const needsChecklists = focus === "station";
 
+  // Спрашивается у той же базы, что роняет публичный маршрут, а не у `Intl` движка:
+  // списки зон у них разные (то же основание, что у `assertKnownTimezone`).
+  //
+  // Считается всегда, когда пиццерия выбрана, — в том числе с фокусом на станции, где
+  // карточка пиццерии не рисуется. Признак, верный только при одном фокусе, был бы хуже
+  // отсутствующего: `false` означает «база не знает», и притворное `true` соврало бы.
+  // Строкой выше `needsTimezones` экономит не запрос, а полтысячи пунктов в разметке:
+  // список зон у обоих один и кэширован на процесс.
+  const timezoneKnown =
+    store === null ? true : await isKnownTimezone(store.timezone);
+
   return {
     countries: countryItems,
     stores: storeItems,
@@ -139,6 +150,7 @@ export async function buildCatalogModel(
             id: store.id,
             name: store.name,
             timezone: store.timezone,
+            timezoneKnown,
             countryName: country.name,
             stationCount: store.stationCount,
           },
