@@ -8,7 +8,14 @@ import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 
 import { isCatalogErrorCode, type CatalogErrorCode } from "../errors";
 
-export const CATALOG_PATH = "/admin/catalog";
+/**
+ * Адрес самого раздела. Берётся из `core/admin-sections`, а не пишется строкой:
+ * тот же факт читает боковое меню, и до T119 здесь стояла своя копия `"/admin/catalog"`.
+ * Разойтись копии могут только молча — у неактивного пункта меню и у разъехавшегося
+ * адреса один и тот же симптом: человек никуда не попадает (тот же класс дубля, что
+ * снял T116 в блоке `qr`).
+ */
+export const CATALOG_PATH = ADMIN_SECTIONS.catalog.path;
 
 const FOCUS_KINDS = ["country", "store", "station"] as const;
 /** Что показывает карточка под деревом: страна, пиццерия или станция. */
