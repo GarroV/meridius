@@ -13,26 +13,39 @@
 // Поведенческий тест такую находку не ловит: он проверяет то, про что вспомнили при
 // написании, а на новом экране про неё ещё не вспомнили. Здесь — структурная проверка
 // приёма из `core/admin-links.test.ts` (T088): ловится САМО ПОЯВЛЕНИЕ дефекта в
-// разметке, а не конкретный случай.
+// разметке, а не конкретный случай. Снятие комментариев — общий помощник
+// `core/source-text`, третьей копии приёма у нас нет (T128).
 //
-// Охват — только `src/blocks/editor/ui`, а не весь кабинет:
-//   * соседние блоки (`catalog`, `qr`, `feed`, …) строятся параллельно этому, и такой же
-//     сторож для них — отдельная задача, когда соседи сойдутся;
-//   * в `src/blocks/catalog/ui/StoreCard.tsx` есть намеренно выключенный `<select>` со
-//     страной пиццерии — поле только для чтения (перенос между странами эта версия не
-//     делает), а не обещанное действие, за которым ничего нет. Чтобы не ловить его,
-//     сторожу пришлось бы отдельно учиться отличать «поле не редактируется никогда по
-//     правилам продукта» от «кнопка не работает, потому что для неё ничего не готово», —
-//     это расширение охвата, а не эта задача.
+// Охват — ВСЯ разметка продукта (`src`), а не только редактор (T127). Раньше сторож
+// смотрел на одну папку по двум причинам, и обе истекли:
+//   * соседние блоки строились параллельно — теперь они сошлись, и кабинет целиком лежит
+//     в одной копии;
+//   * в `src/blocks/catalog/ui/StoreCard.tsx` стоял намеренно выключенный `<select>` со
+//     страной пиццерии — единственное законное исключение, и оно упиралось в то, что
+//     сторожу пришлось бы отличать «поле не редактируется по правилам продукта» от
+//     «кнопка не работает, потому что для неё ничего не готово». T117 убрал препятствие
+//     не исключением, а по месту: страна стала обычным текстом (`store-country-value`),
+//     потому что поле только для чтения — это не элемент управления.
+//
+// Отсюда правило на будущее: элемент, который не станет активным никогда, перестаёт быть
+// элементом управления — текст вместо `<select disabled>`, как в T117. Список исключений
+// в стороже не заводится: он бы и законное, и недоделанное держал под одной строкой.
+//
+// Публичные экраны (`blocks/fill`, `app/s`) тоже под охватом намеренно: серая кнопка там
+// хуже, чем в кабинете — сотрудник у станции не умеет отличить свои права от недоделки.
+//
+// Сторож лежит в блоке `editor`, потому что здесь и родился (T115). Охват у него теперь
+// общий, то есть место просится в `core` — но это чужой блок, и переезд решает диспетчер.
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, test } from "vitest";
 
 import { repositoryRoot } from "@/blocks/core/repo-copy";
+import { withoutComments } from "@/blocks/core/source-text";
 
-/** Где ищем: разметка кабинета редактора, не весь продукт (см. комментарий выше). */
-const ROOT = "src/blocks/editor/ui";
+/** Где ищем: вся разметка продукта — см. комментарий про охват выше. */
+const ROOT = "src";
 
 type DeadControlKind = "disabled" | "aria-disabled";
 
@@ -73,27 +86,6 @@ function findDeadControls(line: string): DeadControl[] {
   return found;
 }
 
-/**
- * Комментарии из текста убираются: правило объясняется словами в этом же файле, и без
- * снятия комментариев сторож ловил бы собственное объяснение — ровно эта ловушка описана
- * в `core/admin-links.test.ts`. Там комментарийные строки просто выбрасываются — годится,
- * потому что тот сторож номер строки не печатает. Здесь печатает, поэтому строки не
- * выбрасываются, а бланкуются: переводы строк внутри многострочного блочного комментария
- * сохраняются, иначе всё, что идёт после такого комментария, сдвинулось бы вверх, и
- * сообщение об офендере называло бы не ту строку.
- */
-function withoutComments(source: string): string {
-  const withoutBlockComments = source.replaceAll(
-    /\{?\/\*[\S\s]*?\*\/\}?/g,
-    (match) => match.replaceAll(/[^\n]/g, ""),
-  );
-
-  return withoutBlockComments
-    .split("\n")
-    .map((line) => (/^\s*(?:\/\/|\*)/.test(line) ? "" : line))
-    .join("\n");
-}
-
 function tsxFiles(directory: string): string[] {
   const found: string[] = [];
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -109,6 +101,10 @@ function deadControlOffenders(): string[] {
   const offenders: string[] = [];
 
   for (const file of tsxFiles(path.join(root, ROOT))) {
+    // Комментарии снимает общий помощник `core/source-text`: иначе сторож ловил бы
+    // объяснения в самой разметке — в `ui/PreviewScreen.tsx` словами рассказано, что
+    // футер был `<button disabled>`. Помощник бланкует блочные комментарии, а не
+    // выбрасывает строки, и это здесь обязательно: офендер печатается с номером строки.
     const lines = withoutComments(readFileSync(file, "utf8")).split("\n");
     lines.forEach((line, index) => {
       for (const control of findDeadControls(line)) {
@@ -122,7 +118,7 @@ function deadControlOffenders(): string[] {
   return offenders;
 }
 
-describe("намертво выключенные элементы управления в разметке редактора", () => {
+describe("намертво выключенные элементы управления в разметке продукта", () => {
   test('в разметке нет постоянного disabled и постоянного aria-disabled="true"', () => {
     expect(deadControlOffenders()).toEqual([]);
   });
@@ -132,10 +128,31 @@ describe("намертво выключенные элементы управл�
     const root = repositoryRoot();
     const files = tsxFiles(path.join(root, ROOT));
 
-    expect(files.length).toBeGreaterThan(10);
-    expect(
-      files.some((file) => file.endsWith(path.join("ui", "SectionCard.tsx"))),
-    ).toBe(true);
+    expect(files.length).toBeGreaterThan(40);
+  });
+
+  test("охват — весь продукт, а не один блок", () => {
+    // Сторож стоял только над `editor/ui`, и ровно так дефект дожил до T107: кнопки «QR»
+    // в каталоге простояли выключенными месяц, потому что смотреть на них было нечем.
+    // Поэтому охват закреплён якорями из разных блоков и из маршрутов: сужение обратно
+    // до одной папки падает здесь, а не обнаруживается вручную на следующем экране.
+    const root = repositoryRoot();
+    const files = tsxFiles(path.join(root, ROOT)).map((file) =>
+      path.relative(root, file),
+    );
+
+    for (const anchor of [
+      path.join("src", "blocks", "editor", "ui", "SectionCard.tsx"),
+      path.join("src", "blocks", "catalog", "ui", "StoreCard.tsx"),
+      path.join("src", "blocks", "fill", "ui", "FillScreen.tsx"),
+      path.join("src", "blocks", "qr", "ui", "StationsCard.tsx"),
+    ]) {
+      expect(files).toContain(anchor);
+    }
+
+    expect(files.some((file) => file.startsWith(path.join("src", "app")))).toBe(
+      true,
+    );
   });
 
   describe("разбор строки — доказательство, что сторож не слепой", () => {
