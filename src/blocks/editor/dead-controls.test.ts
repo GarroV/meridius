@@ -13,7 +13,8 @@
 // Поведенческий тест такую находку не ловит: он проверяет то, про что вспомнили при
 // написании, а на новом экране про неё ещё не вспомнили. Здесь — структурная проверка
 // приёма из `core/admin-links.test.ts` (T088): ловится САМО ПОЯВЛЕНИЕ дефекта в
-// разметке, а не конкретный случай.
+// разметке, а не конкретный случай. Снятие комментариев — общий помощник
+// `core/source-text`, третьей копии приёма у нас нет (T128).
 //
 // Охват — только `src/blocks/editor/ui`, а не весь кабинет:
 //   * соседние блоки (`catalog`, `qr`, `feed`, …) строятся параллельно этому, и такой же
@@ -30,6 +31,7 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 
 import { repositoryRoot } from "@/blocks/core/repo-copy";
+import { withoutComments } from "@/blocks/core/source-text";
 
 /** Где ищем: разметка кабинета редактора, не весь продукт (см. комментарий выше). */
 const ROOT = "src/blocks/editor/ui";
@@ -73,27 +75,6 @@ function findDeadControls(line: string): DeadControl[] {
   return found;
 }
 
-/**
- * Комментарии из текста убираются: правило объясняется словами в этом же файле, и без
- * снятия комментариев сторож ловил бы собственное объяснение — ровно эта ловушка описана
- * в `core/admin-links.test.ts`. Там комментарийные строки просто выбрасываются — годится,
- * потому что тот сторож номер строки не печатает. Здесь печатает, поэтому строки не
- * выбрасываются, а бланкуются: переводы строк внутри многострочного блочного комментария
- * сохраняются, иначе всё, что идёт после такого комментария, сдвинулось бы вверх, и
- * сообщение об офендере называло бы не ту строку.
- */
-function withoutComments(source: string): string {
-  const withoutBlockComments = source.replaceAll(
-    /\{?\/\*[\S\s]*?\*\/\}?/g,
-    (match) => match.replaceAll(/[^\n]/g, ""),
-  );
-
-  return withoutBlockComments
-    .split("\n")
-    .map((line) => (/^\s*(?:\/\/|\*)/.test(line) ? "" : line))
-    .join("\n");
-}
-
 function tsxFiles(directory: string): string[] {
   const found: string[] = [];
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -109,6 +90,10 @@ function deadControlOffenders(): string[] {
   const offenders: string[] = [];
 
   for (const file of tsxFiles(path.join(root, ROOT))) {
+    // Комментарии снимает общий помощник `core/source-text`: иначе сторож ловил бы
+    // объяснения в самой разметке — в `ui/PreviewScreen.tsx` словами рассказано, что
+    // футер был `<button disabled>`. Помощник бланкует блочные комментарии, а не
+    // выбрасывает строки, и это здесь обязательно: офендер печатается с номером строки.
     const lines = withoutComments(readFileSync(file, "utf8")).split("\n");
     lines.forEach((line, index) => {
       for (const control of findDeadControls(line)) {
