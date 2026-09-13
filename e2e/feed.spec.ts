@@ -183,7 +183,10 @@ async function seed(): Promise<Seeded> {
       ],
     );
 
-    // Заполнение соседней станции: на нём проверяется, что фильтр действительно сужает.
+    // Заполнение соседней станции ТОЙ ЖЕ пиццерии: на нём проверяется, что фильтр
+    // действительно сужает. Критичный пункт здесь провален намеренно — у соседки
+    // обязана быть СВОЯ тревога, иначе на полосе фильтр станции неотличим от фильтра
+    // пиццерии и потеря станции по дороге проходит незамеченной (T126).
     const cashChecklist = await pool.query<{ id: string }>(
       `insert into checklists (station_id, title, window_start, window_end)
        values ($1, $2, '00:00', '23:59') returning id`,
@@ -196,7 +199,7 @@ async function seed(): Promise<Seeded> {
       `insert into checklist_versions
          (checklist_id, version_number, status, station_id, sections, published_at)
        values ($1, 1, 'published', $2, $3, now()) returning id`,
-      [cashChecklist.rows[0]?.id, cashId, JSON.stringify([V1_SECTIONS[0]])],
+      [cashChecklist.rows[0]?.id, cashId, JSON.stringify([V1_SECTIONS[1]])],
     );
     await pool.query(
       `insert into submissions (version_id, station_id, snapshot, answers, started_at)
@@ -204,8 +207,15 @@ async function seed(): Promise<Seeded> {
       [
         cashVersion.rows[0]?.id,
         cashId,
-        JSON.stringify([V1_SECTIONS[0]]),
-        JSON.stringify([answer("item-oven", true)]),
+        JSON.stringify([V1_SECTIONS[1]]),
+        JSON.stringify([
+          answer(
+            "item-temp",
+            11,
+            "Касса: холодильник напитков не держит холод",
+          ),
+          answer("item-clean", true),
+        ]),
       ],
     );
 
@@ -396,6 +406,41 @@ test.describe("лента заполнений", () => {
     await expect(page).toHaveURL(
       new RegExp(`/admin/feed/${seeded.failedSubmissionId}`),
     );
+  });
+
+  /**
+   * Полоса тревог обязана сужаться выбранной станцией: период на неё не влияет (D053),
+   * а страна, пиццерия и станция влияют.
+   *
+   * Проверка заведена по T126, и вот почему она выглядит именно так. Отрицательный
+   * прогон T106 ломал `view.ts` — разобранный `stationId` выбрасывался, — и сценарий
+   * полосы оставался ЗЕЛЁНЫМ: у пиццерии тревожила ровно одна станция, и потеря
+   * фильтра ничего не меняла. Здесь тревожат две станции одной пиццерии, поэтому
+   * потерянный фильтр станции виден сразу: на полосе появляется чужая станция.
+   */
+  test("полоса тревог сужается выбранной станцией, а не только пиццерией", async ({
+    page,
+  }) => {
+    const seeded = await seed();
+    await signIn(page);
+
+    await page.goto(FEED_PATH);
+    await expect(page.getByTestId("feed-screen")).toBeVisible();
+    await pick(page, "Пиццерия", { label: seeded.storeName });
+
+    // На пиццерии тревожат обе станции: кухня и касса.
+    const strip = page.getByTestId("alarm-strip");
+    await expect(strip.getByTestId("alarm-row")).toHaveCount(2);
+
+    await pick(page, "Станция", { label: seeded.kitchenName });
+
+    await expect(strip.getByTestId("alarm-row")).toHaveCount(1);
+    await expect(strip).toContainText(seeded.kitchenName);
+    await expect(
+      strip,
+      "На полосе осталась станция, которую фильтр не выбирал: фильтр станции " +
+        "потерялся по дороге от экрана до запроса тревог.",
+    ).not.toContainText(seeded.cashName);
   });
 
   test("фильтр по станции сужает ленту, а сброс возвращает всё", async ({
