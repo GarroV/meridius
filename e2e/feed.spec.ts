@@ -433,6 +433,10 @@ test.describe("лента заполнений", () => {
     const empty = page.getByTestId("feed-empty");
     await expect(empty).toBeVisible();
     await expect(empty).toHaveAttribute("data-kind", "never");
+    // Совет ведёт в тот раздел, который и назван: печатать коды — значит идти в QR.
+    // Адрес проверяется буквой намеренно — это внешний договор экрана. В самом блоке
+    // такой строки быть не должно, за этим следит `feed/routes.test.ts` (T118).
+    await expect(empty.getByRole("link")).toHaveAttribute("href", "/admin/qr");
     // Показатели не исчезают вместе с лентой: ноль заполнений — это тоже ответ.
     await expect(page.getByTestId("metric-submissions")).toHaveText("0");
   });
