@@ -62,6 +62,12 @@ export interface CheckMark {
   /** Местные сутки прохода окна, «ГГГГ-ММ-ДД». */
   readonly localDate: string;
   readonly at: Date;
+  /**
+   * Местное время отметки, «ЧЧ:ММ» — «сделано в 11:05» на экране станции. Считает
+   * база из часового пояса пиццерии (D026): второго календаря в JavaScript продукт
+   * не заводит, а смена читает время своих часов, а не UTC.
+   */
+  readonly atLocalTime: string;
   readonly value: AnswerValue;
   readonly comment: string | null;
 }
@@ -235,11 +241,14 @@ async function listMarks(
         intervalStart: checks.intervalStart,
         localDate: checks.localDate,
         at: checks.at,
+        atLocalTime: sql<string>`to_char(${checks.at} at time zone ${stores.timezone}, 'HH24:MI')`,
         value: checks.value,
         comment: checks.comment,
       })
       .from(checks)
       .innerJoin(checklistVersions, eq(checks.versionId, checklistVersions.id))
+      .innerJoin(stations, eq(checks.stationId, stations.id))
+      .innerJoin(stores, eq(stations.storeId, stores.id))
       .where(
         and(
           eq(checklistVersions.checklistId, checklistId),
@@ -391,7 +400,18 @@ export async function saveCheck(input: SaveCheckInput): Promise<CheckMark> {
   if (inserted === undefined) {
     throw new Error("Отметка обхода не сохранилась");
   }
-  return inserted;
+  // Местное время отметки считает база тем же способом, что и при чтении: складывать
+  // его здесь из `at` значило бы завести второй календарь, расходящийся на переводе часов.
+  const [local] = await getDb()
+    .select({
+      atLocalTime: sql<string>`to_char(${inserted.at.toISOString()}::timestamptz at time zone ${stores.timezone}, 'HH24:MI')`,
+    })
+    .from(stores)
+    .innerJoin(stations, eq(stations.storeId, stores.id))
+    .where(eq(stations.id, place.stationId))
+    .limit(1);
+
+  return { ...inserted, atLocalTime: local?.atLocalTime ?? "" };
 }
 
 /**

@@ -139,6 +139,8 @@ describe("saveCheck", () => {
     expect(mark.intervalStart).toBe(60);
     expect(mark.localDate).toBe("2026-09-14");
     expect(mark.value).toBe(true);
+    // «Сделано в 09:40» — местное время пиццерии, считает база.
+    expect(mark.atLocalTime).toBe("09:40");
   });
 
   test("пропущенные проходы остаются пропущенными: отметка их не догоняет (D066)", async () => {
@@ -186,6 +188,10 @@ describe("saveCheck", () => {
     const interval = intervalAt(rounds, "09:00");
     expect(interval.marks).toHaveLength(2);
     expect(interval.marks.map((mark) => mark.value)).toEqual([true, false]);
+    expect(interval.marks.map((mark) => mark.atLocalTime)).toEqual([
+      "09:10",
+      "09:50",
+    ]);
     expect(interval.marks[1]?.comment).toBe("переделали");
   });
 
@@ -227,6 +233,7 @@ describe("saveCheck", () => {
       at,
     });
     expect(mark.intervalStart).toBe(60);
+    expect(mark.atLocalTime).toBe("09:40");
 
     // В пиццерии по UTC в этот же миг ещё 04:40 — чек-лист не работает.
     await expect(
