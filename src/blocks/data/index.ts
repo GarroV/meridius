@@ -78,6 +78,7 @@ export type { VersionWithChecklist } from "./checklists";
 export {
   getDraft,
   getPublishedVersionForStation,
+  listPublishedVersionsForStation,
   publishVersion,
 } from "./checklists";
 
