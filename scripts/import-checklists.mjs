@@ -232,7 +232,18 @@ try {
     // Снятие прежнего контура — в порядке внешних ключей. Заполнения снимаются вместе
     // с версиями: версии ссылаются на них ограничением restrict, и без этого шага
     // повторный прогон упал бы на первом же заполненном чек-листе.
-    const stationIdList = [...stationIds.values()];
+    //
+    // Станции берутся ИЗ БАЗЫ по пиццерии, а не из пакета: пакет описывает, каким
+    // контур обязан стать, и станция, которой в нём больше нет, обязана исчезнуть.
+    // Список из пакета оставлял бы такую станцию с её наклейкой жить дальше — и
+    // перезаливка упиралась бы в снятие самой пиццерии, у которой остался ребёнок.
+    const existing = await tx
+      .select({ id: stations.id })
+      .from(stations)
+      .where(eq(stations.storeId, storeId));
+    const stationIdList = [
+      ...new Set([...existing.map((r) => r.id), ...stationIds.values()]),
+    ];
     const oldChecklists = await tx
       .select({ id: checklists.id })
       .from(checklists)
