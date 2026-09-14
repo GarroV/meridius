@@ -57,6 +57,10 @@ export type RoundState = "due" | "done" | "finished";
 export interface RoundSummaryView {
   readonly itemId: string;
   readonly title: string;
+  /** Тип ответа: «да/нет» отмечают двумя кнопками, число и текст — полем. */
+  readonly type: ItemType;
+  /** Провал этого уровня требует объяснения — то же обещание, что в форме (D056). */
+  readonly commentOnFailure: boolean;
   readonly state: RoundState;
   /** Главная строка: «Проверить до 12:00» / «Сделано в 11:05» / «Обходы закончены». */
   readonly headline: string;

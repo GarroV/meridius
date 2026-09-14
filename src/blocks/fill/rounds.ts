@@ -7,9 +7,14 @@
 // Проход, в который встанет отметка, здесь НЕ считается: его считает слой данных по
 // местному времени пиццерии (D066). Отсюда уходит только «этот пункт отметили», а
 // какой это был час — решает сервер.
-import { getRounds, requiresCommentOnFailure, saveCheck } from "@/blocks/data";
+import {
+  flattenItems,
+  getRounds,
+  isFailed,
+  requiresCommentOnFailure,
+  saveCheck,
+} from "@/blocks/data";
 import type { AnswerValue, Item, Section } from "@/blocks/data";
-import { flattenItems, isFailed } from "@/blocks/data";
 
 import { checkRoundAllowed } from "./rate-limit";
 import { findStationVersion, isPlausibleCode } from "./station";
@@ -140,7 +145,7 @@ export async function markRound(
   const rounds = await getRounds(version.versionId, now);
   if (rounds === null) return refuse("no-round");
   const state = rounds.items.find((entry) => entry.itemId === itemId);
-  if (state === undefined || state.current === null) return refuse("no-round");
+  if (state?.current == null) return refuse("no-round");
 
   const mark = await saveCheck({
     versionId: version.versionId,

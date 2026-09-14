@@ -6,9 +6,19 @@
 // регулярность не покажешь; здесь она уехала в отчёт (D065), а смене нужен ответ на
 // один вопрос — идти сейчас или нет.
 import type { Locale } from "@/blocks/core/locale";
-import type { ItemRounds, RoundsView, Section } from "@/blocks/data";
-import { flattenItems, formatLocalTime, parseLocalTime } from "@/blocks/data";
-import type { LocalizedText } from "@/blocks/data";
+import type {
+  Item,
+  ItemRounds,
+  LocalizedText,
+  RoundsView,
+  Section,
+} from "@/blocks/data";
+import {
+  flattenItems,
+  formatLocalTime,
+  parseLocalTime,
+  requiresCommentOnFailure,
+} from "@/blocks/data";
 
 import { pickFillText } from "./locale";
 import type {
@@ -133,21 +143,25 @@ function noteOf(
 export function buildRoundsPanel(
   input: BuildRoundsPanelInput,
 ): RoundsPanelView {
-  const titles = new Map(
+  // Пункты версии по идентификатору: слой данных названий не носит, а разметке нужны
+  // и название, и тип ответа, и требование объяснить провал.
+  const byId = new Map<string, Item>(
     flattenItems([...input.sections])
       .filter((item) => hasTitle(item.title))
-      .map((item) => [item.id, pickFillText(item.title, input.locales)]),
+      .map((item) => [item.id, item]),
   );
 
   const items: RoundSummaryView[] = [];
   for (const item of input.rounds.items) {
-    const title = titles.get(item.itemId);
-    if (title === undefined) continue;
+    const source = byId.get(item.itemId);
+    if (source === undefined) continue;
 
     const state = stateOf(item);
     items.push({
       itemId: item.itemId,
-      title,
+      title: pickFillText(source.title, input.locales),
+      type: source.type,
+      commentOnFailure: requiresCommentOnFailure(source),
       state,
       headline: headlineOf(item, state, input.rounds.window, input.labels),
       note: noteOf(item, input.rounds.offsetMinutes, input.labels),

@@ -109,6 +109,9 @@ describe("buildRoundsPanel", () => {
 
     const item = only(panel.items);
     expect(item.title).toBe("Линия начинения");
+    expect(item.type).toBe("bool");
+    // Критичный обход: провал без объяснения не принимается ни формой, ни сервером.
+    expect(item.commentOnFailure).toBe(true);
     expect(item.state).toBe("due");
     expect(item.headline).toBe("Проверить до 10:00");
     expect(item.canMark).toBe(true);
