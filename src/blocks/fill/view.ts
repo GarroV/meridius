@@ -2,7 +2,7 @@
 // и next/navigation здесь: их приносит только серверный компонент, а сама сборка
 // проверяется модульными тестами без базы и без React.
 import type { Locale } from "@/blocks/core/locale";
-import { severityOf } from "@/blocks/data";
+import { isPeriodic, severityOf } from "@/blocks/data";
 import type { Item, LocalizedText, Section } from "@/blocks/data";
 
 import { pickFillText } from "./locale";
@@ -121,7 +121,10 @@ function buildSectionView(
   labels: FillViewLabels,
 ): FillSectionView | null {
   const items = section.items
-    .filter((item) => hasTitle(item.title))
+    // Периодические пункты в форму не идут: их отмечают обходом по расписанию, а не
+    // отправкой чек-листа (D076). Попади они сюда — сотрудник отвечал бы на «линию
+    // начинения» один раз за смену, и вся регулярность превратилась бы в галочку.
+    .filter((item) => hasTitle(item.title) && !isPeriodic(item))
     .map((item) => buildItemView(item, locales, labels));
   if (items.length === 0) return null;
 

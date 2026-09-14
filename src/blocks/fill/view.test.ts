@@ -440,3 +440,57 @@ describe("buildFillView: заголовки секций и пунктов на 
     expect(view.sections[0]?.items[0]?.title).toBe("Wash hands");
   });
 });
+
+describe("периодические пункты не попадают в форму заполнения", () => {
+  const schedule = [{ from: "08:00", to: "12:00", everyMinutes: 60 }];
+
+  test("пункт с расписанием выпадает: его отмечают обходом, а не отправкой", () => {
+    const view = buildFillView(
+      baseInput({
+        sections: [
+          section({
+            id: "s",
+            items: [
+              {
+                id: "gas",
+                title: { ru: "Выключить газ", en: "Turn off the gas" },
+                type: "bool",
+              },
+              {
+                id: "line",
+                title: { ru: "Линия начинения", en: "Toppings line" },
+                type: "bool",
+                schedule,
+              },
+            ],
+          }),
+        ],
+      }),
+    );
+
+    expect(view.sections[0]?.items.map((item) => item.id)).toEqual(["gas"]);
+    expect(view.totalItems).toBe(1);
+  });
+
+  test("секция из одних обходов выпадает целиком: заголовок без строк ничего не говорит", () => {
+    const view = buildFillView(
+      baseInput({
+        sections: [
+          section({
+            id: "s",
+            items: [
+              {
+                id: "line",
+                title: { ru: "Линия начинения", en: "Toppings line" },
+                type: "bool",
+                schedule,
+              },
+            ],
+          }),
+        ],
+      }),
+    );
+
+    expect(view.sections).toHaveLength(0);
+  });
+});
