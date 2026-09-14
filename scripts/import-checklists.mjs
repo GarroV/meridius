@@ -47,6 +47,8 @@ const {
   checklists,
   checklistVersions,
   submissions,
+  assertValidSchedule,
+  checks,
 } = await import("../src/blocks/data/index.ts");
 const { STATION_CODE_ALPHABET, STATION_CODE_LENGTH } =
   await import("../src/blocks/catalog/index.ts");
@@ -81,17 +83,15 @@ function codeFor(key) {
 }
 
 const pad = (n) => String(n).padStart(2, "0");
+const MINUTES_IN_HOUR = 60;
 
-function itemOf(raw, hour) {
-  const zone = raw.zones?.[pad(hour)];
-  const suffix = zone
-    ? { ru: ` — ${zone[0]}`, en: ` — ${zone[1]}` }
-    : { ru: "", en: "" };
+function itemOf(raw, extra = {}) {
   const item = {
     id: randomUUID(),
-    title: { ru: raw.ru + suffix.ru, en: raw.en + suffix.en },
+    title: { ru: raw.ru, en: raw.en },
     type: raw.type ?? "bool",
     severity: raw.sev ?? "normal",
+    ...extra,
   };
   if (raw.range) {
     item.min = raw.range[0];
@@ -100,35 +100,96 @@ function itemOf(raw, hour) {
   return item;
 }
 
-/** Разворот обхода в почасовые чек-листы — временный порядок, см. шапку. */
-function expandRound(round) {
-  const from = Number.parseInt(round.from.slice(0, 2), 10);
-  const to = Number.parseInt(round.to.slice(0, 2), 10);
-  const out = [];
-  for (let hour = from; hour < to; hour += round.everyHours) {
-    const next = Math.min(hour + round.everyHours, to);
-    out.push({
-      key: `${round.station}/${pad(hour)}`,
-      station: round.station,
-      window: [`${pad(hour)}:00`, `${pad(next)}:00`],
-      title: {
-        ru: `${round.title.ru} · ${pad(hour)}:00`,
-        en: `${round.title.en} · ${pad(hour)}:00`,
-      },
-      sections: [
-        {
-          id: randomUUID(),
-          title: {
-            ru: `Обход ${pad(hour)}:00`,
-            en: `Round at ${pad(hour)}:00`,
-          },
-          source: "own",
-          items: round.items.map((raw) => itemOf(raw, hour)),
-        },
-      ],
+/**
+ * Часы одной зоны — в отрезки расписания. Подряд идущие часы складываются в один
+ * отрезок: «08, 09, 10» это «с 08:00 до 11:00 каждый час», а не три отрезка по часу.
+ * Конец отрезка — конец периода, а не время последнего обхода (см. `ScheduleSegment`).
+ */
+function segmentsFromHours(hours, everyHours) {
+  const sorted = [...hours].sort((a, b) => a - b);
+  const segments = [];
+  let from = null;
+  let previous = null;
+  for (const hour of sorted) {
+    if (from === null) {
+      from = hour;
+    } else if (hour !== previous + everyHours) {
+      segments.push({
+        from: `${pad(from)}:00`,
+        to: `${pad(previous + everyHours)}:00`,
+        everyMinutes: everyHours * MINUTES_IN_HOUR,
+      });
+      from = hour;
+    }
+    previous = hour;
+  }
+  if (from !== null) {
+    segments.push({
+      from: `${pad(from)}:00`,
+      to: `${pad(previous + everyHours)}:00`,
+      everyMinutes: everyHours * MINUTES_IN_HOUR,
     });
   }
-  return out;
+  return segments;
+}
+
+/**
+ * Пункты обхода с расписанием.
+ *
+ * Пункт без зон обходится весь период целиком. Пункт с зонами (на бумаге — одна строка,
+ * где в каждом часе подписано своё место) разворачивается в пункт НА ЗОНУ: пять мест
+ * вместо пятнадцати часов, и у каждого своя регулярность. Это не приём импорта, а ровно
+ * то, ради чего регулярность задаётся набором отрезков (D075): «линию начинения смотрим
+ * в 8, 9, 10, 14 и 20» — это один пункт с тремя отрезками, а не пять разных проверок.
+ */
+function roundItems(raw, round) {
+  const step = round.everyHours * MINUTES_IN_HOUR;
+  if (!raw.zones) {
+    return [
+      itemOf(raw, {
+        schedule: [{ from: round.from, to: round.to, everyMinutes: step }],
+      }),
+    ];
+  }
+
+  const byZone = new Map();
+  for (const [hour, zone] of Object.entries(raw.zones)) {
+    const key = `${zone[0]}\u0000${zone[1]}`;
+    const entry = byZone.get(key) ?? { zone, hours: [] };
+    entry.hours.push(Number.parseInt(hour, 10));
+    byZone.set(key, entry);
+  }
+
+  return [...byZone.values()].map(({ zone, hours }) =>
+    itemOf(
+      { ...raw, ru: `${raw.ru} — ${zone[0]}`, en: `${raw.en} — ${zone[1]}` },
+      { schedule: segmentsFromHours(hours, round.everyHours) },
+    ),
+  );
+}
+
+/** Обход — один чек-лист с расписанием на пунктах, а не чек-лист на каждый час. */
+function roundChecklist(round) {
+  const items = round.items.flatMap((raw) => roundItems(raw, round));
+  for (const item of items) {
+    // Сломанное расписание внутри опубликованной версии неисправимо — версии не
+    // переписываются (принцип 3, D002), поэтому отказ громкий и здесь, на входе.
+    assertValidSchedule(item.schedule);
+  }
+  return {
+    key: round.station,
+    station: round.station,
+    window: [round.from, round.to],
+    title: round.title,
+    sections: [
+      {
+        id: randomUUID(),
+        title: round.title,
+        source: "own",
+        items,
+      },
+    ],
+  };
 }
 
 const packet = JSON.parse(readFileSync(packetPath, "utf8"));
@@ -151,7 +212,7 @@ const plain = packet.checklists.map((c, i) => ({
     items: s.items.map((raw) => itemOf(raw)),
   })),
 }));
-const rounds = (packet.rounds ?? []).flatMap((r) => expandRound(r));
+const rounds = (packet.rounds ?? []).map((r) => roundChecklist(r));
 const all = [...plain, ...rounds];
 
 for (const c of all) {
@@ -188,6 +249,9 @@ try {
         await tx
           .delete(submissions)
           .where(inArray(submissions.versionId, versionIds));
+        // Отметки обходов ссылаются на версии так же, как заполнения: без их снятия
+        // перезаливка пакета упрётся в внешний ключ и не пройдёт вовсе.
+        await tx.delete(checks).where(inArray(checks.versionId, versionIds));
         await tx
           .delete(checklistVersions)
           .where(inArray(checklistVersions.id, versionIds));
