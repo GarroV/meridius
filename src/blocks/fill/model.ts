@@ -1,7 +1,7 @@
 // Что видит экран заполнения. Тексты здесь уже выбраны по языку и склеены:
 // разметке остаётся только показать строки, а вся работа с языками и формат
 // подсказок живут в одном месте (`view.ts`) и проверяются модульными тестами.
-import type { ItemType, Severity } from "@/blocks/data";
+import type { ItemType, LocalizedText, Severity } from "@/blocks/data";
 
 export interface FillItemView {
   readonly id: string;
@@ -26,6 +26,31 @@ export interface FillScreenView {
   readonly where: string;
   readonly sections: readonly FillSectionView[];
   readonly totalItems: number;
+}
+
+/**
+ * Один чек-лист в списке выбора, ещё на всех языках: так его отдаёт слой данных.
+ * Живёт здесь, а не в `station.ts`, чтобы сборка вида не зависела от загрузки, —
+ * иначе `view.ts` и `station.ts` ссылались бы друг на друга по кругу.
+ */
+export interface FillChoiceOption {
+  readonly checklistId: string;
+  readonly title: LocalizedText;
+  /** «08:00–23:00»: по окну сотрудник и узнаёт нужный чек-лист. */
+  readonly window: string;
+}
+
+/** Экран выбора: несколько чек-листов станции открыты в одну и ту же минуту. */
+interface FillChoiceItemView {
+  readonly checklistId: string;
+  readonly title: string;
+  readonly window: string;
+}
+
+export interface FillChoiceView {
+  /** «Пиццерия · Станция» — без окна: у каждого чек-листа в списке оно своё. */
+  readonly where: string;
+  readonly options: readonly FillChoiceItemView[];
 }
 
 /** Подписи диапазона: приходят из словаря, чтобы `view.ts` не знал о next-intl. */

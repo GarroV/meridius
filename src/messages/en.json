@@ -363,6 +363,10 @@
       "title": "Nothing to fill in right now",
       "text": "No checklist is assigned to this station for the current time of day."
     },
+    "choice": {
+      "title": "Which checklist?",
+      "text": "More than one checklist is open at this station right now. Pick the one you need."
+    },
     "offline": {
       "title": "Could not send",
       "text": "Your answers are kept on this screen. Move closer to the Wi-Fi and try again — nothing is lost.",

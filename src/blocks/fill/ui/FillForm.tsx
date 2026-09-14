@@ -311,7 +311,9 @@ export function FillForm({
   return (
     <main data-testid="fill-screen" className={SCREEN_CLASS}>
       <header className={HEAD_CLASS}>
-        <div className={TITLE_CLASS}>{view.checklistTitle}</div>
+        <div data-testid="fill-title" className={TITLE_CLASS}>
+          {view.checklistTitle}
+        </div>
         <div className={WHERE_CLASS}>{view.where}</div>
         <div className="mt-[var(--space-4)]">
           <ShiftModeBar code={code} shift={shift} choose={choose} />

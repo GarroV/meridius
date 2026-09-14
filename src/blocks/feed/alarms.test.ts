@@ -281,6 +281,42 @@ describe("незаполненный чек-лист — тревога", () => 
   });
 });
 
+describe("на станции несколько чек-листов (#60)", () => {
+  test("пропущены оба: тревога считает по чек-листам, а не по одному на станцию", async () => {
+    const morning = await prepare();
+    // Второй чек-лист ТОЙ ЖЕ станции с пересекающимся окном — расстановка боевого
+    // пакета: обход менеджера идёт поверх приёма смены.
+    const roundId = await createChecklist({
+      stationId: morning.stationId,
+      windowStart: "08:00:00",
+      windowEnd: "13:00:00",
+    });
+    await createPublishedVersion(roundId, sections([GAS]));
+
+    const alarms = await alarmsOf({ stationId: morning.stationId }, AFTERNOON);
+    const missed = alarms.filter((alarm) => alarm.kind === "missed");
+    expect(missed.map((alarm) => alarm.checklistId).sort()).toEqual(
+      [morning.checklistId, roundId].sort(),
+    );
+  });
+
+  test("заполнили один — второй остаётся пропущенным, а не закрывается за компанию", async () => {
+    const morning = await prepare();
+    const roundId = await createChecklist({
+      stationId: morning.stationId,
+      windowStart: "08:00:00",
+      windowEnd: "13:00:00",
+    });
+    await createPublishedVersion(roundId, sections([GAS]));
+
+    await fill(morning.versionId, MORNING, [answer("i-gas", true, MORNING)]);
+
+    const alarms = await alarmsOf({ stationId: morning.stationId }, AFTERNOON);
+    const missed = alarms.filter((alarm) => alarm.kind === "missed");
+    expect(missed.map((alarm) => alarm.checklistId)).toEqual([roundId]);
+  });
+});
+
 describe("окно через полночь", () => {
   test("вечернее закрытие не сделали: тревога после полуночи", async () => {
     const { storeId } = await prepare({

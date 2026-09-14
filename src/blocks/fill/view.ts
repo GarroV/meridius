@@ -7,6 +7,8 @@ import type { Item, LocalizedText, Section } from "@/blocks/data";
 
 import { pickFillText } from "./locale";
 import type {
+  FillChoiceOption,
+  FillChoiceView,
   FillItemView,
   FillScreenView,
   FillSectionView,
@@ -159,5 +161,34 @@ export function buildFillView(input: BuildFillViewInput): FillScreenView {
     where,
     sections,
     totalItems,
+  };
+}
+
+export interface BuildChoiceViewInput {
+  readonly options: readonly FillChoiceOption[];
+  readonly storeName: string;
+  readonly stationName: string;
+  readonly locales: readonly Locale[];
+}
+
+/**
+ * Список чек-листов, открытых на станции в одну минуту (D021 не нарушается: это те
+ * же названия и окна, что сотрудник увидит, открыв любой из них, — ничего сверх).
+ *
+ * Порядок приходит снизу и здесь не пересортировывается: слой данных ставит их по
+ * началу окна, и список обязан выглядеть одинаково при каждом сканировании — иначе
+ * сотрудник, привыкший тыкать во вторую строку, однажды откроет не то.
+ */
+export function buildChoiceView(input: BuildChoiceViewInput): FillChoiceView {
+  return {
+    where: joinNonEmpty(
+      [input.storeName, input.stationName],
+      TEXT_PART_SEPARATOR,
+    ),
+    options: input.options.map((option) => ({
+      checklistId: option.checklistId,
+      title: pickFillText(option.title, input.locales),
+      window: option.window,
+    })),
   };
 }
