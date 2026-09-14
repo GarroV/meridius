@@ -3,9 +3,11 @@
 // (`db-only-through-data` в .dependency-cruiser.cjs).
 export type {
   Answer,
+  ChecklistWindow,
   Item,
   ItemType,
   LocalizedText,
+  ScheduleSegment,
   Section,
   Severity,
   ShiftMode,
@@ -41,6 +43,18 @@ export {
   stores,
   submissions,
 } from "./schema";
+
+export type { Interval } from "./schedule";
+export {
+  assertValidSchedule,
+  closedIntervals,
+  currentInterval,
+  formatLocalTime,
+  intervalsForItem,
+  isPeriodic,
+  offsetInWindow,
+  parseLocalTime,
+} from "./schedule";
 
 export { timezoneNames } from "./timezones";
 
