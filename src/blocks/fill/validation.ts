@@ -34,12 +34,20 @@ export const FILL_INPUT_LIMITS = {
   maxFillDurationMs: 12 * 60 * 60 * 1000,
 } as const;
 
-const UUID_PATTERN =
+export const UUID_PATTERN =
   /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
 
 /** Отказ, который экран умеет объяснить сотруднику. */
 export type FillRefusal =
-  "malformed" | "empty" | "comment-required" | "unknown-code" | "rate-limited";
+  | "malformed"
+  | "empty"
+  | "comment-required"
+  | "unknown-code"
+  | "rate-limited"
+  // Обхода сейчас не ждут: чек-лист закрыт, сетка на сегодня кончилась или пункт
+  // выпал по режиму смены. Для сотрудника все три — одно и то же, и разбирать их
+  // на экране не нужно; в каком именно состоянии станция, видно на ней самой.
+  | "no-round";
 
 export interface ParsedSubmission {
   readonly code: string;

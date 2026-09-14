@@ -34,6 +34,7 @@ export type {
   Submission,
 } from "./schema";
 export type { Check } from "./schema";
+export type { AnswerValue } from "./types";
 export {
   blocks,
   checklistVersions,
