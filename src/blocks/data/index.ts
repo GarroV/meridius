@@ -33,10 +33,12 @@ export type {
   StoreShiftMode,
   Submission,
 } from "./schema";
+export type { Check } from "./schema";
 export {
   blocks,
   checklistVersions,
   checklists,
+  checks,
   countries,
   stations,
   storeShiftModes,
@@ -55,6 +57,16 @@ export {
   offsetInWindow,
   parseLocalTime,
 } from "./schedule";
+
+export type {
+  CheckMark,
+  IntervalState,
+  ItemRounds,
+  RoundInterval,
+  RoundsView,
+  SaveCheckInput,
+} from "./checks";
+export { getRounds, saveCheck } from "./checks";
 
 export { timezoneNames } from "./timezones";
 
@@ -87,6 +99,7 @@ export {
 export type { SetShiftModeInput, ShiftModeState } from "./shift-modes";
 export {
   getShiftMode,
+  getShiftModeOnDate,
   listShiftModeChanges,
   setShiftMode,
 } from "./shift-modes";

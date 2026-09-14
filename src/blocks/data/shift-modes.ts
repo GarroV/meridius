@@ -87,6 +87,36 @@ export async function getShiftMode(
 }
 
 /**
+ * Режим пиццерии на КОНКРЕТНЫЕ местные сутки.
+ *
+ * Нужен там, где сутки уже известны и не совпадают с сегодняшними: проход окна через
+ * полночь начался вчера, и режим у него вчерашний (D055) — иначе перестановка режима
+ * после полуночи задним числом меняла бы, каких обходов ждали от вечерней смены.
+ *
+ * Выбора на эти сутки не делали — значит полная смена: сокращение всегда осознанное
+ * действие, а не значение по умолчанию.
+ */
+export async function getShiftModeOnDate(
+  storeId: string,
+  localDate: string,
+): Promise<ShiftMode> {
+  const [row] = await getDb()
+    .select({ mode: storeShiftModes.mode })
+    .from(storeShiftModes)
+    .where(
+      and(
+        eq(storeShiftModes.storeId, storeId),
+        eq(storeShiftModes.localDate, localDate),
+      ),
+    )
+    // Действует последняя перестановка: строки только добавляются, и свежая сверху.
+    .orderBy(desc(storeShiftModes.setAt))
+    .limit(1);
+
+  return row?.mode ?? DEFAULT_MODE;
+}
+
+/**
  * Ставит режим на текущие местные сутки пиццерии. Прежний выбор не переписывается:
  * добавляется новая строка, и обе остаются в истории.
  *

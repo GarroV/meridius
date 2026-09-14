@@ -80,10 +80,13 @@ export interface Section {
   items: Item[];
 }
 
+/** Значение ответа: по типу пункта — да/нет, число или свободный текст. */
+export type AnswerValue = boolean | number | string;
+
 /** Ответ на пункт: значение по типу пункта, комментарий и момент ответа с устройства. */
 export interface Answer {
   itemId: string;
-  value: boolean | number | string;
+  value: AnswerValue;
   comment?: string;
   at: number;
 }
