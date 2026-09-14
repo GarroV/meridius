@@ -23,6 +23,8 @@ export interface FillStandOptions {
   readonly windowEnd?: string;
   /** Язык страны: по нему проверяется откат языка, когда телефон говорит на третьем. */
   readonly countryLocale?: "ru" | "en";
+  /** Свои секции вместо эталонных: нужны сценарию обходов с расписанием пункта. */
+  readonly sections?: unknown;
 }
 
 /** Пункты чек-листа те же, что на экранном эталоне: логический, числовой, критичные и текст. */
@@ -156,7 +158,11 @@ export async function seedFillStand(
           `insert into checklist_versions
              (checklist_id, status, version_number, station_id, sections, published_at)
            values ($1, 'published', 1, $2, $3::jsonb, now()) returning id`,
-          [checklist, station, JSON.stringify(STAND_SECTIONS)],
+          [
+            checklist,
+            station,
+            JSON.stringify(options.sections ?? STAND_SECTIONS),
+          ],
         )
       ).rows,
       "checklist_versions",
