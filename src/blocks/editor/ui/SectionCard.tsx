@@ -14,13 +14,17 @@ const CARD_CLASS =
   "bg-surface rounded-[var(--r-block)] border shadow-[var(--sh-xs)]";
 const HEAD_CLASS =
   "flex items-center gap-[var(--space-5)] rounded-t-[var(--r-block)] border-b px-[var(--space-6)] py-[var(--space-5)]";
+// `flex-1 min-w-0` обязательны: у `input` своя ширина по умолчанию (около двадцати
+// знаков), она не растёт под содержимое и не сжимается под соседей. Без этого длинный
+// заголовок секции обрезался на середине слова — «Opening 05:00–08:00 · S».
 const TITLE_CLASS =
-  "font-ui text-ink rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--fs-body)] font-semibold hover:border-[var(--line-control)] focus:border-[var(--accent)] focus:outline-none";
+  "font-ui text-ink min-w-0 flex-1 rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--fs-body)] font-semibold hover:border-[var(--line-control)] focus:border-[var(--accent)] focus:outline-none";
 const GHOST_BUTTON_CLASS =
   "flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] hover:bg-[var(--surface-3)] hover:text-[var(--ink)]";
 const SMALL_BUTTON_CLASS =
   "bg-surface text-ink flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-dense)] font-medium hover:border-[var(--line-control-2)] hover:bg-[var(--surface-2)]";
-const META_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
+const META_CLASS =
+  "text-[length:var(--fs-meta)] whitespace-nowrap text-[var(--ink-3)]";
 const TAG_CLASS =
   "inline-flex h-[20px] items-center rounded-[var(--r-mark)] border px-[var(--space-4)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] whitespace-nowrap uppercase";
 
