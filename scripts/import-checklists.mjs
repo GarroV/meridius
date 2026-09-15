@@ -168,8 +168,8 @@ function roundItems(raw, round) {
   );
 }
 
-/** Обход — один чек-лист с расписанием на пунктах, а не чек-лист на каждый час. */
-function roundChecklist(round) {
+/** Обход — секция с расписанием на пунктах, а не чек-лист на каждый час. */
+function roundPart(round) {
   const items = round.items.flatMap((raw) => roundItems(raw, round));
   for (const item of items) {
     // Сломанное расписание внутри опубликованной версии неисправимо — версии не
@@ -177,7 +177,6 @@ function roundChecklist(round) {
     assertValidSchedule(item.schedule);
   }
   return {
-    key: round.station,
     station: round.station,
     window: [round.from, round.to],
     title: round.title,
@@ -192,6 +191,100 @@ function roundChecklist(round) {
   };
 }
 
+const MINUTES_IN_DAY = 24 * MINUTES_IN_HOUR;
+
+function minutesOf(time) {
+  const [h, m] = time.split(":");
+  return Number(h) * MINUTES_IN_HOUR + Number(m);
+}
+
+function timeOf(minutes) {
+  const inDay = ((minutes % MINUTES_IN_DAY) + MINUTES_IN_DAY) % MINUTES_IN_DAY;
+  return `${pad(Math.floor(inDay / MINUTES_IN_HOUR))}:${pad(inDay % MINUTES_IN_HOUR)}`;
+}
+
+/**
+ * Окно, накрывающее все периоды станции. Опора перебирается по всем началам: окна
+ * идут через полночь («21:00–03:00»), и наивный минимум начала с максимумом конца дал
+ * бы сутки наизнанку. Берётся та опора, при которой сутки покрываются короче всего —
+ * для смены, работающей с 05:00 до 03:00, это 05:00, а не полночь.
+ */
+function coveringWindow(windows) {
+  let best = null;
+  for (const [candidate] of windows) {
+    const start = minutesOf(candidate);
+    let span = 0;
+    for (const [from, to] of windows) {
+      const offset =
+        (minutesOf(from) - start + MINUTES_IN_DAY) % MINUTES_IN_DAY;
+      const length =
+        (minutesOf(to) - minutesOf(from) + MINUTES_IN_DAY) % MINUTES_IN_DAY ||
+        MINUTES_IN_DAY;
+      span = Math.max(span, offset + length);
+    }
+    if (span > MINUTES_IN_DAY) continue;
+    if (best === null || span < best.span) best = { start, span };
+  }
+  if (best === null) {
+    throw new RangeError(
+      "Периоды станции не укладываются в сутки: объединить их в один чек-лист нельзя",
+    );
+  }
+  // Ровно сутки записать нечем: база не принимает пустое окно (`checklists_window_not_empty`),
+  // а начало, равное концу, читалось бы как ноль минут. Минута в запасе честнее молчания.
+  const span = Math.min(best.span, MINUTES_IN_DAY - 1);
+  return [timeOf(best.start), timeOf(best.start + span)];
+}
+
+/** «Hot shop — opening» → «opening»: в заголовке секции станция уже не нужна. */
+function periodName(title) {
+  const cut = (text) => {
+    const tail = text.split("—").pop().trim();
+    return tail === "" ? text : tail;
+  };
+  const en = cut(title.en);
+  return {
+    ru: cut(title.ru),
+    en: en.charAt(0).toUpperCase() + en.slice(1),
+  };
+}
+
+/**
+ * Один чек-лист на станцию (требование владельца 15.09: «нам нужен 1 станция — 1
+ * чеклист, в нем внутри должно быть разделение на утро и вечер»). Периоды суток
+ * становятся секциями с часами в заголовке, обход — такой же секцией, только его
+ * пункты несут расписание и уезжают в панель обходов сами (D075).
+ */
+function stationChecklist(stationKey, name, parts) {
+  const ordered = [...parts].sort(
+    (a, b) => minutesOf(a.window[0]) - minutesOf(b.window[0]),
+  );
+  const window = coveringWindow(ordered.map((part) => part.window));
+
+  const sections = ordered.flatMap((part) => {
+    const period = periodName(part.title);
+    const hours = `${part.window[0]}–${part.window[1]}`;
+    return part.sections.map((section, index) => ({
+      ...section,
+      title: {
+        // Часы в заголовке секции — единственное место, где сотрудник видит, к какому
+        // времени суток относится пачка пунктов: у секции своего окна в продукте нет.
+        ru: `${period.ru} ${hours}${part.sections.length > 1 ? ` · ${section.title.ru}` : ""}`,
+        en: `${period.en} ${hours}${part.sections.length > 1 ? ` · ${section.title.en}` : ""}`,
+      },
+      id: section.id ?? `${stationKey}-${String(index)}`,
+    }));
+  });
+
+  return {
+    key: stationKey,
+    station: stationKey,
+    window,
+    title: name,
+    sections,
+  };
+}
+
 const packet = JSON.parse(readFileSync(packetPath, "utf8"));
 
 const countryId = idFor("country", packet.country.name);
@@ -200,8 +293,7 @@ const stationIds = new Map(
   packet.stations.map((s) => [s.key, idFor("station", s.key)]),
 );
 
-const plain = packet.checklists.map((c, i) => ({
-  key: `${c.station}/${i}`,
+const plain = packet.checklists.map((c) => ({
   station: c.station,
   window: c.window,
   title: c.title,
@@ -212,17 +304,23 @@ const plain = packet.checklists.map((c, i) => ({
     items: s.items.map((raw) => itemOf(raw)),
   })),
 }));
-const rounds = (packet.rounds ?? []).map((r) => roundChecklist(r));
-const all = [...plain, ...rounds];
+const rounds = (packet.rounds ?? []).map((r) => roundPart(r));
 
-for (const c of all) {
-  if (!stationIds.has(c.station)) {
+const parts = new Map();
+for (const part of [...plain, ...rounds]) {
+  if (!stationIds.has(part.station)) {
     console.error(
-      `Чек-лист «${c.title.ru}» ссылается на станцию «${c.station}», которой нет в пакете`,
+      `Чек-лист «${part.title.ru}» ссылается на станцию «${part.station}», которой нет в пакете`,
     );
     process.exit(1);
   }
+  parts.set(part.station, [...(parts.get(part.station) ?? []), part]);
 }
+
+const stationNames = new Map(packet.stations.map((s) => [s.key, s.name]));
+const all = [...parts.entries()].map(([station, list]) =>
+  stationChecklist(station, stationNames.get(station), list),
+);
 
 const db = getDb();
 const now = new Date();
@@ -355,7 +453,7 @@ try {
   console.log("Пакет заведён.");
   console.log(`  снято чек-листов прошлого прогона: ${summary.removed}`);
   console.log(
-    `  станций ${packet.stations.length} · чек-листов ${all.length} (разовых ${plain.length}, почасовых ${rounds.length})`,
+    `  станций ${packet.stations.length} · чек-листов ${all.length} (по одному на станцию: ${plain.length} периодов суток + ${rounds.length} обходов секциями)`,
   );
   console.log(
     `  пунктов ${all.reduce((n, c) => n + c.sections.reduce((m, s) => m + s.items.length, 0), 0)}`,
