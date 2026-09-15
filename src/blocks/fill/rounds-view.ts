@@ -101,8 +101,10 @@ function marksOf(item: ItemRounds, labels: RoundsLabels): RoundMarkView[] {
   return [...fromGrid, ...stray].reverse();
 }
 
-function stateOf(item: ItemRounds): RoundState {
-  if (item.current === null) return "finished";
+function stateOf(item: ItemRounds, offsetMinutes: number): RoundState {
+  if (item.current === null) {
+    return nextLocalTime(item, offsetMinutes) === null ? "finished" : "waiting";
+  }
   return item.current.marks.length > 0 ? "done" : "due";
 }
 
@@ -111,9 +113,13 @@ function headlineOf(
   state: RoundState,
   window: RoundsView["window"],
   labels: RoundsLabels,
+  offsetMinutes: number,
 ): string {
   const current = item.current;
-  if (current === null) return labels.finished;
+  if (current === null) {
+    const next = nextLocalTime(item, offsetMinutes);
+    return next === null ? labels.finished : labels.nextAt(next);
+  }
   if (state === "done") {
     const last = current.marks[current.marks.length - 1];
     return last === undefined
@@ -131,11 +137,14 @@ function headlineOf(
 function noteOf(
   item: ItemRounds,
   offsetMinutes: number,
+  state: RoundState,
   labels: RoundsLabels,
 ): string | null {
   const parts: string[] = [];
   if (item.missedCount > 0) parts.push(labels.missed(item.missedCount));
-  const next = nextLocalTime(item, offsetMinutes);
+  // В ожидании время следующего обхода уже стоит главной строкой: повторять его
+  // второй раз значит занять место, на котором должны быть пропуски.
+  const next = state === "waiting" ? null : nextLocalTime(item, offsetMinutes);
   if (next !== null) parts.push(labels.nextAt(next));
   return parts.length === 0 ? null : parts.join(NOTE_SEPARATOR);
 }
@@ -156,15 +165,21 @@ export function buildRoundsPanel(
     const source = byId.get(item.itemId);
     if (source === undefined) continue;
 
-    const state = stateOf(item);
+    const state = stateOf(item, input.rounds.offsetMinutes);
     items.push({
       itemId: item.itemId,
       title: pickFillText(source.title, input.locales),
       type: source.type,
       commentOnFailure: requiresCommentOnFailure(source),
       state,
-      headline: headlineOf(item, state, input.rounds.window, input.labels),
-      note: noteOf(item, input.rounds.offsetMinutes, input.labels),
+      headline: headlineOf(
+        item,
+        state,
+        input.rounds.window,
+        input.labels,
+        input.rounds.offsetMinutes,
+      ),
+      note: noteOf(item, input.rounds.offsetMinutes, state, input.labels),
       missedCount: item.missedCount,
       canMark: state === "due",
       marks: marksOf(item, input.labels),

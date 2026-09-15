@@ -167,8 +167,12 @@ describe("buildRoundsPanel", () => {
   });
 
   test("сетка кончилась: обходов сегодня больше не ждут", () => {
+    const grid = rounds();
+    const passed = grid.intervals[0];
+    if (passed === undefined) throw new Error("нет прохода");
+
     const panel = buildRoundsPanel({
-      rounds: view([rounds({ current: null })]),
+      rounds: view([{ ...grid, intervals: [passed], current: null }]),
       sections: sections({ i1: "Линия начинения" }),
       locales: ["ru"],
       labels,
@@ -178,6 +182,36 @@ describe("buildRoundsPanel", () => {
     expect(item.state).toBe("finished");
     expect(item.headline).toBe("Обходы на сегодня закончены");
     expect(item.canMark).toBe(false);
+  });
+
+  test("пауза в расписании — не конец дня: строка называет время следующего обхода", () => {
+    // Пункт проверяют в 11:00 и всё («сроки годности — склад» боевого пакета). В 09:30
+    // текущего прохода нет, но день не кончился: «Обходы закончены» рядом со
+    // «Следующий в 11:00» — это две противоположные вещи в одной строке.
+    const panel = buildRoundsPanel({
+      rounds: view([rounds({ current: null })]),
+      sections: sections({ i1: "Линия начинения" }),
+      locales: ["ru"],
+      labels,
+    });
+
+    const item = only(panel.items);
+    expect(item.state).toBe("waiting");
+    expect(item.headline).toBe("Следующий в 10:00");
+    expect(item.headline).not.toContain("закончены");
+    expect(item.canMark).toBe(false);
+  });
+
+  test("в ожидании вторая строка не повторяет время следующего обхода, а несёт пропуски", () => {
+    const panel = buildRoundsPanel({
+      rounds: view([rounds({ current: null, missedCount: 2 })]),
+      sections: sections({ i1: "Линия начинения" }),
+      locales: ["ru"],
+      labels,
+    });
+
+    const item = only(panel.items);
+    expect(item.note).toBe("Пропущено 2");
   });
 
   test("после отметки вторая строка называет время следующего обхода", () => {

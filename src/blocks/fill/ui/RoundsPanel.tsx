@@ -50,6 +50,7 @@ const NOTICE_CLASS =
 const TONE_CLASS: Record<RoundSummaryView["state"], string> = {
   due: "text-[var(--accent)]",
   done: "text-[var(--ok)]",
+  waiting: "text-[var(--ink-3)]",
   finished: "text-[var(--ink-3)]",
 };
 
