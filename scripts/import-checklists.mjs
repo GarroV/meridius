@@ -10,10 +10,14 @@
 // запуск заменяет контур тем же составом, а коды станций не меняются — напечатанные
 // наклейки продолжают работать.
 //
-// ВРЕМЕННЫЙ ПОРЯДОК. Обход раскладывается на почасовые чек-листы, потому что
-// регулярности в продукте ещё нет (T134—T138). Каждый обход получает СВОЮ станцию:
-// getPublishedVersionForStation отдаёт станции ровно один чек-лист (`limit(1)`), и
-// почасовой обход на той же станции молча перекрыл бы открытие смены.
+// ОДНА СТАНЦИЯ — ОДИН ЧЕК-ЛИСТ (D082). Периоды суток и обход становятся секциями
+// внутри него, а не отдельными чек-листами: сотрудник сканирует одну наклейку и
+// видит всю свою работу. Регулярность обхода живёт на пунктах отрезками расписания
+// (D075), поэтому почасовые копии чек-листа больше не заводятся.
+//
+// Блоки библиотеки (`library` в пакете) заводятся, но ни в один чек-лист не
+// вставляются: вставка — решение методиста. Блок, вставленный импортом, менялся бы
+// при каждой перезаливке пакета в чужих черновиках.
 //
 // Запуск:  node scripts/import-checklists.mjs <путь к packet.json>
 import { createHash, randomUUID } from "node:crypto";
@@ -49,6 +53,7 @@ const {
   submissions,
   assertValidSchedule,
   checks,
+  blocks,
 } = await import("../src/blocks/data/index.ts");
 const { STATION_CODE_ALPHABET, STATION_CODE_LENGTH } =
   await import("../src/blocks/catalog/index.ts");
@@ -322,6 +327,18 @@ const all = [...parts.entries()].map(([station, list]) =>
   stationChecklist(station, stationNames.get(station), list),
 );
 
+// Блоки библиотеки (D011). Заводятся, но никуда не вставляются: вставка блока в
+// чек-лист — решение методиста, а не импорта. Опознаватели пунктов выведены из ключа
+// блока, а не случайны: иначе каждый прогон подменял бы пункты новыми, и черновик,
+// куда блок уже вставили, переставал бы узнавать свои же строки.
+const library = (packet.library ?? []).map((b) => ({
+  id: idFor("block", b.key),
+  title: b.title,
+  items: b.items.map((raw, index) =>
+    itemOf(raw, { id: idFor("block-item", `${b.key}:${String(index)}`) }),
+  ),
+}));
+
 const db = getDb();
 const now = new Date();
 
@@ -443,6 +460,19 @@ try {
       ]);
     }
 
+    // Блоки переписываются по своему опознавателю и только по нему: заведённое
+    // методистом руками импорт не трогает. Снятия прежних нет по той же причине —
+    // блок не принадлежит пиццерии, и «лишний» блок здесь неотличим от чужого.
+    for (const block of library) {
+      await tx
+        .insert(blocks)
+        .values({ id: block.id, title: block.title, items: block.items })
+        .onConflictDoUpdate({
+          target: blocks.id,
+          set: { title: block.title, items: block.items, updatedAt: now },
+        });
+    }
+
     return { removed: oldIds.length };
   });
 
@@ -457,6 +487,9 @@ try {
   );
   console.log(
     `  пунктов ${all.reduce((n, c) => n + c.sections.reduce((m, s) => m + s.items.length, 0), 0)}`,
+  );
+  console.log(
+    `  блоков библиотеки ${library.length} · пунктов в них ${library.reduce((n, b) => n + b.items.length, 0)} (заведены, никуда не вставлены)`,
   );
   console.log("\nСсылки станций — то, что уходит внутрь напечатанного QR:");
   for (const s of packet.stations) {
