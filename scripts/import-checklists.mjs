@@ -271,24 +271,43 @@ try {
     }
     await tx.delete(stations).where(inArray(stations.id, stationIdList));
     await tx.delete(stores).where(eq(stores.id, storeId));
-    await tx.delete(countries).where(eq(countries.id, countryId));
 
-    await tx.insert(countries).values({
-      id: countryId,
-      name: packet.country.name,
-      locale: packet.country.locale,
-    });
+    // Страна ПЕРЕИСПОЛЬЗУЕТСЯ, если уже заведена под этим именем, а не создаётся
+    // заново: в ней могут стоять чужие пиццерии (демо-контур), и снос страны либо
+    // упёрся бы в них внешним ключом, либо завёл бы вторую страну с тем же именем —
+    // в списке кабинета они выглядели бы одинаково, и методист выбирал бы наугад.
+    const [known] = await tx
+      .select({ id: countries.id })
+      .from(countries)
+      .where(eq(countries.name, packet.country.name))
+      .limit(1);
+
+    const country = known?.id ?? countryId;
+    if (known === undefined) {
+      await tx.delete(countries).where(eq(countries.id, countryId));
+      await tx.insert(countries).values({
+        id: countryId,
+        name: packet.country.name,
+        locale: packet.country.locale,
+      });
+    }
+
     await tx.insert(stores).values({
       id: storeId,
-      countryId,
+      countryId: country,
       name: packet.store.name,
       timezone: packet.store.timezone,
     });
+    // Имя станции — на языке страны: в базе оно одно, и второго поля под перевод нет.
+    // Брать русское всегда значило бы русские станции в английском кабинете (владелец
+    // 15.09: «весь интерфейс сейчас на инглише»).
+    const stationName = (name) =>
+      name[packet.country.locale] ?? name.en ?? name.ru;
     await tx.insert(stations).values(
       packet.stations.map((s) => ({
         id: stationIds.get(s.key),
         storeId,
-        name: s.name.ru,
+        name: stationName(s.name),
         code: codeFor(s.key),
       })),
     );
