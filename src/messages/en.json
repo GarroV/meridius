@@ -118,6 +118,7 @@
       "localeNotSupported": "This language is not supported",
       "unknownTimezone": "The database does not know this timezone",
       "referencedByHistory": "Submissions reference this record — deletion is not allowed",
+      "referencedByChecks": "Check marks reference this record — deletion is not allowed",
       "countryNotEmpty": "This country still has pizzerias — delete them first",
       "confirmationRequired": "Deletion needs confirmation",
       "notFound": "Record not found",

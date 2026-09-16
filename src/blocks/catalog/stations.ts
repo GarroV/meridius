@@ -10,7 +10,7 @@ import {
   CatalogError,
   PG_FOREIGN_KEY_VIOLATION,
   PG_UNIQUE_VIOLATION,
-  asHistoryConflict,
+  asDeletionConflict,
   pgErrorCode,
   requireName,
 } from "./errors";
@@ -184,7 +184,7 @@ export async function deleteStation(id: string): Promise<void> {
     if (row === undefined) throw notFound(WHAT);
   } catch (error) {
     if (error instanceof CatalogError) throw error;
-    asHistoryConflict(error, WHAT);
+    asDeletionConflict(error, WHAT);
   }
 }
 
