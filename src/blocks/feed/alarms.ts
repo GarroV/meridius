@@ -54,7 +54,11 @@ import {
 import type { LocalizedText, ShiftMode } from "@/blocks/data";
 
 import type { FeedScope } from "./scope";
-import { ZONE_MATCHES, scopeConditions } from "./scope";
+import {
+  ZONE_MATCHES,
+  countUnknownTimezoneStores,
+  scopeConditions,
+} from "./scope";
 
 /**
  * Сколько строк читается на одну тревогу каждого вида. Провал виден только после
@@ -465,17 +469,6 @@ async function listMissedChecklists(
  * те, у которых есть хотя бы одна станция: без станции чек-листа нет и тревоги быть
  * не может, а пугать управляющего пиццерией, которая ещё не заведена до конца, незачем.
  */
-async function countUnknownTimezoneStores(scope: FeedScope): Promise<number> {
-  const [row] = await getDb()
-    .select({ stores: countDistinct(stores.id) })
-    .from(stations)
-    .innerJoin(stores, eq(stations.storeId, stores.id))
-    .leftJoin(timezoneNames, ZONE_MATCHES)
-    .where(and(...scopeConditions(scope), isNull(timezoneNames.name)));
-
-  return row?.stores ?? 0;
-}
-
 /**
  * Все тревоги по этим фильтрам на момент `at`. Порядок — сперва то, что случилось и
  * известно точно (провал критичного пункта), потом то, что стало фактом с закрытием

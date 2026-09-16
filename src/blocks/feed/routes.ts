@@ -14,3 +14,13 @@ export const FEED_PATH = ADMIN_SECTIONS.feed.path;
 export function submissionPath(id: string): string {
   return `${FEED_PATH}/${encodeURIComponent(id)}`;
 }
+
+/**
+ * Отчёт об обходах — сетка «пункты × интервалы».
+ *
+ * Внутри раздела ленты, а не отдельным пунктом меню: это второй взгляд на те же
+ * данные и под теми же фильтрами, а не другая часть продукта. Статический отрезок
+ * адреса сильнее `[id]` карточки, и заполнений с таким идентификатором не бывает —
+ * они опознаются UUID.
+ */
+export const ROUNDS_REPORT_PATH = `${FEED_PATH}/report`;

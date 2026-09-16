@@ -6,9 +6,9 @@
 // а полоса тревог и сетка обходов на одном и том же фильтре обязаны смотреть на одну
 // и ту же часть сети.
 import type { SQL } from "drizzle-orm";
-import { eq, sql } from "drizzle-orm";
+import { and, countDistinct, eq, isNull, sql } from "drizzle-orm";
 
-import { stations, stores, timezoneNames } from "@/blocks/data";
+import { getDb, stations, stores, timezoneNames } from "@/blocks/data";
 
 /** Фильтры экрана в том виде, в каком их принимают запросы: незаданное не передаётся. */
 export interface FeedScope {
@@ -42,3 +42,22 @@ export function scopeConditions(scope: FeedScope): SQL[] {
  * из условий и попадает в отдельный счёт, который экран показывает вслух.
  */
 export const ZONE_MATCHES = sql`lower(${timezoneNames.name}) = lower(${stores.timezone})`;
+
+/**
+ * Пиццерии в этих фильтрах, чей часовой пояс база не знает. Их обходы и тревоги
+ * посчитать нечем: без пояса неизвестно, кончились ли местные сутки и закрылось ли
+ * окно. Число отдаётся наружу и показывается, а не прячется, — иначе сломанная
+ * строка справочника тихо вычитала бы пиццерию из надзора (T062).
+ */
+export async function countUnknownTimezoneStores(
+  scope: FeedScope,
+): Promise<number> {
+  const [row] = await getDb()
+    .select({ stores: countDistinct(stores.id) })
+    .from(stations)
+    .innerJoin(stores, eq(stations.storeId, stores.id))
+    .leftJoin(timezoneNames, ZONE_MATCHES)
+    .where(and(...scopeConditions(scope), isNull(timezoneNames.name)));
+
+  return row?.stores ?? 0;
+}
