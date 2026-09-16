@@ -16,6 +16,7 @@ import { describe, expect, test } from "vitest";
 
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 import { repositoryRoot } from "@/blocks/core/repo-copy";
+import { withoutComments } from "@/blocks/core/source-text";
 
 import { libraryBlockPath } from "./routes";
 
@@ -26,19 +27,6 @@ function routesSource(): string {
     path.join(repositoryRoot(), "src/blocks/editor/routes.ts"),
     "utf8",
   );
-}
-
-/**
- * Объяснения из текста убираются: путь раздела законно называть словами в комментарии,
- * и без этого сторож ловил бы собственную документацию (та же ловушка, что в
- * `core/admin-links.test.ts`).
- */
-function withoutComments(source: string): string {
-  return source
-    .replaceAll(/\/\*[\S\s]*?\*\//g, "")
-    .split("\n")
-    .filter((line) => !/^\s*(?:\/\/|\*)/.test(line))
-    .join("\n");
 }
 
 describe("адрес вставленного блока библиотеки (T115)", () => {
@@ -56,6 +44,9 @@ describe("адрес вставленного блока библиотеки (T
     // смотрела на `"/admin/…` — и отрицательный прогон показал, что она пропускает ровно
     // тот способ, которым путь сюда и вернётся: внутри шаблонной строки, где вместо
     // кавычки стоит обратная. Порча прошла молча, тест остался зелёным.
+    //
+    // Комментарии снимаются общим `core/source-text`: путь раздела законно называть
+    // словами в объяснении, и без снятия сторож ловил бы собственную документацию.
     const code = withoutComments(routesSource());
     const hardcoded = Object.values(ADMIN_SECTIONS)
       .map((section) => section.path)

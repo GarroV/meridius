@@ -21,7 +21,7 @@ export interface ChecklistRow {
   storeName: string | null;
   countryName: string | null;
   publishedNumber: number | null;
-  hasDraft: boolean;
+  hasUnpublishedChanges: boolean;
   itemCount: number;
   submissions7d: number;
 }
@@ -51,7 +51,7 @@ interface ChecklistListRow extends Record<string, unknown> {
   store_name: string | null;
   country_name: string | null;
   published_number: number | null;
-  has_draft: boolean;
+  has_unpublished_changes: boolean;
   item_count: string;
   submissions_7d: string;
 }
@@ -104,8 +104,18 @@ export async function listChecklists(
            st.name as station_name, sto.name as store_name, co.name as country_name,
            (select v.version_number from checklist_versions v
              where v.checklist_id = c.id and v.status = 'published') as published_number,
-           exists (select 1 from checklist_versions v
-                    where v.checklist_id = c.id and v.status = 'draft') as has_draft,
+           -- Метка «черновик»: есть ли РАСХОЖДЕНИЕ между черновиком и опубликованным,
+           -- а не есть ли строка черновика. Публикация черновик не удаляет (он —
+           -- единственная мутируемая строка в цепочке), поэтому «строка существует»
+           -- истинно всегда и метка горела у всех чек-листов сразу после публикации.
+           -- Сравнение через is distinct from берёт и случай «опубликованного ещё нет»:
+           -- подзапрос даёт null, и метка законно горит — не опубликовано ничего.
+           exists (select 1 from checklist_versions d
+                    where d.checklist_id = c.id and d.status = 'draft'
+                      and d.sections is distinct from
+                          (select p.sections from checklist_versions p
+                            where p.checklist_id = c.id
+                              and p.status = 'published')) as has_unpublished_changes,
            (select coalesce(sum(jsonb_array_length(s->'items')), 0)
               from checklist_versions v
               cross join lateral jsonb_array_elements(v.sections) s
@@ -135,7 +145,7 @@ export async function listChecklists(
     storeName: row.store_name,
     countryName: row.country_name,
     publishedNumber: row.published_number,
-    hasDraft: row.has_draft,
+    hasUnpublishedChanges: row.has_unpublished_changes,
     itemCount: Number(row.item_count),
     submissions7d: Number(row.submissions_7d),
   }));
