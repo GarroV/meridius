@@ -2,11 +2,6 @@
 # Зовёт ту же команду, что приёмка блока и хук, — `scripts/check`: три отдельных
 # списка команд разъезжаются, один не разъезжается (docs/furca/plan.md,
 # «Проверки качества»).
-#
-# Стенд поднимается `scripts/up`, а не собственными шагами по тому же соображению:
-# «поднимается одной командой» — критерий готовности продукта, и проверять его
-# нужно той же командой, которой это делает человек, иначе критерий держится
-# на памяти.
 name: check
 
 on:
@@ -40,11 +35,33 @@ jobs:
       - name: Браузер для сквозных сценариев
         run: npx --no-install playwright install --with-deps chromium
 
-      # `scripts/up` сам создаёт `.env` из примера и заменяет опубликованные
-      # SESSION_SECRET и ADMIN_PASSWORD_HASH своими — на них продукт отказывает
-      # во входе намеренно (src/blocks/auth/config.ts).
-      - name: Стенд одной командой
-        run: ./scripts/up
+      # `scripts/up` здесь не зовётся, хотя подъём одной командой — критерий
+      # готовности продукта: скрипт заканчивается `exec next start` и держит сервер
+      # в foreground, то есть в неинтерактивном прогоне управление не возвращает
+      # никогда (проверено — прогон висел до отмены). Пока у него нет режима
+      # подготовки без запуска (задача T194), шаги повторены здесь явно.
+      # Секрет подписи сессии берётся свой: на значении из `.env.example` продукт
+      # намеренно отказывает во входе (src/blocks/auth/config.ts), потому что файл
+      # лежит в git. Сервер для сквозных сценариев поднимает сам playwright.
+      - name: Окружение стенда
+        run: |
+          cp .env.example .env
+          sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=ci-only-$(openssl rand -hex 24)|" .env
+
+      - name: База
+        run: |
+          docker compose -p meridius up -d db
+          for _ in $(seq 1 60); do
+            state=$(docker inspect -f '{{.State.Health.Status}}' meridius-db-1 2>/dev/null || echo starting)
+            [ "$state" = "healthy" ] && break
+            sleep 1
+          done
+          [ "$state" = "healthy" ] || { docker compose -p meridius logs db; exit 1; }
+
+      - name: Миграции и демонстрационный контур
+        run: |
+          npm run --silent db:migrate
+          node scripts/seed-demo.mjs
 
       - name: Весь набор проверок
         run: ./scripts/check
