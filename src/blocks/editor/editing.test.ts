@@ -453,28 +453,28 @@ describe("регулярность пункта (T137)", () => {
   });
 });
 
-describe("колонки табличного пункта (T141)", () => {
-  /** Пункт-журнал с одной заполненной колонкой: от него тесты отклоняются. */
-  function tableSections(): Section[] {
-    return [
-      {
-        id: "s1",
-        title: { ru: "Замес теста" },
-        source: "own",
-        items: [
-          {
-            id: "a",
-            title: { ru: "Журнал замесов" },
-            type: "table",
-            severity: "normal",
-            columns: [{ id: "c1", title: { ru: "Температура теста" } }],
-          },
-          item("b"),
-        ],
-      },
-    ];
-  }
+/** Пункт-журнал с одной заполненной колонкой: от него тесты отклоняются. */
+function tableSections(): Section[] {
+  return [
+    {
+      id: "s1",
+      title: { ru: "Замес теста" },
+      source: "own",
+      items: [
+        {
+          id: "a",
+          title: { ru: "Журнал замесов" },
+          type: "table",
+          severity: "normal",
+          columns: [{ id: "c1", title: { ru: "Температура теста" } }],
+        },
+        item("b"),
+      ],
+    },
+  ];
+}
 
+describe("колонки табличного пункта (T141)", () => {
   test("смена типа на «таблица» заводит первую колонку: курсору есть куда встать", () => {
     const next = updateItem(sections(), "a", { type: "table" });
 
@@ -548,9 +548,9 @@ describe("колонки табличного пункта (T141)", () => {
 
     const next = removeColumn(two, "a", "c1");
 
-    expect(next[0]?.items[0]?.columns?.map((column) => column.id)).toStrictEqual(
-      [added],
-    );
+    expect(
+      next[0]?.items[0]?.columns?.map((column) => column.id),
+    ).toStrictEqual([added]);
   });
 
   test("удаление последней колонки оставляет пустой список, а не роняет пункт", () => {

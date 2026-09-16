@@ -250,6 +250,10 @@ describe("время начала заполнения", () => {
   });
 });
 
+function withValue(value: unknown): unknown {
+  return payload({ answers: [{ itemId: "t1", value, at: AT }] });
+}
+
 describe("табличный пункт: журнал в теле отправки (T141)", () => {
   const COLUMNS = [
     { id: "c1", title: { ru: "Температура", en: "Temperature" } },
@@ -258,10 +262,6 @@ describe("табличный пункт: журнал в теле отправк
 
   function tableItem(): Item {
     return item("t1", { type: "table", severity: "normal", columns: COLUMNS });
-  }
-
-  function withValue(value: unknown): unknown {
-    return payload({ answers: [{ itemId: "t1", value, at: AT }] });
   }
 
   it("журнал доезжает строками, а не текстом", () => {
@@ -278,7 +278,9 @@ describe("табличный пункт: журнал в теле отправк
   });
 
   it("пустые строки журнала до базы не доезжают", () => {
-    const parsed = parseSubmission(withValue([{ c1: " 24 " }, {}, { c2: " " }]));
+    const parsed = parseSubmission(
+      withValue([{ c1: " 24 " }, {}, { c2: " " }]),
+    );
 
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
@@ -309,7 +311,7 @@ describe("табличный пункт: журнал в теле отправк
 
   it("текст вместо журнала — отказ: тип ответа разошёлся с типом пункта", () => {
     const parsed = matchAnswersToSnapshot(snapshot(tableItem()), [
-      { itemId: "t1", value: "24", at: AT } as Answer,
+      { itemId: "t1", value: "24", at: AT },
     ]);
 
     expect(parsed).toStrictEqual({ ok: false, reason: "malformed" });

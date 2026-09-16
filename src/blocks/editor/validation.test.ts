@@ -480,27 +480,27 @@ describe("расписание периодической проверки (T137
   });
 });
 
-describe("табличный пункт: колонки с нормами (T141)", () => {
-  /** Пункт-журнал: две колонки из вкладок `Dough mixing` с нормой над каждой. */
-  function withTable(item: Record<string, unknown>): unknown[] {
-    return [
-      {
-        id: "section-1",
-        title: { ru: "Замес теста", en: "Dough mixing" },
-        source: "own",
-        items: [
-          {
-            id: "item-1",
-            title: { ru: "Журнал замесов", en: "Mixing log" },
-            type: "table",
-            severity: "normal",
-            ...item,
-          },
-        ],
-      },
-    ];
-  }
+/** Пункт-журнал: две колонки из вкладок `Dough mixing` с нормой над каждой. */
+function withTable(item: Record<string, unknown>): unknown[] {
+  return [
+    {
+      id: "section-1",
+      title: { ru: "Замес теста", en: "Dough mixing" },
+      source: "own",
+      items: [
+        {
+          id: "item-1",
+          title: { ru: "Журнал замесов", en: "Mixing log" },
+          type: "table",
+          severity: "normal",
+          ...item,
+        },
+      ],
+    },
+  ];
+}
 
+describe("табличный пункт: колонки с нормами (T141)", () => {
   const TEMPERATURE = {
     id: "col-1",
     title: { ru: "Температура теста", en: "Dough temperature" },
@@ -521,9 +521,9 @@ describe("табличный пункт: колонки с нормами (T141)
       withTable({ columns: [WEIGHT, TEMPERATURE] }),
     );
 
-    expect(section?.items[0]?.columns?.map((column) => column.id)).toStrictEqual(
-      ["col-2", "col-1"],
-    );
+    expect(
+      section?.items[0]?.columns?.map((column) => column.id),
+    ).toStrictEqual(["col-2", "col-1"]);
   });
 
   test("колонка без названия на всех языках пропускается, а не роняет сохранение", () => {

@@ -47,6 +47,19 @@ export interface SectionCardProps {
   readonly onItemTitle: (itemId: string, text: string) => void;
   readonly onItemPatch: (itemId: string, patch: Partial<Item>) => void;
   readonly onItemSchedule: (itemId: string, setting: ScheduleSetting) => void;
+  /** Колонки табличного пункта (D074): завести, переименовать, норма, удалить. */
+  readonly onAddColumn: (itemId: string) => void;
+  readonly onColumnTitle: (
+    itemId: string,
+    columnId: string,
+    text: string,
+  ) => void;
+  readonly onColumnNorm: (
+    itemId: string,
+    columnId: string,
+    text: string,
+  ) => void;
+  readonly onRemoveColumn: (itemId: string, columnId: string) => void;
   /**
    * «Применить ко всей секции» из окна настройки пункта. Секция носителем расписания
    * НЕ становится (D075): настройка переносится на её пункты, и это работа редактора,
@@ -191,6 +204,20 @@ export function SectionCard(props: SectionCardProps) {
                     props.onItemSchedule(item.id, setting);
                   },
                   onApplyToSection: props.onSectionSchedule,
+                }}
+                columns={{
+                  onAdd: () => {
+                    props.onAddColumn(item.id);
+                  },
+                  onTitle: (columnId, text) => {
+                    props.onColumnTitle(item.id, columnId, text);
+                  },
+                  onNorm: (columnId, text) => {
+                    props.onColumnNorm(item.id, columnId, text);
+                  },
+                  onRemove: (columnId) => {
+                    props.onRemoveColumn(item.id, columnId);
+                  },
                 }}
                 onTitle={(text) => {
                   props.onItemTitle(item.id, text);
