@@ -103,3 +103,45 @@ export function nextSegment(
     everyMinutes: last?.everyMinutes ?? 60,
   };
 }
+
+/**
+ * Сколько отрезков помещается в один пункт.
+ *
+ * Живёт здесь, а не в `validation.ts`: предел обязан знать и окно настройки (иначе
+ * кнопка «добавить отрезок» набирает то, что сервер потом отвергнет отказом без
+ * объяснения), а `validation.ts` в браузер не уезжает — он тянет вход блока data.
+ * Разбор на сервере берёт это же число, чтобы два предела не разъехались молча.
+ */
+export const MAX_SEGMENTS = 8;
+
+/** Есть ли куда добавить ещё отрезок. По нему окно настройки гасит кнопку. */
+export function canAddSegment(schedule: readonly ScheduleSegment[]): boolean {
+  return schedule.length < MAX_SEGMENTS;
+}
+
+/**
+ * Отрезок с изменённым полем. Возвращает НОВЫЙ список: состояние окна настройки —
+ * обычное состояние React, и правка на месте в нём не перерисовывается.
+ *
+ * Номер вне списка означает, что разметка и состояние разошлись; такой правкой мы
+ * молча дописали бы список с конца. Возвращаем тот же список — расхождение увидит
+ * проверка, а не методист.
+ */
+export function replaceSegment(
+  schedule: readonly ScheduleSegment[],
+  index: number,
+  patch: Partial<ScheduleSegment>,
+): ScheduleSegment[] {
+  if (index < 0 || index >= schedule.length) return [...schedule];
+  return schedule.map((segment, at) =>
+    at === index ? { ...segment, ...patch } : segment,
+  );
+}
+
+/** Список без указанного отрезка. Пустой список означает «пункт снова обычный». */
+export function removeSegment(
+  schedule: readonly ScheduleSegment[],
+  index: number,
+): ScheduleSegment[] {
+  return schedule.filter((_segment, at) => at !== index);
+}

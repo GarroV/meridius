@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from "react";
 
-import type { Item, ItemType, Severity } from "@/blocks/data";
+import type { ChecklistWindow, Item, ItemType, Severity } from "@/blocks/data";
 // `severityOf` берётся напрямую из модуля уровней, а НЕ из входа `@/blocks/data`:
 // эта строка попадает в клиентскую сборку (её рисует клиентский `ChecklistEditor`),
 // а вход блока data тянет за собой пул подключений и драйвер `pg`, которого в браузере
@@ -9,6 +9,8 @@ import type { Item, ItemType, Severity } from "@/blocks/data";
 // ни узловых зависимостей.
 import { severityOf } from "@/blocks/data/severity";
 
+import type { ScheduleSetting } from "../editing";
+import { ScheduleChip } from "./ScheduleChip";
 import { SELECT_ARROW_SMALL } from "./select-style";
 
 /** Строка пункта в редакторе по эталону `docs/furca/design/screens/editor.html`. */
@@ -17,6 +19,23 @@ export interface ItemRowProps {
   /** Сквозной номер по всему чек-листу: в эталоне нумерация не начинается заново в секции. */
   readonly ordinal: number;
   readonly locale: string;
+  /**
+   * Управление регулярностью — целиком или никак (T137).
+   *
+   * Необязательно, потому что ту же строку рисует правка блока библиотеки, а у блока
+   * нет и не может быть окна чек-листа: блок живёт сразу в нескольких чек-листах с
+   * разными окнами, и от какого из них считать первый отрезок — вопрос без ответа.
+   * Одним полем, а не четырьмя необязательными: половина управления, приехавшая без
+   * второй половины, — это чип, который открывается и ничего не применяет.
+   */
+  readonly schedule?: {
+    /** Окно чек-листа: от него считается первый отрезок обхода (`schedule-field.ts`). */
+    readonly window: ChecklistWindow;
+    /** Экран ожил: признак спускается сверху, а не считается в каждой из сотни строк. */
+    readonly live: boolean;
+    readonly onApply: (setting: ScheduleSetting) => void;
+    readonly onApplyToSection: (setting: ScheduleSetting) => void;
+  };
   readonly onTitle: (text: string) => void;
   readonly onPatch: (patch: Partial<Item>) => void;
   readonly onRemove: () => void;
@@ -79,6 +98,7 @@ export function ItemRow({
   item,
   ordinal,
   locale,
+  schedule,
   onTitle,
   onPatch,
   onRemove,
@@ -156,6 +176,18 @@ export function ItemRow({
             />
           </span>
         ) : null}
+
+        {/* Регулярность стоит между «чем отвечают» и «насколько важно»: сперва род
+            ответа, потом как часто его дают, и только потом вес пункта. */}
+        {schedule === undefined ? null : (
+          <ScheduleChip
+            item={item}
+            window={schedule.window}
+            live={schedule.live}
+            onApply={schedule.onApply}
+            onApplyToSection={schedule.onApplyToSection}
+          />
+        )}
 
         <span
           data-testid="item-severity"

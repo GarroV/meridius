@@ -13,9 +13,9 @@ import type {
   Severity,
 } from "@/blocks/data";
 import { assertValidSchedule, isSeverity, parseLocalTime } from "@/blocks/data";
-
-import { isRemindOption, REMIND_OPTIONS } from "./schedule-field";
 import type { Locale } from "@/blocks/core/locale";
+
+import { isRemindOption, MAX_SEGMENTS, REMIND_OPTIONS } from "./schedule-field";
 
 export type EditorErrorCode =
   | "badFormat"
@@ -55,8 +55,13 @@ export const LIMITS = {
    * (`docs/furca/specs/2026-09-14-rounds-and-expiry-design.md`); предел стоит не от
    * жадности, а чтобы список отрезков не превратился в тот же лист бумаги, ради ухода
    * от которого регулярность и задаётся отрезками (D075).
+   *
+   * Число берётся у окна настройки (`schedule-field.ts`), а не пишется вторым
+   * литералом: кнопка «добавить отрезок» обязана гаснуть на том же месте, где
+   * разбор начинает отказывать. Два предела разъехались бы молча — методист
+   * добавил бы девятый отрезок и получил отказ уже на сохранении.
    */
-  scheduleSegments: 8,
+  scheduleSegments: MAX_SEGMENTS,
 } as const;
 
 // Языки контента продукта (D009). Третий добавляется словарём, а не кодом, поэтому
@@ -244,7 +249,7 @@ function parseRemind(input: unknown, isPeriodic: boolean): number | undefined {
   if (!isRemindOption(value)) {
     fail(
       "badSchedule",
-      `Частота напоминания не из списка ${REMIND_OPTIONS.join("/")}: ${String(input)}`,
+      `Частота напоминания не из списка ${REMIND_OPTIONS.join("/")}: ${JSON.stringify(input)}`,
     );
   }
   return value;

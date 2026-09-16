@@ -195,7 +195,9 @@ export interface ScheduleSetting {
  * было бы нечему, а поле следующий читатель примет за работающее.
  */
 function withSchedule(item: Item, setting: ScheduleSetting): Item {
-  const { schedule: _schedule, remindEveryMinutes: _remind, ...rest } = item;
+  const { schedule, remindEveryMinutes, ...rest } = item;
+  void schedule;
+  void remindEveryMinutes;
   if (setting.schedule.length === 0) return rest;
   return {
     ...rest,

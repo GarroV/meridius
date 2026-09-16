@@ -19,12 +19,14 @@ import type { EditorStation, VersionSummary } from "../drafts";
 import {
   addItemAfter,
   addSection,
+  applyScheduleToSection,
   insertItems,
   insertLibrarySection,
   itemCount,
   moveItem,
   removeItem,
   removeSection,
+  setItemSchedule,
   setItemTitle,
   setSectionTitle,
   unlinkSection,
@@ -263,6 +265,8 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
                   section={section}
                   firstOrdinal={firstOrdinal}
                   locale={locale}
+                  window={window}
+                  live={live}
                   usageCount={usageOf(section, props.library)}
                   onSectionTitle={(text) => {
                     setSections(
@@ -289,6 +293,14 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
                   }}
                   onItemPatch={(itemId, patch: Partial<Item>) => {
                     setSections(updateItem(sections, itemId, patch));
+                  }}
+                  onItemSchedule={(itemId, setting) => {
+                    setSections(setItemSchedule(sections, itemId, setting));
+                  }}
+                  onSectionSchedule={(setting) => {
+                    setSections(
+                      applyScheduleToSection(sections, section.id, setting),
+                    );
                   }}
                   onRemoveItem={(itemId) => {
                     setSections(removeItem(sections, itemId));
