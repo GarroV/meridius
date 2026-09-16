@@ -11,7 +11,7 @@ import type { FeedSelection } from "./model";
  * `none` — в этот час обход не ждали вовсе; `missed` — есть пропуски, и их число
  * и есть ответ; `done` — всё закрытое сделано; `pending` — проход ещё впереди.
  */
-export type RoundsCellKind = "none" | "done" | "missed" | "pending";
+type RoundsCellKind = "none" | "done" | "missed" | "pending";
 
 export interface RoundsReportCell {
   readonly kind: RoundsCellKind;

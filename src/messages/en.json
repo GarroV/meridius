@@ -554,7 +554,6 @@
       "lead": "Where and at which hours rounds are not getting done. The conversation here is about load and staffing, not about who is to blame.",
       "tableTitle": "Items × round hours",
       "item": "Item",
-      "place": "Where",
       "doneColumn": "Done",
       "missedColumn": "Missed",
       "totals": "Done {done}, missed {missed}",
