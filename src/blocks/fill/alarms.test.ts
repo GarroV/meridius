@@ -568,3 +568,176 @@ describe("dropAlarm — снятие будильника", () => {
     });
   });
 });
+
+/**
+ * Перевод часов (T162, issue #72).
+ *
+ * Границы прохода окна и миг звонка считает база: местная отметка переводится в момент
+ * времени через `at time zone`. В ночь перевода такая отметка либо НЕ СУЩЕСТВУЕТ (часы
+ * прыгают вперёд), либо случается ДВАЖДЫ (часы отводят назад), и PostgreSQL молча
+ * возвращает один момент — без отказа и без предупреждения. До миграции 0009 сюда
+ * приводился реальный существующий момент, и неоднозначным это не бывало; после неё
+ * дыра осталась непокрытой, а прежний тест честно объявлял пояс без перевода выбранным
+ * намеренно — то есть дыра была не спрятана, а просто не закрыта.
+ *
+ * Берлин, 2026 год: 29 марта в 02:00 часы прыгают на 03:00 (02:00–02:59 не существует),
+ * 25 октября в 03:00 отводятся на 02:00 (02:00–02:59 идёт дважды).
+ *
+ * ПОВЕДЕНИЕ ПРИЗНАНО ВЕРНЫМ, и проверки закрепляют именно его, а не чинят. Держится оно
+ * на одном обещании продукта: время, НАПИСАННОЕ НА ЭКРАНЕ, — это время, в которое
+ * будильник действительно прозвонит, а отсчёт до звонка идёт настоящими секундами с
+ * сервера. Обещания «прозвонит ровно тогда, когда вы набрали» продукт не давал и дать
+ * не может: в весеннюю ночь набранного часа не существует вовсе.
+ */
+const BERLIN = "Europe/Berlin";
+/** Ночное окно с запасом по обе стороны перехода. */
+const DST_WINDOW = { start: "22:00:00", end: "06:00:00" } as const;
+
+describe("перевод часов: весенняя ночь, когда часа не существует", () => {
+  // 29 марта 2026, 00:30 по Берлину (ещё CET, +1): до прыжка полтора часа.
+  const NIGHT = new Date("2026-03-28T23:30:00Z");
+
+  it("несуществующее время принимается, но на экране стоит тот час, когда прозвонит", async () => {
+    const { code } = await station(BERLIN, DST_WINDOW);
+
+    const outcome = await setAlarm(
+      { code, atLocalTime: "02:30", label: "вынести тесто" },
+      NIGHT,
+    );
+
+    expect(outcome.kind).toBe("alarms");
+    if (outcome.kind !== "alarms") return;
+    const [alarm] = outcome.alarms;
+    // Набрано 02:30 — часа, которого этой ночью нет. На экране 03:30: это тот же миг,
+    // и это единственный честный ответ. Показать «02:30» значило бы назвать время,
+    // которого на часах станции не будет, а отказать — отобрать записку из-за суток,
+    // которые сотрудник не выбирал.
+    expect(alarm?.atLocalTime).toBe("03:30");
+    // Два НАСТОЯЩИХ часа от 00:30: полтора часа до прыжка и полчаса после него.
+    expect(alarm?.ringsInSeconds).toBe(2 * 60 * 60);
+  });
+
+  it("миг звонка хранится реальным, а не выдуманным", async () => {
+    const { code, stationId } = await station(BERLIN, DST_WINDOW);
+
+    await setAlarm({ code, atLocalTime: "02:30", label: "тесто" }, NIGHT);
+
+    const [row] = await getDb()
+      .select({ at: alarms.at })
+      .from(alarms)
+      .where(eq(alarms.stationId, stationId));
+    // 03:30 CEST (+2) — это 01:30 UTC. Строка в базе совпадает с тем, что на экране.
+    expect(row?.at.toISOString()).toBe("2026-03-29T01:30:00.000Z");
+  });
+
+  it("время по обе стороны прыжка работает как обычно", async () => {
+    const { code } = await station(BERLIN, DST_WINDOW);
+
+    const before = await setAlarm(
+      { code, atLocalTime: "01:30", label: "до прыжка" },
+      NIGHT,
+    );
+    const after = await setAlarm(
+      { code, atLocalTime: "04:00", label: "после прыжка" },
+      NIGHT,
+    );
+
+    expect(before.kind).toBe("alarms");
+    expect(after.kind).toBe("alarms");
+    if (after.kind !== "alarms") return;
+    const times = after.alarms.map((alarm) => alarm.atLocalTime);
+    expect(times).toEqual(["01:30", "04:00"]);
+    const [early, late] = after.alarms;
+    // 00:30 → 01:30 — час настоящих секунд, перевод сюда не достаёт.
+    expect(early?.ringsInSeconds).toBe(60 * 60);
+    // 00:30 → 04:00 по часам три с половиной, по секундам — два с половиной.
+    expect(late?.ringsInSeconds).toBe(Math.round(2.5 * 60 * 60));
+  });
+
+  it("проход окна короче своих часов ровно на потерянный час", async () => {
+    const { code } = await station(BERLIN, DST_WINDOW);
+
+    // Окно 22:00–06:00 в эту ночь длится семь настоящих часов, а не восемь: конец
+    // прохода наступает раньше. Проверяется через отказ, называющий часы окна, —
+    // границы наружу не отдаются, а решает по ним именно он.
+    expect(
+      await setAlarm({ code, atLocalTime: "07:00", label: "мимо окна" }, NIGHT),
+    ).toStrictEqual({
+      kind: "refused",
+      reason: "outside-window",
+      retryAfterSeconds: 0,
+      hours: "22:00–06:00",
+    });
+  });
+});
+
+describe("перевод часов: осенняя ночь, когда час случается дважды", () => {
+  // 25 октября 2026, 01:30 по Берлину (ещё CEST, +2): до отвода полтора часа.
+  const NIGHT = new Date("2026-10-24T23:30:00Z");
+
+  it("неоднозначное время берётся ВТОРЫМ разом, и отсчёт это честно показывает", async () => {
+    const { code } = await station(BERLIN, DST_WINDOW);
+
+    const outcome = await setAlarm(
+      { code, atLocalTime: "02:30", label: "вынести тесто" },
+      NIGHT,
+    );
+
+    expect(outcome.kind).toBe("alarms");
+    if (outcome.kind !== "alarms") return;
+    const [alarm] = outcome.alarms;
+    // На часах станции действительно будет 02:30 — просто во второй раз за ночь.
+    expect(alarm?.atLocalTime).toBe("02:30");
+    // И это ДВА настоящих часа, а не один: полтора до отвода и полчаса после. Отсчёт
+    // уходит в браузер секундами с сервера (а не мигом времени), поэтому на планшете
+    // видно настоящее ожидание, а не разницу по циферблату.
+    expect(alarm?.ringsInSeconds).toBe(2 * 60 * 60);
+  });
+
+  it("миг звонка — второй из двух, и он лежит в базе именно таким", async () => {
+    const { code, stationId } = await station(BERLIN, DST_WINDOW);
+
+    await setAlarm({ code, atLocalTime: "02:30", label: "тесто" }, NIGHT);
+
+    const [row] = await getDb()
+      .select({ at: alarms.at })
+      .from(alarms)
+      .where(eq(alarms.stationId, stationId));
+    // Первый раз 02:30 наступает в 00:30 UTC (ещё CEST, +2), второй — в 01:30 UTC
+    // (уже CET, +1). Выбран второй.
+    expect(row?.at.toISOString()).toBe("2026-10-25T01:30:00.000Z");
+  });
+
+  it("время, уже прошедшее ОБА раза, отвергается вслух, а не уезжает в завтра", async () => {
+    const { code } = await station(BERLIN, DST_WINDOW);
+    // 03:30 по Берлину уже после отвода: это 02:30 UTC. Оба 02:30 позади.
+    const afterBoth = new Date("2026-10-25T02:30:00Z");
+
+    expect(
+      await setAlarm(
+        { code, atLocalTime: "02:30", label: "опоздавший" },
+        afterBoth,
+      ),
+    ).toStrictEqual({
+      kind: "refused",
+      reason: "past-time",
+      retryAfterSeconds: 0,
+    });
+  });
+
+  it("проход окна длиннее своих часов ровно на повторённый час", async () => {
+    const { code } = await station(BERLIN, DST_WINDOW);
+    // Окно 22:00–06:00 в эту ночь длится девять настоящих часов. Конец прохода —
+    // 06:00 уже по CET, то есть 05:00 UTC; будильник на 05:30 в него попадает.
+    const outcome = await setAlarm(
+      { code, atLocalTime: "05:30", label: "перед закрытием" },
+      NIGHT,
+    );
+
+    expect(outcome.kind).toBe("alarms");
+    if (outcome.kind !== "alarms") return;
+    const [alarm] = outcome.alarms;
+    // 01:30 CEST → 05:30 CET: по циферблату четыре часа, по секундам пять.
+    expect(alarm?.ringsInSeconds).toBe(5 * 60 * 60);
+  });
+});
