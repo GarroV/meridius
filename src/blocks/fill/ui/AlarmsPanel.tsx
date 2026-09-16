@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 
 import { ALARM_LIMITS } from "../alarm-limits";
-import type { AlarmOutcome, AlarmView } from "../alarms";
+import type { AlarmOutcome, AlarmRefusal, AlarmView } from "../alarms";
 
 /**
  * Будильники станции (D070).
@@ -67,11 +67,6 @@ export interface AlarmsPanelProps {
   readonly alarms: readonly AlarmView[];
   readonly code: string;
   /**
-   * Часы работы чек-листа, «22:00–02:00». Нужны отказу: будильник живёт до конца окна
-   * (D090), и на отказ «не те часы» сотруднику надо назвать те, которые те.
-   */
-  readonly hours: string;
-  /**
    * Действия передаются сверху, а не импортируются здесь: так панель проверяется
    * без серверной части — тем же приёмом, что `FillForm` и `RoundsPanel`.
    */
@@ -117,7 +112,6 @@ async function beep(): Promise<boolean> {
 export function AlarmsPanel({
   alarms,
   code,
-  hours,
   add,
   drop,
 }: AlarmsPanelProps): ReactElement {
@@ -160,6 +154,43 @@ export function AlarmsPanel({
     };
   }, [list]);
 
+  /**
+   * Текст отказа. Часы берутся ИЗ САМОГО ОТКАЗА, а не из шапки экрана: шапка знает окно
+   * одного чек-листа, а граница вынесена по всем открытым разом. Отказ без часов
+   * означает, что на станции сейчас не открыт ни один чек-лист, — называть нечего.
+   */
+  const refusalText = useCallback(
+    (outcome: AlarmRefusal): string => {
+      switch (outcome.reason) {
+        case "rate-limited": {
+          return t("refused.tooOften", {
+            minutes: Math.max(
+              1,
+              Math.ceil(outcome.retryAfterSeconds / MINUTE_SECONDS),
+            ),
+          });
+        }
+        case "past-time": {
+          return t("refused.pastTime");
+        }
+        case "outside-window": {
+          return outcome.hours === undefined
+            ? t("refused.checklistClosed")
+            : t("refused.outsideWindow", { window: outcome.hours });
+        }
+        case "too-many": {
+          return t("refused.tooMany", {
+            count: ALARM_LIMITS.maxPerStationPerWindow,
+          });
+        }
+        default: {
+          return t("refused.broken");
+        }
+      }
+    },
+    [t],
+  );
+
   const apply = useCallback(
     async (action: () => Promise<AlarmOutcome>, alarmId?: string) => {
       setBusy(true);
@@ -173,24 +204,7 @@ export function AlarmsPanel({
           }
           return true;
         }
-        setNotice(
-          outcome.reason === "rate-limited"
-            ? t("refused.tooOften", {
-                minutes: Math.max(
-                  1,
-                  Math.ceil(outcome.retryAfterSeconds / MINUTE_SECONDS),
-                ),
-              })
-            : outcome.reason === "past-time"
-              ? t("refused.pastTime")
-              : outcome.reason === "outside-window"
-                ? t("refused.outsideWindow", { window: hours })
-                : outcome.reason === "too-many"
-                  ? t("refused.tooMany", {
-                      count: ALARM_LIMITS.maxPerStationPerWindow,
-                    })
-                  : t("refused.broken"),
-        );
+        setNotice(refusalText(outcome));
         return false;
       } catch {
         // Связь оборвалась. Введённое остаётся на экране, и касание можно повторить.
@@ -200,7 +214,7 @@ export function AlarmsPanel({
         setBusy(false);
       }
     },
-    [hours, t],
+    [refusalText],
   );
 
   const ringingAlarms = list.filter((alarm) => ringing.includes(alarm.id));

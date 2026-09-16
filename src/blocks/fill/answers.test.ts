@@ -257,7 +257,6 @@ describe("модель экрана обратно в пункты для счё
   const view: FillScreenView = {
     checklistTitle: "Открытие кухни",
     where: "Пиццерия · Станция · 06:00–12:00",
-    window: "06:00–12:00",
     totalItems: 2,
     sections: [
       {

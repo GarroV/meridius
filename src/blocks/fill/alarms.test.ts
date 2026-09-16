@@ -65,6 +65,19 @@ async function station(
   return { code: fixture.stationCode, stationId: fixture.stationId };
 }
 
+/** Второй открытый чек-лист той же станции: их у станции бывает несколько разом. */
+async function addChecklist(
+  stationId: string,
+  window: { readonly start: string; readonly end: string },
+): Promise<void> {
+  const checklistId = await createChecklist({
+    stationId,
+    windowStart: window.start,
+    windowEnd: window.end,
+  });
+  await createPublishedVersion(checklistId, sampleSections("второй"));
+}
+
 /** Станция, которой заполнять сейчас нечего: ни одного открытого чек-листа. */
 async function stationWithoutChecklist(): Promise<{ code: string }> {
   const fixture = await createStation({ timezone: TOKYO });
@@ -270,6 +283,8 @@ describe("setAlarm — заведение будильника", () => {
     const day = await station(TOKYO);
 
     // Ночная станция в 23:40: 21:00 — до начала окна, 03:00 — после его конца.
+    // Отказ называет ровно те часы, по которым и решает: иначе сотрудник читает
+    // на экране одну границу, а упирается в другую.
     expect(
       await setAlarm(
         { code: night.code, atLocalTime: "21:00", label: "тесто" },
@@ -279,6 +294,7 @@ describe("setAlarm — заведение будильника", () => {
       kind: "refused",
       reason: "outside-window",
       retryAfterSeconds: 0,
+      hours: "22:00–02:00",
     });
     expect(
       (
@@ -298,12 +314,39 @@ describe("setAlarm — заведение будильника", () => {
       kind: "refused",
       reason: "outside-window",
       retryAfterSeconds: 0,
+      hours: "06:00–12:00",
     });
   });
 
-  it("станции без открытого чек-листа будильник не заводится", async () => {
+  it("при нескольких открытых чек-листах отказ называет ту границу, по которой и решает", async () => {
+    // Штатный случай, а не экзотика: обход идёт весь день поверх открытия смены.
+    // Граница берётся по объединению открытых окон — значит и названа должна быть она,
+    // иначе сотрудник читает в шапке 06:00–12:00, ставит на 15:00 и молча попадает.
+    const { code, stationId } = await station(TOKYO);
+    await addChecklist(stationId, { start: "07:00:00", end: "20:00:00" });
+
+    // 15:00 за концом первого окна, но внутри объединения — принимается.
+    expect(
+      (await setAlarm({ code, atLocalTime: "15:00", label: "тесто" }, NOW))
+        .kind,
+    ).toBe("alarms");
+
+    // 21:00 за пределами объединения — отказ, и часы в нём те же самые.
+    expect(
+      await setAlarm({ code, atLocalTime: "21:00", label: "тесто" }, NOW),
+    ).toStrictEqual({
+      kind: "refused",
+      reason: "outside-window",
+      retryAfterSeconds: 0,
+      hours: "06:00–20:00",
+    });
+  });
+
+  it("станции без открытого чек-листа будильник не заводится, и часов в отказе нет", async () => {
     const { code } = await stationWithoutChecklist();
 
+    // Часов в отказе нет намеренно: называть нечего, и выдумывать их — то же враньё,
+    // что назвать не ту границу. Экран на этом месте говорит другое.
     expect(
       await setAlarm({ code, atLocalTime: "09:30", label: "тесто" }, NOW),
     ).toStrictEqual({

@@ -38,6 +38,7 @@ import { checkAlarmAllowed } from "./rate-limit";
 import { isPlausibleCode } from "./station";
 import type { FillRefusal, Parsed } from "./validation";
 import { UUID_PATTERN } from "./validation";
+import { formatWindow } from "./view";
 
 /** Местное время «ЧЧ:ММ» ровно в том виде, в каком его отдаёт `<input type="time">`. */
 const LOCAL_TIME_SHAPE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -65,11 +66,24 @@ export interface AlarmView {
  */
 export type AlarmOutcome =
   | { readonly kind: "alarms"; readonly alarms: readonly AlarmView[] }
-  | {
-      readonly kind: "refused";
-      readonly reason: FillRefusal;
-      readonly retryAfterSeconds: number;
-    };
+  | AlarmRefusal;
+
+/**
+ * Отказ — и часы, по которым он вынесен.
+ *
+ * Часы приходят ИЗ ТОГО ЖЕ запроса, который принял решение, а не с экрана. Экран знает
+ * окно одного чек-листа — того, что сейчас открыт на нём, — а граница берётся по всем
+ * открытым разом. Разойдись эти два источника, и сотрудник читал бы в шапке одни часы,
+ * а упирался в другие: ставил бы на 15:00 при «06:00–12:00» и молча попадал. Пустые
+ * часы (`undefined`) означают «называть нечего»: у станции сейчас не открыт ни один
+ * чек-лист.
+ */
+export interface AlarmRefusal {
+  readonly kind: "refused";
+  readonly reason: FillRefusal;
+  readonly retryAfterSeconds: number;
+  readonly hours?: string;
+}
 
 export interface ParsedAlarm {
   readonly code: string;
@@ -86,6 +100,17 @@ const MALFORMED = { ok: false, reason: "malformed" } as const;
 
 function refuse(reason: FillRefusal, retryAfterSeconds = 0): AlarmOutcome {
   return { kind: "refused", reason, retryAfterSeconds };
+}
+
+/** Отказ «не те часы» вместе с теми часами, которые и применены. */
+function refuseOutsideWindow(hours: string | null): AlarmOutcome {
+  if (hours === null) return refuse("outside-window");
+  return {
+    kind: "refused",
+    reason: "outside-window",
+    retryAfterSeconds: 0,
+    hours,
+  };
 }
 
 function isRecord(input: unknown): input is Record<string, unknown> {
@@ -213,6 +238,12 @@ interface AlarmWindow {
    */
   readonly opensAt: Date | null;
   readonly closesAt: Date | null;
+  /**
+   * Те же границы местным временем станции, «06:00–20:00», — ровно то, что можно
+   * показать человеку. Считается здесь же, чтобы показанное и применённое не могли
+   * разойтись: разные источники для решения и для подписи к нему уже расходились.
+   */
+  readonly hours: string | null;
   /** Кандидаты в миг звонка по возрастанию: вчера, сегодня, завтра. */
   readonly moments: readonly Date[];
 }
@@ -241,6 +272,12 @@ async function alarmWindow(
       stationId: stations.id,
       opensAt: utcText<string | null>(sql`min(${windowOpensAt(now)})`),
       closesAt: utcText<string | null>(sql`max(${windowClosesAt(now)})`),
+      opensLocal: sql<
+        string | null
+      >`to_char(min(${windowOpensAt(now)}) at time zone ${stores.timezone}, 'HH24:MI')`,
+      closesLocal: sql<
+        string | null
+      >`to_char(max(${windowClosesAt(now)}) at time zone ${stores.timezone}, 'HH24:MI')`,
       yesterday: utcText(sameClockOn(now, atLocalTime, -1)),
       today: utcText(sameClockOn(now, atLocalTime, 0)),
       tomorrow: utcText(sameClockOn(now, atLocalTime, 1)),
@@ -276,6 +313,10 @@ async function alarmWindow(
     stationId: row.stationId,
     opensAt: momentOf(row.opensAt),
     closesAt: momentOf(row.closesAt),
+    hours:
+      row.opensLocal === null || row.closesLocal === null
+        ? null
+        : formatWindow(row.opensLocal, row.closesLocal),
     // Пустых мгновений здесь не бывает — они считаются из одного часового пояса и
     // названного времени. Пустыми их считает тип: левое соединение делает пустым всё
     // считанное запросом, и разбирать их приходится тем же способом, что и границы.
@@ -373,14 +414,16 @@ export async function setAlarm(
   const hours = await alarmWindow(code, now, atLocalTime);
   if (hours === null) return refuse("unknown-code");
   const { opensAt, closesAt } = hours;
-  if (opensAt === null || closesAt === null) return refuse("outside-window");
+  if (opensAt === null || closesAt === null) {
+    return refuseOutsideWindow(hours.hours);
+  }
 
   const withinWindow = hours.moments.filter(
     (moment) =>
       moment.getTime() >= opensAt.getTime() &&
       moment.getTime() < closesAt.getTime(),
   );
-  if (withinWindow.length === 0) return refuse("outside-window");
+  if (withinWindow.length === 0) return refuseOutsideWindow(hours.hours);
 
   // Кандидаты идут по возрастанию, поэтому первый же ещё не наступивший и есть
   // ближайший миг звонка. Не наступило ни одного — время этого прохода уже позади.
