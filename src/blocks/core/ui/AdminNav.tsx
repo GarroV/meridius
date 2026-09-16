@@ -14,6 +14,7 @@ import { useTranslations } from "next-intl";
 import type { ReactElement } from "react";
 
 import {
+  ADMIN_HOME,
   ADMIN_NAV_GROUPS,
   ADMIN_SECTIONS,
   type AdminSectionKey,
@@ -43,12 +44,24 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
 
   return (
     <nav className="bg-surface flex flex-col gap-[var(--space-8)] border-r border-[var(--line-strong)] py-[var(--space-7)]">
-      <div className="px-[var(--space-7)] text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold tracking-[-0.01em]">
+      {/*
+        Бренд — ссылка на главную кабинета (T124). До этого из раздела в главную нельзя
+        было вернуться ничем, кроме кнопки браузера: меню перечисляет разделы, а главная
+        разделом не является и в меню не попадает. Адрес берётся из `admin-sections`,
+        а не пишется строкой, — тот же дубль вычищали трижды (T116, T118, T119).
+        Вид в покое не меняется: у ссылки тот же цвет и нет подчёркивания, — отличие
+        видно только наведением.
+      */}
+      <Link
+        href={ADMIN_HOME.path}
+        data-testid="nav-home"
+        className="px-[var(--space-7)] text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold tracking-[-0.01em] text-inherit no-underline hover:text-[var(--accent)]"
+      >
         {t("nav.brand")}{" "}
         <span className="font-normal text-[var(--ink-3)]">
           {t("nav.brandMuted")}
         </span>
-      </div>
+      </Link>
 
       {ADMIN_NAV_GROUPS.map((group) => (
         <div key={group.key} className="flex flex-col">
