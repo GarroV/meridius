@@ -7,6 +7,7 @@ import type { ReactElement } from "react";
 
 import type { OverdueSignalView } from "../model";
 import { beep } from "./beep";
+import { startRefreshClock } from "./refresh-clock";
 
 /**
  * Сигнал станции о пропущенной проверке (T138, issue #51).
@@ -88,28 +89,30 @@ export function OverduePlate({
     };
   }, [ringing, repeatEverySeconds]);
 
-  // Счётчик сработавших часов. Без него часы не перевзводятся, когда очередное
-  // значение совпало с предыдущим: сетка «каждые полчаса» отдаёт после каждой границы
-  // ровно те же 1800 секунд, зависимость не меняется, React оставляет прежний эффект —
-  // а его таймер уже отработал и второй раз не сработает. Выглядело бы это так: первая
-  // просрочка показалась, а следующие молча нет.
-  const [rearm, setRearm] = useState(0);
-
+  // Свежая величина для часов. Держится в ref, потому что часы спрашивают её сами
+  // перед каждым взводом: копия внутри часов стала бы вторым источником правды.
+  const nextChange = useRef(nextChangeInSeconds);
   useEffect(() => {
-    if (nextChangeInSeconds === null) return;
-    const timer = globalThis.setTimeout(
-      () => {
+    nextChange.current = nextChangeInSeconds;
+  }, [nextChangeInSeconds]);
+
+  // Перевзвод живёт в самих часах (см. `startRefreshClock`), а не в зависимостях
+  // эффекта: на ровной сетке очередная величина совпадает с предыдущей, React
+  // оставляет прежний эффект — а его таймер уже отработал. Первая просрочка
+  // показалась бы, следующие молча нет. Вынесенное поведение закрыто проверкой с
+  // поддельными часами (T191): сквозной сценарий десять минут не ждёт, а она не
+  // ждёт вовсе.
+  useEffect(
+    () =>
+      startRefreshClock({
+        nextChangeInSeconds: () => nextChange.current,
         // Состояние обходов считает сервер: спрашиваем его, а не гадаем во вкладке.
-        router.refresh();
-        setRearm((count) => count + 1);
-      },
-      // Не меньше секунды: нулевая задержка закрутила бы вкладку в петлю обновлений.
-      Math.max(1, nextChangeInSeconds) * MS,
-    );
-    return () => {
-      globalThis.clearTimeout(timer);
-    };
-  }, [nextChangeInSeconds, router, rearm]);
+        onDue: () => {
+          router.refresh();
+        },
+      }),
+    [nextChangeInSeconds, router],
+  );
 
   if (overdue === null) return null;
 
