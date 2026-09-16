@@ -505,7 +505,7 @@
       "periodToday": "Today",
       "periodWeek": "7 days",
       "periodMonth": "Month",
-      "timeZone": "The period is counted in store time: {zone}"
+      "timeZoneMixed": "The stores in this filter are in different time zones: period boundaries are counted in a single zone for all of them — {zone} — not in the time of any one store. Times in the rows are shown in each store's own time."
     },
     "range": {
       "day": "for {day}",
