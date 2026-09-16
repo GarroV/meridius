@@ -2,7 +2,15 @@
 // показателя и снимок пунктов — и здесь же держится главное правило обоих экранов:
 // показатели считаются по ТОМУ ЖЕ массиву строк, который показан в ленте.
 import type { Locale } from "@/blocks/core/locale";
-import type { Answer, Section, ShiftMode, SubmissionRow } from "@/blocks/data";
+import type {
+  Answer,
+  AnswerValue,
+  ItemColumn,
+  Section,
+  ShiftMode,
+  SubmissionRow,
+  TableRow,
+} from "@/blocks/data";
 import {
   getSubmission,
   isFailed,
@@ -267,7 +275,8 @@ export async function buildSubmissionModel(
 /** Ответ в том виде, в каком его дал сотрудник; тип берётся у пункта снимка. */
 function toAnswerView(
   item: Section["items"][number],
-  value: boolean | number | string | undefined,
+  value: AnswerValue | undefined,
+  locale: Locale,
 ): AnswerView {
   if (value === undefined) return { kind: "none" };
   if (item.type === "bool" && typeof value === "boolean") {
@@ -276,9 +285,39 @@ function toAnswerView(
   if (item.type === "number" && typeof value === "number") {
     return { kind: "number", value };
   }
+  if (item.type === "table" && Array.isArray(value)) {
+    return tableAnswerView(item.columns, value, locale);
+  }
+  if (Array.isArray(value)) {
+    // Массив у НЕтабличного пункта — расхождение типа, как и везде здесь, скрывать
+    // нельзя; но `String([...])` даёт «[object Object]», а `JSON.stringify` — то же
+    // расхождение читаемым текстом.
+    return { kind: "text", value: JSON.stringify(value) };
+  }
   // Тип ответа разошёлся с типом пункта — показываем как есть, а не прячем:
   // такое расхождение видно только на экране, и молчать о нём нельзя.
   return { kind: "text", value: String(value) };
+}
+
+/**
+ * Табличный ответ (D074): строится ПО КОЛОНКАМ СНИМКА, а не по ключам заполнения —
+ * снимок главный (принцип 3, D002), и правка колонок задним числом не имеет права
+ * менять уже сохранённое. Клетка, которой в строке нет, — пустая; ключ, которого нет
+ * среди колонок снимка, — отброшен молча, потому что показать его было бы негде.
+ */
+function tableAnswerView(
+  columns: ItemColumn[] | undefined,
+  rows: TableRow[],
+  locale: Locale,
+): AnswerView {
+  if (columns === undefined || columns.length === 0) {
+    return { kind: "table", columns: [], rows: [] };
+  }
+  return {
+    kind: "table",
+    columns: columns.map((column) => pickText(column.title, locale)),
+    rows: rows.map((row) => columns.map((column) => row[column.id] ?? "")),
+  };
 }
 
 function toSectionViews(
@@ -304,7 +343,7 @@ function toSectionViews(
         min: item.min ?? null,
         max: item.max ?? null,
         failed: isFailed(item, answer),
-        answer: toAnswerView(item, answer?.value),
+        answer: toAnswerView(item, answer?.value, locale),
         answeredAt: answer === undefined ? null : new Date(answer.at),
         comment: answer?.comment ?? null,
       };

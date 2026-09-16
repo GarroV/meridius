@@ -57,8 +57,31 @@ const COMMENT_CLASS =
   "mt-[var(--space-4)] rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-6)] py-[var(--space-5)] text-[length:var(--fs-dense)]";
 const COMMENT_STYLE = { gridColumn: "2 / -1" } as const;
 
+// Журнал замеса (D074): полноширинная таблица под строкой пункта, а не в её колонке
+// значения — колонок методист заводит сколько нужно, и заранее отведённой ширины
+// им не хватило бы. Эталон — `.table` в components.css: тонкая линия `--line`,
+// шапка мельче тела и цветом `--ink-3`.
+const TABLE_WRAP_CLASS =
+  "mt-[var(--space-4)] overflow-x-auto rounded-[var(--r-mark)] border border-[var(--line)]";
+const TABLE_WRAP_STYLE = { gridColumn: "2 / -1" } as const;
+const TABLE_CLASS =
+  "w-full border-collapse text-[length:var(--fs-dense)] leading-[var(--lh-dense)]";
+const TABLE_TH_CLASS =
+  "border-b border-[var(--line)] bg-[var(--surface-2)] px-[var(--space-4)] py-[var(--space-3)] text-left text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase whitespace-nowrap";
+const TABLE_TD_CLASS =
+  "border-b border-[var(--line)] px-[var(--space-4)] py-[var(--space-3)] align-middle font-[family-name:var(--font-num)] text-[length:var(--fs-num)] whitespace-nowrap";
+
 type Formatter = Awaited<ReturnType<typeof getFormatter>>;
 type Translate = Awaited<ReturnType<typeof getTranslations>>;
+
+/**
+ * Табличный ответ без единой строки журнала — тот же «без ответа», что и пустой
+ * пункт: методист завёл колонки, но сотрудник ничего не записал, а показывать
+ * пустую таблицу как выполненный пункт означало бы выдавать её за ответ.
+ */
+function isUnansweredTable(answer: AnswerView): boolean {
+  return answer.kind === "table" && answer.rows.length === 0;
+}
 
 /**
  * Заливка квадратика: провал красным перекрывает всё остальное, пункт без ответа
@@ -67,7 +90,9 @@ type Translate = Awaited<ReturnType<typeof getTranslations>>;
  */
 function markClass(item: SubmissionItemView): string {
   if (item.failed) return MARK_FAIL_CLASS;
-  if (item.answer.kind === "none") return MARK_NONE_CLASS;
+  if (item.answer.kind === "none" || isUnansweredTable(item.answer)) {
+    return MARK_NONE_CLASS;
+  }
   return MARK_OK_CLASS;
 }
 
@@ -90,7 +115,12 @@ function noteText(item: SubmissionItemView, t: Translate): string | null {
   return null;
 }
 
-/** Значение ответа в его собственном виде: да/нет, число, текст или «без ответа». */
+/**
+ * Значение ответа в его собственном виде: да/нет, число, текст или «без ответа».
+ * Таблицу с хотя бы одной строкой сюда не отдают — она рисуется своей разметкой,
+ * а не этой строкой (см. `AnswerRow`); пустая же таблица здесь и превращается
+ * в привычное «без ответа» через тот же запасной путь, что и `kind: "none"`.
+ */
 function valueText(answer: AnswerView, t: Translate): string {
   if (answer.kind === "bool") return answer.value ? t("yes") : t("no");
   if (answer.kind === "number") return String(answer.value);
@@ -101,8 +131,54 @@ function valueText(answer: AnswerView, t: Translate): string {
 /** Неотвеченный пункт подсвечен тем же серым, что и его квадратик, а не обычным цветом. */
 function valueColor(item: SubmissionItemView): string | undefined {
   if (item.failed) return "var(--err)";
-  if (item.answer.kind === "none") return "var(--ink-3)";
+  if (item.answer.kind === "none" || isUnansweredTable(item.answer)) {
+    return "var(--ink-3)";
+  }
   return undefined;
+}
+
+/**
+ * Журнал замеса под строкой пункта (D074): настоящая таблица, а не строка текста —
+ * `valueText` для неё не годится, колонок может быть сколько угодно. Пустая таблица
+ * (`rows.length === 0`) сюда не доходит вовсе: её решает `isUnansweredTable` ещё в
+ * `AnswerRow`, и пункт остаётся обычной строкой с подписью «без ответа».
+ */
+function AnswerTable({
+  answer,
+}: {
+  readonly answer: Extract<AnswerView, { kind: "table" }>;
+}): ReactElement {
+  return (
+    <div className={TABLE_WRAP_CLASS} style={TABLE_WRAP_STYLE}>
+      <table className={TABLE_CLASS} data-testid="submission-table">
+        <thead>
+          <tr>
+            {answer.columns.map((column) => (
+              <th key={column} className={TABLE_TH_CLASS}>
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {answer.rows.map((row) => (
+            <tr key={row.join("␟")} data-testid="submission-table-row">
+              {/* Идём по `columns`, а не по `row`: контракт (`build-model.ts`)
+                  уже выровнял клетки строки по колонкам, но ключ ячейки обязан
+                  быть подписью колонки, а не её местом (см. `RoundsGridTable`
+                  — тот же приём для той же задачи: индекс цикла нельзя класть
+                  в React `key`, а стабильного опознавателя у клетки нет). */}
+              {answer.columns.map((column, columnIndex) => (
+                <td key={column} className={TABLE_TD_CLASS}>
+                  {row[columnIndex] ?? ""}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function AnswerRow({
@@ -120,6 +196,12 @@ function AnswerRow({
 }): ReactElement {
   const note = noteText(item, t);
   const color = valueColor(item);
+  // Заполненную таблицу рисует `AnswerTable` ниже, во всю ширину строки: колонка
+  // значения — не то место, столько текста в неё не поместится.
+  const filledTable =
+    item.answer.kind === "table" && item.answer.rows.length > 0
+      ? item.answer
+      : null;
 
   return (
     <div
@@ -145,7 +227,7 @@ function AnswerRow({
         className={VALUE_CLASS}
         style={color === undefined ? undefined : { color }}
       >
-        {valueText(item.answer, t)}
+        {filledTable === null ? valueText(item.answer, t) : null}
       </span>
       <span className={TIME_CLASS}>
         {item.answeredAt === null
@@ -157,6 +239,7 @@ function AnswerRow({
               timeZone,
             })}
       </span>
+      {filledTable === null ? null : <AnswerTable answer={filledTable} />}
       {item.comment === null ? null : (
         <div
           className={COMMENT_CLASS}

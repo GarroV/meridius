@@ -13,14 +13,24 @@
 // Оба файла ниже чистые: `types.ts` — только типы, `grading.ts` — только правило провала.
 import { flattenItems, isFailed } from "@/blocks/data/grading";
 import { requiresCommentOnFailure } from "@/blocks/data/severity";
-import type { Answer, Item, Section, TableRow } from "@/blocks/data/types";
+import type {
+  Answer,
+  AnswerValue,
+  Item,
+  Section,
+  TableRow,
+} from "@/blocks/data/types";
 
 import type { FillScreenView } from "./model";
 import { filledRows } from "./table-journal";
 
 /** Ответ в работе: значение ещё может отсутствовать, комментарий — быть пустым. */
 export interface DraftAnswer {
-  readonly value: boolean | number | string | readonly TableRow[] | null;
+  /**
+   * Список строк журнала — не `readonly`: он и есть `AnswerValue`, а `readonly`
+   * здесь означал бы ровно одно — приведение типа на каждой отправке.
+   */
+  readonly value: boolean | number | string | TableRow[] | null;
   readonly comment: string;
   /** Момент ответа с устройства сотрудника. */
   readonly at: number;
@@ -66,7 +76,7 @@ function toAnswer(itemId: string, draft: DraftAnswer): Answer {
   const comment = draft.comment.trim();
   // Журнал уходит без пустых строк и без крайних пробелов в клетках: то, что сотрудник
   // начал строку и передумал, хранить незачем, а два вида пустоты — одно состояние.
-  const value = Array.isArray(draft.value)
+  const value: AnswerValue = Array.isArray(draft.value)
     ? filledRows(draft.value)
     : (draft.value ?? "");
   return comment === ""

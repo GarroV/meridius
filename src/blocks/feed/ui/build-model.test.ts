@@ -4,7 +4,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, describe, expect, test } from "vitest";
 
-import type { Answer, Section } from "@/blocks/data";
+import type { Answer, ItemColumn, Section, TableRow } from "@/blocks/data";
 import {
   checklistVersions,
   getDb,
@@ -577,6 +577,151 @@ describe("buildSubmissionModel", () => {
       ),
     ).toBeNull();
     expect(await buildSubmissionModel("не-uuid", "ru", FEED_PATH)).toBeNull();
+  });
+});
+
+/**
+ * Своя цепочка станция → чек-лист → версия → заполнение под табличный пункт
+ * (D074): у общего `sections()` этого файла такого пункта нет, а колонки и
+ * значение у каждого теста свои — проще собрать одну маленькую версию на пункт,
+ * чем подгонять общую фикстуру под четыре разных снимка колонок.
+ */
+async function seedTableSubmission(
+  label: string,
+  options: { readonly columns?: ItemColumn[]; readonly value: TableRow[] },
+): Promise<{ readonly submissionId: string; readonly itemId: string }> {
+  const itemId = `item-table-${label}`;
+  const station = await createStation();
+  const checklistId = await createChecklist({ stationId: station.stationId });
+  const tableSections: Section[] = [
+    {
+      id: `section-table-${label}`,
+      title: { ru: "Замес теста", en: "Dough mixing" },
+      source: "own",
+      items: [
+        {
+          id: itemId,
+          title: { ru: "Журнал замеса", en: "Mixing log" },
+          type: "table",
+          ...(options.columns === undefined
+            ? {}
+            : { columns: options.columns }),
+        },
+      ],
+    },
+  ];
+  const versionId = await createPublishedVersion(checklistId, tableSections);
+  const submissionId = await saveSubmission({
+    mode: "normal",
+    versionId,
+    answers: [
+      {
+        itemId,
+        value: options.value,
+        at: Date.parse("2026-09-05T09:13:00Z"),
+      },
+    ],
+    startedAt: Date.parse("2026-09-05T09:00:00Z"),
+  });
+  return { submissionId, itemId };
+}
+
+describe("buildSubmissionModel — табличный ответ (D074)", () => {
+  test("обычная таблица приходит строками и колонками, а не строкой [object Object]", async () => {
+    const columns: ItemColumn[] = [
+      { id: "temp", title: { ru: "Темп.", en: "Temp." } },
+      { id: "time", title: { ru: "Время", en: "Time" } },
+    ];
+    const seeded = await seedTableSubmission("basic", {
+      columns,
+      value: [
+        { temp: "24", time: "12:00" },
+        { temp: "23", time: "12:30" },
+      ],
+    });
+
+    const card = await buildSubmissionModel(
+      seeded.submissionId,
+      "ru",
+      FEED_PATH,
+    );
+    const item = card?.sections[0]?.items[0];
+
+    expect(item?.answer).toStrictEqual({
+      kind: "table",
+      columns: ["Темп.", "Время"],
+      rows: [
+        ["24", "12:00"],
+        ["23", "12:30"],
+      ],
+    });
+  });
+
+  test("клетка, которой нет в строке, показывается пустой, а не сдвигает соседние колонки", async () => {
+    const columns: ItemColumn[] = [
+      { id: "a", title: { ru: "А" } },
+      { id: "b", title: { ru: "Б" } },
+    ];
+    const seeded = await seedTableSubmission("missing-cell", {
+      columns,
+      value: [{ a: "1" }],
+    });
+
+    const card = await buildSubmissionModel(
+      seeded.submissionId,
+      "ru",
+      FEED_PATH,
+    );
+    const item = card?.sections[0]?.items[0];
+
+    expect(item?.answer).toStrictEqual({
+      kind: "table",
+      columns: ["А", "Б"],
+      rows: [["1", ""]],
+    });
+  });
+
+  test("ключ, которого нет среди колонок снимка, отбрасывается — снимок главный (D002)", async () => {
+    const columns: ItemColumn[] = [
+      { id: "a", title: { ru: "А" } },
+      { id: "b", title: { ru: "Б" } },
+    ];
+    const seeded = await seedTableSubmission("stray-key", {
+      columns,
+      value: [{ a: "1", b: "2", c: "лишнее" }],
+    });
+
+    const card = await buildSubmissionModel(
+      seeded.submissionId,
+      "ru",
+      FEED_PATH,
+    );
+    const item = card?.sections[0]?.items[0];
+
+    expect(item?.answer).toStrictEqual({
+      kind: "table",
+      columns: ["А", "Б"],
+      rows: [["1", "2"]],
+    });
+  });
+
+  test("табличный пункт без колонок в снимке — показывать нечего", async () => {
+    const seeded = await seedTableSubmission("no-columns", {
+      value: [{ a: "1" }],
+    });
+
+    const card = await buildSubmissionModel(
+      seeded.submissionId,
+      "ru",
+      FEED_PATH,
+    );
+    const item = card?.sections[0]?.items[0];
+
+    expect(item?.answer).toStrictEqual({
+      kind: "table",
+      columns: [],
+      rows: [],
+    });
   });
 });
 
