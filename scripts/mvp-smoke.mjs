@@ -53,6 +53,21 @@ const {
   sweepSmokeRuns,
 } = await import("../src/blocks/demo/index.ts");
 
+// Значение круглосуточного окна берётся из того же места, где его держит форма, а не
+// литералом: поле окна уже уезжало с ключей (`any`) на пары времени («00:00|24:00»),
+// и смоук молча остался на старом значении — падал на выборе окна, хотя продукт был цел.
+const { WINDOW_PRESETS, windowFieldValue } =
+  await import("../src/blocks/editor/window-field.ts");
+const anyWindowPreset = WINDOW_PRESETS.find(
+  (preset) => preset.labelKey === "windowAny",
+);
+if (!anyWindowPreset) {
+  throw new Error(
+    "в WINDOW_PRESETS нет круглосуточного окна: смоук обязан проходить в любой час, а выбрать такое окно нечем",
+  );
+}
+const ANY_WINDOW_VALUE = windowFieldValue(anyWindowPreset.value);
+
 const PHONE = { width: 375, height: 812 };
 const DESKTOP = { width: 1440, height: 960 };
 // Шаг ожидания: на localhost хватает 20 с, по внешнему адресу через туннель — нет.
@@ -243,7 +258,7 @@ async function createChecklist(page, catalog) {
     .getByRole("textbox")
     .fill(CHECKLIST);
   // Круглосуточное окно: смоук обязан проходить в любой час, а не только утром.
-  await page.locator("#new-checklist-window").selectOption("any");
+  await page.locator("#new-checklist-window").selectOption(ANY_WINDOW_VALUE);
   await page.getByTestId("create-checklist").click();
   await page.getByTestId("editor-screen").waitFor({ timeout: STEP_TIMEOUT });
 
