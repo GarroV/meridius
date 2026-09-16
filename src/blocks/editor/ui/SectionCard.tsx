@@ -3,8 +3,9 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from "react";
 
-import type { Item, Section } from "@/blocks/data";
+import type { ChecklistWindow, Item, Section } from "@/blocks/data";
 
+import type { ScheduleSetting } from "../editing";
 import { linkedBlockId } from "../editing";
 import { libraryBlockPath } from "../routes";
 import { ItemRow } from "./ItemRow";
@@ -33,6 +34,10 @@ export interface SectionCardProps {
   /** Номер первого пункта секции: нумерация в эталоне сквозная по всему чек-листу. */
   readonly firstOrdinal: number;
   readonly locale: string;
+  /** Окно чек-листа: от него считается первый отрезок обхода в окне настройки. */
+  readonly window: ChecklistWindow;
+  /** Экран ожил (`useLive`): признак считается один раз наверху и спускается сюда. */
+  readonly live: boolean;
   /** Сколько ещё чек-листов используют вставленный блок — «используется ещё в 6». */
   readonly usageCount: number;
   readonly onSectionTitle: (text: string) => void;
@@ -41,6 +46,13 @@ export interface SectionCardProps {
   readonly onAddItem: (afterItemId: string | null) => void;
   readonly onItemTitle: (itemId: string, text: string) => void;
   readonly onItemPatch: (itemId: string, patch: Partial<Item>) => void;
+  readonly onItemSchedule: (itemId: string, setting: ScheduleSetting) => void;
+  /**
+   * «Применить ко всей секции» из окна настройки пункта. Секция носителем расписания
+   * НЕ становится (D075): настройка переносится на её пункты, и это работа редактора,
+   * а не новая сущность модели.
+   */
+  readonly onSectionSchedule: (setting: ScheduleSetting) => void;
   readonly onRemoveItem: (itemId: string) => void;
   readonly onItemKeyDown: (
     itemId: string,
@@ -172,6 +184,14 @@ export function SectionCard(props: SectionCardProps) {
                 item={item}
                 ordinal={firstOrdinal + index}
                 locale={locale}
+                schedule={{
+                  window: props.window,
+                  live: props.live,
+                  onApply: (setting) => {
+                    props.onItemSchedule(item.id, setting);
+                  },
+                  onApplyToSection: props.onSectionSchedule,
+                }}
                 onTitle={(text) => {
                   props.onItemTitle(item.id, text);
                 }}

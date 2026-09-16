@@ -17,6 +17,7 @@ import type {
 
 const MINUTES_IN_DAY = 24 * 60;
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/;
+const DAY_END_PATTERN = /^24:00(?::00)?$/;
 
 /** Один проход периодической проверки: [начало, конец) в минутах от начала окна. */
 export interface Interval {
@@ -49,13 +50,28 @@ export function isPeriodic(item: Item): boolean {
 }
 
 /**
+ * КОНЕЦ окна в минутах от полуночи. Отличается от `parseLocalTime` ровно одной точкой:
+ * «24:00» — это законный конец суток, и именно так записано окно «без ограничения»
+ * (`window-field.ts`, в колонке `time` — «24:00:00»).
+ *
+ * Отдельной функцией, а не послаблением в общем разборе: тем же `parseLocalTime`
+ * читаются границы ОТРЕЗКОВ и время ОТМЕТКИ, а обход «в 24:00» — бессмыслица: сутки
+ * обхода замкнуты, и полночь в них называется 00:00. Граница суток осмысленна только
+ * как конец окна, поэтому и знает о ней только конец окна (T160, issue #69).
+ */
+function parseWindowEnd(value: string): number | null {
+  if (DAY_END_PATTERN.test(value)) return MINUTES_IN_DAY;
+  return parseLocalTime(value);
+}
+
+/**
  * Длина прохода окна в минутах. Равные границы база не допускает
  * (`checklists_window_not_empty`), поэтому ноль сюда не приходит; окно через полночь
  * даёт длину больше остатка суток, и это верно.
  */
 function windowLength(window: ChecklistWindow): number | null {
   const start = parseLocalTime(window.start);
-  const end = parseLocalTime(window.end);
+  const end = parseWindowEnd(window.end);
   if (start === null || end === null) return null;
   const length = (end - start + MINUTES_IN_DAY) % MINUTES_IN_DAY;
   return length === 0 ? MINUTES_IN_DAY : length;
@@ -85,6 +101,60 @@ function isSegment(value: unknown): value is ScheduleSegment {
     typeof segment.to === "string" &&
     typeof segment.everyMinutes === "number"
   );
+}
+
+/** Отрезок как дуга на круге суток: начало и длина. Полночь дугу не разрывает. */
+interface Arc {
+  readonly start: number;
+  readonly length: number;
+}
+
+function arcOf(segment: ScheduleSegment): Arc | null {
+  const from = parseLocalTime(segment.from);
+  const to = parseLocalTime(segment.to);
+  if (from === null || to === null) return null;
+  return {
+    start: from,
+    length: (to - from + MINUTES_IN_DAY) % MINUTES_IN_DAY,
+  };
+}
+
+/**
+ * Дуги накрывают друг друга. Границы считаются полуоткрытыми `[от, до)`, поэтому
+ * смежные отрезки (08:00–12:00 и 12:00–16:00) пересечением НЕ являются: именно такую
+ * пару предлагает кнопка «добавить отрезок», и запрет на неё запретил бы обычный случай.
+ */
+function arcsOverlap(a: Arc, b: Arc): boolean {
+  return (
+    (b.start - a.start + MINUTES_IN_DAY) % MINUTES_IN_DAY < a.length ||
+    (a.start - b.start + MINUTES_IN_DAY) % MINUTES_IN_DAY < b.length
+  );
+}
+
+/**
+ * Номера первой пары отрезков, накрывающих один и тот же момент суток, или `null`.
+ *
+ * Пересечение отрезков — не мелкая неаккуратность, а ЛОЖНЫЙ ПРОПУСК в отчёте. Отметка
+ * встаёт ровно в один проход (D066, `currentInterval` берёт первый подходящий), а
+ * второй проход, идущий в тот же миг, закрывается без своей отметки и уходит в отчёт
+ * пропуском — против сотрудника, который обход сделал (T161, issue #70).
+ *
+ * Живёт здесь, а не в редакторе: правило зовут обе стороны — отказ на записи и окно
+ * настройки, которое гасит кнопку «Готово» до отказа. Два свода одного правила
+ * разъезжаются, и разъезжаются молча.
+ */
+export function overlappingSegments(
+  schedule: readonly ScheduleSegment[],
+): readonly [number, number] | null {
+  const arcs = schedule.map((segment) => arcOf(segment));
+  for (const [first, a] of arcs.entries()) {
+    if (a === null) continue;
+    for (const [offset, b] of arcs.slice(first + 1).entries()) {
+      if (b === null) continue;
+      if (arcsOverlap(a, b)) return [first, first + 1 + offset];
+    }
+  }
+  return null;
 }
 
 /**
@@ -121,6 +191,16 @@ export function assertValidSchedule(
         `Шаг должен быть целым числом минут больше нуля, получено ${String(segment.everyMinutes)}`,
       );
     }
+  }
+
+  // Пересечение — после разбора каждого отрезка: на сломанном времени говорить о
+  // наложении нечего, и первым обязан назваться тот отказ, который ближе к причине.
+  const overlap = overlappingSegments(schedule);
+  if (overlap !== null) {
+    const [first, second] = overlap;
+    throw new RangeError(
+      `Отрезки ${String(first + 1)} и ${String(second + 1)} пересекаются: обход отметят в одном, а второй закроется в тот же миг без отметки и покажет пропуск тому, кто обход сделал`,
+    );
   }
 }
 
