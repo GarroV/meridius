@@ -11,7 +11,7 @@ import { severityOf } from "@/blocks/data/severity";
 
 import { SELECT_ARROW_SMALL } from "./select-style";
 
-/** Строка пункта в редакторе по эталону `docs/forge/design/screens/editor.html`. */
+/** Строка пункта в редакторе по эталону `docs/furca/design/screens/editor.html`. */
 export interface ItemRowProps {
   readonly item: Item;
   /** Сквозной номер по всему чек-листу: в эталоне нумерация не начинается заново в секции. */

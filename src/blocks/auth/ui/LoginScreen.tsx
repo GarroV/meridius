@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { LoginForm } from "./LoginForm";
 
 /**
- * Экран входа по эталону `docs/forge/design/screens/login.html`: карточка на 340 px
+ * Экран входа по эталону `docs/furca/design/screens/login.html`: карточка на 340 px
  * по центру пустого экрана. Ничего, кроме поля пароля: учётная запись одна (D014),
  * а сотрудникам на кухне вход не нужен вовсе (D001) — об этом на экране сказано прямо.
  */

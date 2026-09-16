@@ -11,7 +11,7 @@ import { StorePicker } from "./StorePicker";
 import { TabletPreview } from "./TabletPreview";
 
 /**
- * Экран «QR-коды станций» (эталон `docs/forge/design/screens/qr-sheet.html`):
+ * Экран «QR-коды станций» (эталон `docs/furca/design/screens/qr-sheet.html`):
  * каркас + предупреждение и печатный лист слева, станции и планшет справа.
  * Без пиццерии в адресе — выбор пиццерии вместо листа (`StorePicker.tsx`,
  * состояния, которого в эталоне нет). Сам почти ничего не считает: всё нужное

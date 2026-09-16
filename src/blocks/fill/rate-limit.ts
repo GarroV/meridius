@@ -271,7 +271,7 @@ function trimmedOrNull(value: string | null): string | null {
  * не прислал — отличить одно от другого нечем). Пока это не проверено и не объявлено
  * переменной `TRUSTED_PROXY_HOPS`, предел на открытие экрана не применяется, и продукт
  * говорит об этом при старте (`src/startup-checks.ts`). Что именно проверить на
- * площадке — в журнале блока `docs/forge/blocks/fill.md`.
+ * площадке — в журнале блока `docs/furca/blocks/fill.md`.
  */
 export function identifyClient(source: ClientKeySource): string | null {
   const peer = trimmedOrNull(source.peerAddress);

@@ -6,10 +6,10 @@ import type { ReactElement } from "react";
  * презентационный — ни языков, ни данных он не знает, все строки уже
  * готовы в props (см. контракт вызывающей стороны).
  *
- * Эталон — `docs/forge/design/screens/states.html` (блоки «Отправлено»,
+ * Эталон — `docs/furca/design/screens/states.html` (блоки «Отправлено»,
  * «Ссылка недействительна», «Для станции нет чек-листа»). Разметка того
  * эталона написана классами `.fill`/`.center`/`.big`/`.muted`/`.notice`/
- * `.ok-mark` (сами классы — `docs/forge/design/app.css` и локальный
+ * `.ok-mark` (сами классы — `docs/furca/design/app.css` и локальный
  * `<style>` в states.html), здесь она перенесена на утилиты Tailwind поверх
  * тех же токенов — так же, как это уже сделано в `PreviewScreen.tsx`.
  */

@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 /**
- * Стрелка выпадающего списка из эталона (`.select` в docs/forge/design/app.css):
+ * Стрелка выпадающего списка из эталона (`.select` в docs/furca/design/app.css):
  * два градиента вместо системного треугольника, иначе списки в админке выглядят
  * по-разному в Chrome, Safari и Firefox.
  *

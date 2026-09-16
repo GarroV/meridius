@@ -7,7 +7,7 @@ import { FEED_PATH } from "../routes";
 import { FeedFilterSelects } from "./FeedFilterSelects";
 
 /**
- * Карточка фильтров (эталон `docs/forge/design/screens/feed.html`): четыре списка и
+ * Карточка фильтров (эталон `docs/furca/design/screens/feed.html`): четыре списка и
  * «Сбросить» справа. Форма — обычная GET-форма: состояние ленты живёт в адресе, поэтому
  * ссылкой на «Кухню Алматы за неделю» можно поделиться, и она откроется тем же экраном.
  *

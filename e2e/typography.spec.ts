@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 // уже построенных экранах, чтобы правило держалось не только там, где его заметили.
 const SCREENS = ["/", "/admin/login"] as const;
 
-// Значения из docs/forge/design/reference/tokens.css: --fs-body / --lh-body.
+// Значения из docs/furca/design/reference/tokens.css: --fs-body / --lh-body.
 const BASE_FONT_SIZE = "13px";
 const BASE_LINE_HEIGHT = "18px";
 

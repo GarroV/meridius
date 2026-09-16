@@ -12,7 +12,7 @@ test.describe("Tailwind 4 поверх токенов дизайн-систем�
       .getByTestId("title")
       .evaluate((element) => globalThis.getComputedStyle(element).color);
 
-    // --accent: #1F4E9C из docs/forge/design/reference/tokens.css
+    // --accent: #1F4E9C из docs/furca/design/reference/tokens.css
     expect(color).toBe("rgb(31, 78, 156)");
   });
 

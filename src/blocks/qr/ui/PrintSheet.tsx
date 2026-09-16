@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 import type { QrStationView } from "./model";
 
 /**
- * Печатный лист A4 (`.sheet`/`.sticker` из `docs/forge/design/app.css`). На
+ * Печатный лист A4 (`.sheet`/`.sticker` из `docs/furca/design/app.css`). На
  * экране — уменьшенная копия внутри карточки «Лист для печати» (её рисует
  * `QrSheetScreen.tsx`: заголовок и счётчик станций — это его забота, не эта).
  *

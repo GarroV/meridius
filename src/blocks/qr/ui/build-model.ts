@@ -1,5 +1,5 @@
 // Загрузка данных для экранов QR. Справочник берётся только через публичный вход
-// блока `catalog`: в таблицы блок qr не ходит (контракт блоков, docs/forge/plan.md).
+// блока `catalog`: в таблицы блок qr не ходит (контракт блоков, docs/furca/plan.md).
 import {
   listCountries,
   listStations,

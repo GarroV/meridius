@@ -25,7 +25,7 @@ import { ShiftModeBar } from "./ShiftModeBar";
 import { StateScreen } from "./StateScreen";
 
 /**
- * Экран заполнения по эталону `docs/forge/design/screens/fill.html` (класс `.fill`).
+ * Экран заполнения по эталону `docs/furca/design/screens/fill.html` (класс `.fill`).
  *
  * Компонент клиентский целиком: между касанием и перерисовкой не должно быть похода
  * на сервер — сотрудник стоит на кухне и закрывает пункты подряд (принцип 2).

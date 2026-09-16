@@ -10,7 +10,7 @@ import { OutcomeTag } from "./OutcomeTag";
 import { SubmissionFacts } from "./SubmissionFacts";
 
 /**
- * Карточка одного заполнения (эталон `docs/forge/design/screens/submission.html`,
+ * Карточка одного заполнения (эталон `docs/furca/design/screens/submission.html`,
  * T046): факты, оговорка о снимке и ответы по каждому пункту — ровно в том виде,
  * в котором их видел сотрудник (D002). Экран ничего не считает: всё уже посчитала
  * `buildSubmissionModel` (`ui/build-model.ts`).

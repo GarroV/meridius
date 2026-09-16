@@ -47,7 +47,7 @@ const LABEL_CLASS =
 const SELECT_CLASS =
   "bg-surface text-ink h-[var(--control-h)] w-full rounded-[var(--r-control)] border border-[var(--line-control)] pr-[var(--space-8)] pl-[var(--space-5)] text-[length:var(--fs-lead)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 
-/** Стрелка списка из эталона (`.select` в docs/forge/design/app.css). */
+/** Стрелка списка из эталона (`.select` в docs/furca/design/app.css). */
 const SELECT_ARROW = {
   appearance: "none",
   backgroundImage:

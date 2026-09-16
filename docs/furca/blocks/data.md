@@ -56,7 +56,7 @@ getSubmission(id: string): Promise<SubmissionDetail | null>
 | `src/blocks/data/grading.ts` | Что считается проваленным пунктом: одно правило на ленту и карточку |
 | `src/blocks/data/index.ts` | Публичный вход блока: отсюда импортируют остальные блоки |
 | `src/blocks/data/testing/` | Харнесс тестов: подключение, подготовка тестовой базы, данные для тестов |
-| `drizzle.config.ts`, `scripts/db-rollback.mjs` | `npm run db:generate` / `db:migrate` / `db:rollback` |
+| `drizzle.config.ts`, `scripts/db-rollback.mjs`, `scripts/db-generate-refused.mjs` | `npm run db:migrate` / `db:rollback`; `db:generate` намеренно отказывает — миграции пишутся руками (D089) |
 
 ## Решения, принятые внутри блока
 

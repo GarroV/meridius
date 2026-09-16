@@ -11,7 +11,7 @@ import { FeedMetrics } from "./FeedMetrics";
 import { FeedTable } from "./FeedTable";
 
 /**
- * Экран ленты заполнений (эталон `docs/forge/design/screens/feed.html`).
+ * Экран ленты заполнений (эталон `docs/furca/design/screens/feed.html`).
  *
  * Всё, что здесь показано, посчитала модель: экран ничего не фильтрует, не сортирует
  * и не пересчитывает. Показатели и лента приходят из одного массива строк — именно

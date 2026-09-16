@@ -10,7 +10,7 @@ import { PUBLIC_FILL_PREFIX } from "@/blocks/core/public-routes";
 
 import { stickerOrigin } from "./sticker-origin";
 
-/** Префикс публичного маршрута заполнения (docs/forge/plan.md, «Поверхности»). */
+/** Префикс публичного маршрута заполнения (docs/furca/plan.md, «Поверхности»). */
 // Имя своё, факт общий: адрес принадлежит блоку `fill`, а строит его `qr` — поэтому
 // префикс приходит из `core/public-routes` (T120), а не пишется здесь второй раз.
 export const STATION_SCAN_PREFIX = PUBLIC_FILL_PREFIX;

@@ -1,5 +1,5 @@
 // Настройка drizzle-kit: схема и миграции живут внутри блока data — единственного,
-// кто ходит в базу. `npm run db:generate` пишет SQL, `npm run db:migrate` его накатывает.
+// кто ходит в базу. миграции пишутся руками (D089), `npm run db:migrate` их накатывает.
 import { defineConfig } from "drizzle-kit";
 
 try {

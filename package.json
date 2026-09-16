@@ -15,7 +15,7 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "format": "prettier --write .",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "node scripts/db-generate-refused.mjs",
     "db:migrate": "drizzle-kit migrate",
     "db:rollback": "node scripts/db-rollback.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
