@@ -228,3 +228,47 @@ describe("countUnansweredCritical", () => {
     expect(countUnansweredCritical(sections, [])).toBe(2);
   });
 });
+
+describe("периодические пункты живут по своему учёту", () => {
+  const rounds: Section[] = [
+    {
+      id: "s",
+      title: { ru: "Обходы", en: "Rounds" },
+      source: "own",
+      items: [
+        {
+          id: "round",
+          title: { ru: "Линия начинения", en: "Toppings line" },
+          type: "bool",
+          severity: "critical",
+          schedule: [{ from: "08:00", to: "12:00", everyMinutes: 60 }],
+        },
+      ],
+    },
+  ];
+
+  test("обход без ответа в заполнении тревогой не считается: его отмечают не формой", () => {
+    // Без этого исключения каждая отправка чек-листа поднимала бы тревогу по каждому
+    // обходу — ответа на обход в заполнении не бывает никогда.
+    expect(countUnansweredCritical(rounds, [])).toBe(0);
+  });
+
+  test("обычный критичный пункт рядом с обходом считается по-прежнему", () => {
+    const mixed: Section[] = [
+      {
+        ...(rounds[0] ?? { id: "s", title: {}, source: "own", items: [] }),
+        items: [
+          ...(rounds[0]?.items ?? []),
+          {
+            id: "gas",
+            title: { ru: "Выключить газ", en: "Turn off the gas" },
+            type: "bool",
+            severity: "critical",
+          },
+        ],
+      },
+    ];
+
+    expect(countUnansweredCritical(mixed, [])).toBe(1);
+  });
+});

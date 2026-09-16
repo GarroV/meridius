@@ -33,7 +33,10 @@ export async function getDraft(
 }
 
 /**
- * Опубликованная версия чек-листа станции, подходящая по времени.
+ * Первый по началу окна чек-лист станции, подходящий по времени.
+ *
+ * Годится там, где у станции заведомо один чек-лист на это время. Экран станции берёт
+ * `listPublishedVersionsForStation`: открытых чек-листов у неё бывает несколько.
  *
  * Время сравнивается **местное для пиццерии**: момент `at` переводится в часовой пояс
  * пиццерии, и только потом сопоставляется с окном. Иначе утренний чек-лист в стране
@@ -43,6 +46,56 @@ export async function getDraft(
  * через полночь (22:00–02:00). Неизвестный код станции даёт `null`: перебор кодов
  * не должен отличаться по ответу от промаха (D021).
  */
+/**
+ * ВСЕ опубликованные чек-листы станции, открытые в этот момент.
+ *
+ * Их у станции бывает несколько одновременно, и это не редкость: обход идёт весь день
+ * поверх открытия и закрытия смены. Отдавать первый по началу окна значит молча
+ * потерять остальные — именно так приём смены у менеджера исчезал бы каждый день
+ * с 15:00 до 18:00, потому что дневной обход начинается раньше.
+ *
+ * Порядок — по началу окна, затем по идентификатору: список обязан быть одним и тем же
+ * при каждом сканировании, иначе пункты меню прыгают под пальцем.
+ */
+export async function listPublishedVersionsForStation(
+  stationCode: string,
+  at: Date,
+): Promise<VersionWithChecklist[]> {
+  if (stationCode === "") return [];
+
+  const localTime = sql`(${at.toISOString()}::timestamptz at time zone ${stores.timezone})::time`;
+
+  return getDb()
+    .select({
+      version: checklistVersions,
+      checklist: checklists,
+      station: stations,
+    })
+    .from(stations)
+    .innerJoin(stores, eq(stations.storeId, stores.id))
+    .innerJoin(checklists, eq(checklists.stationId, stations.id))
+    .innerJoin(
+      checklistVersions,
+      and(
+        eq(checklistVersions.checklistId, checklists.id),
+        eq(checklistVersions.status, "published"),
+        eq(checklistVersions.stationId, stations.id),
+      ),
+    )
+    .where(
+      and(
+        eq(stations.code, stationCode),
+        isNull(checklists.archivedAt),
+        sql`case
+              when ${checklists.windowStart} <= ${checklists.windowEnd}
+                then ${localTime} >= ${checklists.windowStart} and ${localTime} < ${checklists.windowEnd}
+              else ${localTime} >= ${checklists.windowStart} or ${localTime} < ${checklists.windowEnd}
+            end`,
+      ),
+    )
+    .orderBy(asc(checklists.windowStart), asc(checklists.id));
+}
+
 export async function getPublishedVersionForStation(
   stationCode: string,
   at: Date,

@@ -5,7 +5,7 @@ import type { Item, LocalizedText, Section } from "@/blocks/data";
 
 import type { FillViewLabels } from "./model";
 import type { BuildFillViewInput } from "./view";
-import { buildFillView, formatWindow } from "./view";
+import { buildChoiceView, buildFillView, formatWindow } from "./view";
 
 // Подписи диапазона — заведомо не похожие на реальный словарь строки, чтобы в
 // сборке было видно, какой именно кусок подставился, а не молчаливое совпадение.
@@ -438,5 +438,122 @@ describe("buildFillView: заголовки секций и пунктов на 
 
     expect(view.sections[0]?.title).toBe("Opening");
     expect(view.sections[0]?.items[0]?.title).toBe("Wash hands");
+  });
+});
+
+describe("периодические пункты не попадают в форму заполнения", () => {
+  const schedule = [{ from: "08:00", to: "12:00", everyMinutes: 60 }];
+
+  test("пункт с расписанием выпадает: его отмечают обходом, а не отправкой", () => {
+    const view = buildFillView(
+      baseInput({
+        sections: [
+          section({
+            id: "s",
+            items: [
+              {
+                id: "gas",
+                title: { ru: "Выключить газ", en: "Turn off the gas" },
+                type: "bool",
+              },
+              {
+                id: "line",
+                title: { ru: "Линия начинения", en: "Toppings line" },
+                type: "bool",
+                schedule,
+              },
+            ],
+          }),
+        ],
+      }),
+    );
+
+    expect(view.sections[0]?.items.map((item) => item.id)).toEqual(["gas"]);
+    expect(view.totalItems).toBe(1);
+  });
+
+  test("секция из одних обходов выпадает целиком: заголовок без строк ничего не говорит", () => {
+    const view = buildFillView(
+      baseInput({
+        sections: [
+          section({
+            id: "s",
+            items: [
+              {
+                id: "line",
+                title: { ru: "Линия начинения", en: "Toppings line" },
+                type: "bool",
+                schedule,
+              },
+            ],
+          }),
+        ],
+      }),
+    );
+
+    expect(view.sections).toHaveLength(0);
+  });
+});
+
+describe("buildChoiceView", () => {
+  const options = [
+    {
+      checklistId: "c-morning",
+      title: { ru: "Открытие смены", en: "Opening" },
+      window: "06:00–12:00",
+    },
+    {
+      checklistId: "c-round",
+      title: { ru: "Обход менеджера", en: "Manager round" },
+      window: "08:00–23:00",
+    },
+  ];
+
+  test("шапка без окна: у каждого чек-листа в списке оно своё", () => {
+    const view = buildChoiceView({
+      options,
+      storeName: "Пиццерия на Ленина",
+      stationName: "Прилавок",
+      locales: ["ru"],
+    });
+    expect(view.where).toBe("Пиццерия на Ленина · Прилавок");
+  });
+
+  test("названия берутся на языке экрана, окна остаются как есть", () => {
+    const view = buildChoiceView({
+      options,
+      storeName: "Store",
+      stationName: "Counter",
+      locales: ["en", "ru"],
+    });
+    expect(view.options).toEqual([
+      { checklistId: "c-morning", title: "Opening", window: "06:00–12:00" },
+      { checklistId: "c-round", title: "Manager round", window: "08:00–23:00" },
+    ]);
+  });
+
+  test("порядок не пересортировывается: он пришёл снизу и обязан повторяться", () => {
+    const view = buildChoiceView({
+      options: [...options].reverse(),
+      storeName: "Store",
+      stationName: "Counter",
+      locales: ["ru"],
+    });
+    expect(view.options.map((o) => o.checklistId)).toEqual([
+      "c-round",
+      "c-morning",
+    ]);
+  });
+
+  test("название, которого нет на языке экрана, берётся любым имеющимся, а не пропадает", () => {
+    const view = buildChoiceView({
+      options: [
+        { checklistId: "c", title: { ru: "Обход" }, window: "08:00–23:00" },
+      ],
+      storeName: "Store",
+      stationName: "Counter",
+      locales: ["en"],
+    });
+    expect(view.options[0]?.title).toBe("Обход");
   });
 });

@@ -319,3 +319,93 @@ describe("проверка версии на принадлежность ста
     ).toBeNull();
   });
 });
+
+/** Утренний и дневной обход поверх него: ровно расстановка боевого пакета. */
+async function stationWithTwoOpen(): Promise<{
+  code: string;
+  morningId: string;
+  roundId: string;
+}> {
+  const station = await createStation();
+  const morning = await createChecklist({
+    stationId: station.stationId,
+    windowStart: "06:00:00",
+    windowEnd: "12:00:00",
+    title: { ru: "Открытие", en: "Opening" },
+  });
+  const round = await createChecklist({
+    stationId: station.stationId,
+    windowStart: "08:00:00",
+    windowEnd: "23:00:00",
+    title: { ru: "Обход", en: "Round" },
+  });
+  await createDraft(morning, sampleSections("утро"));
+  await publishVersion(morning);
+  await createDraft(round, sampleSections("обход"));
+  await publishVersion(round);
+  return { code: station.stationCode, morningId: morning, roundId: round };
+}
+
+describe("на станции открыто несколько чек-листов сразу", () => {
+  it("предлагает выбрать, а не открывает первый по началу окна", async () => {
+    const { code, morningId, roundId } = await stationWithTwoOpen();
+
+    const target = await loadFillTarget(code, MORNING);
+
+    expect(target.kind).toBe("choice");
+    if (target.kind !== "choice") return;
+    expect(target.options.map((option) => option.checklistId)).toEqual([
+      morningId,
+      roundId,
+    ]);
+    expect(target.options.map((option) => option.window)).toEqual([
+      "06:00–12:00",
+      "08:00–23:00",
+    ]);
+  });
+
+  it("выбранный чек-лист открывается сразу", async () => {
+    const { code, roundId } = await stationWithTwoOpen();
+
+    const target = await loadFillTarget(code, MORNING, roundId);
+
+    expect(target.kind).toBe("ok");
+    if (target.kind !== "ok") return;
+    expect(target.checklist.id).toBe(roundId);
+  });
+
+  it("чужой чек-лист по коду станции не открыть: снова выбор, а не подстановка", async () => {
+    const { code } = await stationWithTwoOpen();
+    const other = await stationWithTwoOpen();
+
+    const target = await loadFillTarget(code, MORNING, other.roundId);
+
+    // Молча подставить свой было бы хуже: сотрудник думал бы, что открыл тот.
+    expect(target.kind).toBe("choice");
+  });
+
+  it("закрывшийся чек-лист из выбора уходит, и оставшийся открывается сразу", async () => {
+    const { code, roundId } = await stationWithTwoOpen();
+
+    // В 15:00 утренний закрыт, обход идёт: выбирать больше не из чего.
+    const target = await loadFillTarget(code, AFTERNOON);
+
+    expect(target.kind).toBe("ok");
+    if (target.kind !== "ok") return;
+    expect(target.checklist.id).toBe(roundId);
+  });
+
+  it("выбор не рассказывает о станции больше, чем открытый чек-лист", async () => {
+    const { code } = await stationWithTwoOpen();
+
+    const target = await loadFillTarget(code, MORNING);
+
+    if (target.kind !== "choice") throw new Error("ожидался выбор");
+    // Ни пунктов, ни версий, ни истории: ссылка публичная (D021).
+    expect(Object.keys(target.options[0] ?? {})).toEqual([
+      "checklistId",
+      "title",
+      "window",
+    ]);
+  });
+});

@@ -21,6 +21,29 @@ export type Severity = "critical" | "major" | "normal";
  */
 export type ShiftMode = "normal" | "reduced" | "critical";
 
+/**
+ * Отрезок расписания периодической проверки (D075).
+ *
+ * `to` — конец периода, а НЕ время последнего обхода: «с 08:00 до 12:00 каждый час»
+ * это обходы в 8, 9, 10 и 11, а последний из них длится до 12:00. Иначе автор
+ * расписания каждый раз гадал бы, входит ли граница, и половина сеток оказалась бы
+ * короче задуманного на один обход — молча.
+ */
+export interface ScheduleSegment {
+  /** Местное время начала отрезка, «ЧЧ:ММ». */
+  from: string;
+  /** Местное время конца отрезка, «ЧЧ:ММ». */
+  to: string;
+  /** Шаг внутри отрезка в минутах. */
+  everyMinutes: number;
+}
+
+/** Окно работы чек-листа в местном времени пиццерии; может идти через полночь. */
+export interface ChecklistWindow {
+  start: string;
+  end: string;
+}
+
 export interface Item {
   id: string;
   title: LocalizedText;
@@ -36,6 +59,12 @@ export interface Item {
   min?: number;
   max?: number;
   hint?: LocalizedText;
+  /**
+   * Расписание периодической проверки (D075). Нет поля или пустой список — пункт
+   * обычный и заполняется вместе с остальными; миграции данных нет, всё
+   * опубликованное до появления расписания читается как прежде (принцип 3, D002).
+   */
+  schedule?: ScheduleSegment[];
 }
 
 /**
@@ -51,10 +80,13 @@ export interface Section {
   items: Item[];
 }
 
+/** Значение ответа: по типу пункта — да/нет, число или свободный текст. */
+export type AnswerValue = boolean | number | string;
+
 /** Ответ на пункт: значение по типу пункта, комментарий и момент ответа с устройства. */
 export interface Answer {
   itemId: string;
-  value: boolean | number | string;
+  value: AnswerValue;
   comment?: string;
   at: number;
 }

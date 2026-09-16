@@ -15,12 +15,15 @@ import {
   checklistVersions,
   countries,
   getDb,
-  getPublishedVersionForStation,
   getShiftMode,
+  listPublishedVersionsForStation,
   sectionsForMode,
   stations,
   stores,
 } from "@/blocks/data";
+
+import type { FillChoiceOption } from "./model";
+import { formatWindow } from "./view";
 
 /**
  * Границы кода до похода в базу. Алфавит кода ведёт блок `catalog`, и повторять его
@@ -72,8 +75,24 @@ interface FillTargetReady {
  *   потому, что сотруднику с настоящей наклейкой надо сказать правду: бежать к
  *   управляющему за новой наклейкой не нужно. Данных этот ответ не несёт никаких.
  */
+/**
+ * Несколько чек-листов открыто одновременно — сотрудник выбирает.
+ *
+ * Так бывает не по недосмотру методиста: обход идёт весь день поверх открытия и
+ * закрытия смены. Открывать первый по началу окна значило бы, что приём смены у
+ * менеджера каждый день исчезает с 15:00 до 18:00 под дневным обходом — молча.
+ */
+interface FillTargetChoice {
+  readonly kind: "choice";
+  readonly options: readonly FillChoiceOption[];
+  readonly stationName: string;
+  readonly storeName: string;
+  readonly countryLocale: string;
+}
+
 export type FillTarget =
   | FillTargetReady
+  | FillTargetChoice
   | { readonly kind: "unknown-code" }
   | { readonly kind: "no-checklist" };
 
@@ -113,14 +132,41 @@ async function stationContext(code: string): Promise<StationContext | null> {
 export async function loadFillTarget(
   code: string,
   at: Date,
+  checklistId?: string,
 ): Promise<FillTarget> {
   if (!isPlausibleCode(code)) return UNKNOWN_CODE;
 
   const context = await stationContext(code);
   if (context === null) return UNKNOWN_CODE;
 
-  const found = await getPublishedVersionForStation(code, at);
-  if (found === null) return NO_CHECKLIST;
+  const open = await listPublishedVersionsForStation(code, at);
+  if (open.length === 0) return NO_CHECKLIST;
+
+  // Выбранный чек-лист берётся только из списка открытых на ЭТОЙ станции: чужой
+  // идентификатор не подставляет свой молча, а возвращает к выбору — иначе сотрудник
+  // считал бы, что открыл тот, что назвал.
+  const picked =
+    checklistId === undefined
+      ? undefined
+      : open.find((entry) => entry.checklist.id === checklistId);
+
+  const found = picked ?? (open.length === 1 ? open[0] : undefined);
+  if (found === undefined) {
+    return {
+      kind: "choice",
+      options: open.map((entry) => ({
+        checklistId: entry.checklist.id,
+        title: entry.checklist.title,
+        window: formatWindow(
+          entry.checklist.windowStart,
+          entry.checklist.windowEnd,
+        ),
+      })),
+      stationName: context.stationName,
+      storeName: context.storeName,
+      countryLocale: context.countryLocale,
+    };
+  }
 
   // Режим на сегодня, а если его никто не ставил — полная смена. Спрашивать первого
   // отсканировавшего нельзя: гейта на этом экране нет (D052), и первым подходит не

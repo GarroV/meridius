@@ -6,10 +6,14 @@
 // адрес обязан тот, кто печатает наклейку: наклейка живёт годами, и переехавший
 // маршрут означает переклейку по всей сети. Поэтому префикс записан здесь один раз.
 
+import { PUBLIC_FILL_PREFIX } from "@/blocks/core/public-routes";
+
 import { stickerOrigin } from "./sticker-origin";
 
 /** Префикс публичного маршрута заполнения (docs/forge/plan.md, «Поверхности»). */
-export const STATION_SCAN_PREFIX = "/s/";
+// Имя своё, факт общий: адрес принадлежит блоку `fill`, а строит его `qr` — поэтому
+// префикс приходит из `core/public-routes` (T120), а не пишется здесь второй раз.
+export const STATION_SCAN_PREFIX = PUBLIC_FILL_PREFIX;
 
 /**
  * Абсолютная ссылка на заполнение станции.

@@ -4,6 +4,7 @@ import { afterAll, describe, expect, test } from "vitest";
 
 import {
   getShiftMode,
+  getShiftModeOnDate,
   listShiftModeChanges,
   setShiftMode,
 } from "./shift-modes";
@@ -105,5 +106,30 @@ describe("сутки считаются по часовому поясу пиц�
     await setShiftMode({ storeId, mode: "critical" }, MORNING_UTC);
 
     expect((await getShiftMode(storeId, EVENING_UTC))?.mode).toBe("critical");
+  });
+});
+
+describe("getShiftModeOnDate", () => {
+  test("отдаёт режим тех суток, о которых спросили, а не сегодняшних", async () => {
+    const { storeId } = await createStation({ timezone: "UTC" });
+    await setShiftMode({ storeId, mode: "reduced" }, MORNING_UTC);
+
+    expect(await getShiftModeOnDate(storeId, "2026-09-06")).toBe("reduced");
+    // Проход окна через полночь начался вчера — и режим у него вчерашний (D055).
+    expect(await getShiftModeOnDate(storeId, "2026-09-07")).toBe("normal");
+  });
+
+  test("режим не выбирали — смена полная: сокращение всегда осознанное действие", async () => {
+    const { storeId } = await createStation();
+
+    expect(await getShiftModeOnDate(storeId, "2026-09-06")).toBe("normal");
+  });
+
+  test("действует последняя перестановка за эти сутки", async () => {
+    const { storeId } = await createStation({ timezone: "UTC" });
+    await setShiftMode({ storeId, mode: "critical" }, MORNING_UTC);
+    await setShiftMode({ storeId, mode: "reduced" }, MORNING_UTC);
+
+    expect(await getShiftModeOnDate(storeId, "2026-09-06")).toBe("reduced");
   });
 });

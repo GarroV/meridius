@@ -6,6 +6,7 @@
 import type {
   Item,
   LocalizedText,
+  ScheduleSegment,
   Section,
   Severity,
   ShiftMode,
@@ -90,6 +91,25 @@ function numberItem(
     max,
   };
   return hint === undefined ? item : { ...item, hint: loc(hint) };
+}
+
+/**
+ * Периодическая проверка — обход (D075). В демо он один и намеренно: показать надо,
+ * что регулярность настраивается отрезками, а не завалить экран сеткой часов.
+ */
+function roundItem(
+  id: string,
+  title: string,
+  schedule: readonly ScheduleSegment[],
+  severity: Severity,
+): Item {
+  return {
+    id,
+    title: loc(title),
+    type: "bool",
+    severity,
+    schedule: [...schedule],
+  };
 }
 
 function textItem(id: string, title: string, hint?: string): Item {
@@ -441,6 +461,19 @@ const CHECKLIST_COUNTER_SECTIONS_V1: Section[] = [
     "Customer area",
     CHECKLIST_COUNTER_CUSTOMER_ITEMS,
   ),
+  ownSection("section-counter-rounds", "Rounds", [
+    roundItem(
+      "item-toppings-line",
+      "Toppings line: labels, lids and temperature",
+      // Плотнее днём, реже к вечеру: ровно тот случай, ради которого расписание
+      // задаётся набором отрезков, а не одним числом.
+      [
+        { from: "08:00", to: "16:00", everyMinutes: 60 },
+        { from: "16:00", to: "23:00", everyMinutes: 120 },
+      ],
+      "critical",
+    ),
+  ]),
 ];
 
 const VERSION_COUNTER_V1: DemoVersion = {
