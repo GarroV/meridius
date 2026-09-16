@@ -316,3 +316,57 @@ describe("assertValidSchedule", () => {
     }).toThrow();
   });
 });
+
+describe("окно «без ограничения» (T160)", () => {
+  // «00:00–24:00» — одно из трёх готовых окон редактора (`window-field.ts`), и в
+  // колонке `time` это законное значение. Час 24 общий `parseLocalTime` не разбирает
+  // никогда — и вся регулярность под таким окном молча выключалась: ни отказа, ни следа.
+  const WHOLE_DAY = {
+    start: "00:00:00",
+    end: "24:00:00",
+  } satisfies ChecklistWindow;
+  const FROM_MORNING = {
+    start: "08:00",
+    end: "24:00",
+  } satisfies ChecklistWindow;
+
+  test("время суток лежит ВНУТРИ такого окна, а не вне его", () => {
+    expect(offsetInWindow(WHOLE_DAY, "00:00")).toBe(0);
+    expect(offsetInWindow(WHOLE_DAY, "12:00")).toBe(720);
+    expect(offsetInWindow(WHOLE_DAY, "23:59")).toBe(1439);
+    expect(offsetInWindow(FROM_MORNING, "08:00")).toBe(0);
+    expect(offsetInWindow(FROM_MORNING, "23:59")).toBe(959);
+    expect(offsetInWindow(FROM_MORNING, "07:59")).toBeNull();
+  });
+
+  test("обходы под ним есть: круглые сутки часовым шагом — двадцать четыре прохода", () => {
+    const got = intervalsForItem(
+      item([every("00:00", "23:59", 60)]),
+      WHOLE_DAY,
+      "normal",
+    );
+    expect(got).toHaveLength(24);
+    expect(got[0]).toEqual({ startMinutes: 0, endMinutes: 60 });
+    expect(got.at(-1)).toEqual({ startMinutes: 1380, endMinutes: 1439 });
+  });
+
+  test("окно с 08:00 до конца суток обрезает сетку концом суток, а не серединой", () => {
+    const got = intervalsForItem(
+      item([every("22:00", "23:59", 60)]),
+      FROM_MORNING,
+      "normal",
+    );
+    expect(got).toEqual([
+      { startMinutes: 840, endMinutes: 900 },
+      { startMinutes: 900, endMinutes: 959 },
+    ]);
+  });
+
+  test("граница суток законна только как КОНЕЦ окна: ни отметкой, ни границей отрезка", () => {
+    expect(parseLocalTime("24:00")).toBeNull();
+    expect(offsetInWindow(WHOLE_DAY, "24:00")).toBeNull();
+    expect(() => {
+      assertValidSchedule([every("00:00", "24:00", 60)]);
+    }).toThrow(RangeError);
+  });
+});

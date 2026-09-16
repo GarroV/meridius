@@ -17,6 +17,7 @@ import type {
 
 const MINUTES_IN_DAY = 24 * 60;
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/;
+const DAY_END_PATTERN = /^24:00(?::00)?$/;
 
 /** Один проход периодической проверки: [начало, конец) в минутах от начала окна. */
 export interface Interval {
@@ -49,13 +50,28 @@ export function isPeriodic(item: Item): boolean {
 }
 
 /**
+ * КОНЕЦ окна в минутах от полуночи. Отличается от `parseLocalTime` ровно одной точкой:
+ * «24:00» — это законный конец суток, и именно так записано окно «без ограничения»
+ * (`window-field.ts`, в колонке `time` — «24:00:00»).
+ *
+ * Отдельной функцией, а не послаблением в общем разборе: тем же `parseLocalTime`
+ * читаются границы ОТРЕЗКОВ и время ОТМЕТКИ, а обход «в 24:00» — бессмыслица: сутки
+ * обхода замкнуты, и полночь в них называется 00:00. Граница суток осмысленна только
+ * как конец окна, поэтому и знает о ней только конец окна (T160, issue #69).
+ */
+function parseWindowEnd(value: string): number | null {
+  if (DAY_END_PATTERN.test(value)) return MINUTES_IN_DAY;
+  return parseLocalTime(value);
+}
+
+/**
  * Длина прохода окна в минутах. Равные границы база не допускает
  * (`checklists_window_not_empty`), поэтому ноль сюда не приходит; окно через полночь
  * даёт длину больше остатка суток, и это верно.
  */
 function windowLength(window: ChecklistWindow): number | null {
   const start = parseLocalTime(window.start);
-  const end = parseLocalTime(window.end);
+  const end = parseWindowEnd(window.end);
   if (start === null || end === null) return null;
   const length = (end - start + MINUTES_IN_DAY) % MINUTES_IN_DAY;
   return length === 0 ? MINUTES_IN_DAY : length;
