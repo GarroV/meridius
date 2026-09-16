@@ -285,6 +285,33 @@ function stateOf(
   return "upcoming";
 }
 
+/**
+ * НАЧАЛО окна в минутах от полуночи — громко, а не молча полуночью (T167, issue #77).
+ *
+ * Раньше здесь стояло `parseLocalTime(window.start) ?? 0`. Соврать это не могло: началом
+ * окна «24:00» не бывает, а значение приходит из колонки `time`, которую разбирает сама
+ * база. Но верность держалась на внешнем обстоятельстве, а не на этом коде: изменись
+ * источник — и время каждого прохода уехало бы на несколько часов, оставшись
+ * правдоподобным. Отличить такой ответ от верного нельзя ничем, и это тот же приём,
+ * которым 16.09 трижды выстрелило тихое умолчание.
+ *
+ * Отказ — тот же, что у `passLocalDate` рядом: понятная ошибка, называющая значение.
+ * Послабление `parseWindowEnd` («24:00» — законный конец суток) сюда не переносится:
+ * начало окна в 24:00 — бессмыслица, а не круглосуточная работа.
+ *
+ * Публичная ради проверки: настоящие данные в отказную ветку не попадают, и проверить
+ * её через базу нельзя — испортить значение, которое база и стережёт, не выйдет.
+ */
+export function windowStartMinutes(window: ChecklistWindow): number {
+  const start = parseLocalTime(window.start);
+  if (start === null) {
+    throw new RangeError(
+      `Начало окна чек-листа не разобрано: «${window.start}»`,
+    );
+  }
+  return start;
+}
+
 function roundsOfItem(
   item: Item,
   window: ChecklistWindow,
@@ -294,7 +321,7 @@ function roundsOfItem(
 ): ItemRounds {
   const intervals = intervalsForItem(item, window, mode);
   const own = marks.filter((mark) => mark.itemId === item.id);
-  const windowStart = parseLocalTime(window.start) ?? 0;
+  const windowStart = windowStartMinutes(window);
 
   const rounds = intervals.map((interval) => {
     const inside = own.filter(

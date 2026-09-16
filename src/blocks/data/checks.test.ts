@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, describe, expect, test } from "vitest";
 
-import { getRounds, saveCheck } from "./checks";
+import { getRounds, saveCheck, windowStartMinutes } from "./checks";
 import type { ItemRounds, RoundInterval } from "./checks";
 import { checklistVersions } from "./schema";
 import { setShiftMode } from "./shift-modes";
@@ -557,5 +557,33 @@ describe("getRounds", () => {
 
     const rounds = await roundsOf(versionId, new Date("2026-09-14T09:40:00Z"));
     expect(rounds.itemId).toBe(periodicId);
+  });
+});
+
+describe("начало окна", () => {
+  // T167, issue #77. Здесь стояло `parseLocalTime(window.start) ?? 0`: неразобранное
+  // начало тихо становилось полуночью, и время прохода в сетке уезжало на несколько
+  // часов, оставаясь правдоподобным. Настоящие данные в эту ветку не попадают — начало
+  // окна живёт в колонке `time`, — поэтому проверка идёт по самой функции, а не через
+  // базу: испортить в базе значение, которое база и проверяет, нельзя.
+  test("разобранное время — минуты от полуночи", () => {
+    expect(windowStartMinutes({ start: "08:00:00", end: "23:00:00" })).toBe(
+      480,
+    );
+    expect(windowStartMinutes({ start: "22:00", end: "02:00" })).toBe(1320);
+  });
+
+  test("неразобранное время отбивается вслух и называет само значение", () => {
+    expect(() =>
+      windowStartMinutes({ start: "не время", end: "23:00:00" }),
+    ).toThrow(RangeError);
+    expect(() =>
+      windowStartMinutes({ start: "не время", end: "23:00:00" }),
+    ).toThrow(/не время/);
+    // «24:00» — законный КОНЕЦ суток, но не начало: обход «в 24:00» бессмыслица,
+    // и послабление `parseWindowEnd` сюда не распространяется.
+    expect(() => windowStartMinutes({ start: "24:00", end: "02:00" })).toThrow(
+      RangeError,
+    );
   });
 });

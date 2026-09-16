@@ -22,6 +22,8 @@ import {
 } from "@/blocks/data";
 
 import { pickFillText } from "./locale";
+import { buildOverdue } from "./overdue";
+import type { OverdueItem } from "./overdue";
 import type {
   RoundMarkView,
   RoundState,
@@ -60,12 +62,29 @@ function isFailedValue(value: AnswerValue): boolean {
   return value === false;
 }
 
-/** Местное время конца прохода: до него смене надо успеть. */
+/**
+ * Местное время конца прохода: до него смене надо успеть.
+ *
+ * Неразобранное начало окна отбивается вслух, а не считается полночью (T167, issue #77):
+ * тихое умолчание сдвинуло бы КАЖДУЮ строку панели на несколько часов, и «Проверить до
+ * 01:00» выглядело бы ровно так же убедительно, как верное «до 09:00». Сегодня ветка
+ * недостижима — начало окна приходит из колонки `time`, — но держится это на внешнем
+ * обстоятельстве, а не на здешнем коде.
+ *
+ * Свой разбор, а не общий с `windowStartMinutes` блока `data`: отказы разные по смыслу
+ * (там сетка проходов, здесь строка на экране смены), а ради четырёх одинаковых строк
+ * тянуть ещё одну связь между блоками дороже, чем их повторить.
+ */
 function endLocalTime(
   window: RoundsView["window"],
   endMinutes: number,
 ): string {
-  const start = parseLocalTime(window.start) ?? 0;
+  const start = parseLocalTime(window.start);
+  if (start === null) {
+    throw new RangeError(
+      `Начало окна чек-листа не разобрано: «${window.start}»`,
+    );
+  }
   return formatLocalTime(start + endMinutes);
 }
 
@@ -188,8 +207,24 @@ export function buildRoundsPanel(
     });
   }
 
+  // Сигнал о просрочке считается здесь же и из того же материала (T138): настройка
+  // оповещения лежит на пункте версии, а состояние строки уже посчитано выше. Второй
+  // проход по тем же данным в другом месте разошёлся бы с панелью ровно тогда, когда
+  // это дороже всего — станция звонила бы о том, чего на экране не видно.
+  const overdueItems: OverdueItem[] = items.map((item) => ({
+    itemId: item.itemId,
+    title: item.title,
+    remindEveryMinutes: byId.get(item.itemId)?.remindEveryMinutes,
+    state: item.state,
+    missedCount: item.missedCount,
+  }));
+  const signal = buildOverdue({ rounds: input.rounds, items: overdueItems });
+
   return {
     items,
     missedTotal: items.reduce((total, item) => total + item.missedCount, 0),
+    overdue: signal.overdue,
+    nextChangeInSeconds: signal.nextChangeInSeconds,
+    ringsOnMiss: signal.ringsOnMiss,
   };
 }

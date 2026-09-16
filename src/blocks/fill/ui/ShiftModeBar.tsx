@@ -26,8 +26,12 @@ const MODES: readonly ShiftMode[] = ["normal", "reduced", "critical"];
 
 const BAR_CLASS =
   "flex flex-wrap items-baseline gap-x-[var(--space-4)] gap-y-[var(--space-2)] text-[length:var(--fs-dense)] text-[var(--ink-2)]";
+// «Сменить» выглядит ссылкой, но палец на кухонном планшете об этом не знает: это
+// такая же кнопка, как остальные, и зона нажатия у неё не меньше var(--tap-min)
+// (критерий 10). Была 51x18 — вдвое ниже требуемого (T176). Растёт только высота
+// коробки: отступов по бокам нет, поэтому строка шапки не разъезжается.
 const CHANGE_CLASS =
-  "cursor-pointer rounded-[var(--r-mark)] border-0 bg-transparent p-0 text-[length:var(--fs-dense)] text-[var(--accent)] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]";
+  "inline-flex min-h-[var(--tap-min)] min-w-[var(--tap-min)] cursor-pointer items-center justify-center rounded-[var(--r-mark)] border-0 bg-transparent p-0 text-[length:var(--fs-dense)] text-[var(--accent)] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]";
 
 const PANEL_CLASS =
   "mt-[var(--space-6)] flex flex-col gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--line)] bg-[var(--surface-2)] p-[var(--space-6)]";
@@ -43,8 +47,10 @@ const CHOICE_HINT_CLASS = "text-[length:var(--fs-dense)] text-[var(--ink-2)]";
 const STAFF_ROW_CLASS = "flex items-end gap-[var(--space-5)]";
 const STAFF_LABEL_CLASS =
   "mb-[var(--space-3)] block text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
+// Высота полей — var(--tap-min), а не var(--control-h): 32 px это рост поля на
+// экране управляющего за столом, а здесь по нему попадают пальцем (критерий 10).
 const STAFF_INPUT_CLASS =
-  "text-ink bg-surface h-[var(--control-h)] w-[72px] rounded-[var(--r-control)] border border-[var(--line-control)] text-center font-[family-name:var(--font-num)] text-[length:var(--fs-num-sm)] focus:border-[var(--accent)] focus:outline-none";
+  "text-ink bg-surface h-[var(--tap-min)] w-[72px] rounded-[var(--r-control)] border border-[var(--line-control)] text-center font-[family-name:var(--font-num)] text-[length:var(--fs-num-sm)] focus:border-[var(--accent)] focus:outline-none";
 const NOTICE_CLASS =
   "rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-6)] py-[var(--space-5)] text-[length:var(--fs-dense)] text-[var(--err)]";
 
