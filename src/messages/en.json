@@ -600,6 +600,38 @@
       },
       "modeLabel": "shift",
       "skippedByMode": "{count, plural, one {# item was not asked in this mode} other {# items were not asked in this mode}}"
+    },
+    "report": {
+      "title": "Rounds report",
+      "link": "Rounds report",
+      "backToFeed": "Back to the feed",
+      "lead": "Where and at which hours rounds are not getting done. The conversation here is about load and staffing, not about who is to blame.",
+      "tableTitle": "Items × round hours",
+      "item": "Item",
+      "doneColumn": "Done",
+      "missedColumn": "Missed",
+      "totals": "Done {done}, missed {missed}",
+      "legendDone": "round done",
+      "legendMissed": "number of misses",
+      "legendPending": "round still ahead",
+      "legendNone": "no round expected at this hour",
+      "cellDone": "Done: {done}",
+      "cellMissed": "Missed {missed} of {total}",
+      "cellPending": "Round still ahead",
+      "cellNone": "No round expected at this hour",
+      "stray": "Marks outside the grid: {count}. The round was done, but the schedule step was different at that moment — the methodologist changed it mid-shift.",
+      "unknownTimezone": "Stores with a time zone the database does not know: {count}. Their rounds are not in this report.",
+      "empty": {
+        "noChecklistsTitle": "Nothing to count yet",
+        "noChecklistsText": "There is no active checklist under these filters. Create a checklist on a station — or clear the filters.",
+        "noChecklistsAction": "Open checklists",
+        "noScheduleTitle": "No scheduled rounds are set up",
+        "noScheduleText": "There are checklists, but no item has a round interval. Set an interval in the editor — and the report will show at which hours rounds land and at which they do not.",
+        "noScheduleAction": "Open checklists",
+        "noPassesTitle": "No window passes in the selected period",
+        "noPassesText": "Rounds are set up, but the checklist window never ran on these days: widen the period or clear the filters.",
+        "noPassesAction": "Clear filters"
+      }
     }
   },
   "library": {

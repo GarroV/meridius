@@ -8,6 +8,7 @@ import type { SubmissionModel } from "../model";
 import { AnswersCard } from "./AnswersCard";
 import { OutcomeTag } from "./OutcomeTag";
 import { SubmissionFacts } from "./SubmissionFacts";
+import { TopbarActions } from "./TopbarActions";
 
 /**
  * Карточка одного заполнения (эталон `docs/furca/design/screens/submission.html`,
@@ -94,12 +95,12 @@ export async function SubmissionScreen({
         store: model.storeName,
       })}
       topbarAction={
-        <>
+        <TopbarActions>
           <OutcomeTag outcome={model.outcome} />
           <Link href={model.checklistHref} className={BTN_CLASS}>
             {checklistLinkText(model, t)}
           </Link>
-        </>
+        </TopbarActions>
       }
     >
       <SubmissionFacts model={model} />

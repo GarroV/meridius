@@ -18,6 +18,15 @@ const PERIOD_DAYS: Record<FeedPeriod, number> = {
   month: 30,
 };
 
+/**
+ * Сколько местных суток захватывает период. Отчёт об обходах считает проходы окон
+ * по суткам, а не по границам времени, и берёт число отсюда: иначе «месяц» на двух
+ * экранах значил бы разное.
+ */
+export function periodDayCount(period: FeedPeriod): number {
+  return PERIOD_DAYS[period];
+}
+
 export interface DateRange {
   readonly from: Date;
   readonly to: Date;

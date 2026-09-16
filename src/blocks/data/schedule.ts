@@ -58,8 +58,13 @@ export function isPeriodic(item: Item): boolean {
  * читаются границы ОТРЕЗКОВ и время ОТМЕТКИ, а обход «в 24:00» — бессмыслица: сутки
  * обхода замкнуты, и полночь в них называется 00:00. Граница суток осмысленна только
  * как конец окна, поэтому и знает о ней только конец окна (T160, issue #69).
+ *
+ * Публичная НАРОЧНО, вместе с `windowLength`. Приватной она уже стоила одного
+ * повторения: блок отчёта написал очевидное — `parseLocalTime(window.end)` — и
+ * круглосуточные чек-листы выпали из сетки целиком и молча (T165, issue #75).
+ * Разбор границ окна живёт здесь в одном экземпляре; своего у блоков быть не должно.
  */
-function parseWindowEnd(value: string): number | null {
+export function parseWindowEnd(value: string): number | null {
   if (DAY_END_PATTERN.test(value)) return MINUTES_IN_DAY;
   return parseLocalTime(value);
 }
@@ -68,8 +73,11 @@ function parseWindowEnd(value: string): number | null {
  * Длина прохода окна в минутах. Равные границы база не допускает
  * (`checklists_window_not_empty`), поэтому ноль сюда не приходит; окно через полночь
  * даёт длину больше остатка суток, и это верно.
+ *
+ * Публичная по той же причине, что и `parseWindowEnd`: длину окна считает не только
+ * расписание, но и отчёт об обходах, а две копии этого счёта расходятся молча.
  */
-function windowLength(window: ChecklistWindow): number | null {
+export function windowLength(window: ChecklistWindow): number | null {
   const start = parseLocalTime(window.start);
   const end = parseWindowEnd(window.end);
   if (start === null || end === null) return null;

@@ -2,7 +2,7 @@
 // в чате, и она откроется тем же экраном. Всё, что приходит из адреса, разбирается
 // строго — это ввод от кого угодно, а не от нашей же формы.
 import { DEFAULT_PERIOD, isFeedPeriod, type FeedPeriod } from "./period";
-import { FEED_PATH, submissionPath } from "./routes";
+import { FEED_PATH, ROUNDS_REPORT_PATH, submissionPath } from "./routes";
 
 export const COUNTRY_PARAM = "country";
 export const STORE_PARAM = "store";
@@ -73,6 +73,14 @@ export function feedHref(view: FeedView): string {
   return search === "" ? FEED_PATH : `${FEED_PATH}?${search}`;
 }
 
+/** Адрес отчёта об обходах с тем же состоянием фильтров, что у ленты. */
+export function roundsReportHref(view: FeedView): string {
+  const query = feedHref(view).split("?")[1];
+  return query === undefined
+    ? ROUNDS_REPORT_PATH
+    : `${ROUNDS_REPORT_PATH}?${query}`;
+}
+
 /** Состояние фильтров в том виде, в каком его отдаёт модель экрана (незаданное — `null`). */
 export interface FeedFilterState {
   readonly countryId: string | null;
@@ -82,7 +90,7 @@ export interface FeedFilterState {
 }
 
 /** Обратный перевод: из состояния экрана — в разбор адреса. */
-function toFeedView(state: FeedFilterState): FeedView {
+export function toFeedView(state: FeedFilterState): FeedView {
   const view: FeedView = { period: state.period };
   if (state.countryId !== null) view.countryId = state.countryId;
   if (state.storeId !== null) view.storeId = state.storeId;

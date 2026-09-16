@@ -58,6 +58,8 @@ export {
   isPeriodic,
   offsetInWindow,
   parseLocalTime,
+  parseWindowEnd,
+  windowLength,
 } from "./schedule";
 
 export type {

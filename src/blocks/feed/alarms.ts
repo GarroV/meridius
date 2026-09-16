@@ -26,15 +26,7 @@
 // Лента заполнений для этого не переиспользуется намеренно: у неё свой период и свой
 // предел выдачи в 200 строк, и тревога, пропавшая из-за выбранного периода, — это
 // именно та тихая потеря, ради которой тревоги и заводились.
-import {
-  and,
-  countDistinct,
-  desc,
-  eq,
-  isNull,
-  notExists,
-  sql,
-} from "drizzle-orm";
+import { and, desc, eq, isNull, notExists, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
@@ -52,6 +44,13 @@ import {
   timezoneNames,
 } from "@/blocks/data";
 import type { LocalizedText, ShiftMode } from "@/blocks/data";
+
+import type { FeedScope } from "./scope";
+import {
+  ZONE_MATCHES,
+  countUnknownTimezoneStores,
+  scopeConditions,
+} from "./scope";
 
 /**
  * Сколько строк читается на одну тревогу каждого вида. Провал виден только после
@@ -89,12 +88,6 @@ export interface Alarm {
   readonly mode: ShiftMode;
 }
 
-export interface AlarmScope {
-  readonly countryId?: string;
-  readonly storeId?: string;
-  readonly stationId?: string;
-}
-
 export interface AlarmList {
   readonly alarms: readonly Alarm[];
   /** Прочитан весь разрешённый предел: тревог может быть больше показанных. */
@@ -118,27 +111,6 @@ interface Scanned {
 const DEFAULT_MODE: ShiftMode = "normal";
 
 const MS_PER_SECOND = 1000;
-
-function scopeConditions(scope: AlarmScope): SQL[] {
-  const conditions: SQL[] = [];
-  if (scope.countryId !== undefined) {
-    conditions.push(eq(stores.countryId, scope.countryId));
-  }
-  if (scope.storeId !== undefined) {
-    conditions.push(eq(stores.id, scope.storeId));
-  }
-  if (scope.stationId !== undefined) {
-    conditions.push(eq(stations.id, scope.stationId));
-  }
-  return conditions;
-}
-
-/**
- * Условие присоединения списка зон базы к пиццерии. Регистр приводится: PostgreSQL
- * принимает имя зоны без учёта регистра, и `utc` в справочнике не должен выглядеть
- * незнакомым.
- */
-const ZONE_MATCHES = sql`lower(${timezoneNames.name}) = lower(${stores.timezone})`;
 
 /**
  * Местное время пиццерии для момента `at`. Считает база, а не JavaScript: сутки смены
@@ -212,7 +184,7 @@ function submittedInPass(pass: WindowPass): SQL[] {
 
 /** Провалы критичных пунктов в заполнениях за текущие местные сутки пиццерии. */
 async function listCriticalFailures(
-  scope: AlarmScope,
+  scope: FeedScope,
   at: Date,
 ): Promise<Scanned> {
   const localDate = sql`${localNowSql(at)}::date`;
@@ -331,7 +303,7 @@ function alarmOf(
  * Архивирование чек-листа задним числом не отменяет того, что «газ» не тронули.
  */
 async function listUnansweredCritical(
-  scope: AlarmScope,
+  scope: FeedScope,
   at: Date,
 ): Promise<Scanned> {
   const pass = windowPassEndingToday(at);
@@ -385,7 +357,7 @@ async function listUnansweredCritical(
  * (`windowPassEndingToday`): закончившийся сегодня по местному времени.
  */
 async function listMissedChecklists(
-  scope: AlarmScope,
+  scope: FeedScope,
   at: Date,
 ): Promise<Scanned> {
   const pass = windowPassEndingToday(at);
@@ -489,17 +461,6 @@ async function listMissedChecklists(
  * те, у которых есть хотя бы одна станция: без станции чек-листа нет и тревоги быть
  * не может, а пугать управляющего пиццерией, которая ещё не заведена до конца, незачем.
  */
-async function countUnknownTimezoneStores(scope: AlarmScope): Promise<number> {
-  const [row] = await getDb()
-    .select({ stores: countDistinct(stores.id) })
-    .from(stations)
-    .innerJoin(stores, eq(stations.storeId, stores.id))
-    .leftJoin(timezoneNames, ZONE_MATCHES)
-    .where(and(...scopeConditions(scope), isNull(timezoneNames.name)));
-
-  return row?.stores ?? 0;
-}
-
 /**
  * Все тревоги по этим фильтрам на момент `at`. Порядок — сперва то, что случилось и
  * известно точно (провал критичного пункта), потом то, что стало фактом с закрытием
@@ -510,7 +471,7 @@ async function countUnknownTimezoneStores(scope: AlarmScope): Promise<number> {
  * окна иначе невозможно проверить тестом, не подменяя системные часы.
  */
 export async function listAlarms(
-  scope: AlarmScope,
+  scope: FeedScope,
   at: Date,
 ): Promise<AlarmList> {
   const [failures, unanswered, missed, unknownTimezoneStores] =
