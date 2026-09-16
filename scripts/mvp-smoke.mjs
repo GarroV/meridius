@@ -52,6 +52,9 @@ const {
   smokeNames,
   sweepSmokeRuns,
 } = await import("../src/blocks/demo/index.ts");
+// Умолчание адреса — общий источник порта (src/blocks/core/app-port.ts), а не свой
+// литерал: иначе смоук без --url молча проверял бы соседа на общем порте.
+const { appPort } = await import("../src/blocks/core/app-port.ts");
 
 const PHONE = { width: 375, height: 812 };
 const DESKTOP = { width: 1440, height: 960 };
@@ -121,7 +124,10 @@ function argument(name, fallback) {
   throw new Error(`не задан обязательный параметр --${name}`);
 }
 
-const BASE_URL = argument("url", "http://localhost:3100").replace(/\/$/, "");
+const BASE_URL = argument(
+  "url",
+  `http://localhost:${String(appPort())}`,
+).replace(/\/$/, "");
 const PASSWORD = argument("password");
 const OUT_DIR = path.resolve(argument("out", "reports/mvp-smoke"));
 

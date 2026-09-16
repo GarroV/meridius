@@ -31,11 +31,24 @@ async function loadAppPort(): Promise<
   return module.appPort;
 }
 
-// Регулярка вида «слово PORT, а дальше на той же строке 4-5-значное число» — то, чем
+// Регулярка вида «слово PORT, а дальше на той же строке 2-5-значное число» — то, чем
 // сторожа (случаи 18–21) ловят числовое умолчание рядом с именем переменной. Не
 // матчится на DB_PORT/E2E_PORT: подчёркивание — словесный символ, границы слова между
-// ним и PORT нет.
-const PORT_WORD_WITH_NUMBER = /\bPORT\b[^\n]*\b\d{4,5}\b/;
+// ним и PORT нет. Нижняя граница — 2 знака, а не 4: порт бывает и двузначным
+// (проверено фактом — см. случай ниже, поднимающий двузначный порт рядом со словом
+// PORT, который прежняя граница \d{4,5} пропускала бы молча).
+const PORT_WORD_WITH_NUMBER = /\bPORT\b[^\n]*\b\d{2,5}\b/;
+
+/**
+ * Код файла без комментариев `//`, `/*` и `*`: скрипты и playwright.config.ts законно
+ * упоминают номера портов в пояснениях, и сторожа обязаны смотреть только на код.
+ */
+function jsCodeText(content: string): string {
+  return content
+    .split("\n")
+    .filter((line) => !/^\s*(?:\/\/|\/\*|\*)/.test(line.trim()))
+    .join("\n");
+}
 
 let tempDirs: string[] = [];
 
@@ -228,11 +241,13 @@ describe("пути запуска берут порт из одного исто
     );
     // Комментарий — строка, начинающаяся с //, * или /*: в JSDoc-блоках этого файла
     // номера портов тоже упоминаются законно, как пояснение, а не как источник.
-    const codeText = content
-      .split("\n")
-      .filter((line) => !/^\s*(?:\/\/|\/\*|\*)/.test(line.trim()))
-      .join("\n");
+    const codeText = jsCodeText(content);
 
+    // Прежде проверка «--port с числом» стояла только у scripts/up, и в этом файле
+    // строка `--port ${String(PORT)}` внутри webServer.command могла подмениться на
+    // `--port 3101` молча: слово "--port" строчное, под `\bPORT\b` не подходит, а
+    // проверка ниже смотрела только на выражение `const PORT = ...`, а не на весь файл.
+    expect(codeText).not.toMatch(/--port(?:=|\s+)\d/);
     expect(codeText).not.toMatch(PORT_WORD_WITH_NUMBER);
     expect(content).toContain("./src/blocks/core/app-port");
 
@@ -247,5 +262,57 @@ describe("пути запуска берут порт из одного исто
     const expression = assignment?.[1] ?? "";
     expect(expression).not.toMatch(/\d{2,}/);
     expect(expression).toContain("appPort()");
+  });
+
+  // Случаи ниже проверяют файл целиком, а не отдельное выражение: в next-app.mjs и
+  // app-port.mjs числа порта нет нигде, кроме комментариев (проверено фактом — сегодня
+  // в коде обоих файлов, кроме `process.argv[2]`, `slice(3)`, `exit(1)`, нет ни одного
+  // числа длиной 2+ знака), поэтому запрет на такие числа во всём коде ловит и подмену
+  // `appPort()` литералом, и любой другой обходной путь, кроме самого вызова.
+  test("scripts/next-app.mjs: appPort() зовётся, чисел длиной 2+ знака в коде нет", () => {
+    const content = readFileSync(
+      join(REPO_ROOT, "scripts", "next-app.mjs"),
+      "utf8",
+    );
+    const codeText = jsCodeText(content);
+    expect(codeText).toContain("appPort()");
+    expect(codeText).not.toMatch(/\d{2,}/);
+  });
+
+  test("scripts/app-port.mjs: appPort() зовётся, чисел длиной 2+ знака в коде нет", () => {
+    const content = readFileSync(
+      join(REPO_ROOT, "scripts", "app-port.mjs"),
+      "utf8",
+    );
+    const codeText = jsCodeText(content);
+    expect(codeText).toContain("appPort()");
+    expect(codeText).not.toMatch(/\d{2,}/);
+  });
+
+  // mvp-smoke.mjs и import-checklists.mjs честно полны чисел (тайм-ауты, ширина экрана
+  // 375 px и т. п.), поэтому запрет на любое число здесь не годится — под запретом
+  // именно то, чем скрипт мог бы решить про порт сам, мимо общего источника.
+  test("scripts/mvp-smoke.mjs: адрес по умолчанию берётся из общего источника", () => {
+    const content = readFileSync(
+      join(REPO_ROOT, "scripts", "mvp-smoke.mjs"),
+      "utf8",
+    );
+    const codeText = jsCodeText(content);
+    expect(codeText).toContain("appPort()");
+    expect(codeText).not.toMatch(/localhost:\d/);
+    expect(codeText).not.toMatch(/--port(?:=|\s+)\d/);
+    expect(codeText).not.toMatch(PORT_WORD_WITH_NUMBER);
+  });
+
+  test("scripts/import-checklists.mjs: адрес по умолчанию берётся из общего источника", () => {
+    const content = readFileSync(
+      join(REPO_ROOT, "scripts", "import-checklists.mjs"),
+      "utf8",
+    );
+    const codeText = jsCodeText(content);
+    expect(codeText).toContain("appPort()");
+    expect(codeText).not.toMatch(/localhost:\d/);
+    expect(codeText).not.toMatch(/--port(?:=|\s+)\d/);
+    expect(codeText).not.toMatch(PORT_WORD_WITH_NUMBER);
   });
 });
