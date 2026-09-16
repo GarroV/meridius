@@ -17,6 +17,7 @@ import {
 } from "@/blocks/data";
 
 import { isPlausibleCode } from "./station";
+import { parseTableRows } from "./table-journal";
 
 /**
  * Верхние границы входа. Числа — заслон от мусора, а не рабочая мерка: чек-лист станции
@@ -87,17 +88,24 @@ function parseAnswer(input: unknown): Answer | null {
   }
   if (typeof at !== "number" || !Number.isFinite(at)) return null;
 
+  // Журнал табличного пункта — единственное значение-список; его форма и пределы
+  // живут в `table-journal.ts`, там же, где их считает экран (D074).
+  const rows = Array.isArray(value) ? parseTableRows(value) : null;
+  if (Array.isArray(value) && rows === null) return null;
+
   const isValue =
     typeof value === "boolean" ||
     (typeof value === "number" && Number.isFinite(value)) ||
     (typeof value === "string" &&
-      value.length <= FILL_INPUT_LIMITS.maxTextLength);
+      value.length <= FILL_INPUT_LIMITS.maxTextLength) ||
+    rows !== null;
   if (!isValue) return null;
 
-  if (comment === undefined) return { itemId, value, at };
+  const parsedValue = rows ?? (value as Answer["value"]);
+  if (comment === undefined) return { itemId, value: parsedValue, at };
   if (typeof comment !== "string") return null;
   if (comment.length > FILL_INPUT_LIMITS.maxCommentLength) return null;
-  return { itemId, value, comment, at };
+  return { itemId, value: parsedValue, comment, at };
 }
 
 /** Форма тела отправки. Наружу выходит новый объект: полей входа в нём нет. */
@@ -128,7 +136,25 @@ export function parseSubmission(input: unknown): Parsed<ParsedSubmission> {
 function matchesType(item: Item, value: Answer["value"]): boolean {
   if (item.type === "bool") return typeof value === "boolean";
   if (item.type === "number") return typeof value === "number";
+  if (item.type === "table") return matchesColumns(item, value);
   return typeof value === "string";
+}
+
+/**
+ * Журнал против колонок СНИМКА: клетка по колонке, которой в снимке нет, не
+ * принимается вовсе.
+ *
+ * Снимок главный (принцип 3, D002): заполнение хранит те колонки, которые сотрудник
+ * видел, и дописать в него клетку от колонки, появившейся позже, значит задним числом
+ * менять историю. Отказ, а не тихая чистка: тело, собранное не нашим экраном, — это
+ * не «немного лишнего», а чужая форма.
+ */
+function matchesColumns(item: Item, value: Answer["value"]): boolean {
+  if (!Array.isArray(value)) return false;
+  const known = new Set((item.columns ?? []).map((column) => column.id));
+  return value.every((row) =>
+    Object.keys(row).every((columnId) => known.has(columnId)),
+  );
 }
 
 /**
