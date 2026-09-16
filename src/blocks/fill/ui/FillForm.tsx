@@ -16,9 +16,11 @@ import {
 } from "../answers";
 import type { DraftAnswer, FillDraft } from "../answers";
 import type { FillItemView, FillScreenView, RoundsPanelView } from "../model";
+import type { AlarmOutcome, AlarmView } from "../alarms";
 import type { RoundOutcome } from "../rounds";
 import type { ShiftModeOutcome } from "../shift-mode";
 import type { SubmitOutcome } from "../submit";
+import { AlarmsPanel } from "./AlarmsPanel";
 import { RoundsPanel } from "./RoundsPanel";
 import type { ShiftState } from "./ShiftModeBar";
 import { ShiftModeBar } from "./ShiftModeBar";
@@ -99,6 +101,11 @@ export interface FillFormProps {
   readonly rounds: RoundsPanelView;
   /** Серверное действие отметки обхода: тот же адрес `/s/<код>`. */
   readonly mark: (input: unknown) => Promise<RoundOutcome>;
+  /** Будильники станции на сегодня: записка под рукой, а не пункт чек-листа (D070). */
+  readonly alarms: readonly AlarmView[];
+  /** Серверные действия будильника: тот же адрес `/s/<код>`. */
+  readonly addAlarm: (input: unknown) => Promise<AlarmOutcome>;
+  readonly dropAlarm: (input: unknown) => Promise<AlarmOutcome>;
 }
 
 type Translate = ReturnType<typeof useTranslations>;
@@ -195,6 +202,9 @@ export function FillForm({
   submit,
   rounds,
   mark,
+  alarms,
+  addAlarm,
+  dropAlarm,
 }: FillFormProps): ReactElement {
   const t = useTranslations("fill");
   const [draft, setDraft] = useState<FillDraft>(emptyDraft);
@@ -465,6 +475,13 @@ export function FillForm({
         code={code}
         versionId={versionId}
         mark={mark}
+      />
+
+      <AlarmsPanel
+        alarms={alarms}
+        code={code}
+        add={addAlarm}
+        drop={dropAlarm}
       />
 
       {/* Подвал с отправкой нужен только тем, кому есть что отправлять. Станция,

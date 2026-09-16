@@ -132,18 +132,14 @@ describe("setAlarm — заведение будильника", () => {
       NOW,
     );
 
-    expect(outcome).toStrictEqual({
-      kind: "alarms",
-      alarms: [
-        {
-          id: expect.any(String) as unknown as string,
-          atLocalTime: "09:30",
-          label: "вынести тесто",
-          // 08:00 → 09:30 по местному времени пиццерии: полтора часа.
-          ringsInSeconds: 90 * 60,
-        },
-      ],
-    });
+    expect(outcome.kind).toBe("alarms");
+    if (outcome.kind !== "alarms") return;
+    expect(outcome.alarms).toHaveLength(1);
+    const [alarm] = outcome.alarms;
+    expect(alarm?.atLocalTime).toBe("09:30");
+    expect(alarm?.label).toBe("вынести тесто");
+    // 08:00 → 09:30 по местному времени пиццерии: полтора часа.
+    expect(alarm?.ringsInSeconds).toBe(90 * 60);
   });
 
   it("местные сутки считает пояс пиццерии, а не сервер", async () => {
