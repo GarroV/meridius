@@ -134,6 +134,16 @@ export type AnswerView =
   | { readonly kind: "bool"; readonly value: boolean }
   | { readonly kind: "number"; readonly value: number }
   | { readonly kind: "text"; readonly value: string }
+  /**
+   * Журнал замеса теста (D074): `columns` — подписи колонок, уже выбранные по языку
+   * экрана; `rows` — клетки в ПОРЯДКЕ этих колонок (пустая клетка — `""`), а не по
+   * опознавателю — разметка не хранит опознавателей, только готовые к печати строки.
+   */
+  | {
+      readonly kind: "table";
+      readonly columns: readonly string[];
+      readonly rows: readonly (readonly string[])[];
+    }
   | { readonly kind: "none" };
 
 /** Пункт карточки: заголовок из СНИМКА, ответ из заполнения. */

@@ -13,13 +13,24 @@
 // Оба файла ниже чистые: `types.ts` — только типы, `grading.ts` — только правило провала.
 import { flattenItems, isFailed } from "@/blocks/data/grading";
 import { requiresCommentOnFailure } from "@/blocks/data/severity";
-import type { Answer, Item, Section } from "@/blocks/data/types";
+import type {
+  Answer,
+  AnswerValue,
+  Item,
+  Section,
+  TableRow,
+} from "@/blocks/data/types";
 
 import type { FillScreenView } from "./model";
+import { filledRows } from "./table-journal";
 
 /** Ответ в работе: значение ещё может отсутствовать, комментарий — быть пустым. */
 export interface DraftAnswer {
-  readonly value: boolean | number | string | null;
+  /**
+   * Список строк журнала — не `readonly`: он и есть `AnswerValue`, а `readonly`
+   * здесь означал бы ровно одно — приведение типа на каждой отправке.
+   */
+  readonly value: boolean | number | string | TableRow[] | null;
   readonly comment: string;
   /** Момент ответа с устройства сотрудника. */
   readonly at: number;
@@ -46,6 +57,7 @@ export interface FillSummary {
  * Пункт отвечен, когда на нём есть значение своего типа.
  * «Нет» — такой же полноценный ответ, как «да»: сотрудник сообщил, что не выполнено.
  * Текст без букв (одни пробелы) ответом не считается — это несделанный пункт.
+ * Журнал замеса — тоже: нажать «строка» и ничего не вписать значит не заполнить.
  */
 function isAnswered(item: Item, draft: DraftAnswer | undefined): boolean {
   if (draft?.value == null) return false;
@@ -53,13 +65,20 @@ function isAnswered(item: Item, draft: DraftAnswer | undefined): boolean {
   if (item.type === "number") {
     return typeof draft.value === "number" && Number.isFinite(draft.value);
   }
+  if (item.type === "table") {
+    return Array.isArray(draft.value) && filledRows(draft.value).length > 0;
+  }
   return typeof draft.value === "string" && draft.value.trim() !== "";
 }
 
 /** Ответ в том виде, в каком его понимает общий счёт провалов блока `data`. */
 function toAnswer(itemId: string, draft: DraftAnswer): Answer {
   const comment = draft.comment.trim();
-  const value = draft.value ?? "";
+  // Журнал уходит без пустых строк и без крайних пробелов в клетках: то, что сотрудник
+  // начал строку и передумал, хранить незачем, а два вида пустоты — одно состояние.
+  const value: AnswerValue = Array.isArray(draft.value)
+    ? filledRows(draft.value)
+    : (draft.value ?? "");
   return comment === ""
     ? { itemId, value, at: draft.at }
     : { itemId, value, comment, at: draft.at };

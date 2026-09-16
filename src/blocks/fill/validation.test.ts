@@ -249,3 +249,79 @@ describe("время начала заполнения", () => {
     expect(clampStartedAt(0, now)).toBe(limit);
   });
 });
+
+function withValue(value: unknown): unknown {
+  return payload({ answers: [{ itemId: "t1", value, at: AT }] });
+}
+
+describe("табличный пункт: журнал в теле отправки (T141)", () => {
+  const COLUMNS = [
+    { id: "c1", title: { ru: "Температура", en: "Temperature" } },
+    { id: "c2", title: { ru: "Вес", en: "Weight" } },
+  ];
+
+  function tableItem(): Item {
+    return item("t1", { type: "table", severity: "normal", columns: COLUMNS });
+  }
+
+  it("журнал доезжает строками, а не текстом", () => {
+    const parsed = parseSubmission(
+      withValue([{ c1: "24", c2: "200" }, { c1: "25" }]),
+    );
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.answers[0]?.value).toStrictEqual([
+      { c1: "24", c2: "200" },
+      { c1: "25" },
+    ]);
+  });
+
+  it("пустые строки журнала до базы не доезжают", () => {
+    const parsed = parseSubmission(
+      withValue([{ c1: " 24 " }, {}, { c2: " " }]),
+    );
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.answers[0]?.value).toStrictEqual([{ c1: "24" }]);
+  });
+
+  it("клетка не строкой — отказ разбора", () => {
+    expect(parseSubmission(withValue([{ c1: 24 }])).ok).toBe(false);
+  });
+
+  it("журнал против снимка: строки принимаются", () => {
+    const parsed = matchAnswersToSnapshot(snapshot(tableItem()), [
+      { itemId: "t1", value: [{ c1: "24" }], at: AT },
+    ]);
+
+    expect(parsed.ok).toBe(true);
+  });
+
+  it("клетка по колонке, которой нет в снимке, — отказ", () => {
+    // Снимок главный (принцип 3, D002): правка колонок задним числом не должна
+    // дописывать в уже сохранённое заполнение то, чего сотрудник не видел.
+    const parsed = matchAnswersToSnapshot(snapshot(tableItem()), [
+      { itemId: "t1", value: [{ c9: "24" }], at: AT },
+    ]);
+
+    expect(parsed).toStrictEqual({ ok: false, reason: "malformed" });
+  });
+
+  it("текст вместо журнала — отказ: тип ответа разошёлся с типом пункта", () => {
+    const parsed = matchAnswersToSnapshot(snapshot(tableItem()), [
+      { itemId: "t1", value: "24", at: AT },
+    ]);
+
+    expect(parsed).toStrictEqual({ ok: false, reason: "malformed" });
+  });
+
+  it("журнал вместо «да/нет» — отказ", () => {
+    const parsed = matchAnswersToSnapshot(snapshot(item("a")), [
+      { itemId: "a", value: [{ c1: "24" }], at: AT },
+    ]);
+
+    expect(parsed).toStrictEqual({ ok: false, reason: "malformed" });
+  });
+});

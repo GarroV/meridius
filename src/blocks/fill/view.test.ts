@@ -557,3 +557,73 @@ describe("buildChoiceView", () => {
     expect(view.options[0]?.title).toBe("Обход");
   });
 });
+
+describe("buildFillView: колонки табличного пункта (T141)", () => {
+  const COLUMNS = [
+    {
+      id: "c1",
+      title: { ru: "Температура теста", en: "Dough temperature" },
+      norm: { ru: "24…26 °C", en: "24…26 °C" },
+    },
+    { id: "c2", title: { ru: "Вес, г", en: "Weight, g" } },
+  ];
+
+  function tableView(locales: readonly Locale[] = LOCALES) {
+    const view = buildFillView(
+      baseInput({
+        locales,
+        sections: [
+          section({
+            id: "s1",
+            items: [
+              item({
+                id: "t1",
+                type: "table",
+                title: { ru: "Журнал замесов", en: "Mixing log" },
+                columns: COLUMNS,
+              }),
+            ],
+          }),
+        ],
+      }),
+    );
+    return view.sections[0]?.items[0];
+  }
+
+  test("колонки доезжают до экрана в своём порядке и на языке цепочки", () => {
+    expect(tableView()?.columns).toStrictEqual([
+      { id: "c1", title: "Температура теста", norm: "24…26 °C" },
+      { id: "c2", title: "Вес, г", norm: null },
+    ]);
+  });
+
+  test("на втором языке подписи берутся из него же", () => {
+    expect(tableView(["en", "ru"])?.columns?.[0]?.title).toBe(
+      "Dough temperature",
+    );
+  });
+
+  test("нетабличный пункт колонок не получает", () => {
+    const view = buildFillView(
+      baseInput({
+        sections: [
+          section({ id: "s1", items: [item({ id: "b1", type: "bool" })] }),
+        ],
+      }),
+    );
+
+    expect(view.sections[0]?.items[0]).not.toHaveProperty("columns");
+  });
+
+  test("табличный пункт без колонок доезжает пустым списком, а не падает", () => {
+    const view = buildFillView(
+      baseInput({
+        sections: [
+          section({ id: "s1", items: [item({ id: "t1", type: "table" })] }),
+        ],
+      }),
+    );
+
+    expect(view.sections[0]?.items[0]?.columns).toStrictEqual([]);
+  });
+});

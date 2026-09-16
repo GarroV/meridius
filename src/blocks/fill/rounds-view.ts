@@ -7,6 +7,7 @@
 // один вопрос — идти сейчас или нет.
 import type { Locale } from "@/blocks/core/locale";
 import type {
+  AnswerValue,
   Item,
   ItemRounds,
   LocalizedText,
@@ -45,16 +46,17 @@ function hasTitle(text: LocalizedText): boolean {
 }
 
 /** Ответ словами: «да» и «нет» приходят из словаря, число и текст показываются как есть. */
-function formatValue(
-  value: boolean | number | string,
-  labels: RoundsLabels,
-): string {
+function formatValue(value: AnswerValue, labels: RoundsLabels): string {
   if (typeof value === "boolean") return value ? labels.yes : labels.no;
+  // Табличный пункт в обходе не встречается: расписание ему запрещено разбором
+  // редактора (D074), журнал заводят строками за смену, а не отметками по часам.
+  // Пустая строка здесь — не «потеряли значение», а «такой отметки не бывает».
+  if (Array.isArray(value)) return "";
   return String(value);
 }
 
 /** Отрицательный ответ — только у «да/нет»: у числа и текста провал решает не этот экран. */
-function isFailedValue(value: boolean | number | string): boolean {
+function isFailedValue(value: AnswerValue): boolean {
   return value === false;
 }
 

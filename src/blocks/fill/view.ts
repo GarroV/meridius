@@ -9,6 +9,7 @@ import { pickFillText } from "./locale";
 import type {
   FillChoiceOption,
   FillChoiceView,
+  FillColumnView,
   FillItemView,
   FillScreenView,
   FillSectionView,
@@ -94,6 +95,26 @@ function buildHint(
   return hint === "" ? null : hint;
 }
 
+/**
+ * Колонки журнала на языке цепочки. Пустой список у табличного пункта — не ошибка
+ * экрана: методист опубликовал пункт, не заведя ни одной колонки, и сотруднику
+ * честнее увидеть журнал без полей, чем не увидеть пункта вовсе.
+ */
+function buildColumnViews(
+  item: Item,
+  locales: readonly Locale[],
+): FillColumnView[] {
+  return (item.columns ?? []).map((column) => {
+    const norm =
+      column.norm === undefined ? "" : pickFillText(column.norm, locales);
+    return {
+      id: column.id,
+      title: pickFillText(column.title, locales),
+      norm: norm === "" ? null : norm,
+    };
+  });
+}
+
 function buildItemView(
   item: Item,
   locales: readonly Locale[],
@@ -108,6 +129,9 @@ function buildItemView(
     ...(item.min === undefined ? {} : { min: item.min }),
     ...(item.max === undefined ? {} : { max: item.max }),
     hint: buildHint(item, locales, labels),
+    ...(item.type === "table"
+      ? { columns: buildColumnViews(item, locales) }
+      : {}),
   };
 }
 

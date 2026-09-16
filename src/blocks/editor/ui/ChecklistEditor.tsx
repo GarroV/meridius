@@ -17,6 +17,7 @@ import { INITIAL_EDITOR_STATE } from "../action-state";
 import { submitPublish, submitSaveDraft } from "../actions";
 import type { EditorStation, VersionSummary } from "../drafts";
 import {
+  addColumn,
   addItemAfter,
   addSection,
   applyScheduleToSection,
@@ -24,8 +25,11 @@ import {
   insertLibrarySection,
   itemCount,
   moveItem,
+  removeColumn,
   removeItem,
   removeSection,
+  setColumnNorm,
+  setColumnTitle,
   setItemSchedule,
   setItemTitle,
   setSectionTitle,
@@ -39,6 +43,7 @@ import type { WindowValue } from "../window-field";
 import { WINDOW_FIELD, windowFieldValue } from "../window-field";
 import { EditorStatus } from "./EditorStatus";
 import { itemInputId } from "./ItemRow";
+import { columnInputId } from "./TableColumns";
 import { PropertiesCard } from "./PropertiesCard";
 import { SectionCard } from "./SectionCard";
 import { LibraryPanel, StationNotice, VersionsPanel } from "./SidePanels";
@@ -81,6 +86,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
   const [stationId, setStationId] = useState(props.initialStationId);
   const [window, setWindow] = useState<WindowValue>(props.initialWindow);
   const [focusItemId, setFocusItemId] = useState<string | null>(null);
+  const [focusColumnId, setFocusColumnId] = useState<string | null>(null);
 
   // Свойства чек-листа уезжают на сервер скрытыми полями из состояния, а до гидратации
   // состояния ещё нет: изменённое в первую секунду видно на экране, но в форму уходит
@@ -119,6 +125,14 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
     document.getElementById(itemInputId(focusItemId))?.focus();
     setFocusItemId(null);
   }, [focusItemId]);
+
+  // То же и с колонкой журнала: «+ Колонка» ставит курсор в её название, а не
+  // оставляет методиста искать новое поле мышью.
+  useEffect(() => {
+    if (focusColumnId === null) return;
+    document.getElementById(columnInputId(focusColumnId))?.focus();
+    setFocusColumnId(null);
+  }, [focusColumnId]);
 
   const insertedBlockIds = sections.flatMap((section) =>
     typeof section.source === "string" ? [] : [section.source.blockId],
@@ -296,6 +310,24 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
                   }}
                   onItemSchedule={(itemId, setting) => {
                     setSections(setItemSchedule(sections, itemId, setting));
+                  }}
+                  onAddColumn={(itemId) => {
+                    const next = addColumn(sections, itemId);
+                    setSections(next.sections);
+                    setFocusColumnId(next.focusColumnId);
+                  }}
+                  onColumnTitle={(itemId, columnId, text) => {
+                    setSections(
+                      setColumnTitle(sections, itemId, columnId, locale, text),
+                    );
+                  }}
+                  onColumnNorm={(itemId, columnId, text) => {
+                    setSections(
+                      setColumnNorm(sections, itemId, columnId, locale, text),
+                    );
+                  }}
+                  onRemoveColumn={(itemId, columnId) => {
+                    setSections(removeColumn(sections, itemId, columnId));
                   }}
                   onSectionSchedule={(setting) => {
                     setSections(

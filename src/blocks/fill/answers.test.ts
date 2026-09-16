@@ -310,3 +310,57 @@ describe("модель экрана обратно в пункты для счё
     expect(gradingItemsById(view).has("нет такого")).toBe(false);
   });
 });
+
+function withRows(rows: unknown): FillDraft {
+  return { t1: { value: rows as never, comment: "", at: AT } };
+}
+
+describe("табличный пункт: журнал замеса (T141)", () => {
+  const COLUMNS = [
+    { id: "c1", title: { ru: "Температура теста", en: "Dough temperature" } },
+    { id: "c2", title: { ru: "Вес, г", en: "Weight, g" } },
+  ];
+
+  function tableItem(): Item {
+    return item("t1", { type: "table", severity: "normal", columns: COLUMNS });
+  }
+
+  it("журнал с заполненной строкой считается отвеченным", () => {
+    const summary = summarizeFill(
+      sections(tableItem()),
+      withRows([{ c1: "24" }]),
+    );
+
+    expect(summary.answered).toBe(1);
+    expect(summary.canSubmit).toBe(true);
+  });
+
+  it("журнал из пустых строк отвеченным не считается", () => {
+    // Нажать «строка» и ничего не вписать — это несделанный пункт, а не ответ.
+    const summary = summarizeFill(
+      sections(tableItem()),
+      withRows([{}, { c1: "  " }]),
+    );
+
+    expect(summary.answered).toBe(0);
+    expect(summary.remaining).toBe(1);
+  });
+
+  it("журнал провалить нельзя: норма над колонкой — подсказка, а не оценка", () => {
+    const summary = summarizeFill(
+      sections(tableItem()),
+      withRows([{ c1: "99" }]),
+    );
+
+    expect(summary.failedItemIds).toStrictEqual([]);
+  });
+
+  it("на сервер уходят только заполненные строки, без крайних пробелов", () => {
+    const answers = toAnswers(
+      sections(tableItem()),
+      withRows([{ c1: " 24 ", c2: "" }, {}, { c2: "200" }]),
+    );
+
+    expect(answers[0]?.value).toStrictEqual([{ c1: "24" }, { c2: "200" }]);
+  });
+});

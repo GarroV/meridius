@@ -3,6 +3,16 @@
 // подсказок живут в одном месте (`view.ts`) и проверяются модульными тестами.
 import type { ItemType, LocalizedText, Severity } from "@/blocks/data";
 
+/**
+ * Колонка табличного пункта на экране: подписи уже выбраны по языку. `norm` — та
+ * самая строка норм, что в бумажном журнале стоит над колонкой; `null` — нормы нет.
+ */
+export interface FillColumnView {
+  readonly id: string;
+  readonly title: string;
+  readonly norm: string | null;
+}
+
 export interface FillItemView {
   readonly id: string;
   readonly title: string;
@@ -12,6 +22,8 @@ export interface FillItemView {
   readonly max?: number;
   /** Подсказка методиста и диапазон одной строкой; `null` — строки нет. */
   readonly hint: string | null;
+  /** Колонки журнала; есть только у табличного пункта (D074). */
+  readonly columns?: readonly FillColumnView[];
 }
 
 export interface FillSectionView {

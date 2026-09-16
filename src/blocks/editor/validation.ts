@@ -6,6 +6,7 @@
 // а не слой данных.
 import type {
   Item,
+  ItemColumn,
   ItemType,
   LocalizedText,
   ScheduleSegment,
@@ -16,11 +17,13 @@ import { assertValidSchedule, isSeverity, parseLocalTime } from "@/blocks/data";
 import type { Locale } from "@/blocks/core/locale";
 
 import { isRemindOption, MAX_SEGMENTS, REMIND_OPTIONS } from "./schedule-field";
+import { MAX_COLUMNS } from "./table-field";
 
 export type EditorErrorCode =
   | "badFormat"
   | "tooManySections"
   | "tooManyItems"
+  | "tooManyColumns"
   | "textTooLong"
   | "badRange"
   | "badSchedule"
@@ -62,13 +65,20 @@ export const LIMITS = {
    * добавил бы девятый отрезок и получил отказ уже на сохранении.
    */
   scheduleSegments: MAX_SEGMENTS,
+  /**
+   * Колонок у табличного пункта (D074). В исходных вкладках `Dough mixing` их
+   * восемь-десять. Число берётся у экрана (`table-field.ts`), а не пишется вторым
+   * литералом: кнопка «добавить колонку» обязана гаснуть там же, где разбор начинает
+   * отказывать.
+   */
+  columns: MAX_COLUMNS,
 } as const;
 
 // Языки контента продукта (D009). Третий добавляется словарём, а не кодом, поэтому
 // список короткий и лежит рядом с разбором: всё, что не отсюда, до базы не доезжает.
 const CONTENT_LOCALES: readonly Locale[] = ["ru", "en"];
 
-const ITEM_TYPES: readonly ItemType[] = ["bool", "number", "text"];
+const ITEM_TYPES: readonly ItemType[] = ["bool", "number", "text", "table"];
 
 // Время из формы приходит как "HH:MM"; 24:00 — законное значение time в PostgreSQL
 // и единственный способ записать окно «без ограничения» там, где равные границы запрещены.
@@ -255,6 +265,49 @@ function parseRemind(input: unknown, isPeriodic: boolean): number | undefined {
   return value;
 }
 
+/**
+ * Колонка табличного пункта (D074). Колонка без названия на всех языках — это пустая
+ * строка внизу списка, которую методист ещё не заполнил: она пропускается (`null`),
+ * ровно как пункт без текста, а не роняет сохранение всего чек-листа.
+ */
+function parseColumn(input: unknown): ItemColumn | null {
+  if (!isRecord(input)) fail("badFormat", "Колонка должна быть объектом");
+
+  const title = parseLocalizedText(input["title"]);
+  if (isEmptyText(title)) return null;
+
+  const norm = parseLocalizedText(input["norm"] ?? {});
+  return {
+    id: parseId(input["id"], "Колонка"),
+    title,
+    ...(isEmptyText(norm) ? {} : { norm }),
+  };
+}
+
+/**
+ * Колонки табличного пункта. Их нет у остальных родов пункта: поле, невидимое на
+ * экране, уехав в JSONB, останется там навсегда и следующим читателем будет принято
+ * за работающее. Пустой список полем не становится по той же причине, что и пустое
+ * расписание, — одно состояние записывается одним способом.
+ */
+function parseColumns(input: unknown): ItemColumn[] | undefined {
+  if (input === undefined || input === null) return undefined;
+  if (!Array.isArray(input)) fail("badFormat", "Колонки — не список");
+  if (input.length > LIMITS.columns) {
+    fail(
+      "tooManyColumns",
+      `Колонок больше ${String(LIMITS.columns)}: ${String(input.length)}`,
+    );
+  }
+
+  const columns: ItemColumn[] = [];
+  for (const raw of input) {
+    const column = parseColumn(raw);
+    if (column !== null) columns.push(column);
+  }
+  return columns.length === 0 ? undefined : columns;
+}
+
 function parseItem(input: unknown): Item | null {
   if (!isRecord(input)) fail("badFormat", "Пункт должен быть объектом");
 
@@ -278,11 +331,19 @@ function parseItem(input: unknown): Item | null {
   }
 
   const hint = parseLocalizedText(input["hint"] ?? {});
+  const isTable = item.type === "table";
   const schedule = parseSchedule(input["schedule"]);
+  // Табличный пункт обходом не бывает: журнал заводят строками за смену, а у обхода
+  // свой учёт отметками по часам (D076), и показать в нём таблицу нечем. Отказ, а не
+  // молчаливое снятие поля: снять настройку методиста, не сказав ему, хуже отказа.
+  if (isTable && schedule !== undefined) {
+    fail("badSchedule", "У табличного пункта расписания обхода не бывает");
+  }
   const remind = parseRemind(
     input["remindEveryMinutes"],
     schedule !== undefined,
   );
+  const columns = isTable ? parseColumns(input["columns"]) : undefined;
 
   return {
     ...item,
@@ -291,6 +352,7 @@ function parseItem(input: unknown): Item | null {
     ...(isEmptyText(hint) ? {} : { hint }),
     ...(schedule === undefined ? {} : { schedule }),
     ...(remind === undefined ? {} : { remindEveryMinutes: remind }),
+    ...(columns === undefined ? {} : { columns }),
   };
 }
 

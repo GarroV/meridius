@@ -205,6 +205,7 @@
       "typeBool": "Yes / No",
       "typeNumber": "Number",
       "typeText": "Text",
+      "typeTable": "Table",
       "critical": "Critical",
       "from": "from",
       "to": "to",
@@ -216,6 +217,18 @@
       "normal": "Normal",
       "major": "Major",
       "severityLabel": "How critical the item is"
+    },
+    "table": {
+      "columns": "Log columns",
+      "columnTitle": "Column name",
+      "columnTitlePlaceholder": "Dough temperature",
+      "norm": "Norm",
+      "normPlaceholder": "24…26 °C",
+      "addColumn": "Column",
+      "removeColumn": "Remove column",
+      "empty": "No columns yet: there will be nothing to fill in",
+      "limit": "No more than {count} columns",
+      "hint": "Rows are added by the employee while filling"
     },
     "schedule": {
       "chipOnce": "Once",
@@ -280,6 +293,9 @@
       "empty": "The draft has no items yet",
       "major": "Major item",
       "rounds": "Checked on rounds",
+      "table": "Log: {columns}",
+      "tableEmpty": "A log with no columns: there is nothing to fill in",
+      "tableNorm": "{title} ({norm})",
       "roundsEvery": "{from}–{to}, {step}",
       "roundsRemind": "While overdue, reminds every {count, plural, one {# minute} other {# minutes}}",
       "roundsSilent": "No reminder while overdue",
@@ -379,6 +395,14 @@
     "outsideRange": "out of range",
     "numberPlaceholder": "Value",
     "textPlaceholder": "A short note",
+    "table": {
+      "row": "Row {number}",
+      "addRow": "Add a row",
+      "removeRow": "Delete row {number}",
+      "empty": "No rows yet",
+      "noColumns": "No columns are set",
+      "limit": "No more than {count} rows per shift"
+    },
     "failLabel": "What is wrong?",
     "failHint": "A short note is enough — the manager will see it today.",
     "state": {

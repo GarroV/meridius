@@ -205,6 +205,7 @@
       "typeBool": "Да / Нет",
       "typeNumber": "Число",
       "typeText": "Текст",
+      "typeTable": "Таблица",
       "critical": "Критичный",
       "from": "от",
       "to": "до",
@@ -216,6 +217,18 @@
       "normal": "Обычный",
       "major": "Важный",
       "severityLabel": "Насколько критичен пункт"
+    },
+    "table": {
+      "columns": "Колонки журнала",
+      "columnTitle": "Название колонки",
+      "columnTitlePlaceholder": "Температура теста",
+      "norm": "Норма",
+      "normPlaceholder": "24…26 °C",
+      "addColumn": "Колонка",
+      "removeColumn": "Удалить колонку",
+      "empty": "Колонок пока нет: сотруднику нечего будет заполнять",
+      "limit": "Больше {count} колонок не бывает",
+      "hint": "Строки заводит сотрудник при заполнении"
     },
     "schedule": {
       "chipOnce": "Разово",
@@ -280,6 +293,9 @@
       "empty": "В черновике пока нет ни одного пункта",
       "major": "Важный пункт",
       "rounds": "Проверяется обходом",
+      "table": "Журнал: {columns}",
+      "tableEmpty": "Журнал без колонок: сотруднику нечего заполнять",
+      "tableNorm": "{title} ({norm})",
       "roundsEvery": "{from}–{to}, {step}",
       "roundsRemind": "При просрочке напоминает каждые {count, plural, one {# минуту} few {# минуты} many {# минут} other {# минуты}}",
       "roundsSilent": "При просрочке не напоминает",
@@ -379,6 +395,14 @@
     "outsideRange": "вне диапазона",
     "numberPlaceholder": "Значение",
     "textPlaceholder": "Короткая запись",
+    "table": {
+      "row": "Строка {number}",
+      "addRow": "Добавить строку",
+      "removeRow": "Удалить строку {number}",
+      "empty": "Строк пока нет",
+      "noColumns": "Колонки не заданы",
+      "limit": "Больше {count} строк за смену не бывает"
+    },
     "failLabel": "Что не так?",
     "failHint": "Хватит короткой записи — управляющий увидит её сегодня.",
     "state": {

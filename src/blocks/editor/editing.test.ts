@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import type { Item, Section } from "@/blocks/data";
 
 import {
+  addColumn,
   addItemAfter,
   addSection,
   applyScheduleToSection,
@@ -16,8 +17,11 @@ import {
   insertLibrarySection,
   linkedBlockId,
   moveItem,
+  removeColumn,
   removeItem,
   removeSection,
+  setColumnNorm,
+  setColumnTitle,
   setItemSchedule,
   setItemTitle,
   setSectionTitle,
@@ -446,5 +450,112 @@ describe("регулярность пункта (T137)", () => {
 
     expect(before[0]?.items[1]).not.toHaveProperty("schedule");
     expect(before[0]?.items[0]).not.toHaveProperty("schedule");
+  });
+});
+
+/** Пункт-журнал с одной заполненной колонкой: от него тесты отклоняются. */
+function tableSections(): Section[] {
+  return [
+    {
+      id: "s1",
+      title: { ru: "Замес теста" },
+      source: "own",
+      items: [
+        {
+          id: "a",
+          title: { ru: "Журнал замесов" },
+          type: "table",
+          severity: "normal",
+          columns: [{ id: "c1", title: { ru: "Температура теста" } }],
+        },
+        item("b"),
+      ],
+    },
+  ];
+}
+
+describe("колонки табличного пункта (T141)", () => {
+  test("смена типа на «таблица» заводит первую колонку: курсору есть куда встать", () => {
+    const next = updateItem(sections(), "a", { type: "table" });
+
+    expect(next[0]?.items[0]?.columns).toHaveLength(1);
+    expect(next[0]?.items[0]?.columns?.[0]?.title).toStrictEqual({});
+  });
+
+  test("смена типа на «таблица» у пункта с колонками их не пересобирает", () => {
+    const next = updateItem(tableSections(), "a", { type: "table" });
+
+    expect(next[0]?.items[0]?.columns).toStrictEqual([
+      { id: "c1", title: { ru: "Температура теста" } },
+    ]);
+  });
+
+  test("уход с типа «таблица» снимает колонки: невидимое поле в базу не уезжает", () => {
+    const next = updateItem(tableSections(), "a", { type: "bool" });
+
+    expect(next[0]?.items[0]).not.toHaveProperty("columns");
+  });
+
+  test("смена типа не трогает расписание и прочие поля пункта", () => {
+    // Перечисление полей заново молча теряло всё, что появилось у пункта позже
+    // (так смена типа однажды стёрла расписание обхода, T137).
+    const next = updateItem(tableSections(), "a", { type: "table" });
+
+    expect(next[0]?.items[0]?.title).toStrictEqual({ ru: "Журнал замесов" });
+  });
+
+  test("добавленная колонка встаёт в конец и возвращает свой опознаватель", () => {
+    const { sections: next, focusColumnId } = addColumn(tableSections(), "a");
+    const columns = next[0]?.items[0]?.columns ?? [];
+
+    expect(columns).toHaveLength(2);
+    expect(columns[1]?.id).toBe(focusColumnId);
+    expect(columns[0]?.id).toBe("c1");
+  });
+
+  test("колонка добавляется только своему пункту", () => {
+    const { sections: next } = addColumn(tableSections(), "a");
+
+    expect(next[0]?.items[1]).not.toHaveProperty("columns");
+  });
+
+  test("название колонки правится на одном языке, второй остаётся", () => {
+    const base = updateItem(tableSections(), "a", {
+      columns: [
+        { id: "c1", title: { ru: "Температура теста", en: "Dough temp" } },
+      ],
+    });
+
+    const next = setColumnTitle(base, "a", "c1", "ru", "Температура, °C");
+
+    expect(next[0]?.items[0]?.columns?.[0]?.title).toStrictEqual({
+      ru: "Температура, °C",
+      en: "Dough temp",
+    });
+  });
+
+  test("норма правится отдельно от названия", () => {
+    const next = setColumnNorm(tableSections(), "a", "c1", "ru", "24…26 °C");
+
+    expect(next[0]?.items[0]?.columns?.[0]?.norm).toStrictEqual({
+      ru: "24…26 °C",
+    });
+  });
+
+  test("удаление колонки оставляет остальные в прежнем порядке", () => {
+    const { sections: two } = addColumn(tableSections(), "a");
+    const added = two[0]?.items[0]?.columns?.[1]?.id ?? "";
+
+    const next = removeColumn(two, "a", "c1");
+
+    expect(
+      next[0]?.items[0]?.columns?.map((column) => column.id),
+    ).toStrictEqual([added]);
+  });
+
+  test("удаление последней колонки оставляет пустой список, а не роняет пункт", () => {
+    const next = removeColumn(tableSections(), "a", "c1");
+
+    expect(next[0]?.items[0]?.columns).toStrictEqual([]);
   });
 });

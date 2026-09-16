@@ -479,3 +479,114 @@ describe("расписание периодической проверки (T137
     expect(section?.items[0]).not.toHaveProperty("remindEveryMinutes");
   });
 });
+
+/** Пункт-журнал: две колонки из вкладок `Dough mixing` с нормой над каждой. */
+function withTable(item: Record<string, unknown>): unknown[] {
+  return [
+    {
+      id: "section-1",
+      title: { ru: "Замес теста", en: "Dough mixing" },
+      source: "own",
+      items: [
+        {
+          id: "item-1",
+          title: { ru: "Журнал замесов", en: "Mixing log" },
+          type: "table",
+          severity: "normal",
+          ...item,
+        },
+      ],
+    },
+  ];
+}
+
+describe("табличный пункт: колонки с нормами (T141)", () => {
+  const TEMPERATURE = {
+    id: "col-1",
+    title: { ru: "Температура теста", en: "Dough temperature" },
+    norm: { ru: "24…26 °C", en: "24…26 °C" },
+  };
+  const WEIGHT = { id: "col-2", title: { ru: "Вес, г", en: "Weight, g" } };
+
+  test("колонки доезжают до базы вместе с нормой", () => {
+    const [section] = parseSections(
+      withTable({ columns: [TEMPERATURE, WEIGHT] }),
+    );
+
+    expect(section?.items[0]?.columns).toStrictEqual([TEMPERATURE, WEIGHT]);
+  });
+
+  test("порядок колонок сохраняется: он и есть порядок полей у сотрудника", () => {
+    const [section] = parseSections(
+      withTable({ columns: [WEIGHT, TEMPERATURE] }),
+    );
+
+    expect(
+      section?.items[0]?.columns?.map((column) => column.id),
+    ).toStrictEqual(["col-2", "col-1"]);
+  });
+
+  test("колонка без названия на всех языках пропускается, а не роняет сохранение", () => {
+    // Та же поблажка, что у пункта без текста: это пустая строка внизу списка,
+    // которую методист ещё не заполнил, а не мусор.
+    const [section] = parseSections(
+      withTable({ columns: [TEMPERATURE, { id: "col-3", title: {} }] }),
+    );
+
+    expect(section?.items[0]?.columns).toStrictEqual([TEMPERATURE]);
+  });
+
+  test("пустая норма полем не становится", () => {
+    const [section] = parseSections(
+      withTable({
+        columns: [{ id: "col-2", title: { ru: "Вес, г" }, norm: { ru: "  " } }],
+      }),
+    );
+
+    expect(section?.items[0]?.columns?.[0]).not.toHaveProperty("norm");
+  });
+
+  test("нетабличный пункт колонок не получает: невидимое поле в базу не уезжает", () => {
+    const [section] = parseSections(
+      withTable({ type: "bool", columns: [TEMPERATURE] }),
+    );
+
+    expect(section?.items[0]).not.toHaveProperty("columns");
+  });
+
+  test("табличный пункт без годных колонок поля не получает", () => {
+    const [section] = parseSections(withTable({ columns: [] }));
+
+    expect(section?.items[0]).not.toHaveProperty("columns");
+  });
+
+  test("колонок больше предела — отказ, а не молчаливая обрезка", () => {
+    const columns = Array.from({ length: LIMITS.columns + 1 }, (_, index) => ({
+      id: `col-${String(index)}`,
+      title: { ru: `Колонка ${String(index)}` },
+    }));
+
+    expect(() => parseSections(withTable({ columns }))).toThrow(
+      expect.objectContaining({ code: "tooManyColumns" }) as unknown,
+    );
+  });
+
+  test("колонки не списком — отказ разбора", () => {
+    expect(() => parseSections(withTable({ columns: "Температура" }))).toThrow(
+      EditorInputError,
+    );
+  });
+
+  test("у табличного пункта расписания обхода не бывает", () => {
+    // Журнал заводят строками за смену, а не отметками по часам: у обхода свой
+    // учёт (D076), и табличный пункт в нём показать нечем.
+    expect(() =>
+      parseSections(
+        withTable({
+          columns: [TEMPERATURE],
+          schedule: [{ from: "08:00", to: "16:00", everyMinutes: 60 }],
+        }),
+      ),
+    ).toThrow(expect.objectContaining({ code: "badSchedule" }) as unknown);
+  });
+});
