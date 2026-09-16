@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import { alarmText } from "../alarm-text";
 import type { AlarmRow, FeedAlarms, FeedSelection } from "../model";
 import { submissionHref } from "../view";
 
@@ -55,8 +56,8 @@ function whatText(row: AlarmRow, format: Formatter, t: Translate): string {
     timeZone: row.timeZone,
   });
 
-  if (row.kind === "missed") return t("missed", { time });
-  return t(row.kind, { count: row.itemCount });
+  const { key, values } = alarmText(row, time);
+  return t(key, values);
 }
 
 async function AlarmStripRow({
