@@ -5,12 +5,14 @@ export type {
   Answer,
   ChecklistWindow,
   Item,
+  ItemColumn,
   ItemType,
   LocalizedText,
   ScheduleSegment,
   Section,
   Severity,
   ShiftMode,
+  TableRow,
   VersionStatus,
 } from "./types";
 
