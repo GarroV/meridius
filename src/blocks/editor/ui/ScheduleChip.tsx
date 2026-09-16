@@ -127,10 +127,10 @@ function SegmentRow({
           onPatch({ to: event.target.value });
         }}
       />
-      <span className={HINT_CLASS}>{t("every")}</span>
+      <span className={HINT_CLASS}>{t("step")}</span>
       <select
         data-testid={`schedule-step-${String(index)}`}
-        aria-label={t("every")}
+        aria-label={t("step")}
         className={SELECT_CLASS}
         style={SELECT_ARROW_SMALL}
         value={String(segment.everyMinutes)}

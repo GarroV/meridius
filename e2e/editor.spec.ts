@@ -155,6 +155,21 @@ async function insertBlockByTitle(page: Page, title: string): Promise<void> {
     .click();
 }
 
+/**
+ * Открывает окно настройки регулярности чипом в строке пункта.
+ *
+ * Ждёт `data-live`, а не видимость: чип клиентский и до гидратации стоит в
+ * разметке, принимает нажатие и не открывает ничего — тот же род потерянного
+ * нажатия, что у кнопки «Вставить блок» (T121).
+ */
+async function openSchedule(page: Page, itemIndex: number): Promise<void> {
+  await page
+    .locator('[data-testid="item-schedule-chip"][data-live="true"]')
+    .nth(itemIndex)
+    .click();
+  await expect(page.getByTestId("schedule-dialog")).toBeVisible();
+}
+
 test.describe("редактор чек-листа", () => {
   // Эталон и тексты сценария русские, поэтому и браузер русский.
   test.use({ locale: "ru-RU" });
@@ -537,6 +552,142 @@ test.describe("редактор чек-листа", () => {
     await expect(screen.locator("button")).toHaveCount(0);
     await expect(
       screen.locator("[disabled], [aria-disabled='true']"),
+    ).toHaveCount(0);
+  });
+  // Главное обещание T137, и проверять его можно только в браузере: между окном
+  // настройки и базой лежат состояние React, скрытое поле формы и разбор на сервере,
+  // и модульные проверки видят только крайние звенья этой цепочки.
+  test("регулярность настраивается чипом и переживает сохранение черновика", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await createChecklist(page, `Обход ${label()}`);
+    await page.getByTestId("item-title").first().click();
+    await page.keyboard.type("Проверить сроки годности");
+
+    const chip = page.getByTestId("item-schedule-chip").first();
+    await expect(chip).toHaveText("Разово");
+
+    await openSchedule(page, 0);
+    // Отрезков ещё нет: пункт обычный, пока методист не сказал обратного.
+    await expect(page.getByTestId("schedule-segment")).toHaveCount(0);
+
+    await page.getByTestId("schedule-add").click();
+    // Первый отрезок — окно чек-листа целиком: за его пределами обхода не будет.
+    await expect(page.getByTestId("schedule-from-0")).toHaveValue("06:00");
+    await expect(page.getByTestId("schedule-to-0")).toHaveValue("11:00");
+
+    await page.getByTestId("schedule-step-0").selectOption("120");
+    await page.getByTestId("schedule-remind").selectOption("20");
+    await page.getByTestId("schedule-apply").click();
+
+    await expect(page.getByTestId("schedule-dialog")).toHaveCount(0);
+    await expect(chip).toHaveText("06:00–11:00, каждые 2 часа");
+
+    await page.getByTestId("save-draft").click();
+    await expect(page.getByTestId("editor-meta")).toHaveText(
+      "Черновик сохранён",
+    );
+
+    // Главный шаг: страница перечитана с сервера, то есть расписание съездило
+    // в базу и вернулось. До этой проверки всё выше доказывало только состояние экрана.
+    await page.reload();
+    await expect(page.getByTestId("item-schedule-chip").first()).toHaveText(
+      "06:00–11:00, каждые 2 часа",
+    );
+
+    await openSchedule(page, 0);
+    await expect(page.getByTestId("schedule-remind")).toHaveValue("20");
+  });
+
+  test("«Применить ко всей секции» ставит настройку всем пунктам сразу", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await createChecklist(page, `Секция ${label()}`);
+
+    await page.getByTestId("item-title").first().click();
+    await page.keyboard.type("Линия начинения");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Линия теста");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Стол выдачи");
+
+    const chips = page.getByTestId("item-schedule-chip");
+    await expect(chips).toHaveCount(3);
+
+    await openSchedule(page, 0);
+    await page.getByTestId("schedule-add").click();
+    await page.getByTestId("schedule-apply-section").click();
+    await expect(page.getByTestId("schedule-dialog")).toHaveCount(0);
+
+    // Секция носителем расписания НЕ стала (D075): настройка легла на каждый её
+    // пункт по отдельности — это видно по трём одинаковым чипам, а не по одной подписи секции.
+    for (let index = 0; index < 3; index += 1) {
+      await expect(chips.nth(index)).toHaveText("06:00–11:00, каждый час");
+    }
+  });
+
+  test("пустой отрезок не даёт применить настройку", async ({ page }) => {
+    await signIn(page);
+    await createChecklist(page, `Пустой отрезок ${label()}`);
+    await page.getByTestId("item-title").first().click();
+    await page.keyboard.type("Фритюр");
+
+    await openSchedule(page, 0);
+    await page.getByTestId("schedule-add").click();
+    await page.getByTestId("schedule-to-0").fill("06:00");
+
+    // Отказ разбора пришёл бы через два экрана, на «Сохранить черновик», и там уже
+    // не видно, КАКОЙ отрезок сведён в точку.
+    await expect(page.getByTestId("schedule-broken")).toBeVisible();
+    await expect(page.getByTestId("schedule-apply")).toBeDisabled();
+    await expect(page.getByTestId("schedule-apply-section")).toBeDisabled();
+
+    await page.getByTestId("schedule-to-0").fill("09:00");
+    await expect(page.getByTestId("schedule-broken")).toHaveCount(0);
+    await expect(page.getByTestId("schedule-apply")).toBeEnabled();
+  });
+
+  test("предпросмотр показывает периодический пункт состоянием, а не строкой формы", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await createChecklist(page, `Предпросмотр обхода ${label()}`);
+    await page.getByTestId("item-title").first().click();
+    await page.keyboard.type("Включить печь");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Проверить сроки годности");
+
+    await openSchedule(page, 1);
+    await page.getByTestId("schedule-add").click();
+    await page.getByTestId("schedule-remind").selectOption("20");
+    await page.getByTestId("schedule-apply").click();
+
+    await page.getByTestId("save-draft").click();
+    await expect(page.getByTestId("editor-meta")).toHaveText(
+      "Черновик сохранён",
+    );
+
+    await page.getByRole("link", { name: "Предпросмотр" }).click();
+    await expect(page.getByTestId("preview-screen")).toBeVisible();
+
+    // В форме остался один пункт — обычный. Периодический в форму не идёт
+    // вовсе: его отмечают обходом (D076), и экран станции делит пункты так же.
+    await expect(page.getByTestId("preview-item")).toHaveCount(1);
+    await expect(page.getByTestId("preview-left")).toHaveText(
+      "остался 1 пункт",
+    );
+
+    const round = page.getByTestId("preview-round");
+    await expect(round).toHaveCount(1);
+    await expect(round).toContainText("Проверить сроки годности");
+    await expect(round).toContainText("06:00–11:00, каждый час");
+    await expect(round).toContainText("каждые 20 минут");
+
+    // Предпросмотр остаётся показом и с панелью обхода (T115).
+    await expect(
+      page.getByTestId("preview-screen").locator("button"),
     ).toHaveCount(0);
   });
 });

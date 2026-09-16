@@ -21,13 +21,18 @@ export type StepTranslate = (
 const MINUTES_IN_HOUR = 60;
 
 /**
- * Часы и минуты — два отдельных ключа словаря, потому что оба числительных склоняются,
- * а склеивать их в одну строку кода значит писать русскую грамматику в TypeScript.
+ * Шаг целиком живёт в словаре одной фразой («каждый час», «каждые 2 часа»), а не
+ * склеивается из числа и существительного здесь: русское числительное согласуется и с существительным,
+ * и с предлогом, и склейка «каждые» + «1 час» даёт «каждые 1 час». Грамматика — в словаре.
+ *
+ * Шаг в целых часах называется часами, всё остальное — минутами целиком: «каждые 90 минут»,
+ * а не «каждый час каждые 30 минут». Дробный шаг в списке не предлагается, но может приехать
+ * импортом или прежней редакцией (`stepOptionsFor`).
  */
 export function stepLabel(everyMinutes: number, t: StepTranslate): string {
   const hours = Math.floor(everyMinutes / MINUTES_IN_HOUR);
-  const minutes = everyMinutes % MINUTES_IN_HOUR;
-  if (hours === 0) return t("stepMinutes", { count: minutes });
-  if (minutes === 0) return t("stepHours", { count: hours });
-  return `${t("stepHours", { count: hours })} ${t("stepMinutes", { count: minutes })}`;
+  if (hours > 0 && everyMinutes % MINUTES_IN_HOUR === 0) {
+    return t("stepHours", { count: hours });
+  }
+  return t("stepMinutes", { count: everyMinutes });
 }
