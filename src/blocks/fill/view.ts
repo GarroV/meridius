@@ -147,18 +147,16 @@ export function buildFillView(input: BuildFillViewInput): FillScreenView {
     0,
   );
 
+  const window = formatWindow(input.windowStart, input.windowEnd);
   const where = joinNonEmpty(
-    [
-      input.storeName,
-      input.stationName,
-      formatWindow(input.windowStart, input.windowEnd),
-    ],
+    [input.storeName, input.stationName, window],
     TEXT_PART_SEPARATOR,
   );
 
   return {
     checklistTitle: pickFillText(input.checklistTitle, input.locales),
     where,
+    window,
     sections,
     totalItems,
   };

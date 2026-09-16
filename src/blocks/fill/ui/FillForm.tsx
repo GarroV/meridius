@@ -480,6 +480,7 @@ export function FillForm({
       <AlarmsPanel
         alarms={alarms}
         code={code}
+        hours={view.window}
         add={addAlarm}
         drop={dropAlarm}
       />

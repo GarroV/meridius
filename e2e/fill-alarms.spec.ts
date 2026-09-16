@@ -6,7 +6,7 @@ import { seedFillStand } from "./fill-fixtures";
 import { E2E_PUBLIC_BASE_URL } from "./public-base-url";
 
 /**
- * Будильники станции на экране заполнения `/s/<код>` (D070, T139): сотрудник вручную
+ * Будильники станции на экране заполнения `/s/<код>` (D070, D090, T139): сотрудник вручную
  * вносит время и подпись — заводит записку под рукой, — а прозвонивший будильник снимает
  * кнопкой «Понятно». Сценарий в настоящем браузере, потому что проверяется ровно то, чего
  * модульные тесты `alarms.test.ts` не видят: что панель дошла до экрана, что запись уходит
@@ -35,9 +35,9 @@ function clock(totalMinutes: number): string {
  * UTC (его ставит `seedFillStand`), поэтому местное время станции равно UTC-времени
  * прогона, и считать его можно прямо из `Date`, не поднимая второй календарь.
  *
- * Результат прижат к 23:59: без этого прогон в последние минуты суток перескакивал бы
- * на завтра, а поле принимает только «сегодня» — это не обход, а та же граница, что и
- * у ночной смены в самом продукте (D070).
+ * Результат прижат к 23:59: окно чек-листа на стенде — 00:00–23:59, и будильник живёт
+ * до его конца (D090). Без этой прижимки прогон в последние минуты суток называл бы
+ * время за окном и получал бы законный отказ.
  */
 function futureLocalTime(now: Date, marginMinutes: number): string {
   return clock(now.getUTCHours() * 60 + now.getUTCMinutes() + marginMinutes);
@@ -61,8 +61,8 @@ async function seedRungAlarm(
   const pool = new Pool({ connectionString: e2eDatabaseUrl() });
   try {
     const { rows } = await pool.query<{ id: string }>(
-      `insert into alarms (station_id, local_date, at, label)
-       values ($1, (now() at time zone 'UTC')::date, now() - interval '2 minutes', $2)
+      `insert into alarms (station_id, at, label)
+       values ($1, now() - interval '2 minutes', $2)
        returning id`,
       [stationId, label],
     );

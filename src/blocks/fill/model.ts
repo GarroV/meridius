@@ -24,6 +24,12 @@ export interface FillScreenView {
   readonly checklistTitle: string;
   /** «Пиццерия · Станция · 06:00–12:00» — вторая строка шапки эталона. */
   readonly where: string;
+  /**
+   * «06:00–12:00» отдельной строкой: часы работы чек-листа нужны панели будильников,
+   * которая ими и ограничена (D090). Из `where` их не выковырять — там они склеены
+   * с названиями, а разбирать собранную строку обратно значит гадать.
+   */
+  readonly window: string;
   readonly sections: readonly FillSectionView[];
   readonly totalItems: number;
 }

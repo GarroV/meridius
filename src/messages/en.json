@@ -443,10 +443,11 @@
       "ringing": "Alarm for {time}",
       "acknowledge": "Got it",
       "noSound": "No sound: the tablet keeps a page silent until someone taps on it.",
-      "hint": "An alarm is one-off and lives until the end of the day. It rings while this screen is open.",
+      "hint": "An alarm is one-off and lives until the checklist stops working. It rings while this screen is open.",
       "refused": {
-        "pastTime": "That time has already passed today. Pick a later one.",
-        "tooMany": "No more than {count} alarms for today. Remove one you no longer need.",
+        "pastTime": "That time has already passed. Pick a later one.",
+        "outsideWindow": "An alarm can only be set within the checklist hours: {window}.",
+        "tooMany": "No more than {count} alarms at a time. Remove one you no longer need.",
         "tooOften": "Too often. Try again in {minutes} min.",
         "broken": "Could not do it. Reload the page and try again.",
         "offline": "Connection lost. Try again."

@@ -364,16 +364,16 @@ export const alarms = pgTable(
     stationId: uuid("station_id")
       .notNull()
       .references(() => stations.id, { onDelete: "cascade" }),
-    // Местные сутки станции, в которых будильник живёт: назавтра строка просто
-    // перестаёт читаться, и регулярности у неё не появляется (D070).
-    localDate: date("local_date").notNull(),
-    // Момент звонка. Считает база из часового пояса пиццерии (D026).
+    // Момент звонка. Считает база из часового пояса пиццерии (D026), и он же —
+    // единица жизни будильника: он живёт, пока попадает в текущий проход окна
+    // работы чек-листа станции (D090). Местных суток здесь нет намеренно: окно
+    // ночной пиццерии переходит через полночь, и будильник вместе с ним.
     at: timestamp("at", { withTimezone: true }).notNull(),
     label: text("label").notNull(),
     createdAt: serverTimestamp(CREATED_AT),
   },
   (table) => [
-    index("alarms_station_date_idx").on(table.stationId, table.localDate),
+    index("alarms_station_at_idx").on(table.stationId, table.at),
     // Подпись — короткая записка, а не докладная: её читают одним взглядом на 375 px.
     // Пустая запрещена: будильник без подписи звонит и не говорит, зачем.
     check(

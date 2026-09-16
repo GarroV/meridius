@@ -2,7 +2,12 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { alarms, getDb } from "@/blocks/data";
-import { createStation } from "@/blocks/data/testing/fixtures";
+import {
+  createChecklist,
+  createPublishedVersion,
+  createStation,
+  sampleSections,
+} from "@/blocks/data/testing/fixtures";
 
 import { ALARM_LIMITS } from "./alarm-limits";
 import {
@@ -20,16 +25,50 @@ import { FILL_LIMITS, forgetAllFillHits } from "./rate-limit";
 const TOKYO = "Asia/Tokyo";
 const NOW = new Date("2026-09-16T23:00:00Z"); // Токио: 17 сентября, 08:00
 
+/**
+ * Ночная пиццерия: чек-лист работает с 22:00 до 02:00, то есть его окно переходит через
+ * полночь. Пояс UTC, поэтому местное время станции равно отметке прогона и читается
+ * прямо из строки.
+ *
+ * Ради этой станции задача и заведена (D090): проход окна длиннее местных суток, и
+ * будильник обязан жить до конца окна, а не до полуночи.
+ */
+const NIGHT_WINDOW = { start: "22:00:00", end: "02:00:00" } as const;
+const BEFORE_MIDNIGHT = new Date("2026-09-16T23:40:00Z");
+const AFTER_MIDNIGHT = new Date("2026-09-17T00:10:00Z");
+const AFTER_WINDOW = new Date("2026-09-17T02:05:00Z");
+
 beforeEach(() => {
   forgetAllFillHits();
 });
 
-async function station(timezone: string): Promise<{
+/**
+ * Станция с открытым чек-листом: без него будильник ставить некуда — предел его жизни
+ * считается по окну работы чек-листа (D090). Окно по умолчанию дневное, 06:00–12:00,
+ * и в него попадает `NOW` у токийской пиццерии.
+ */
+async function station(
+  timezone: string,
+  window?: { readonly start: string; readonly end: string },
+): Promise<{
   code: string;
   stationId: string;
 }> {
   const fixture = await createStation({ timezone });
+  const checklistId = await createChecklist({
+    stationId: fixture.stationId,
+    ...(window === undefined
+      ? {}
+      : { windowStart: window.start, windowEnd: window.end }),
+  });
+  await createPublishedVersion(checklistId, sampleSections("будильники"));
   return { code: fixture.stationCode, stationId: fixture.stationId };
+}
+
+/** Станция, которой заполнять сейчас нечего: ни одного открытого чек-листа. */
+async function stationWithoutChecklist(): Promise<{ code: string }> {
+  const fixture = await createStation({ timezone: TOKYO });
+  return { code: fixture.stationCode };
 }
 
 describe("parseAlarmInput — форма тела на границе", () => {
@@ -124,7 +163,7 @@ describe("parseAlarmRemoval", () => {
 });
 
 describe("setAlarm — заведение будильника", () => {
-  it("записывает будильник на местные сутки станции и отдаёт список", async () => {
+  it("заводит будильник в часы чек-листа и отдаёт список станции", async () => {
     const { code } = await station(TOKYO);
 
     const outcome = await setAlarm(
@@ -142,26 +181,30 @@ describe("setAlarm — заведение будильника", () => {
     expect(alarm?.ringsInSeconds).toBe(90 * 60);
   });
 
-  it("местные сутки считает пояс пиццерии, а не сервер", async () => {
+  it("миг звонка считает пояс пиццерии, а не сервер", async () => {
     const { code, stationId } = await station(TOKYO);
 
     await setAlarm({ code, atLocalTime: "09:30", label: "тесто" }, NOW);
 
     const [row] = await getDb()
-      .select({ localDate: alarms.localDate })
+      .select({ at: alarms.at })
       .from(alarms)
       .where(eq(alarms.stationId, stationId));
-    // В UTC ещё 16 сентября, в Токио уже 17-е. Сутки будильника — токийские.
-    expect(row?.localDate).toBe("2026-09-17");
+    // В UTC ещё 16 сентября 23:00, в Токио уже 17-е, 08:00. Токийские 09:30 —
+    // это 00:30 UTC семнадцатого, а не девятое с половиной по часам сервера.
+    expect(row?.at.toISOString()).toBe("2026-09-17T00:30:00.000Z");
   });
 
-  it("время, которое сегодня уже прошло, не принимается", async () => {
-    // Та же минута и та же подпись, но пиццерия в UTC: там 16 сентября 23:00,
-    // и 09:30 сегодня уже позади.
-    const { code } = await station("UTC");
+  it("прошедшее время внутри окна отвергается вслух", async () => {
+    // Ночная станция в 23:40: 23:00 этого же прохода окна уже позади. Молча уехать
+    // на завтра такой будильник не имеет права — владелец выбрал отказ (D090).
+    const { code } = await station("UTC", NIGHT_WINDOW);
 
     expect(
-      await setAlarm({ code, atLocalTime: "09:30", label: "тесто" }, NOW),
+      await setAlarm(
+        { code, atLocalTime: "23:00", label: "тесто" },
+        BEFORE_MIDNIGHT,
+      ),
     ).toStrictEqual({
       kind: "refused",
       reason: "past-time",
@@ -170,19 +213,104 @@ describe("setAlarm — заведение будильника", () => {
   });
 
   it("текущая минута прошедшей не считается только вперёд", async () => {
-    const { code } = await station("UTC");
-    // 23:00 UTC ровно: та же минута уже наступила, будильник на неё бессмыслен.
+    const { code } = await station("UTC", NIGHT_WINDOW);
+    // 23:40 ровно: та же минута уже наступила, будильник на неё бессмыслен.
     expect(
-      await setAlarm({ code, atLocalTime: "23:00", label: "тесто" }, NOW),
+      await setAlarm(
+        { code, atLocalTime: "23:40", label: "тесто" },
+        BEFORE_MIDNIGHT,
+      ),
     ).toStrictEqual({
       kind: "refused",
       reason: "past-time",
       retryAfterSeconds: 0,
     });
     expect(
-      (await setAlarm({ code, atLocalTime: "23:01", label: "тесто" }, NOW))
-        .kind,
+      (
+        await setAlarm(
+          { code, atLocalTime: "23:41", label: "тесто" },
+          BEFORE_MIDNIGHT,
+        )
+      ).kind,
     ).toBe("alarms");
+  });
+
+  it("окно через полночь принимает время после полуночи", async () => {
+    // Тот самый случай, ради которого будильник и заводят: в 23:40 поставить на 00:30.
+    const { code } = await station("UTC", NIGHT_WINDOW);
+
+    const outcome = await setAlarm(
+      { code, atLocalTime: "00:30", label: "вынести тесто" },
+      BEFORE_MIDNIGHT,
+    );
+
+    expect(outcome.kind).toBe("alarms");
+    if (outcome.kind !== "alarms") return;
+    const [alarm] = outcome.alarms;
+    expect(alarm?.atLocalTime).toBe("00:30");
+    // 23:40 → 00:30 следующих суток: пятьдесят минут.
+    expect(alarm?.ringsInSeconds).toBe(50 * 60);
+  });
+
+  it("после полуночи окно принимает время до своего конца", async () => {
+    const { code } = await station("UTC", NIGHT_WINDOW);
+
+    expect(
+      (
+        await setAlarm(
+          { code, atLocalTime: "01:00", label: "тесто" },
+          AFTER_MIDNIGHT,
+        )
+      ).kind,
+    ).toBe("alarms");
+  });
+
+  it("время вне окна чек-листа не принимается", async () => {
+    const night = await station("UTC", NIGHT_WINDOW);
+    const day = await station(TOKYO);
+
+    // Ночная станция в 23:40: 21:00 — до начала окна, 03:00 — после его конца.
+    expect(
+      await setAlarm(
+        { code: night.code, atLocalTime: "21:00", label: "тесто" },
+        BEFORE_MIDNIGHT,
+      ),
+    ).toStrictEqual({
+      kind: "refused",
+      reason: "outside-window",
+      retryAfterSeconds: 0,
+    });
+    expect(
+      (
+        await setAlarm(
+          { code: night.code, atLocalTime: "03:00", label: "тесто" },
+          AFTER_MIDNIGHT,
+        )
+      ).kind,
+    ).toBe("refused");
+    // Дневная станция 06:00–12:00: 13:00 за концом окна.
+    expect(
+      await setAlarm(
+        { code: day.code, atLocalTime: "13:00", label: "тесто" },
+        NOW,
+      ),
+    ).toStrictEqual({
+      kind: "refused",
+      reason: "outside-window",
+      retryAfterSeconds: 0,
+    });
+  });
+
+  it("станции без открытого чек-листа будильник не заводится", async () => {
+    const { code } = await stationWithoutChecklist();
+
+    expect(
+      await setAlarm({ code, atLocalTime: "09:30", label: "тесто" }, NOW),
+    ).toStrictEqual({
+      kind: "refused",
+      reason: "outside-window",
+      retryAfterSeconds: 0,
+    });
   });
 
   it("неизвестный код отказывает так же, как всюду на этом экране", async () => {
@@ -198,10 +326,14 @@ describe("setAlarm — заведение будильника", () => {
     });
   });
 
-  it("больше предела за сутки не заводится", async () => {
+  it("больше предела на проход окна не заводится", async () => {
     const { code } = await station(TOKYO);
 
-    for (let minute = 0; minute < ALARM_LIMITS.maxPerStationPerDay; minute++) {
+    for (
+      let minute = 0;
+      minute < ALARM_LIMITS.maxPerStationPerWindow;
+      minute++
+    ) {
       const outcome = await setAlarm(
         {
           code,
@@ -214,7 +346,7 @@ describe("setAlarm — заведение будильника", () => {
     }
 
     expect(
-      await setAlarm({ code, atLocalTime: "23:59", label: "лишний" }, NOW),
+      await setAlarm({ code, atLocalTime: "11:59", label: "лишний" }, NOW),
     ).toStrictEqual({
       kind: "refused",
       reason: "too-many",
@@ -255,18 +387,50 @@ describe("listAlarms — что видит экран станции", () => {
     ]);
   });
 
-  it("вчерашние будильники сегодня не показываются", async () => {
+  it("будильники прошлого прохода окна не показываются", async () => {
     const { code, stationId } = await station(TOKYO);
+    // Вчерашние токийские 10:00 — прошлый проход того же окна 06:00–12:00.
     await getDb()
       .insert(alarms)
       .values({
         stationId,
-        localDate: "2026-09-16",
         at: new Date("2026-09-16T01:00:00Z"),
         label: "вчерашняя записка",
       });
 
     expect(await listAlarms(code, NOW)).toStrictEqual([]);
+  });
+
+  it("будильник за полночь виден и после полуночи, и до конца окна", async () => {
+    // Подводный камень задачи: запись принадлежит уже СЛЕДУЮЩИМ местным суткам, и
+    // выборка «на сегодня» теряла бы её ровно в 00:00 — будильник не прозвонил бы.
+    const { code } = await station("UTC", NIGHT_WINDOW);
+    await setAlarm(
+      { code, atLocalTime: "00:30", label: "вынести тесто" },
+      BEFORE_MIDNIGHT,
+    );
+
+    const beforeMidnight = await listAlarms(code, BEFORE_MIDNIGHT);
+    expect(beforeMidnight.map((alarm) => alarm.label)).toEqual([
+      "вынести тесто",
+    ]);
+
+    const afterMidnight = await listAlarms(code, AFTER_MIDNIGHT);
+    expect(afterMidnight.map((alarm) => alarm.label)).toEqual([
+      "вынести тесто",
+    ]);
+    // Двадцать минут до звонка: отсчёт идёт от сервера, а не от часов планшета.
+    expect(afterMidnight[0]?.ringsInSeconds).toBe(20 * 60);
+  });
+
+  it("после конца окна будильники не показываются", async () => {
+    const { code } = await station("UTC", NIGHT_WINDOW);
+    await setAlarm(
+      { code, atLocalTime: "01:00", label: "вынести тесто" },
+      BEFORE_MIDNIGHT,
+    );
+
+    expect(await listAlarms(code, AFTER_WINDOW)).toStrictEqual([]);
   });
 
   it("будильники чужой станции по этому коду не отдаются", async () => {

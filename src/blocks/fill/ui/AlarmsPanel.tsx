@@ -67,6 +67,11 @@ export interface AlarmsPanelProps {
   readonly alarms: readonly AlarmView[];
   readonly code: string;
   /**
+   * Часы работы чек-листа, «22:00–02:00». Нужны отказу: будильник живёт до конца окна
+   * (D090), и на отказ «не те часы» сотруднику надо назвать те, которые те.
+   */
+  readonly hours: string;
+  /**
    * Действия передаются сверху, а не импортируются здесь: так панель проверяется
    * без серверной части — тем же приёмом, что `FillForm` и `RoundsPanel`.
    */
@@ -112,6 +117,7 @@ async function beep(): Promise<boolean> {
 export function AlarmsPanel({
   alarms,
   code,
+  hours,
   add,
   drop,
 }: AlarmsPanelProps): ReactElement {
@@ -177,11 +183,13 @@ export function AlarmsPanel({
               })
             : outcome.reason === "past-time"
               ? t("refused.pastTime")
-              : outcome.reason === "too-many"
-                ? t("refused.tooMany", {
-                    count: ALARM_LIMITS.maxPerStationPerDay,
-                  })
-                : t("refused.broken"),
+              : outcome.reason === "outside-window"
+                ? t("refused.outsideWindow", { window: hours })
+                : outcome.reason === "too-many"
+                  ? t("refused.tooMany", {
+                      count: ALARM_LIMITS.maxPerStationPerWindow,
+                    })
+                  : t("refused.broken"),
         );
         return false;
       } catch {
@@ -192,7 +200,7 @@ export function AlarmsPanel({
         setBusy(false);
       }
     },
-    [t],
+    [hours, t],
   );
 
   const ringingAlarms = list.filter((alarm) => ringing.includes(alarm.id));
