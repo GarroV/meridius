@@ -186,6 +186,6 @@ describe("сетка обходов", () => {
 
     const grid = buildRoundsGrid([renamed, day("2026-09-04")], []);
 
-    expect(grid.rows[0]?.itemTitle.ru).toBe("Линия раздачи и соусы");
+    expect(grid.rows[0]?.itemTitle["ru"]).toBe("Линия раздачи и соусы");
   });
 });

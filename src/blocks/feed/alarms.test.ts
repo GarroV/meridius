@@ -19,17 +19,15 @@ import {
   createStation,
 } from "@/blocks/data/testing/fixtures";
 
-import type { Alarm, AlarmScope } from "./alarms";
+import type { Alarm } from "./alarms";
+import type { FeedScope } from "./scope";
 import { listAlarms } from "./alarms";
 
 const db = getTestDb();
 afterAll(closeTestDb);
 
 /** Сами тревоги: предел выдачи проверяется отдельно, а не в каждом сценарии. */
-async function alarmsOf(
-  scope: AlarmScope,
-  at: Date,
-): Promise<readonly Alarm[]> {
+async function alarmsOf(scope: FeedScope, at: Date): Promise<readonly Alarm[]> {
   return (await listAlarms(scope, at)).alarms;
 }
 

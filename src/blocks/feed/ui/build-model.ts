@@ -11,7 +11,8 @@ import {
   severityOf,
 } from "@/blocks/data";
 
-import type { AlarmList, AlarmScope } from "../alarms";
+import type { AlarmList } from "../alarms";
+import type { FeedScope } from "../scope";
 import { listAlarms } from "../alarms";
 import { checklistHref } from "../checklist-link";
 import { computeMetrics } from "../metrics";
@@ -54,7 +55,7 @@ const FEED_LIMIT = 200;
 const ALARM_STRIP_LIMIT = 6;
 
 /** Фильтры экрана в том виде, в каком их принимают запросы: незаданное не передаётся. */
-function scopeOf(selection: FeedSelection): AlarmScope {
+function scopeOf(selection: FeedSelection): FeedScope {
   return {
     ...(selection.countryId === null ? {} : { countryId: selection.countryId }),
     ...(selection.storeId === null ? {} : { storeId: selection.storeId }),
