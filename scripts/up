@@ -70,7 +70,10 @@ if same_as_example ADMIN_PASSWORD_HASH; then
   set_env_value ADMIN_PASSWORD_HASH "${NEW_HASH_LINE#*=}"
 fi
 
-PORT="$(env_value PORT 3100)"
+# Порт приложения считает один общий источник (src/blocks/core/app-port.ts): своя
+# копия разбора здесь была половиной дефекта #71 — `npm run dev` и `npm run start`
+# уходили на литерал, а этот путь уважал .env, и расхождение не было видно ничем.
+PORT="$(node scripts/app-port.mjs)" || die "не удалось определить порт приложения"
 DB_PORT="$(env_value DB_PORT 5433)"
 PROJECT="${COMPOSE_PROJECT_NAME:-$(env_value COMPOSE_PROJECT_NAME meridius)}"
 URL="http://localhost:${PORT}"
@@ -128,4 +131,6 @@ if [ -n "${NEW_ADMIN_PASSWORD:-}" ]; then
 fi
 printf 'Остановить: Ctrl-C. Убрать базу: docker compose -p %s down -v\n\n' "$PROJECT"
 
-exec npx --no-install next start --port "$PORT"
+# Тот же запускатель, что у `npm run start`: два способа поднять продукт — это два
+# способа разойтись.
+exec node scripts/next-app.mjs start
