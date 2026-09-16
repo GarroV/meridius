@@ -332,4 +332,30 @@ describe("buildRoundsPanel", () => {
     expect(panel.items).toHaveLength(0);
     expect(panel.missedTotal).toBe(0);
   });
+
+  test("неразобранное начало окна отбивается вслух, а не считается полуночью", () => {
+    // T167, issue #77. Раньше здесь стоял `parseLocalTime(window.start) ?? 0`, и
+    // неразобранное начало тихо превращалось в полночь: строка «Проверить до 01:00»
+    // вместо «до 09:00» выглядит как настоящий ответ, и отличить её от верной нельзя.
+    // Настоящие данные сюда не приходят — начало окна живёт в колонке `time`, — но
+    // разница между «не врёт» и «верно» держалась на внешнем обстоятельстве.
+    const grid = rounds();
+    const current = grid.intervals[1];
+    if (current === undefined) throw new Error("нет прохода");
+
+    const build = () =>
+      buildRoundsPanel({
+        rounds: {
+          ...view([{ ...grid, current: { ...current, state: "open" } }]),
+          window: { start: "не время", end: "23:00:00" },
+        },
+        sections: sections({ i1: "Линия начинения" }),
+        locales: ["ru"],
+        labels,
+      });
+
+    expect(build).toThrow(RangeError);
+    // Отказ обязан назвать то, что не разобрано: без этого чинить нечего.
+    expect(build).toThrow(/не время/);
+  });
 });
