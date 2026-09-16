@@ -147,7 +147,14 @@ export async function FillScreen({
   const rounds = await getRounds(target.version.id, now);
   const panel =
     rounds === null
-      ? { items: [], missedTotal: 0 }
+      ? {
+          items: [],
+          missedTotal: 0,
+          // Обходов нет — звонить не о чем и перерисовываться незачем.
+          overdue: null,
+          nextChangeInSeconds: null,
+          ringsOnMiss: false,
+        }
       : buildRoundsPanel({
           rounds,
           sections: target.sections,

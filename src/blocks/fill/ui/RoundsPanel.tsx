@@ -7,6 +7,7 @@ import type { ReactElement } from "react";
 
 import type { RoundsPanelView, RoundSummaryView } from "../model";
 import type { RoundOutcome } from "../rounds";
+import { OverduePlate } from "./OverduePlate";
 
 /**
  * Обходы на экране станции (D076).
@@ -44,6 +45,8 @@ const SUMMARY_CLASS =
   "min-h-[var(--tap-min)] cursor-pointer list-none py-[var(--space-3)] text-[length:var(--fs-meta)] text-[var(--accent)] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]";
 const MARK_ROW_CLASS =
   "flex flex-wrap items-baseline gap-x-[var(--space-4)] border-t border-[var(--line)] py-[var(--space-4)] text-[length:var(--fs-meta)]";
+const HINT_CLASS =
+  "px-[var(--space-7)] pt-[var(--space-5)] pb-[var(--space-6)] text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const NOTICE_CLASS =
   "mt-[var(--space-4)] rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-6)] py-[var(--space-5)] text-[length:var(--fs-dense)] text-[var(--err)]";
 
@@ -148,6 +151,11 @@ export function RoundsPanel({
   return (
     <section data-testid="rounds-panel" className={PANEL_CLASS}>
       <h2 className={HEAD_CLASS}>{t("title")}</h2>
+
+      <OverduePlate
+        overdue={panel.overdue}
+        nextChangeInSeconds={panel.nextChangeInSeconds}
+      />
 
       {panel.items.map((item) => {
         const phase = phases[item.itemId] ?? { kind: "idle" };
@@ -324,6 +332,12 @@ export function RoundsPanel({
           </div>
         );
       })}
+
+      {panel.ringsOnMiss ? (
+        <p data-testid="rounds-remind-hint" className={HINT_CLASS}>
+          {t("remindHint")}
+        </p>
+      ) : null}
     </section>
   );
 }

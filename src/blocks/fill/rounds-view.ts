@@ -21,6 +21,8 @@ import {
 } from "@/blocks/data";
 
 import { pickFillText } from "./locale";
+import { buildOverdue } from "./overdue";
+import type { OverdueItem } from "./overdue";
 import type {
   RoundMarkView,
   RoundState,
@@ -203,8 +205,24 @@ export function buildRoundsPanel(
     });
   }
 
+  // Сигнал о просрочке считается здесь же и из того же материала (T138): настройка
+  // оповещения лежит на пункте версии, а состояние строки уже посчитано выше. Второй
+  // проход по тем же данным в другом месте разошёлся бы с панелью ровно тогда, когда
+  // это дороже всего — станция звонила бы о том, чего на экране не видно.
+  const overdueItems: OverdueItem[] = items.map((item) => ({
+    itemId: item.itemId,
+    title: item.title,
+    remindEveryMinutes: byId.get(item.itemId)?.remindEveryMinutes,
+    state: item.state,
+    missedCount: item.missedCount,
+  }));
+  const signal = buildOverdue({ rounds: input.rounds, items: overdueItems });
+
   return {
     items,
     missedTotal: items.reduce((total, item) => total + item.missedCount, 0),
+    overdue: signal.overdue,
+    nextChangeInSeconds: signal.nextChangeInSeconds,
+    ringsOnMiss: signal.ringsOnMiss,
   };
 }

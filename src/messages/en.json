@@ -458,6 +458,11 @@
       "expand": "Show today's rounds ({count})",
       "yes": "all good",
       "no": "problem",
+      "remindHint": "The station rings about a missed check while this screen is open.",
+      "overdue": {
+        "headline": "{count, plural, one {# check missed} other {# checks missed}}",
+        "noSound": "No sound: the tablet keeps a page silent until someone taps on it."
+      },
       "refused": {
         "noRound": "No round is due right now: the checklist is closed or today's rounds are over.",
         "needComment": "Say what you found — the mark is not accepted without it.",

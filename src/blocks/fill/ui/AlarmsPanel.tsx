@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 
 import { ALARM_LIMITS } from "../alarm-limits";
+import { beep } from "./beep";
 import type { AlarmOutcome, AlarmRefusal, AlarmView } from "../alarms";
 
 /**
@@ -20,17 +21,14 @@ import type { AlarmOutcome, AlarmRefusal, AlarmView } from "../alarms";
  * Ради этого он и хранится строкой в базе.
  *
  * Про звук здесь сказано вслух: он работает, пока экран открыт. Умолчать об этом —
- * значит дать обещание, которого продукт не держит, а планшет на кухне гасят.
+ * значит дать обещание, которого продукт не держит, а планшет на кухне гасят. Сам
+ * гудок живёт в `./beep`: его делит с панелью сигнал о пропущенной проверке, и две
+ * копии разъехались бы по громкости — сотрудник слышал бы два разных звука от
+ * одного планшета.
  */
 
 const MINUTE_SECONDS = 60;
 const MS = 1000;
-/** Три коротких гудка: узнаваемо и не пугает кухню. */
-const BEEPS = 3;
-const BEEP_SECONDS = 0.18;
-const BEEP_GAP_SECONDS = 0.28;
-const BEEP_HZ = 880;
-const BEEP_GAIN = 0.12;
 
 const PANEL_CLASS = "border-t-[6px] border-[var(--surface-3)]";
 const HEAD_CLASS =
@@ -120,41 +118,6 @@ export interface AlarmsPanelProps {
    */
   readonly add: (input: unknown) => Promise<AlarmOutcome>;
   readonly drop: (input: unknown) => Promise<AlarmOutcome>;
-}
-
-/**
- * Гудок будильника.
- *
- * Звук может не пойти: браузер не даёт звучать странице, на которой ещё никто ничего
- * не нажимал. Это не глотание ошибки — плашка звонящего будильника остаётся на экране
- * в любом случае, и именно она, а не звук, сообщает сотруднику о будильнике. Вернувшееся
- * `false` говорит панели, что звук не пошёл, и она пишет об этом прямо в плашке.
- */
-async function beep(): Promise<boolean> {
-  try {
-    // Обращение внутри try намеренно: в среде без Web Audio это бросит, и ветка
-    // «звука нет» одна на оба случая — нет поддержки и не дали звучать.
-    const ctx = new globalThis.AudioContext();
-    // Состояние спрашивается ПОСЛЕ того, как разрешение доиграно: сразу после вызова
-    // оно ещё «suspended» всегда, и панель писала бы «звука нет» даже там, где звук
-    // пошёл. Надпись, которая врёт в половине случаев, учит не читать панель вовсе.
-    await ctx.resume();
-    if (ctx.state !== "running") return false;
-
-    for (let index = 0; index < BEEPS; index++) {
-      const start = ctx.currentTime + index * BEEP_GAP_SECONDS;
-      const tone = ctx.createOscillator();
-      const gain = ctx.createGain();
-      tone.frequency.value = BEEP_HZ;
-      gain.gain.value = BEEP_GAIN;
-      tone.connect(gain).connect(ctx.destination);
-      tone.start(start);
-      tone.stop(start + BEEP_SECONDS);
-    }
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 export function AlarmsPanel({
