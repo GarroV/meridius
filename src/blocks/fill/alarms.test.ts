@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { alarms, getDb } from "@/blocks/data";
 import { createStation } from "@/blocks/data/testing/fixtures";
 
+import { ALARM_LIMITS } from "./alarm-limits";
 import {
-  ALARM_LIMITS,
   dropAlarm,
   listAlarms,
   parseAlarmInput,

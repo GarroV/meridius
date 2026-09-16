@@ -20,23 +20,11 @@ import { and, asc, eq, sql } from "drizzle-orm";
 
 import { alarms, getDb, stations, stores } from "@/blocks/data";
 
+import { ALARM_LIMITS } from "./alarm-limits";
 import { checkAlarmAllowed } from "./rate-limit";
 import { isPlausibleCode } from "./station";
 import type { FillRefusal, Parsed } from "./validation";
 import { UUID_PATTERN } from "./validation";
-
-/**
- * Рабочие пределы будильников. В базе стоят свои, вдвое шире (`alarms_label_length`):
- * там заслон от мусора, здесь мерка продукта.
- *
- * `maxPerStationPerDay` — не украшение, а заслон: точка записи публичная, и без потолка
- * один подобранный код набивал бы станции сотни записок. Двенадцать — с запасом к
- * работе: за смену вручную заводят единицы, а панель на 375 px больше и не показать.
- */
-export const ALARM_LIMITS = {
-  maxLabelLength: 120,
-  maxPerStationPerDay: 12,
-} as const;
 
 /** Местное время «ЧЧ:ММ» ровно в том виде, в каком его отдаёт `<input type="time">`. */
 const LOCAL_TIME_SHAPE = /^([01]\d|2[0-3]):[0-5]\d$/;

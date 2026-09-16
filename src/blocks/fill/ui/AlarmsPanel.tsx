@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 
+import { ALARM_LIMITS } from "../alarm-limits";
 import type { AlarmOutcome, AlarmView } from "../alarms";
 
 /**
@@ -42,8 +43,13 @@ const LABEL_CLASS =
   "flex-1 text-[length:var(--fs-lead)] leading-[21px] break-words";
 const DROP_CLASS =
   "min-h-[var(--tap-min)] min-w-[var(--tap-min)] shrink-0 cursor-pointer rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface text-[length:var(--fs-lead)] text-[var(--ink-3)] transition-colors hover:border-[var(--accent-line)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-default disabled:opacity-60";
+// Заведение идёт двумя строками, а не одной: на 375 px «время + подпись + кнопка»
+// в строку не помещаются, и подпись сжимается до полутора слов — подсказка обрывается
+// на середине. Подпись — главное поле, ей отдана вся ширина; время и кнопка короткие
+// и стоят вторым рядом.
 const FORM_CLASS =
-  "flex flex-wrap items-center gap-[var(--space-4)] border-t border-[var(--line)] px-[var(--space-7)] py-[var(--space-5)]";
+  "flex flex-col gap-[var(--space-4)] border-t border-[var(--line)] px-[var(--space-7)] py-[var(--space-5)]";
+const FORM_ROW_CLASS = "flex items-center gap-[var(--space-4)]";
 const INPUT_CLASS =
   "min-h-[var(--tap-min)] rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface px-[var(--space-5)] text-[length:var(--fs-lead)] text-ink focus:border-[var(--accent)] focus:outline-none";
 const BUTTON_CLASS =
@@ -172,7 +178,9 @@ export function AlarmsPanel({
             : outcome.reason === "past-time"
               ? t("refused.pastTime")
               : outcome.reason === "too-many"
-                ? t("refused.tooMany", { count: list.length })
+                ? t("refused.tooMany", {
+                    count: ALARM_LIMITS.maxPerStationPerDay,
+                  })
                 : t("refused.broken"),
         );
         return false;
@@ -184,7 +192,7 @@ export function AlarmsPanel({
         setBusy(false);
       }
     },
-    [t, list.length],
+    [t],
   );
 
   const ringingAlarms = list.filter((alarm) => ringing.includes(alarm.id));
@@ -251,49 +259,52 @@ export function AlarmsPanel({
       ))}
 
       <div className={FORM_CLASS}>
-        <label className="sr-only" htmlFor="alarm-time">
-          {t("timeLabel")}
-        </label>
-        <input
-          id="alarm-time"
-          data-testid="alarm-time"
-          type="time"
-          className={`${INPUT_CLASS} w-[7.5rem]`}
-          value={time}
-          onChange={(event) => {
-            setTime(event.target.value);
-          }}
-        />
         <label className="sr-only" htmlFor="alarm-label">
           {t("labelLabel")}
         </label>
         <input
           id="alarm-label"
           data-testid="alarm-label"
-          className={`${INPUT_CLASS} min-w-0 flex-1`}
+          className={`${INPUT_CLASS} w-full`}
+          maxLength={ALARM_LIMITS.maxLabelLength}
           placeholder={t("labelPlaceholder")}
           value={label}
           onChange={(event) => {
             setLabel(event.target.value);
           }}
         />
-        <button
-          type="button"
-          data-testid="alarm-add"
-          className={BUTTON_CLASS}
-          disabled={busy || time === "" || label.trim() === ""}
-          onClick={() => {
-            void apply(() =>
-              add({ code, atLocalTime: time, label: label.trim() }),
-            ).then((ok) => {
-              if (!ok) return;
-              setTime("");
-              setLabel("");
-            });
-          }}
-        >
-          {t("add")}
-        </button>
+        <div className={FORM_ROW_CLASS}>
+          <label className="sr-only" htmlFor="alarm-time">
+            {t("timeLabel")}
+          </label>
+          <input
+            id="alarm-time"
+            data-testid="alarm-time"
+            type="time"
+            className={`${INPUT_CLASS} w-[8rem] shrink-0`}
+            value={time}
+            onChange={(event) => {
+              setTime(event.target.value);
+            }}
+          />
+          <button
+            type="button"
+            data-testid="alarm-add"
+            className={`${BUTTON_CLASS} flex-1`}
+            disabled={busy || time === "" || label.trim() === ""}
+            onClick={() => {
+              void apply(() =>
+                add({ code, atLocalTime: time, label: label.trim() }),
+              ).then((ok) => {
+                if (!ok) return;
+                setTime("");
+                setLabel("");
+              });
+            }}
+          >
+            {t("add")}
+          </button>
+        </div>
       </div>
 
       {notice === null ? null : (
