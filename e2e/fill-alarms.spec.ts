@@ -82,7 +82,11 @@ function alarmRows(page: Page, label?: string) {
   return label === undefined ? rows : rows.filter({ hasText: label });
 }
 
-async function addAlarm(page: Page, time: string, label: string): Promise<void> {
+async function addAlarm(
+  page: Page,
+  time: string,
+  label: string,
+): Promise<void> {
   await page.getByTestId("alarm-time").fill(time);
   await page.getByTestId("alarm-label").fill(label);
   await page.getByTestId("alarm-add").tap();
