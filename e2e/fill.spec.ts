@@ -182,14 +182,46 @@ test.describe("экран заполнения по QR", () => {
     );
     expect(overflow).toBeLessThanOrEqual(0);
 
-    const heights = await page
-      .locator('[data-testid="fill-item"], [data-testid="fill-submit"], input')
-      .evaluateAll((nodes) =>
-        nodes.map((node) => Math.round(node.getBoundingClientRect().height)),
-      );
-    expect(heights.length).toBeGreaterThan(0);
-    for (const height of heights)
-      expect(height).toBeGreaterThanOrEqual(TAP_MIN);
+    // Зоны нажатия меряются не по списку знакомых опознавателей, а по всему, по чему
+    // на этом экране вообще нажимают. Именно список и пропустил «сменить» 51x18 (T176):
+    // проверка была зелёной, а палец на кухне мимо кнопки — промахивался. И ширина, и
+    // высота: узкая кнопка промахивается не хуже низкой.
+    const tappable = async (): Promise<
+      { what: string; width: number; height: number }[]
+    > =>
+      page
+        .locator(
+          'button, a[href], input, select, textarea, summary, [role="button"]',
+        )
+        .evaluateAll((nodes) =>
+          nodes
+            .filter((node) => node.checkVisibility())
+            .map((node) => {
+              const box = node.getBoundingClientRect();
+              return {
+                what:
+                  node.getAttribute("data-testid") ??
+                  node.tagName.toLowerCase(),
+                width: Math.round(box.width),
+                height: Math.round(box.height),
+              };
+            }),
+        );
+
+    const closed = await tappable();
+    expect(closed.length).toBeGreaterThan(0);
+    expect(
+      closed.filter((box) => box.width < TAP_MIN || box.height < TAP_MIN),
+    ).toEqual([]);
+
+    // Панель режима смены по умолчанию закрыта, а её поля — тоже зоны нажатия.
+    await page.getByTestId("shift-change").tap();
+    await expect(page.getByTestId("shift-panel")).toBeVisible();
+    const opened = await tappable();
+    expect(opened.length).toBeGreaterThan(closed.length);
+    expect(
+      opened.filter((box) => box.width < TAP_MIN || box.height < TAP_MIN),
+    ).toEqual([]);
   });
 
   test("обрыв связи при отправке не теряет введённое", async ({ page }) => {
