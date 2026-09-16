@@ -31,6 +31,11 @@ export interface TableJournalProps {
 const HINT_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const LABEL_CLASS =
   "text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
+// Норма — подсказка, и кегль у неё подсказочный (`--fs-meta`), а не микро-кегль
+// подписи: на 10,5 px разница веса и регистра читается хуже разницы размера, которой
+// для подсказок пользуется эталон (`.field__hint` в `fill.html`).
+const NORM_CLASS =
+  "ml-[var(--space-3)] text-[length:var(--fs-meta)] font-normal text-[var(--ink-3)] normal-case";
 const INPUT_CLASS =
   "text-ink bg-surface h-[var(--tap-min)] w-full rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-lead)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const ADD_CLASS =
@@ -77,7 +82,7 @@ export function TableJournal({ item, rows, onChange }: TableJournalProps) {
         <div
           key={rowKeys[index]}
           data-testid="fill-table-row"
-          className="rounded-[var(--r-block)] border border-[var(--line)]"
+          className="rounded-[var(--r-block)] border border-[var(--line-strong)]"
         >
           <div className="flex items-center justify-between border-b border-[var(--line)] pl-[var(--space-5)]">
             <span className={LABEL_CLASS}>
@@ -108,9 +113,7 @@ export function TableJournal({ item, rows, onChange }: TableJournalProps) {
                 <span className={LABEL_CLASS}>
                   {column.title}
                   {column.norm === null ? null : (
-                    <span className="ml-[var(--space-3)] font-normal text-[var(--ink-3)] normal-case">
-                      {column.norm}
-                    </span>
+                    <span className={NORM_CLASS}>{column.norm}</span>
                   )}
                 </span>
                 <input

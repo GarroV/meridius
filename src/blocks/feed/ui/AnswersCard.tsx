@@ -59,15 +59,17 @@ const COMMENT_STYLE = { gridColumn: "2 / -1" } as const;
 
 // Журнал замеса (D074): полноширинная таблица под строкой пункта, а не в её колонке
 // значения — колонок методист заводит сколько нужно, и заранее отведённой ширины
-// им не хватило бы. Эталон — `.table` в components.css: тонкая линия `--line`,
-// шапка мельче тела и цветом `--ink-3`.
+// им не хватило бы. Эталон — `.table` в `docs/furca/design/app.css` (именно он рисует
+// табличные списки продукта, а не более тяжёлый одноимённый компонент в
+// `reference/components.css`): шапка на `--surface-3` с линией `--line-strong` и
+// подписью `--ink-2`, тело — тонкой линией `--line`.
 const TABLE_WRAP_CLASS =
   "mt-[var(--space-4)] overflow-x-auto rounded-[var(--r-mark)] border border-[var(--line)]";
 const TABLE_WRAP_STYLE = { gridColumn: "2 / -1" } as const;
 const TABLE_CLASS =
   "w-full border-collapse text-[length:var(--fs-dense)] leading-[var(--lh-dense)]";
 const TABLE_TH_CLASS =
-  "border-b border-[var(--line)] bg-[var(--surface-2)] px-[var(--space-4)] py-[var(--space-3)] text-left text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase whitespace-nowrap";
+  "border-b border-[var(--line-strong)] bg-[var(--surface-3)] px-[var(--space-4)] py-[var(--space-3)] text-left text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-2)] uppercase whitespace-nowrap";
 const TABLE_TD_CLASS =
   "border-b border-[var(--line)] px-[var(--space-4)] py-[var(--space-3)] align-middle font-[family-name:var(--font-num)] text-[length:var(--fs-num)] whitespace-nowrap";
 

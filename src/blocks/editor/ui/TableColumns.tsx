@@ -38,7 +38,7 @@ const LABEL_CLASS =
 const INPUT_CLASS =
   "text-ink bg-surface h-[var(--control-h-sm)] rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-4)] text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const ADD_CLASS =
-  "text-ink bg-surface h-[var(--control-h-sm)] cursor-pointer rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-dense)] hover:border-[var(--line-strong)] disabled:cursor-not-allowed disabled:opacity-45";
+  "text-ink bg-surface h-[var(--control-h-sm)] cursor-pointer rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-dense)] hover:border-[var(--line-control-2)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-45";
 const REMOVE_CLASS =
   "text-err flex h-[var(--control-h-sm)] w-[var(--control-h-sm)] cursor-pointer items-center justify-center rounded-[var(--r-control)] border border-transparent bg-transparent hover:border-[var(--err-line)] hover:bg-[var(--err-soft)]";
 
