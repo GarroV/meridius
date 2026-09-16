@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 
-import type { Item } from "@/blocks/data";
+import type { Item, TableRow } from "@/blocks/data";
 
 import {
   emptyDraft,
@@ -20,10 +20,12 @@ import type { AlarmOutcome, AlarmView } from "../alarms";
 import type { RoundOutcome } from "../rounds";
 import type { ShiftModeOutcome } from "../shift-mode";
 import type { SubmitOutcome } from "../submit";
+import { filledRows } from "../table-journal";
 import { AlarmsPanel } from "./AlarmsPanel";
 import { RoundsPanel } from "./RoundsPanel";
 import type { ShiftState } from "./ShiftModeBar";
 import { ShiftModeBar } from "./ShiftModeBar";
+import { TableJournal } from "./TableJournal";
 import { StateScreen } from "./StateScreen";
 
 /**
@@ -126,6 +128,17 @@ function nextBool(current: boolean | null): boolean | null {
 
 function numberOf(entry: DraftAnswer | undefined): number | null {
   return typeof entry?.value === "number" ? entry.value : null;
+}
+
+/** Что стоит в числовом поле. Значение чужого рода полем не показывается вовсе. */
+function numberText(entry: DraftAnswer | undefined): string {
+  const value = numberOf(entry);
+  return value === null ? "" : String(value);
+}
+
+/** Строки журнала из черновика ответа; ещё не начатый журнал — пустой список. */
+function rowsOf(entry: DraftAnswer | undefined): readonly TableRow[] {
+  return Array.isArray(entry?.value) ? entry.value : [];
 }
 
 function formatDuration(durationMs: number): string {
@@ -355,8 +368,14 @@ export function FillForm({
           {section.items.map((item) => {
             const entry = draft[item.id];
             const failed = summary.failedItemIds.includes(item.id);
-            const state =
-              entry?.value == null ? "unanswered" : failed ? "no" : "yes";
+            // Журнал, в котором завели строку и ничего не вписали, отвеченным не
+            // считается — ровно как его считает счёт на кнопке (`summarizeFill`),
+            // иначе квадратик пункта и кнопка отправки спорили бы между собой.
+            const empty =
+              item.type === "table"
+                ? filledRows(rowsOf(entry)).length === 0
+                : entry?.value == null;
+            const state = empty ? "unanswered" : failed ? "no" : "yes";
             const stateWord = t(`state.${state}`);
 
             return (
@@ -401,11 +420,7 @@ export function FillForm({
                       aria-label={item.title}
                       placeholder={t("numberPlaceholder")}
                       className={`${INPUT_CLASS} font-num h-[48px] max-w-[120px] text-center text-[length:var(--fs-num-hero)] font-medium`}
-                      value={
-                        entry?.value === null || entry?.value === undefined
-                          ? ""
-                          : String(entry.value)
-                      }
+                      value={numberText(entry)}
                       onChange={(event) => {
                         const raw = event.target.value.replace(",", ".");
                         const parsed = Number(raw);
@@ -421,6 +436,16 @@ export function FillForm({
                       {rangeLabel(itemsById.get(item.id), entry, failed, t)}
                     </span>
                   </div>
+                ) : null}
+
+                {item.type === "table" ? (
+                  <TableJournal
+                    item={item}
+                    rows={rowsOf(entry)}
+                    onChange={(rows) => {
+                      setEntry(item.id, { value: rows });
+                    }}
+                  />
                 ) : null}
 
                 {item.type === "text" ? (

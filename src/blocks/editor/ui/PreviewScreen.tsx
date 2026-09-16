@@ -117,6 +117,25 @@ function rangeHint(item: Item, t: Translate): string | null {
   return null;
 }
 
+/**
+ * Табличный пункт в предпросмотре — перечень колонок, а не пустая таблица (D074).
+ *
+ * Строки заводит сотрудник в смену, и в черновике их нет ни одной: рисовать пустую
+ * сетку значило бы показывать методисту не то, что увидит сотрудник. Показывается то,
+ * что методист задал сам, — колонки и нормы над ними.
+ */
+function tableHint(item: Item, locale: string, t: Translate): string | null {
+  if (item.type !== "table") return null;
+  const columns = item.columns ?? [];
+  if (columns.length === 0) return t("preview.tableEmpty");
+  const names = columns.map((column) => {
+    const title = pickText(column.title, locale);
+    const norm = column.norm === undefined ? "" : pickText(column.norm, locale);
+    return norm === "" ? title : t("preview.tableNorm", { title, norm });
+  });
+  return t("preview.table", { columns: names.join(" · ") });
+}
+
 function ItemRow({
   item,
   locale,
@@ -129,6 +148,7 @@ function ItemRow({
   readonly isFirst: boolean;
 }): ReactElement {
   const range = rangeHint(item, t);
+  const table = tableHint(item, locale, t);
   const severity = severityOf(item);
 
   return (
@@ -159,6 +179,11 @@ function ItemRow({
         )}
         {range !== null ? (
           <span className={ITEM_HINT_CLASS}>{range}</span>
+        ) : null}
+        {table !== null ? (
+          <span data-testid="preview-table" className={ITEM_HINT_CLASS}>
+            {table}
+          </span>
         ) : null}
       </span>
     </div>
