@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+import { ADMIN_HOME } from "@/blocks/core/admin-sections";
+
 // Входная точка продукта. Держит два обещания: показывает язык, выбранный по настройке
 // браузера (без cookie — сценарий кухни, e2e/locale.spec.ts), и ведёт в рабочий кабинет.
 // Без ссылки корень был заглушкой каркаса: адрес открывался, а попасть в продукт с него
@@ -16,7 +18,7 @@ export default async function HomePage() {
         {t("subtitle")}
       </p>
       <Link
-        href="/admin"
+        href={ADMIN_HOME.path}
         data-testid="enter"
         className="bg-accent flex h-[var(--control-h)] w-fit items-center justify-center rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)]"
       >
