@@ -7,6 +7,7 @@
 // пунктов за один раз. Каждое лишнее касание мыши — это лишняя минута на чек-лист.
 import type {
   Item,
+  ItemColumn,
   LocalizedText,
   ScheduleSegment,
   Section,
@@ -154,6 +155,28 @@ export function insertItems(
   });
 }
 
+/** Пустая колонка табличного пункта: название методист впишет сразу после нажатия. */
+function emptyColumn(): ItemColumn {
+  return { id: newId(), title: {} };
+}
+
+/**
+ * Колонки по типу пункта. У таблицы первая колонка заводится вместе с типом — иначе
+ * методист получает пункт, в котором нечего заполнять, и не видит, чем это лечить.
+ * У остальных родов колонки снимаются по той же причине, что и границы диапазона:
+ * невидимое на экране поле, уехав в JSONB, останется там навсегда.
+ */
+function withColumnsByType(item: Item): Item {
+  if (item.type === "table") {
+    return item.columns === undefined
+      ? { ...item, columns: [emptyColumn()] }
+      : item;
+  }
+  const { columns, ...withoutColumns } = item;
+  void columns;
+  return withoutColumns;
+}
+
 /** Правка полей пункта. Смена типа на «да/нет» и «текст» снимает границы диапазона. */
 export function updateItem(
   sections: readonly Section[],
@@ -163,7 +186,7 @@ export function updateItem(
   return mapItems(sections, (items) =>
     items.map((item) => {
       if (item.id !== itemId) return item;
-      const merged = { ...item, ...patch };
+      const merged = withColumnsByType({ ...item, ...patch });
       if (merged.type === "number") return merged;
       // Границы у нечислового пункта не видны на экране и не правятся: оставить их
       // значит увезти в базу невидимое значение. Убираем ровно их, а не собираем
@@ -174,6 +197,85 @@ export function updateItem(
       void max;
       return withoutBounds;
     }),
+  );
+}
+
+/** Правка колонок одного табличного пункта: остальные пункты остаются теми же. */
+function mapColumns(
+  sections: readonly Section[],
+  itemId: string,
+  change: (columns: readonly ItemColumn[]) => ItemColumn[],
+): Section[] {
+  return mapItems(sections, (items) =>
+    items.map((item) =>
+      item.id === itemId
+        ? { ...item, columns: change(item.columns ?? []) }
+        : item,
+    ),
+  );
+}
+
+/**
+ * «Добавить колонку»: новая встаёт в конец, и её опознаватель возвращается наружу —
+ * тем же приёмом, что `addItemAfter`, чтобы экран перевёл курсор в новое поле, а не
+ * заставлял методиста искать его мышью.
+ */
+export function addColumn(
+  sections: readonly Section[],
+  itemId: string,
+): { sections: Section[]; focusColumnId: string } {
+  const created = emptyColumn();
+  return {
+    sections: mapColumns(sections, itemId, (columns) => [...columns, created]),
+    focusColumnId: created.id,
+  };
+}
+
+/** Название колонки на языке интерфейса; названия на других языках остаются как были. */
+export function setColumnTitle(
+  sections: readonly Section[],
+  itemId: string,
+  columnId: string,
+  locale: string,
+  text: string,
+): Section[] {
+  return mapColumns(sections, itemId, (columns) =>
+    columns.map((column) =>
+      column.id === columnId
+        ? { ...column, title: { ...column.title, [locale]: text } }
+        : column,
+    ),
+  );
+}
+
+/**
+ * Норма над колонкой — отдельное поле, а не часть названия: в бумажном журнале она
+ * стоит своей строкой над шапкой, и на экране сотрудника ей тоже своё место.
+ */
+export function setColumnNorm(
+  sections: readonly Section[],
+  itemId: string,
+  columnId: string,
+  locale: string,
+  text: string,
+): Section[] {
+  return mapColumns(sections, itemId, (columns) =>
+    columns.map((column) =>
+      column.id === columnId
+        ? { ...column, norm: { ...(column.norm ?? {}), [locale]: text } }
+        : column,
+    ),
+  );
+}
+
+/** Удаление колонки. Последняя удаляется тоже: пустой список честнее мёртвой колонки. */
+export function removeColumn(
+  sections: readonly Section[],
+  itemId: string,
+  columnId: string,
+): Section[] {
+  return mapColumns(sections, itemId, (columns) =>
+    columns.filter((column) => column.id !== columnId),
   );
 }
 
