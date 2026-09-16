@@ -1,0 +1,61 @@
+# Единственный автоматический сторож проекта помимо хука pre-push на машине автора.
+# Зовёт ту же команду, что приёмка блока и хук, — `scripts/check`: три отдельных
+# списка команд разъезжаются, один не разъезжается (docs/furca/plan.md,
+# «Проверки качества»).
+#
+# Стенд поднимается `scripts/up`, а не собственными шагами по тому же соображению:
+# «поднимается одной командой» — критерий готовности продукта, и проверять его
+# нужно той же командой, которой это делает человек, иначе критерий держится
+# на памяти.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      # Карантин свежих версий (.npmrc, min-release-age) обходится любой установкой
+      # не из лок-файла, поэтому здесь строго `npm ci`.
+      - name: Зависимости
+        run: npm ci
+
+      - name: Браузер для сквозных сценариев
+        run: npx --no-install playwright install --with-deps chromium
+
+      # `scripts/up` сам создаёт `.env` из примера и заменяет опубликованные
+      # SESSION_SECRET и ADMIN_PASSWORD_HASH своими — на них продукт отказывает
+      # во входе намеренно (src/blocks/auth/config.ts).
+      - name: Стенд одной командой
+        run: ./scripts/up
+
+      - name: Весь набор проверок
+        run: ./scripts/check
+
+      # Машинный отчёт нужен именно у красного прогона: приёмка читает состав
+      # прогона, а не код возврата.
+      - name: Отчёты прогона
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: reports
+          path: reports/
+          retention-days: 14
+          if-no-files-found: warn
