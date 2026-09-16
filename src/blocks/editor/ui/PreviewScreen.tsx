@@ -7,7 +7,10 @@ import type { Item, LocalizedText, Section, ShiftMode } from "@/blocks/data";
 import { isShiftMode, sectionsForMode, severityOf } from "@/blocks/data";
 
 import { loadEditor } from "../drafts";
+import type { PeriodicItemView } from "../preview-items";
+import { splitPeriodic } from "../preview-items";
 import { checklistPath } from "../routes";
+import { stepLabel } from "./step-label";
 
 /**
  * Предпросмотр «как это увидит сотрудник» — та же разметка, что первый телефон
@@ -41,6 +44,21 @@ const ITEM_BOX_CLASS =
 const ITEM_TEXT_CLASS = "flex-1 text-[length:var(--fs-lead)] leading-[21px]";
 const ITEM_HINT_CLASS =
   "mt-[var(--space-2)] block text-[length:var(--fs-meta)] text-[var(--ink-3)]";
+// Панель обхода: тот же приём и те же токены, что у панели обходов на экране станции
+// (`fill/ui/RoundsPanel.tsx`), но без единого элемента управления — предпросмотр
+// остаётся показом. Дублируется намеренно: границы модулей запрещают `editor` зависеть
+// от `fill`, а общее здесь только внешнее сходство, не поведение.
+const ROUNDS_PANEL_CLASS = "border-t-[6px] border-[var(--surface-3)]";
+const ROUNDS_HEAD_CLASS =
+  "px-[var(--space-7)] pt-[var(--space-8)] pb-[var(--space-4)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
+const ROUNDS_ROW_CLASS =
+  "border-t border-[var(--line)] px-[var(--space-7)] py-[var(--space-6)]";
+const ROUNDS_TITLE_CLASS =
+  "text-[length:var(--fs-lead)] leading-[21px] font-semibold break-words";
+const ROUNDS_LINE_CLASS =
+  "mt-[var(--space-2)] text-[length:var(--fs-meta)] text-[var(--ink-2)]";
+const ROUNDS_NOTE_CLASS =
+  "mt-[var(--space-1)] text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const FOOTER_CLASS =
   "mt-auto border-t border-[var(--line-strong)] px-[var(--space-7)] pt-[var(--space-6)] pb-[var(--space-8)]";
 // Футер экрана заполнения, показанный как есть на эталоне: тот же прямоугольник и та же
@@ -147,6 +165,53 @@ function ItemRow({
   );
 }
 
+/**
+ * Периодический пункт в предпросмотре — СОСТОЯНИЕ пункта, а не сетка часов (T137, D076).
+ *
+ * Здесь нет ни «сейчас», ни отметок: предпросмотр смотрит на черновик, а не на смену.
+ * Поэтому строка говорит ровно то, что про пункт известно методисту, — как часто его
+ * обходят и напомнит ли планшет при просрочке. Сетка часов не рисуется и на станции:
+ * на бумаге её рисуют потому, что иначе регулярность не покажешь, а в продукте она
+ * уехала в отчёт (D065).
+ */
+function PeriodicRow({
+  view,
+  locale,
+  t,
+  ts,
+}: {
+  readonly view: PeriodicItemView;
+  readonly locale: string;
+  readonly t: Translate;
+  readonly ts: Translate;
+}): ReactElement {
+  const { item } = view;
+  const remind = item.remindEveryMinutes;
+
+  return (
+    <div data-testid="preview-round" className={ROUNDS_ROW_CLASS}>
+      <div className={ROUNDS_TITLE_CLASS}>{pickText(item.title, locale)}</div>
+      {(item.schedule ?? []).map((segment) => (
+        <div
+          key={`${segment.from}-${segment.to}-${String(segment.everyMinutes)}`}
+          className={ROUNDS_LINE_CLASS}
+        >
+          {t("preview.roundsEvery", {
+            from: segment.from,
+            to: segment.to,
+            step: stepLabel(segment.everyMinutes, ts),
+          })}
+        </div>
+      ))}
+      <div className={ROUNDS_NOTE_CLASS}>
+        {remind === undefined
+          ? t("preview.roundsSilent")
+          : t("preview.roundsRemind", { count: remind })}
+      </div>
+    </div>
+  );
+}
+
 function ProgressBar({
   total,
   t,
@@ -189,8 +254,14 @@ export async function PreviewScreen({
   // тридцать пунктов в критичную смену. Иначе он узнает это от повара через две
   // недели, а обещание предпросмотра «так это увидит сотрудник» станет ложью.
   const mode: ShiftMode = isShiftMode(requested) ? requested : "normal";
-  const sections = sectionsForMode(visibleSections(state.sections), mode);
+  // Деление идёт ПОСЛЕ отбора по режиму смены: периодический пункт выпадает по уровню
+  // так же, как обычный, и в критичную смену обхода по нему сегодня нет вовсе.
+  const split = splitPeriodic(
+    sectionsForMode(visibleSections(state.sections), mode),
+  );
+  const sections = split.sections;
   const total = totalItems(sections);
+  const ts = await getTranslations("editor.schedule");
 
   return (
     <div
@@ -233,7 +304,7 @@ export async function PreviewScreen({
           {total > 0 ? <ProgressBar total={total} t={t} /> : null}
         </header>
 
-        {total === 0 ? (
+        {total === 0 && split.periodic.length === 0 ? (
           <p className="m-0 p-[var(--space-7)] text-[length:var(--fs-dense)] text-[var(--ink-3)]">
             {t("preview.empty")}
           </p>
@@ -257,14 +328,41 @@ export async function PreviewScreen({
                 ))}
               </div>
             ))}
-            <div className={FOOTER_CLASS}>
-              {/* Показ футера, а не кнопка: нажимать здесь нечего и никогда не будет
+            {split.periodic.length === 0 ? null : (
+              <div data-testid="preview-rounds" className={ROUNDS_PANEL_CLASS}>
+                <div className={ROUNDS_HEAD_CLASS}>{t("preview.rounds")}</div>
+                {split.periodic.map((view) => (
+                  <PeriodicRow
+                    key={view.item.id}
+                    view={view}
+                    locale={locale}
+                    t={t}
+                    ts={ts}
+                  />
+                ))}
+                <div
+                  className={`${ROUNDS_ROW_CLASS} ${ROUNDS_NOTE_CLASS} mt-0`}
+                  data-testid="preview-rounds-note"
+                >
+                  {t("preview.roundsNote")}
+                </div>
+              </div>
+            )}
+
+            {/* Футер считает пункты формы: обход отмечают не отправкой чек-листа, и
+                «осталось 3 пункта» с ними в счёте обещало бы работу, которой в форме
+                нет. Пустая форма при живом обходе — законное состояние, и футера у неё
+                нет вовсе: заканчивать нечего. */}
+            {total === 0 ? null : (
+              <div className={FOOTER_CLASS}>
+                {/* Показ футера, а не кнопка: нажимать здесь нечего и никогда не будет
                   (см. объяснение у начала файла). Текст остаётся видимым и читаемым
                   вслух — методист обязан видеть то же, что увидит сотрудник. */}
-              <div data-testid="preview-left" className={FOOTER_NOTE_CLASS}>
-                {t("preview.left", { count: total })}
+                <div data-testid="preview-left" className={FOOTER_NOTE_CLASS}>
+                  {t("preview.left", { count: total })}
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>

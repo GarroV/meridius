@@ -8,11 +8,14 @@ import type {
   Item,
   ItemType,
   LocalizedText,
+  ScheduleSegment,
   Section,
   Severity,
 } from "@/blocks/data";
-import { isSeverity } from "@/blocks/data";
+import { assertValidSchedule, isSeverity, parseLocalTime } from "@/blocks/data";
 import type { Locale } from "@/blocks/core/locale";
+
+import { isRemindOption, MAX_SEGMENTS, REMIND_OPTIONS } from "./schedule-field";
 
 export type EditorErrorCode =
   | "badFormat"
@@ -20,6 +23,7 @@ export type EditorErrorCode =
   | "tooManyItems"
   | "textTooLong"
   | "badRange"
+  | "badSchedule"
   | "emptyWindow"
   | "emptyTitle"
   | "notFound"
@@ -46,6 +50,18 @@ export const LIMITS = {
   sections: 50,
   items: 300,
   textLength: 500,
+  /**
+   * Отрезков в расписании одного пункта. Весь боевой пакет обходится двумя-тремя
+   * (`docs/furca/specs/2026-09-14-rounds-and-expiry-design.md`); предел стоит не от
+   * жадности, а чтобы список отрезков не превратился в тот же лист бумаги, ради ухода
+   * от которого регулярность и задаётся отрезками (D075).
+   *
+   * Число берётся у окна настройки (`schedule-field.ts`), а не пишется вторым
+   * литералом: кнопка «добавить отрезок» обязана гаснуть на том же месте, где
+   * разбор начинает отказывать. Два предела разъехались бы молча — методист
+   * добавил бы девятый отрезок и получил отказ уже на сохранении.
+   */
+  scheduleSegments: MAX_SEGMENTS,
 } as const;
 
 // Языки контента продукта (D009). Третий добавляется словарём, а не кодом, поэтому
@@ -147,6 +163,98 @@ function parseSeverity(input: Record<string, unknown>): Severity {
   return input["critical"] === true ? "critical" : "normal";
 }
 
+/**
+ * Один отрезок расписания. Время отрезка — местное «ЧЧ:ММ» БЕЗ 24:00: сутки обхода
+ * замкнуты, и полночь в них называется 00:00. Тем же `parseLocalTime`, которым читает
+ * отрезки блок `data`, — иначе редактор и расписание разошлись бы в том, что считать
+ * временем, и разошлись бы молча.
+ */
+function parseSegment(input: unknown): ScheduleSegment {
+  if (!isRecord(input)) {
+    fail("badSchedule", "Отрезок расписания должен быть объектом");
+  }
+
+  const from = input["from"];
+  const to = input["to"];
+  if (typeof from !== "string" || typeof to !== "string") {
+    fail("badSchedule", "У отрезка расписания нет границ");
+  }
+  const fromMinutes = parseLocalTime(from.trim());
+  const toMinutes = parseLocalTime(to.trim());
+  if (fromMinutes === null || toMinutes === null) {
+    fail("badSchedule", `Время отрезка не разобрано: «${from}» — «${to}»`);
+  }
+
+  const raw = input["everyMinutes"];
+  const everyMinutes = typeof raw === "string" ? Number(raw.trim()) : raw;
+  if (typeof everyMinutes !== "number" || !Number.isInteger(everyMinutes)) {
+    fail("badSchedule", `Шаг обхода не целое число: ${String(raw)}`);
+  }
+
+  return {
+    from: formatMinutes(fromMinutes),
+    to: formatMinutes(toMinutes),
+    everyMinutes,
+  };
+}
+
+/** Минуты от полуночи обратно во время отрезка. Своё, а не из data: там формат окна. */
+function formatMinutes(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  return `${String(hours).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
+/**
+ * Расписание периодической проверки (D075). Пустой список и отсутствие поля — одно и
+ * то же состояние «пункт обычный», и записывается оно ОДНИМ способом: полем, которого
+ * нет. Иначе `isPeriodic` и разметка расходились бы на пустом списке.
+ *
+ * Смысловые правила берутся у самого блока `data` (`assertValidSchedule`): пустой
+ * отрезок, шаг не больше нуля. Второй свод тех же правил здесь разошёлся бы с первым —
+ * и разошёлся бы в сторону «редактор пропустил, обход не состоялся».
+ */
+function parseSchedule(input: unknown): ScheduleSegment[] | undefined {
+  if (input === undefined || input === null) return undefined;
+  if (!Array.isArray(input)) {
+    fail("badSchedule", "Расписание — не список отрезков");
+  }
+  if (input.length === 0) return undefined;
+  if (input.length > LIMITS.scheduleSegments) {
+    fail(
+      "badSchedule",
+      `Отрезков больше ${String(LIMITS.scheduleSegments)}: ${String(input.length)}`,
+    );
+  }
+
+  const schedule = input.map((segment) => parseSegment(segment));
+  try {
+    assertValidSchedule(schedule);
+  } catch (cause) {
+    // Отказ блока data — TypeError и RangeError; экрану нужен код, а не класс ошибки.
+    fail("badSchedule", cause instanceof Error ? cause.message : String(cause));
+  }
+  return schedule;
+}
+
+/**
+ * Частота повторения сигнала о просрочке (D068). Список закрыт решением владельца,
+ * «молчать» — отсутствие значения. Без расписания не хранится вовсе: просрочке
+ * взяться неоткуда, а поле, которое ни на что не влияет, следующий читатель примет
+ * за работающее.
+ */
+function parseRemind(input: unknown, isPeriodic: boolean): number | undefined {
+  if (!isPeriodic) return undefined;
+  if (input === undefined || input === null || input === "") return undefined;
+  const value = typeof input === "string" ? Number(input.trim()) : input;
+  if (!isRemindOption(value)) {
+    fail(
+      "badSchedule",
+      `Частота напоминания не из списка ${REMIND_OPTIONS.join("/")}: ${JSON.stringify(input)}`,
+    );
+  }
+  return value;
+}
+
 function parseItem(input: unknown): Item | null {
   if (!isRecord(input)) fail("badFormat", "Пункт должен быть объектом");
 
@@ -170,12 +278,19 @@ function parseItem(input: unknown): Item | null {
   }
 
   const hint = parseLocalizedText(input["hint"] ?? {});
+  const schedule = parseSchedule(input["schedule"]);
+  const remind = parseRemind(
+    input["remindEveryMinutes"],
+    schedule !== undefined,
+  );
 
   return {
     ...item,
     ...(min === undefined ? {} : { min }),
     ...(max === undefined ? {} : { max }),
     ...(isEmptyText(hint) ? {} : { hint }),
+    ...(schedule === undefined ? {} : { schedule }),
+    ...(remind === undefined ? {} : { remindEveryMinutes: remind }),
   };
 }
 

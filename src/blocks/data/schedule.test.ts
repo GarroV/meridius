@@ -316,3 +316,166 @@ describe("assertValidSchedule", () => {
     }).toThrow();
   });
 });
+
+describe("окно «без ограничения» (T160)", () => {
+  // «00:00–24:00» — одно из трёх готовых окон редактора (`window-field.ts`), и в
+  // колонке `time` это законное значение. Час 24 общий `parseLocalTime` не разбирает
+  // никогда — и вся регулярность под таким окном молча выключалась: ни отказа, ни следа.
+  const WHOLE_DAY = {
+    start: "00:00:00",
+    end: "24:00:00",
+  } satisfies ChecklistWindow;
+  const FROM_MORNING = {
+    start: "08:00",
+    end: "24:00",
+  } satisfies ChecklistWindow;
+
+  test("время суток лежит ВНУТРИ такого окна, а не вне его", () => {
+    expect(offsetInWindow(WHOLE_DAY, "00:00")).toBe(0);
+    expect(offsetInWindow(WHOLE_DAY, "12:00")).toBe(720);
+    expect(offsetInWindow(WHOLE_DAY, "23:59")).toBe(1439);
+    expect(offsetInWindow(FROM_MORNING, "08:00")).toBe(0);
+    expect(offsetInWindow(FROM_MORNING, "23:59")).toBe(959);
+    expect(offsetInWindow(FROM_MORNING, "07:59")).toBeNull();
+  });
+
+  test("обходы под ним есть: круглые сутки часовым шагом — двадцать четыре прохода", () => {
+    const got = intervalsForItem(
+      item([every("00:00", "23:59", 60)]),
+      WHOLE_DAY,
+      "normal",
+    );
+    expect(got).toHaveLength(24);
+    expect(got[0]).toEqual({ startMinutes: 0, endMinutes: 60 });
+    expect(got.at(-1)).toEqual({ startMinutes: 1380, endMinutes: 1439 });
+  });
+
+  test("окно с 08:00 до конца суток обрезает сетку концом суток, а не серединой", () => {
+    const got = intervalsForItem(
+      item([every("22:00", "23:59", 60)]),
+      FROM_MORNING,
+      "normal",
+    );
+    expect(got).toEqual([
+      { startMinutes: 840, endMinutes: 900 },
+      { startMinutes: 900, endMinutes: 959 },
+    ]);
+  });
+
+  test("граница суток законна только как КОНЕЦ окна: ни отметкой, ни границей отрезка", () => {
+    expect(parseLocalTime("24:00")).toBeNull();
+    expect(offsetInWindow(WHOLE_DAY, "24:00")).toBeNull();
+    expect(() => {
+      assertValidSchedule([every("00:00", "24:00", 60)]);
+    }).toThrow(RangeError);
+  });
+});
+
+describe("пересекающиеся отрезки (T161)", () => {
+  // Отметка встаёт в ОДИН проход (D066: `currentInterval` берёт первый подходящий).
+  // Два прохода, идущих в один и тот же миг, значат ровно одно: второй закроется без
+  // отметки и покажет «пропущено» тому, кто обход сделал. Ложное обвинение — тот же
+  // вред, что и отказ сотруднику, только с другой стороны.
+  const WORKDAY = { start: "06:00", end: "22:00" } satisfies ChecklistWindow;
+
+  test("отвергает наложенные друг на друга отрезки", () => {
+    expect(() => {
+      assertValidSchedule([
+        every("08:00", "16:00", 60),
+        every("08:20", "16:00", 60),
+      ]);
+    }).toThrow(RangeError);
+  });
+
+  test("отвергает полное совпадение и вложенность", () => {
+    expect(() => {
+      assertValidSchedule([
+        every("08:00", "16:00", 60),
+        every("08:00", "16:00", 120),
+      ]);
+    }).toThrow(RangeError);
+    expect(() => {
+      assertValidSchedule([
+        every("08:00", "16:00", 60),
+        every("10:00", "12:00", 30),
+      ]);
+    }).toThrow(RangeError);
+  });
+
+  test("отвергает пересечение через полночь", () => {
+    expect(() => {
+      assertValidSchedule([
+        every("22:00", "02:00", 60),
+        every("01:00", "05:00", 60),
+      ]);
+    }).toThrow(RangeError);
+  });
+
+  test("называет оба отрезка: иначе методист ищет пересечение глазами", () => {
+    expect(() => {
+      assertValidSchedule([
+        every("06:00", "08:00", 60),
+        every("08:00", "12:00", 60),
+        every("10:00", "14:00", 60),
+      ]);
+    }).toThrow(/2 и 3/);
+  });
+
+  test("смежные отрезки пересечением НЕ считаются: их и предлагает кнопка «добавить»", () => {
+    expect(() => {
+      assertValidSchedule([
+        every("08:00", "12:00", 60),
+        every("12:00", "16:00", 120),
+      ]);
+    }).not.toThrow();
+    expect(() => {
+      assertValidSchedule([
+        every("22:00", "02:00", 60),
+        every("02:00", "06:00", 60),
+      ]);
+    }).not.toThrow();
+  });
+
+  test("до сетки проходов пересечение не доезжает", () => {
+    // Раньше: под этим окном отрезки давали в 09:10 сразу два прохода (140–200 и
+    // 180–240). Отметка вставала в первый, второй закрывался в 10:30 без своей
+    // отметки — и уезжал в отчёт пропуском.
+    expect(() =>
+      intervalsForItem(
+        item([every("08:00", "16:00", 60), every("08:20", "16:00", 60)]),
+        WORKDAY,
+        "normal",
+      ),
+    ).toThrow(RangeError);
+  });
+
+  test("у законного расписания два прохода никогда не идут одновременно", () => {
+    const cases: { schedule: ScheduleSegment[]; window: ChecklistWindow }[] = [
+      { schedule: [every("08:00", "16:00", 60)], window: WORKDAY },
+      {
+        schedule: [every("08:00", "12:00", 30), every("12:00", "22:00", 120)],
+        window: WORKDAY,
+      },
+      {
+        schedule: [every("22:00", "02:00", 60), every("02:00", "06:00", 120)],
+        window: NIGHT,
+      },
+      {
+        schedule: [every("00:00", "23:59", 60)],
+        window: { start: "00:00", end: "24:00" },
+      },
+    ];
+    for (const { schedule, window } of cases) {
+      const intervals = intervalsForItem(item(schedule), window, "normal");
+      expect(intervals.length, JSON.stringify(schedule)).toBeGreaterThan(0);
+      for (const [index, interval] of intervals.entries()) {
+        const next = intervals[index + 1];
+        if (next === undefined) continue;
+        expect(
+          next.startMinutes,
+          JSON.stringify(schedule),
+        ).toBeGreaterThanOrEqual(interval.endMinutes);
+      }
+    }
+  });
+});

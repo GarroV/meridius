@@ -326,3 +326,156 @@ describe("parseWindow", () => {
     expect(() => parseWindow("06:60", "11:00")).toThrow(EditorInputError);
   });
 });
+
+// Разбор пункта собирал его заново из перечисленных полей — и `schedule` в этот
+// список не входил. То есть боевой пакет, залитый импортом вместе с расписаниями,
+// терял их молча при первом же «Сохранить черновик»: отказа нет, экран прежний,
+// обходы просто перестают существовать. Это и есть главный смысл задачи —
+// расписание обязано пережить дорогу через редактор.
+function withSchedule(item: Record<string, unknown>): unknown[] {
+  return [
+    {
+      id: "section-1",
+      title: { ru: "Обход" },
+      source: "own",
+      items: [
+        {
+          id: "item-1",
+          title: { ru: "Проверить сроки годности" },
+          type: "bool",
+          severity: "critical",
+          ...item,
+        },
+      ],
+    },
+  ];
+}
+
+/** Непересекающиеся часовые отрезки подряд: ими проверяется предел их числа. */
+function hourlySegments(count: number): unknown[] {
+  return Array.from({ length: count }, (_unused, index) => ({
+    from: `${String(index).padStart(2, "0")}:00`,
+    to: `${String(index + 1).padStart(2, "0")}:00`,
+    everyMinutes: 60,
+  }));
+}
+
+describe("расписание периодической проверки (T137)", () => {
+  const HOURLY = { from: "08:00", to: "16:00", everyMinutes: 60 };
+  const EVERY_TWO = { from: "16:00", to: "23:00", everyMinutes: 120 };
+
+  test("расписание доезжает до базы, а не отбрасывается разбором", () => {
+    const [section] = parseSections(withSchedule({ schedule: [HOURLY] }));
+
+    expect(section?.items[0]?.schedule).toStrictEqual([HOURLY]);
+  });
+
+  test("два отрезка переживают разбор оба и в своём порядке", () => {
+    // Неравномерная сетка — это второй отрезок, а не второй чек-лист (D075).
+    const [section] = parseSections(
+      withSchedule({ schedule: [HOURLY, EVERY_TWO] }),
+    );
+
+    expect(section?.items[0]?.schedule).toStrictEqual([HOURLY, EVERY_TWO]);
+  });
+
+  test("пункт без расписания поля не получает: обычный пункт остаётся обычным", () => {
+    const [section] = parseSections(withSchedule({}));
+
+    expect(section?.items[0]).not.toHaveProperty("schedule");
+  });
+
+  test("пустой список отрезков полем не становится", () => {
+    // Иначе «убрал регулярность» оставлял бы за собой пустой `schedule: []`,
+    // а `isPeriodic` считает пункт обычным и по нему, и по отсутствию поля —
+    // два способа записать одно состояние расходятся молча.
+    const [section] = parseSections(withSchedule({ schedule: [] }));
+
+    expect(section?.items[0]).not.toHaveProperty("schedule");
+  });
+
+  test("сломанный отрезок отказывает на границе, а не уезжает в версию", () => {
+    // Версии неизменяемы (принцип 3, D002): расписание, уехавшее сломанным,
+    // там уже не починить.
+    expect(() =>
+      parseSections(
+        withSchedule({
+          schedule: [{ from: "08:00", to: "08:00", everyMinutes: 60 }],
+        }),
+      ),
+    ).toThrow(EditorInputError);
+  });
+
+  test("шаг ноль или отрицательный не принимается", () => {
+    expect(() =>
+      parseSections(
+        withSchedule({ schedule: [{ ...HOURLY, everyMinutes: 0 }] }),
+      ),
+    ).toThrow(EditorInputError);
+  });
+
+  test("не список вместо расписания — отказ", () => {
+    expect(() =>
+      parseSections(withSchedule({ schedule: "каждый час" })),
+    ).toThrow(EditorInputError);
+  });
+
+  test("пересекающиеся отрезки до версии не доезжают (T161)", () => {
+    // Пересечение — ложный пропуск в отчёте: отметка встаёт в один проход (D066), а
+    // второй закрывается в тот же миг без отметки. Правило одно на обе стороны, и
+    // сервер обязан отказать даже тогда, когда окно настройки обошли.
+    expect(() =>
+      parseSections(
+        withSchedule({
+          schedule: [HOURLY, { from: "08:20", to: "16:00", everyMinutes: 60 }],
+        }),
+      ),
+    ).toThrow(EditorInputError);
+  });
+
+  test("отрезков больше предела — отказ, а не молчаливое обрезание списка", () => {
+    // Предел числа отрезков знали только окно настройки (`canAddSegment`, оно гасит
+    // кнопку) и разбор на сервере — но проверкой был покрыт лишь первый. Два предела,
+    // разъехавшись, дают отказ без объяснения на кнопку, которая была доступна.
+    expect(() =>
+      parseSections(
+        withSchedule({ schedule: hourlySegments(LIMITS.scheduleSegments) }),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      parseSections(
+        withSchedule({ schedule: hourlySegments(LIMITS.scheduleSegments + 1) }),
+      ),
+    ).toThrow(EditorInputError);
+  });
+
+  test("частота напоминания при просрочке доезжает до базы (D068)", () => {
+    const [section] = parseSections(
+      withSchedule({ schedule: [HOURLY], remindEveryMinutes: 20 }),
+    );
+
+    expect(section?.items[0]?.remindEveryMinutes).toBe(20);
+  });
+
+  test("«молчать» — это отсутствие поля, а не ноль", () => {
+    const [section] = parseSections(withSchedule({ schedule: [HOURLY] }));
+
+    expect(section?.items[0]).not.toHaveProperty("remindEveryMinutes");
+  });
+
+  test("частота не из списка 10/20/60 не принимается", () => {
+    // Список закрыт решением владельца (D068). Открытое число здесь означало бы
+    // «каждые 3 минуты» на планшете, который стоит в зале.
+    expect(() =>
+      parseSections(
+        withSchedule({ schedule: [HOURLY], remindEveryMinutes: 3 }),
+      ),
+    ).toThrow(EditorInputError);
+  });
+
+  test("частота без расписания не хранится: звонить нечему", () => {
+    const [section] = parseSections(withSchedule({ remindEveryMinutes: 20 }));
+
+    expect(section?.items[0]).not.toHaveProperty("remindEveryMinutes");
+  });
+});
