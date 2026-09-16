@@ -45,7 +45,7 @@ async function publishedVersion(
 }
 
 describe("миграции", () => {
-  test("создают все семь таблиц продукта", async () => {
+  test("создают все девять таблиц продукта", async () => {
     const rows = await db.execute<{ table_name: string }>(
       sql`select table_name from information_schema.tables where table_schema = 'public'`,
     );
@@ -59,6 +59,8 @@ describe("миграции", () => {
       "checklist_versions",
       "blocks",
       "submissions",
+      "store_shift_modes",
+      "checks",
     ]) {
       expect(names).toContain(table);
     }

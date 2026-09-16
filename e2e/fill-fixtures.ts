@@ -23,6 +23,8 @@ export interface FillStandOptions {
   readonly windowEnd?: string;
   /** Язык страны: по нему проверяется откат языка, когда телефон говорит на третьем. */
   readonly countryLocale?: "ru" | "en";
+  /** Свои секции вместо эталонных: нужны сценарию обходов с расписанием пункта. */
+  readonly sections?: unknown;
 }
 
 /** Пункты чек-листа те же, что на экранном эталоне: логический, числовой, критичные и текст. */
@@ -156,7 +158,11 @@ export async function seedFillStand(
           `insert into checklist_versions
              (checklist_id, status, version_number, station_id, sections, published_at)
            values ($1, 'published', 1, $2, $3::jsonb, now()) returning id`,
-          [checklist, station, JSON.stringify(STAND_SECTIONS)],
+          [
+            checklist,
+            station,
+            JSON.stringify(options.sections ?? STAND_SECTIONS),
+          ],
         )
       ).rows,
       "checklist_versions",
@@ -223,5 +229,56 @@ export async function publishNextVersion(stationId: string): Promise<string> {
       [stationId],
     );
     return firstId(rows, "следующая версия");
+  });
+}
+
+export interface SecondChecklistOptions {
+  readonly title: { ru: string; en: string };
+  readonly windowStart?: string;
+  readonly windowEnd?: string;
+  readonly sections?: unknown;
+}
+
+/**
+ * Второй чек-лист на ТОЙ ЖЕ станции, открытый в то же время. Так живёт настоящая
+ * пиццерия: обход идёт весь день поверх открытия и закрытия смены, и станция обязана
+ * показать оба, а не первый по началу окна (#60).
+ */
+export async function addChecklistToStation(
+  stationId: string,
+  options: SecondChecklistOptions,
+): Promise<{ checklistId: string; versionId: string }> {
+  return await withPool(async (pool) => {
+    const checklistId = firstId(
+      (
+        await pool.query<{ id: string }>(
+          `insert into checklists (station_id, title, window_start, window_end)
+           values ($1, $2::jsonb, $3, $4) returning id`,
+          [
+            stationId,
+            JSON.stringify(options.title),
+            options.windowStart ?? "00:00:00",
+            options.windowEnd ?? "23:59:00",
+          ],
+        )
+      ).rows,
+      "второй чек-лист",
+    );
+    const versionId = firstId(
+      (
+        await pool.query<{ id: string }>(
+          `insert into checklist_versions
+             (checklist_id, status, version_number, station_id, sections, published_at)
+           values ($1, 'published', 1, $2, $3::jsonb, now()) returning id`,
+          [
+            checklistId,
+            stationId,
+            JSON.stringify(options.sections ?? STAND_SECTIONS),
+          ],
+        )
+      ).rows,
+      "версия второго чек-листа",
+    );
+    return { checklistId, versionId };
   });
 }

@@ -9,6 +9,7 @@ import {
   checklistVersions,
   getDb,
   saveSubmission,
+  stations,
   submissions,
 } from "@/blocks/data";
 import { closeTestDb } from "@/blocks/data/testing/db";
@@ -16,9 +17,11 @@ import {
   createChecklist,
   createPublishedVersion,
   createStation,
+  uniqueStationCode,
 } from "@/blocks/data/testing/fixtures";
 
 import { FEED_PATH } from "../routes";
+import { parseFeedView } from "../view";
 import { buildFeedModel, buildSubmissionModel } from "./build-model";
 
 afterAll(closeTestDb);
@@ -217,6 +220,91 @@ describe("buildFeedModel — фильтры", () => {
 
     expect(model.selection.storeId).toBeNull();
     expect(model.rows.map((row) => row.id)).toContain(mine.submissionId);
+  });
+});
+
+/**
+ * Вторая станция ТОЙ ЖЕ пиццерии со своей тревогой. Заводится запросом, а не фикстурой:
+ * `createStation` каждый раз создаёт и новую пиццерию, а здесь нужна именно соседка по
+ * пиццерии — без неё фильтр станции неотличим от фильтра пиццерии.
+ */
+async function seedNeighbourAlarm(
+  label: string,
+  storeId: string,
+): Promise<{ stationId: string; stationName: string }> {
+  const stationName = `Станция ${label} ${uniqueStationCode()}`;
+  const [row] = await getDb()
+    .insert(stations)
+    .values({ storeId, name: stationName, code: uniqueStationCode() })
+    .returning({ id: stations.id });
+  if (row === undefined) {
+    throw new Error(`Соседняя станция ${label} не завелась`);
+  }
+
+  const checklistId = await createChecklist({ stationId: row.id });
+  const versionId = await createPublishedVersion(checklistId, sections(label));
+  const submissionId = await saveSubmission({
+    mode: "normal",
+    versionId,
+    // Провален критичный пункт: у соседней станции своя тревога, а не тишина.
+    answers: [answer(`item-temp-${label}`, 9)],
+    startedAt: Date.parse("2026-09-05T09:10:00Z"),
+  });
+  await getDb()
+    .update(submissions)
+    .set({ submittedAt: new Date("2026-09-05T09:12:00Z") })
+    .where(eq(submissions.id, submissionId));
+
+  return { stationId: row.id, stationName };
+}
+
+describe("buildFeedModel — полоса тревог и фильтры", () => {
+  /**
+   * Выбранная станция обязана сужать и полосу тревог, а не только ленту: период на
+   * полосу не влияет (D053), а страна, пиццерия и станция влияют.
+   *
+   * Проверка заведена по T126. На порче `view.ts`, выбрасывавшей разобранный
+   * `stationId`, сквозной сценарий полосы оставался ЗЕЛЁНЫМ: у пиццерии тревожила
+   * ровно одна станция, и потеря фильтра ничего не меняла. Поэтому здесь у пиццерии
+   * тревожат две станции — иначе проверка не отличает фильтр станции от фильтра
+   * пиццерии.
+   *
+   * Адрес разбирается тем же `parseFeedView`, которым его разбирает маршрут: потеря
+   * фильтра по дороге от адреса до запроса тревог — ровно та порча, ради которой
+   * проверка и заведена.
+   */
+  test("выбранная станция сужает полосу тревог, а не только ленту", async () => {
+    const label = "alarm-own";
+    const mine = await seed(label, {
+      answers: [answer(`item-temp-${label}`, 9)],
+      submittedAt: new Date("2026-09-05T09:12:00Z"),
+      durationMs: 120_000,
+    });
+    const neighbour = await seedNeighbourAlarm("alarm-neighbour", mine.storeId);
+
+    const wholeStore = await buildFeedModel(
+      parseFeedView({ store: mine.storeId }),
+      "ru",
+      NOW,
+    );
+    const oneStation = await buildFeedModel(
+      parseFeedView({ store: mine.storeId, station: mine.stationId }),
+      "ru",
+      NOW,
+    );
+
+    // Тревожат обе станции пиццерии: иначе следующее ожидание не значило бы ничего.
+    expect(wholeStore.alarms.rows).toHaveLength(2);
+    expect(wholeStore.alarms.rows.map((row) => row.stationName)).toContain(
+      neighbour.stationName,
+    );
+
+    expect(oneStation.alarms.rows).toHaveLength(1);
+    expect(
+      oneStation.alarms.rows.map((row) => row.stationName),
+      "Полоса тревог показала станцию, которую фильтр не выбирал: фильтр станции " +
+        "потерялся по дороге от адреса до запроса тревог.",
+    ).not.toContain(neighbour.stationName);
   });
 });
 

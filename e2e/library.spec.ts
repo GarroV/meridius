@@ -13,6 +13,9 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 
 const LIBRARY_PATH = "/admin/library";
 const CHECKLISTS_PATH = "/admin/checklists";
+// Задержка ответа сервера на заведение блока в проверке помощника: столько держится
+// первый POST, чтобы переход к новому блоку заведомо не успел доехать раньше печати.
+const SLOW_CREATE_RESPONSE_MS = 800;
 
 function label(): string {
   return Math.random().toString(36).slice(2, 8);
@@ -29,6 +32,31 @@ async function signIn(page: Page): Promise<void> {
  * Заводит блок через «+ Новый блок» и сразу вписывает название и один пункт.
  * Кнопка сама даёт блоку служебное имя по умолчанию — методист правит его тем же полем,
  * которым потом правит всегда, отдельной формы заведения нет (см. `BlockEditor.tsx`).
+ *
+ * Постусловие здесь из двух половин, и ни одна не заменяет вторую (T130, тот же приём
+ * и та же причина, что в T121 у редактора):
+ *  • адрес сменился — значит переход к новому блоку начался, а не только нажалась кнопка;
+ *  • на экране форма ИМЕННО этого блока (`data-block-id`) и она ожила (`data-live`).
+ *
+ * Почему прежних трёх проверок («форма правки видна», «в адресе есть `?block=`», «пунктов
+ * нет») не хватало — и почему они при этом были зелёными. Экран библиотеки показывает
+ * правку выбранного блока ВСЕГДА: пока переход к новому блоку едет, на экране стоит форма
+ * прежнего блока с тем же `data-testid`, а в адресе — `?block=` прежнего блока. Все три
+ * проверки в этот момент удовлетворяет прежний блок, если у того нет пунктов, — а это
+ * обычное состояние только что заведённого и ещё не наполненного блока, не подстроенная
+ * гонка. Спасала только эта случайность: у остальных блоков пункты есть.
+ *
+ * **Измерено зондом 13.09.2026** (ответ сервера на заведение задержан на 800 мс, как на
+ * медленной кухонной сети): все три проверки прошли на +35/+36/+37 мс, до всякого
+ * перехода; печать названия и «Сохранить» ушли в форму ПРЕЖНЕГО блока — у формы есть
+ * скрытое поле `blockId`, поэтому сохранение адресуется тем блоком, чья форма на экране.
+ * В базе после прогона: у прежнего блока название и пункт, напечатанные для нового, у
+ * нового — «Новый блок» и ноль пунктов. Исключения не было ни одного; сценарий падал
+ * позже и не там — на ненайденном `block-saved`, то есть с причиной, указывающей мимо.
+ *
+ * Дальше всё делается ВНУТРИ опознанной формы, а не по странице: второй такой формы на
+ * экране быть не должно, но искать вслепую по `data-testid` — ровно та ошибка, которая
+ * и привела к подмене блока.
  */
 async function createBlock(
   page: Page,
@@ -36,19 +64,42 @@ async function createBlock(
   itemTitle: string,
 ): Promise<string> {
   await page.goto(LIBRARY_PATH);
+
+  const before = page.url();
   await page.getByTestId("new-block").click();
+  await page.waitForFunction((url) => globalThis.location.href !== url, before);
 
-  await expect(page.getByTestId("block-editor")).toBeVisible();
-  await expect(page).toHaveURL(/[?&]block=/);
-  await expect(page.getByTestId("block-no-items")).toBeVisible();
+  const blockId = new URL(page.url()).searchParams.get("block") ?? "";
+  expect(blockId).not.toBe("");
 
-  await page.getByTestId("block-title").fill(title);
-  await page.getByTestId("add-block-item").click();
-  await page.getByTestId("item-title").first().fill(itemTitle);
-  await page.getByTestId("save-block").click();
-  await expect(page.getByTestId("block-saved")).toBeVisible();
+  const editor = page.locator(
+    `[data-testid="block-editor"][data-block-id="${blockId}"][data-live="true"]`,
+  );
+  await expect(
+    editor,
+    "Правка нового блока так и не ожила: на экране либо форма прежнего блока, либо " +
+      "ещё не оживший экран. Напечатанное название и пункт ушли бы в чужой блок " +
+      "молча — у формы скрытое поле `blockId`.",
+  ).toHaveCount(1);
 
-  return page.url();
+  // Проверка продукта, а не готовности экрана: у только что заведённого блока пунктов
+  // нет, и экран обязан сказать это явно (DoD 5). Раньше эта же строка случайно
+  // работала постусловием — и именно поэтому дефект не проявлялся.
+  await expect(editor.getByTestId("block-no-items")).toBeVisible();
+
+  await editor.getByTestId("block-title").fill(title);
+  await editor.getByTestId("add-block-item").click();
+  await editor.getByTestId("item-title").first().fill(itemTitle);
+  await editor.getByTestId("save-block").click();
+  await expect(
+    editor.getByTestId("block-saved"),
+    "Блок не подтвердил сохранение. Подтверждение ищется внутри формы этого же блока: " +
+      "подтверждение на экране другого блока означало бы, что правка уехала не туда.",
+  ).toBeVisible();
+
+  // Адрес собирается из опознавателя, проверенного выше, а не из `page.url()`: к этому
+  // моменту адрес мог уже уехать, и вызывающий получил бы ссылку на чужой блок.
+  return `${LIBRARY_PATH}?block=${blockId}`;
 }
 
 /** Заводит чек-лист через экран заведения и возвращает адрес его редактора. */
@@ -63,16 +114,35 @@ async function createChecklist(page: Page, title: string): Promise<string> {
 /**
  * Вставляет блок библиотеки в открытый чек-лист по его названию — так же, как это
  * делает методист: сначала «вставить блок» показывает панель, потом нажатие на свой
- * блок в ней. Панелей с этим testid на экране в этот момент две (та же лежит и в
- * правой колонке всегда) — берём первую, ту что появилась под секциями.
+ * блок в ней.
+ *
+ * Тот же класс слепоты, что в `createBlock` выше, и чинится так же (T130). Кнопка
+ * «Вставить блок» клиентская, запасного пути у неё нет: до того как редактор ожил, она
+ * принимает нажатие и НИЧЕГО не открывает. Снаружи потеря нажатия не видна вовсе —
+ * панель библиотеки стоит в правой колонке всегда, и `.first()` молча брал бы её вместо
+ * так и не открывшейся (в редакторе на этом же месте порча «кнопка ничего не открывает»
+ * проходила молча, T121). Поэтому: сначала спрашиваем продукт, ожил ли он, а открытие
+ * панели проверяем счётом — панелей становится две.
  */
 async function insertBlockByTitle(
   page: Page,
   blockTitle: string,
 ): Promise<void> {
+  await expect(
+    page.locator('[data-testid="insert-block"][data-live="true"]'),
+    "Редактор чек-листа так и не ожил: нажатие по «Вставить блок» ушло бы в пустоту.",
+  ).toHaveCount(1);
+
   await page.getByTestId("insert-block").click();
-  const panel = page.getByTestId("library-panel").first();
-  await panel
+  await expect(
+    page.getByTestId("library-panel"),
+    "Панель библиотеки под секциями не открылась: нажатие не сработало, а постоянная " +
+      "панель в правой колонке выдала бы себя за открывшуюся.",
+  ).toHaveCount(2);
+
+  await page
+    .getByTestId("library-panel")
+    .first()
     .getByTestId("library-block")
     .filter({ hasText: blockTitle })
     .getByTestId("library-insert")
@@ -217,5 +287,65 @@ test.describe("библиотека переиспользуемых блоко�
     await page.goto(blockUrl);
     await expect(page.getByTestId("usages-empty")).toBeVisible();
     await expect(page.getByTestId("usage-link")).toHaveCount(0);
+  });
+
+  test("правка доезжает до нового блока, а не до того, чья форма стоит на экране во время перехода", async ({
+    page,
+  }) => {
+    await signIn(page);
+
+    // Библиотека должна быть непустой: экран без `?block=` открывает правку первого блока
+    // (`build-model.ts`), и именно его форма стоит на экране, пока едет переход к новому.
+    // На пустой библиотеке ставить нечего, и проверка была бы зелёной ни о чём.
+    await createBlock(
+      page,
+      `Блок, стоящий на экране ${label()}`,
+      "Проверить морозильник",
+    );
+
+    await page.goto(LIBRARY_PATH);
+    const onScreenId = await page
+      .getByTestId("block-editor")
+      .getAttribute("data-block-id");
+
+    // Медленный ответ ИМЕННО на заведение следующего блока: медленная кухонная сеть, а
+    // не быстрый localhost. Без задержки гонка локально обычно разрешается в пользу
+    // перехода, и подмена блока не воспроизводится вовсе — то есть проверка была бы
+    // зелёной по случайности машины, а не по постусловию помощника. Задержка только на
+    // первом POST: сохранение должно идти обычной скоростью.
+    let createDelayed = false;
+    await page.route("**/admin/library**", async (route) => {
+      if (route.request().method() !== "POST" || createDelayed) {
+        await route.continue();
+        return;
+      }
+      createDelayed = true;
+      await new Promise((resolve) => {
+        setTimeout(resolve, SLOW_CREATE_RESPONSE_MS);
+      });
+      await route.continue();
+    });
+
+    const title = `Блок после медленного перехода ${label()}`;
+    const itemTitle = "Проверить вытяжку";
+    const blockUrl = await createBlock(page, title, itemTitle);
+    await page.unroute("**/admin/library**");
+
+    const newBlockId = new URL(blockUrl, "http://localhost").searchParams.get(
+      "block",
+    );
+    // Гонка была настоящей: на экране в момент нажатия стояла форма ДРУГОГО блока.
+    expect(
+      onScreenId,
+      "На экране не было формы другого блока — значит подмену этот прогон и не мог " +
+        "воспроизвести, а зелёный результат ничего не доказывает.",
+    ).not.toBe(newBlockId);
+
+    // Главное: напечатанное осело в НОВОМ блоке. Помощник до правки в этот момент уже
+    // отрапортовал бы успех, а название с пунктом ушли бы в блок, стоявший на экране
+    // (у формы скрытое поле `blockId`) — измерено зондом 13.09.2026.
+    await page.goto(blockUrl);
+    await expect(page.getByTestId("block-title")).toHaveValue(title);
+    await expect(page.getByTestId("item-title").first()).toHaveValue(itemTitle);
   });
 });

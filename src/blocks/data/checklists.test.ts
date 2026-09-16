@@ -6,6 +6,7 @@ import { afterAll, describe, expect, test } from "vitest";
 import {
   getDraft,
   getPublishedVersionForStation,
+  listPublishedVersionsForStation,
   publishVersion,
 } from "./checklists";
 import { checklistVersions, checklists } from "./schema";
@@ -480,5 +481,148 @@ describe("getPublishedVersionForStation", () => {
       (await getPublishedVersionForStation(station.stationCode, at(16)))
         ?.version.id,
     ).toBe(laterVersionId);
+  });
+});
+
+describe("listPublishedVersionsForStation", () => {
+  /** Обход на весь день поверх утреннего и вечернего: ровно то, что на боевом пакете. */
+  const ROUND = { windowStart: "08:00:00", windowEnd: "23:00:00" };
+
+  test("отдаёт ВСЕ чек-листы, открытые в эту минуту, а не первый по началу окна", async () => {
+    const station = await createStation();
+    const morning = await createChecklist({
+      stationId: station.stationId,
+      ...MORNING,
+    });
+    const round = await createChecklist({
+      stationId: station.stationId,
+      ...ROUND,
+    });
+    const morningVersion = await createPublishedVersion(
+      morning,
+      sampleSections("утро"),
+    );
+    const roundVersion = await createPublishedVersion(
+      round,
+      sampleSections("обход"),
+    );
+
+    // В 09:00 открыты оба: утренний до 12:00 и обход до 23:00.
+    const found = await listPublishedVersionsForStation(
+      station.stationCode,
+      at(9),
+    );
+    expect(found.map((entry) => entry.version.id)).toEqual([
+      morningVersion,
+      roundVersion,
+    ]);
+  });
+
+  test("порядок устойчив: начинающийся раньше идёт первым", async () => {
+    const station = await createStation();
+    const round = await createChecklist({
+      stationId: station.stationId,
+      ...ROUND,
+    });
+    await createPublishedVersion(round, sampleSections("обход"));
+    const morning = await createChecklist({
+      stationId: station.stationId,
+      ...MORNING,
+    });
+    await createPublishedVersion(morning, sampleSections("утро"));
+
+    const found = await listPublishedVersionsForStation(
+      station.stationCode,
+      at(9),
+    );
+    expect(found.map((entry) => entry.checklist.windowStart)).toEqual([
+      "06:00:00",
+      "08:00:00",
+    ]);
+  });
+
+  test("закрывшийся чек-лист выпадает, открытый остаётся", async () => {
+    const station = await createStation();
+    const morning = await createChecklist({
+      stationId: station.stationId,
+      ...MORNING,
+    });
+    const round = await createChecklist({
+      stationId: station.stationId,
+      ...ROUND,
+    });
+    await createPublishedVersion(morning, sampleSections("утро"));
+    const roundVersion = await createPublishedVersion(
+      round,
+      sampleSections("обход"),
+    );
+
+    // В 13:00 утренний уже закрылся, обход ещё идёт.
+    const found = await listPublishedVersionsForStation(
+      station.stationCode,
+      at(13),
+    );
+    expect(found.map((entry) => entry.version.id)).toEqual([roundVersion]);
+  });
+
+  test("когда открыт один, список из одного: экран не спрашивает лишнего", async () => {
+    const { code, morningVersionId } = await stationWithTwoChecklists();
+
+    const found = await listPublishedVersionsForStation(code, at(9));
+    expect(found.map((entry) => entry.version.id)).toEqual([morningVersionId]);
+  });
+
+  test("ничего не открыто — пустой список, а не отказ", async () => {
+    const { code } = await stationWithTwoChecklists();
+
+    expect(await listPublishedVersionsForStation(code, at(15))).toEqual([]);
+  });
+
+  test("неизвестный и пустой код дают пустой список: перебор не различает их", async () => {
+    expect(
+      await listPublishedVersionsForStation(uniqueStationCode(), at(9)),
+    ).toEqual([]);
+    expect(await listPublishedVersionsForStation("", at(9))).toEqual([]);
+  });
+
+  test("снятый с работы чек-лист в список не попадает", async () => {
+    const station = await createStation();
+    const morning = await createChecklist({
+      stationId: station.stationId,
+      ...MORNING,
+    });
+    const round = await createChecklist({
+      stationId: station.stationId,
+      ...ROUND,
+    });
+    await createPublishedVersion(morning, sampleSections("утро"));
+    const roundVersion = await createPublishedVersion(
+      round,
+      sampleSections("обход"),
+    );
+
+    await getTestDb()
+      .update(checklists)
+      .set({ archivedAt: new Date() })
+      .where(eq(checklists.id, morning));
+
+    const found = await listPublishedVersionsForStation(
+      station.stationCode,
+      at(9),
+    );
+    expect(found.map((entry) => entry.version.id)).toEqual([roundVersion]);
+  });
+
+  test("чужая станция в список не подмешивается", async () => {
+    const mine = await stationWithTwoChecklists();
+    const other = await stationWithTwoChecklists();
+
+    const found = await listPublishedVersionsForStation(mine.code, at(9));
+    expect(found.map((entry) => entry.version.id)).toEqual([
+      mine.morningVersionId,
+    ]);
+    expect(found.map((entry) => entry.version.id)).not.toContain(
+      other.morningVersionId,
+    );
   });
 });

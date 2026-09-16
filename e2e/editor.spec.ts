@@ -27,6 +27,13 @@ const PASTED_LIST = [
 ].join("\n");
 const PASTED_ITEMS = 6;
 
+// Вечернее окно смены: подпись из словаря (`editor.form.windowEvening`) и то значение,
+// которым окно стоит в списке экрана правки. Сценарии ниже выбирают окно ПОДПИСЬЮ —
+// так же, как методист, — а проверяют то, что сохранилось.
+const EVENING_LABEL = "Вечер, 20:00–00:00";
+const EVENING_WINDOW = "20:00|00:00";
+const MORNING_WINDOW = "06:00|11:00";
+
 function label(): string {
   return Math.random().toString(36).slice(2, 8);
 }
@@ -174,6 +181,26 @@ test.describe("редактор чек-листа", () => {
     await page.keyboard.type("Протереть столы");
     await expect(items).toHaveCount(3);
     await expect(items.nth(2)).toHaveValue("Протереть столы");
+  });
+
+  test("длинное название секции видно целиком, а не обрезается на середине слова", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await createChecklist(page, `Длинный заголовок ${label()}`);
+
+    // Такой заголовок даёт импорт боевого пакета: период суток, часы и подсекция.
+    const long = "Открытие 05:00–08:00 · Приём смены у менеджера";
+    const title = page.getByTestId("section-title").first();
+    await title.fill(long);
+
+    // Поле не прокручивается — значит текст помещается целиком. Проверка именно
+    // такая, потому что `toHaveValue` проходит и на обрезанном на экране поле:
+    // значение в разметке полное, а видно «Открытие 05:00–08:00 · П».
+    const fits = await title.evaluate(
+      (node: HTMLInputElement) => node.scrollWidth <= node.clientWidth + 1,
+    );
+    expect(fits, `заголовок «${long}» не помещается в поле`).toBe(true);
   });
 
   test("Alt+стрелки переставляют пункт и оставляют на нём курсор", async ({
@@ -399,6 +426,87 @@ test.describe("редактор чек-листа", () => {
         () => (window as unknown as Record<string, unknown>)["openBlockProbe"],
       ),
     ).toBe("жив");
+  });
+
+  // T129. Окно смены — единственное свойство формы заведения, которое методист задаёт
+  // выбором, а не вводом, и именно оно уезжало на сервер не тем, что видно на экране:
+  // список был без `name`, а на сервер шли скрытые поля, посчитанные из состояния React.
+  // Выбор, сделанный до того как экран ожил, в состояние не попадал — и чек-лист
+  // заводился на утро при выбранном вечере. Замер зондом 11.09.2026: на экране «вечер»,
+  // в скрытом поле 06:00, в базе окно 06:00–11:00. Узнать об этом можно только на кухне:
+  // чек-лист откроется по QR не в ту смену.
+  //
+  // Оба сценария проверяют одно — что уезжает на сервер, — но разными путями отправки:
+  // без скриптов форму отправляет браузер, со скриптами — React. Один путь за другой
+  // не отвечает: скрытые поля ломали именно второй, а первый молчал о том же.
+  test("окно смены уезжает на сервер выбранным — даже когда скриптов нет вовсе", async ({
+    page,
+  }) => {
+    await signIn(page);
+    // Скриптов нет совсем: остаётся ровно то, что форма отправляет сама. Ни состояния,
+    // ни гидратации — если сохранится утро, значит на сервер уехала не разметка экрана.
+    await page.route("**/*.js", async (route) => {
+      await route.abort();
+    });
+
+    await page.goto(`${CHECKLISTS_PATH}/new`);
+    const form = page.getByTestId("new-checklist-form");
+    await form
+      .locator("#new-checklist-window")
+      .selectOption({ label: EVENING_LABEL });
+    await form.locator("#new-checklist-title").fill(`Вечерний ${label()}`);
+    await page.getByTestId("create-checklist").click();
+
+    // Редактор открыт сервером и показывает то, что легло в базу.
+    await expect(page.getByTestId("editor-screen")).toBeVisible();
+    await expect(page.getByTestId("checklist-window")).toHaveValue(
+      EVENING_WINDOW,
+    );
+  });
+
+  test("окно, выбранное до того как форма ожила, отправкой не подменяется", async ({
+    page,
+  }) => {
+    await signIn(page);
+    // Скрипты едут медленно — так у методиста на слабой сети выглядит первая секунда:
+    // экран уже нарисован и принимает выбор, а обработчиков на нём ещё нет.
+    await page.route("**/*.js", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    });
+
+    await page.goto(`${CHECKLISTS_PATH}/new`, { waitUntil: "commit" });
+    const form = page.getByTestId("new-checklist-form");
+    await form
+      .locator("#new-checklist-window")
+      .selectOption({ label: EVENING_LABEL });
+    await form.locator("#new-checklist-title").fill(`Вечерний ${label()}`);
+
+    // Ждём, пока форма ОЖИВЁТ, и только потом отправляем: иначе сценарий проверил бы
+    // тот же путь, что и предыдущий. «Разметка на месте» здесь не значит ничего —
+    // урок T121: форма видна с первой секунды и до гидратации не делает ничего.
+    await expect(page.getByTestId("create-checklist")).toHaveAttribute(
+      "data-live",
+      "true",
+      { timeout: 15_000 },
+    );
+    await page.getByTestId("create-checklist").click();
+
+    await expect(page.getByTestId("editor-screen")).toBeVisible();
+    await expect(page.getByTestId("checklist-window")).toHaveValue(
+      EVENING_WINDOW,
+    );
+  });
+
+  // Обратная сторона той же проверки: невыбранное окно остаётся утренним. Без неё
+  // «всегда вечер» прошло бы обе проверки выше.
+  test("окно, которое не трогали, остаётся утренним", async ({ page }) => {
+    await signIn(page);
+    await createChecklist(page, `Утренний ${label()}`);
+
+    await expect(page.getByTestId("checklist-window")).toHaveValue(
+      MORNING_WINDOW,
+    );
   });
 
   // Предпросмотр — показ, а не работающий экран заполнения: отвечает сотрудник, открыв

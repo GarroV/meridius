@@ -3,9 +3,11 @@
 // (`db-only-through-data` в .dependency-cruiser.cjs).
 export type {
   Answer,
+  ChecklistWindow,
   Item,
   ItemType,
   LocalizedText,
+  ScheduleSegment,
   Section,
   Severity,
   ShiftMode,
@@ -31,16 +33,41 @@ export type {
   StoreShiftMode,
   Submission,
 } from "./schema";
+export type { Check } from "./schema";
+export type { AnswerValue } from "./types";
 export {
   blocks,
   checklistVersions,
   checklists,
+  checks,
   countries,
   stations,
   storeShiftModes,
   stores,
   submissions,
 } from "./schema";
+
+export type { Interval } from "./schedule";
+export {
+  assertValidSchedule,
+  closedIntervals,
+  currentInterval,
+  formatLocalTime,
+  intervalsForItem,
+  isPeriodic,
+  offsetInWindow,
+  parseLocalTime,
+} from "./schedule";
+
+export type {
+  CheckMark,
+  IntervalState,
+  ItemRounds,
+  RoundInterval,
+  RoundsView,
+  SaveCheckInput,
+} from "./checks";
+export { getRounds, saveCheck } from "./checks";
 
 export { timezoneNames } from "./timezones";
 
@@ -51,6 +78,7 @@ export type { VersionWithChecklist } from "./checklists";
 export {
   getDraft,
   getPublishedVersionForStation,
+  listPublishedVersionsForStation,
   publishVersion,
 } from "./checklists";
 
@@ -73,6 +101,7 @@ export {
 export type { SetShiftModeInput, ShiftModeState } from "./shift-modes";
 export {
   getShiftMode,
+  getShiftModeOnDate,
   listShiftModeChanges,
   setShiftMode,
 } from "./shift-modes";

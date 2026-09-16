@@ -1,14 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
-import type { ChangeEvent, ReactElement } from "react";
+import { useActionState } from "react";
+import type { ReactElement } from "react";
 
 import { submitCreateChecklist } from "../actions";
 import { INITIAL_EDITOR_STATE } from "../action-state";
 import type { StationOption } from "../listing";
 import { CHECKLISTS_PATH } from "../routes";
 import type { EditorErrorCode } from "../validation";
+import {
+  WINDOW_FIELD,
+  WINDOW_PRESETS,
+  windowFieldValue,
+} from "../window-field";
+import { useLive } from "./use-live";
 
 /**
  * Форма заведения чек-листа (карточка «Свойства чек-листа» из эталона `editor.html`).
@@ -17,27 +23,9 @@ import type { EditorErrorCode } from "../validation";
  * текст приходит уже переведённым пропом `labels` со страницы (серверного компонента).
  */
 
-// Три готовых окна эталона: произвольное время форма не даёт — на экране заведения
-// нужны ровно эти случаи, а не конструктор времени (правка окна — в редакторе).
-const WINDOW_PRESETS = [
-  { key: "morning", start: "06:00", end: "11:00" },
-  { key: "evening", start: "20:00", end: "00:00" },
-  { key: "any", start: "00:00", end: "24:00" },
-] as const;
-
-type WindowKey = (typeof WINDOW_PRESETS)[number]["key"];
-
-function isWindowKey(value: string): value is WindowKey {
-  return WINDOW_PRESETS.some((preset) => preset.key === value);
-}
-
-function presetByKey(key: WindowKey) {
-  // Список исчерпывающий и статический — найдётся всегда; find не может не найти,
-  // это защита типов на случай будущей правки массива, а не путь исполнения.
-  const preset = WINDOW_PRESETS.find((item) => item.key === key);
-  if (preset === undefined) throw new Error(`Неизвестное окно: ${key}`);
-  return preset;
-}
+// Окно, с которым форма открывается. Сами окна общие с экраном правки и лежат
+// в `window-field.ts`: два списка одних и тех же смен разъехались бы бесшумно.
+const DEFAULT_WINDOW = windowFieldValue(WINDOW_PRESETS[0].value);
 
 /** Тексты формы, переведённые заранее на странице (см. комментарий выше). */
 export interface NewChecklistLabels {
@@ -88,8 +76,7 @@ export function NewChecklistForm({
     submitCreateChecklist,
     INITIAL_EDITOR_STATE,
   );
-  const [windowKey, setWindowKey] = useState<WindowKey>("morning");
-  const preset = presetByKey(windowKey);
+  const live = useLive();
 
   const errorMessage =
     state.status === "failed"
@@ -151,31 +138,45 @@ export function NewChecklistForm({
             <label className={FIELD_LABEL_CLASS} htmlFor="new-checklist-window">
               {labels.window}
             </label>
+            {/*
+              Список отправляет выбранное окно САМ — своим `name`, а не копией выбора
+              в состоянии React. Копия отставала: выбор, сделанный до того как экран
+              ожил, в неё не попадал, и чек-лист заводился на утро при выбранном вечере
+              (T129). Отсюда же отсутствие обработчика: состояния, которое он бы вёл,
+              здесь больше нет — значит, и отставать больше нечему.
+            */}
             <select
               id="new-checklist-window"
+              name={WINDOW_FIELD}
+              defaultValue={DEFAULT_WINDOW}
               className={CONTROL_CLASS}
-              value={windowKey}
-              onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                const { value } = event.target;
-                if (isWindowKey(value)) setWindowKey(value);
-              }}
             >
-              <option value="morning">{labels.windowMorning}</option>
-              <option value="evening">{labels.windowEvening}</option>
-              <option value="any">{labels.windowAny}</option>
+              {WINDOW_PRESETS.map((preset) => (
+                <option
+                  key={preset.labelKey}
+                  value={windowFieldValue(preset.value)}
+                >
+                  {labels[preset.labelKey]}
+                </option>
+              ))}
             </select>
           </div>
         </div>
 
-        <input type="hidden" name="windowStart" value={preset.start} />
-        <input type="hidden" name="windowEnd" value={preset.end} />
         <input type="hidden" name="locale" value={locale} />
 
         <div className="flex items-center gap-[var(--space-5)]">
+          {/*
+            `data-live` — признак того, что форма ожила (`use-live.tsx`). До гидратации
+            кнопка выглядит рабочей и отправляет форму обычным способом браузера, и это
+            законный путь: сохранение от скриптов не зависит. Но сценарию нужно уметь
+            дождаться ИМЕННО второго пути отправки, иначе он проверит только первый.
+          */}
           <button
             type="submit"
             disabled={pending}
             data-testid="create-checklist"
+            data-live={live ? "true" : undefined}
             className={BTN_PRIMARY_CLASS}
           >
             {labels.create}

@@ -365,6 +365,10 @@
       "title": "Nothing to fill in right now",
       "text": "No checklist is assigned to this station for the current time of day."
     },
+    "choice": {
+      "title": "Which checklist?",
+      "text": "More than one checklist is open at this station right now. Pick the one you need."
+    },
     "offline": {
       "title": "Could not send",
       "text": "Your answers are kept on this screen. Move closer to the Wi-Fi and try again — nothing is lost.",
@@ -401,6 +405,31 @@
         "offline": "No connection. Your answers are still here — try again."
       },
       "close": "close"
+    },
+    "rounds": {
+      "title": "Rounds",
+      "checkBefore": "Check before {time}",
+      "checkNow": "Check now",
+      "doneAt": "Done at {time}",
+      "nextAt": "Next at {time}",
+      "finished": "No more rounds today",
+      "missed": "Missed {count}",
+      "mark": "Mark",
+      "markOk": "All good",
+      "markBad": "Problem",
+      "sendFailure": "Send",
+      "commentLabel": "What is wrong",
+      "commentPlaceholder": "Briefly: what you found",
+      "expand": "Show today's rounds ({count})",
+      "yes": "all good",
+      "no": "problem",
+      "refused": {
+        "noRound": "No round is due right now: the checklist is closed or today's rounds are over.",
+        "needComment": "Say what you found — the mark is not accepted without it.",
+        "tooOften": "Too often. Try again in {minutes} min.",
+        "broken": "Could not mark it. Reload the page and try again.",
+        "offline": "Connection lost. Try again."
+      }
     }
   },
   "feed": {

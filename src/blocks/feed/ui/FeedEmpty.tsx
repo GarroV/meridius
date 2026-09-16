@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
+
 import type { FeedEmptyKind } from "../model";
 import { FEED_PATH } from "../routes";
 
@@ -10,11 +12,12 @@ import { FEED_PATH } from "../routes";
  * блока). Причин ровно три, и предлагать в них надо разное: заводить справочник,
  * печатать коды или расширять период — совет невпопад хуже отсутствия совета.
  *
- * Адреса соседних разделов вписаны строками: границы модулей запрещают ленте
- * зависеть от блоков `catalog` и `qr` (.dependency-cruiser.cjs).
+ * Адреса соседних разделов берутся из справочника разделов `core`: границы модулей
+ * запрещают ленте зависеть от блоков `catalog` и `qr` (.dependency-cruiser.cjs), а
+ * своя копия строки разъехалась бы с боковым меню молча (#11, T074).
  */
-const CATALOG_PATH = "/admin/catalog";
-const QR_PATH = "/admin/qr";
+const CATALOG_PATH = ADMIN_SECTIONS.catalog.path;
+const QR_PATH = ADMIN_SECTIONS.qr.path;
 
 const CARD_CLASS =
   "bg-surface rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
