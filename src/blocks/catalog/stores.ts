@@ -8,9 +8,15 @@
 // форма — не единственный путь записи: есть сид, миграция данных и будущий импорт.
 import { asc, count, eq } from "drizzle-orm";
 
-import { countries, getDb, stations, stores } from "@/blocks/data";
+import {
+  countries,
+  getDb,
+  stations,
+  storeShiftModes,
+  stores,
+} from "@/blocks/data";
 
-import { CatalogError, asHistoryConflict, requireName } from "./errors";
+import { CatalogError, asDeletionConflict, requireName } from "./errors";
 import { assertKnownTimezone } from "./timezone";
 
 // Тот же приём, что в submissions.ts: некорректный id не должен доходить до драйвера
@@ -117,10 +123,17 @@ export async function countStationsOfStore(id: string): Promise<number> {
 
 /**
  * Удаляет пиццерию. Если у неё есть станции, а `confirmed` не передан — отказ
- * `confirmationRequired`, и ничего не удаляется. С подтверждением станции и сама
- * пиццерия удаляются в одной транзакции: отказ на любом шаге (станцию или пиццерию
- * не пустить не даёт история заполнений, `on delete restrict`) откатывает оба
- * удаления разом, и висячих станций после неудачи не остаётся.
+ * `confirmationRequired`, и ничего не удаляется. С подтверждением режим смены, станции
+ * и сама пиццерия удаляются в одной транзакции: отказ на любом шаге (станцию или
+ * пиццерию не пустить не даёт история заполнений и отметки обходов, `on delete restrict`)
+ * откатывает все удаления разом, и висячих станций после неудачи не остаётся.
+ *
+ * Режим смены снимается вместе с пиццерией, потому что он её НАСТРОЙКА, а не история
+ * работы: строка в `store_shift_modes` говорит, как работать сегодня, и без пиццерии не
+ * значит ничего. Ссылка оттуда стоит `restrict` и до T154 запрещала удаление навсегда —
+ * пиццерию с однажды заданным режимом нельзя было удалить даже при нуле заполнений.
+ * Заполнения и отметки обходов, наоборот, остаются неприкосновенными (принцип 3, D002):
+ * они помнят, что происходило на смене, и удаление справочника их не отменяет.
  */
 export async function deleteStore(
   id: string,
@@ -139,6 +152,7 @@ export async function deleteStore(
   let deletedRows: { id: string }[];
   try {
     deletedRows = await getDb().transaction(async (tx) => {
+      await tx.delete(storeShiftModes).where(eq(storeShiftModes.storeId, id));
       await tx.delete(stations).where(eq(stations.storeId, id));
       return tx
         .delete(stores)
@@ -146,7 +160,7 @@ export async function deleteStore(
         .returning({ id: stores.id });
     });
   } catch (error) {
-    asHistoryConflict(error, WHAT_STORE);
+    asDeletionConflict(error, WHAT_STORE);
   }
   if (deletedRows.length === 0) throw storeNotFound(id);
 }
