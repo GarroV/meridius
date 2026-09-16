@@ -125,6 +125,37 @@ test.describe("связность разделов кабинета", () => {
     });
   }
 
+  // T124. Из раздела в главную кабинета вернуться было нечем, кроме кнопки браузера:
+  // меню перечисляет разделы, а главная разделом не является и пункта в нём не имеет.
+  // Бренд наверху меню выглядел как заголовок продукта и не нажимался. Асимметрия: в любой
+  // раздел из главной — мышью, обратно — только назад браузером или адресом наизусть.
+  for (const from of READY) {
+    test(`с экрана «${from.name}» бренд в меню возвращает на главную`, async ({
+      page,
+    }) => {
+      await signIn(page);
+      await page.goto(from.path);
+
+      const brand = page.locator("nav").first().getByTestId("nav-home");
+      await expect(brand).toHaveAttribute("href", "/admin");
+
+      // Метка переживает клиентский переход и не переживает перезагрузку — так видно,
+      // что бренд идёт через роутер Next, а не обычным `<a href>` (T088, D046).
+      await page.evaluate(() => {
+        (window as unknown as Record<string, unknown>)["brandProbe"] = "жив";
+      });
+      await brand.click();
+
+      await expect(page).toHaveURL(/\/admin$/);
+      await expect(page.getByTestId("admin-home")).toBeVisible();
+      expect(
+        await page.evaluate(
+          () => (window as unknown as Record<string, unknown>)["brandProbe"],
+        ),
+      ).toBe("жив");
+    });
+  }
+
   // T088: переход обязан идти через роутер Next, а не обычным `<a href>`. Разница видна
   // только на площадке с базовым путём — обычной ссылке Next префикс не приставляет, и
   // она уводит на корень адреса, к чужому продукту. Проверяется не разметкой, а

@@ -99,7 +99,7 @@
     "confirm": {
       "deleteStoreTitle": "Delete pizzeria \"{name}\"?",
       "deleteStoreBody": "Stations will be deleted with it: {count}",
-      "deleteStoreWarning": "If any station has submissions, deletion will be refused — submission history is untouchable.",
+      "deleteStoreWarning": "If any station has submissions or check marks, deletion will be refused — history is untouchable. The shift mode is cleared together with the pizzeria.",
       "deleteStationTitle": "Delete station \"{name}\"?",
       "deleteStationBody": "Its QR code will stop opening the checklist."
     },
@@ -118,7 +118,9 @@
       "localeNotSupported": "This language is not supported",
       "unknownTimezone": "The database does not know this timezone",
       "referencedByHistory": "Submissions reference this record — deletion is not allowed",
+      "referencedByChecks": "Check marks reference this record — deletion is not allowed",
       "countryNotEmpty": "This country still has pizzerias — delete them first",
+      "checklistArchived": "This checklist is withdrawn — it cannot be assigned to a station",
       "confirmationRequired": "Deletion needs confirmation",
       "notFound": "Record not found",
       "codeCollision": "This QR code is already taken — try again"

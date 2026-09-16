@@ -103,7 +103,7 @@ function VersionTags({
       {row.publishedNumber !== null ? (
         <span className={TAG_OK}>{`v${String(row.publishedNumber)}`}</span>
       ) : null}
-      {row.hasDraft ? (
+      {row.hasUnpublishedChanges ? (
         <span className={TAG_DRAFT}>{t("list.draftTag")}</span>
       ) : null}
     </span>

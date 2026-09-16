@@ -164,6 +164,98 @@
     </div>
   </div>
 
+
+  <!-- 4. Панель обходов: периодические проверки внутри смены -->
+  <div class="phone">
+    <div class="phone__cap">4 · Обходы</div>
+    <div class="fill">
+      <div class="fill__head">
+        <div class="fill__station">Shift supervisor</div>
+        <div class="fill__where">Demoland, Pilot · Shift supervisor · day</div>
+        <div class="fill__progress">
+          <span class="fill__bar"><i style="width:60%"></i></span>
+          <span class="fill__count">3 of 5</span>
+        </div>
+      </div>
+
+      <div class="section__title">Hall and equipment</div>
+
+      <div class="item item--done">
+        <span class="item__box"></span>
+        <span class="item__text">Check the guest area is tidy</span>
+      </div>
+
+      <div class="item">
+        <span class="item__box"></span>
+        <span class="item__text">Top up napkins and cutlery</span>
+      </div>
+
+      <!-- Обходы отделены от обычных пунктов толстой полосой: другой ритм работы,
+           а не ещё одна секция чек-листа. -->
+      <div class="rounds">
+        <div class="rounds__head">Rounds</div>
+
+        <!-- Пора: зовёт акцентом, дальше кнопки да/нет -->
+        <div class="rounds__row">
+          <div class="rounds__title">Walk the hall</div>
+          <div class="rounds__state rounds__state--due">Check before 12:00</div>
+          <div class="rounds__note">Missed 2 · Next at 14:00</div>
+          <div class="rounds__actions">
+            <button class="rounds__btn rounds__btn--primary">All good</button>
+            <button class="rounds__btn">Something is off</button>
+          </div>
+          <div class="rounds__more">
+            <div class="rounds__summary">Show rounds for the shift (3)</div>
+          </div>
+        </div>
+
+        <!-- Сделано: подтверждение временем последней отметки -->
+        <div class="rounds__row">
+          <div class="rounds__title">Fryer oil temperature</div>
+          <div class="rounds__state rounds__state--done">Done at 11:05</div>
+          <div class="rounds__note">Next at 13:00</div>
+          <div class="rounds__actions">
+            <input class="input" value="176" inputmode="decimal" style="height:44px;max-width:120px">
+            <button class="rounds__btn rounds__btn--primary">Mark</button>
+          </div>
+          <div class="rounds__more">
+            <div class="rounds__summary">Show rounds for the shift (2)</div>
+            <div class="rounds__mark">
+              <span class="rounds__at">11:05</span>
+              <span class="rounds__ok">all good</span>
+              <span class="rounds__what">176 °C</span>
+            </div>
+            <div class="rounds__mark">
+              <span class="rounds__at">09:10</span>
+              <span class="rounds__bad">something is off</span>
+              <span class="rounds__what">Oil darker than usual, changed it</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ждём: время следующего обхода уже в главной строке, второй строки нет -->
+        <div class="rounds__row">
+          <div class="rounds__title">Check the cold room door seal</div>
+          <div class="rounds__state rounds__state--waiting">Next at 15:00</div>
+        </div>
+
+        <!-- Закончены: сетка на сегодня исчерпана -->
+        <div class="rounds__row">
+          <div class="rounds__title">Wipe down the counter</div>
+          <div class="rounds__state rounds__state--finished">Rounds are done for today</div>
+          <div class="rounds__note">Missed 1</div>
+          <div class="rounds__more">
+            <div class="rounds__summary">Show rounds for the shift (4)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fill__foot">
+        <button class="btn btn--primary btn--fill" disabled style="opacity:.45">2 items left</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 </body>
 </html>
