@@ -70,6 +70,8 @@
       "name": "Name",
       "country": "Country",
       "timezone": "Timezone",
+      "timezoneUnknown": "The database does not know the zone “{timezone}”: the QR codes of this pizzeria's stations do not open. Pick a zone from the list and save.",
+      "timezoneChoose": "— pick a zone —",
       "locale": "Country language"
     },
     "actions": {

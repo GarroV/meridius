@@ -215,6 +215,28 @@ describe("что показывает экран справочника", () => 
   });
 });
 
+/** Пояс пишется мимо справочника — ровно так он и попадает в базу в жизни. */
+async function storeWithTimezone(timezone: string): Promise<{
+  countryId: string;
+  storeId: string;
+}> {
+  const suffix = randomUUID().slice(0, 8);
+  const countryId = await createCountry({
+    name: `Страна ${suffix}`,
+    locale: "ru",
+  });
+  const [store] = await getDb()
+    .insert(stores)
+    .values({
+      countryId,
+      name: `Пиццерия ${suffix}`,
+      timezone,
+    })
+    .returning({ id: stores.id });
+  if (store === undefined) throw new Error("пиццерия не завелась");
+  return { countryId, storeId: store.id };
+}
+
 // Пиццерия, чей пояс база уже не признаёт, существует: так его пишет сид, миграция или
 // любой код мимо справочника (T062 закрыл только путь через `createStore`/`updateStore`).
 // По D060 такую пиццерию ловят в справочнике при сохранении, а публичный маршрут
@@ -224,26 +246,11 @@ describe("что показывает экран справочника", () => 
 describe("пиццерия с непризнаваемым поясом видна в карточке (T102, D060)", () => {
   const TYPO = "Asia/Almatyy";
 
-  /** Пояс пишется мимо справочника — ровно так он и попадает в базу в жизни. */
   async function storeWithBrokenTimezone(): Promise<{
     countryId: string;
     storeId: string;
   }> {
-    const suffix = randomUUID().slice(0, 8);
-    const countryId = await createCountry({
-      name: `Страна ${suffix}`,
-      locale: "ru",
-    });
-    const [store] = await getDb()
-      .insert(stores)
-      .values({
-        countryId,
-        name: `Пиццерия ${suffix}`,
-        timezone: TYPO,
-      })
-      .returning({ id: stores.id });
-    if (store === undefined) throw new Error("пиццерия не завелась");
-    return { countryId, storeId: store.id };
+    return storeWithTimezone(TYPO);
   }
 
   test("карточка отдаёт сохранённое значение и признаётся, что база его не знает", async () => {
@@ -284,4 +291,25 @@ describe("пиццерия с непризнаваемым поясом видн
 
     expect(model.timezones.map((zone) => zone.name)).not.toContain(TYPO);
   });
+
+  // Спрашивать надо у PostgreSQL, а не у `Intl` движка (D060 так и записан). Разница
+  // не теоретическая: `US/Pacific`, `Japan` и `Factory` PostgreSQL знает, а список
+  // `Intl.supportedValuesOf('timeZone')` их не содержит — он отдаёт только канонические
+  // имена. Проверка на `Intl` объявила бы такие пиццерии сломанными и потребовала бы
+  // менять исправный пояс. Опечатка `Asia/Almatyy` этой подмены не ловит: её обе
+  // стороны считают неизвестной, поэтому нужен пояс, по которому списки расходятся.
+  test.each(["US/Pacific", "Japan", "Factory"])(
+    "пояс «%s» база знает, хотя список Intl его не содержит — признан",
+    async (timezone) => {
+      const { countryId, storeId } = await storeWithTimezone(timezone);
+
+      const model = await buildCatalogModel(
+        { countryId, storeId, focus: "store" },
+        "ru",
+      );
+
+      expect(Intl.supportedValuesOf("timeZone")).not.toContain(timezone);
+      expect(model.store?.timezoneKnown).toBe(true);
+    },
+  );
 });

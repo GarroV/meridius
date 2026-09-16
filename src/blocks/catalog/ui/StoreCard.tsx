@@ -14,6 +14,7 @@ import {
   FIELD_ID,
   FIELD_LABEL_CLASS,
   FIELD_NAME,
+  FIELD_NOTICE_CLASS,
   FIELD_TIMEZONE,
   FIELD_VALUE_CLASS,
   INLINE_CLASS,
@@ -28,6 +29,10 @@ import type { StoreDetail } from "./model";
 import type { TimezoneOption } from "../timezone";
 
 const STORE_FORM_ID = "store-edit-form";
+// Отказ привязан к самому полю, а не просто лежит рядом: экранный диктор
+// иначе прочитает список зон как исправный, а причину — отдельным абзацем
+// неизвестно к чему.
+const TIMEZONE_NOTICE_ID = "store-timezone-unknown";
 
 export function StoreCard({
   store,
@@ -85,19 +90,41 @@ export function StoreCard({
             <label htmlFor="store-timezone" className={FIELD_LABEL_CLASS}>
               {t("fields.timezone")}
             </label>
+            {/* Пояс, которого база не знает, НЕ подставляется в список пунктом (T102,
+                D060). Пункта с таким значением нет — `<select>` без совпадения показал
+                бы первую зону по алфавиту, то есть соврал бы о состоянии пиццерии, а
+                «Сохранить» тихо переписало бы пояс на чужой. Вместо этого выбран пустой
+                пункт: сохранение отказывает кодом `unknownTimezone`, пока методист не
+                выберет настоящую зону, а сломанное значение названо рядом вслух. */}
             <select
               id="store-timezone"
               form={STORE_FORM_ID}
               name={FIELD_TIMEZONE}
-              defaultValue={store.timezone}
+              defaultValue={store.timezoneKnown ? store.timezone : ""}
+              aria-invalid={!store.timezoneKnown}
+              aria-describedby={
+                store.timezoneKnown ? undefined : TIMEZONE_NOTICE_ID
+              }
               className={SELECT_CLASS}
             >
+              {store.timezoneKnown ? null : (
+                <option value="">{t("fields.timezoneChoose")}</option>
+              )}
               {timezones.map((zone) => (
                 <option key={zone.name} value={zone.name}>
                   {zone.name} ({zone.offset})
                 </option>
               ))}
             </select>
+            {store.timezoneKnown ? null : (
+              <p
+                id={TIMEZONE_NOTICE_ID}
+                data-testid="store-timezone-unknown"
+                className={FIELD_NOTICE_CLASS}
+              >
+                {t("fields.timezoneUnknown", { timezone: store.timezone })}
+              </p>
+            )}
           </div>
         </div>
         <div className={INLINE_CLASS}>

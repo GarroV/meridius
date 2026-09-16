@@ -50,6 +50,14 @@ export const SELECT_CLASS =
 // версии не будет, поэтому решение — не притворяться контролом, а честно показать текст.
 export const FIELD_VALUE_CLASS =
   "text-ink bg-surface flex h-[var(--control-h)] w-full items-center rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-lead)]";
+// Отказ, названный рядом с самим полем, а не только полосой наверху экрана (T102):
+// методист смотрит на поле, которое правит. Геометрия — подписи под полем из эталона
+// (`.field__hint`: `--fs-meta`, зазор поля `--space-3`), а не полосы `.notice--err`:
+// полоса — блок наверху экрана, со своей рамкой и подложкой, и вторая такая же под
+// каждым полем превратила бы карточку в лоскуты. Отличает от обычной подписи только
+// тон: `--err` вместо `--ink-3`. `m-0` — у абзаца иначе остаётся браузерный отступ,
+// и подпись отрывается от своего поля (та же правка уже сделана в форме входа).
+export const FIELD_NOTICE_CLASS = "text-err m-0 text-[length:var(--fs-meta)]";
 export const INLINE_CLASS = "flex items-center gap-[var(--space-5)]";
 export const BTN_GHOST_DANGER_CLASS =
   "text-err inline-flex h-[var(--control-h)] items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-6)] text-[length:var(--fs-body)] font-medium no-underline hover:border-[var(--err-line)] hover:bg-[var(--err-soft)]";
