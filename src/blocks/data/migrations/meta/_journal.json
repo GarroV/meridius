@@ -57,6 +57,20 @@
       "when": 1788950000000,
       "tag": "0007_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789000000000,
+      "tag": "0008_alarms",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789050000000,
+      "tag": "0009_alarm_window",
+      "breakpoints": true
     }
   ]
 }

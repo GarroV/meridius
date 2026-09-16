@@ -145,6 +145,12 @@ export const FILL_LIMITS = {
   // Шестьдесят на код за пять минут — запас на самую плотную станцию; общий счёт сети
   // при этом остаётся тем же, поэтому поток с улицы упирается в него, а не в кухню.
   roundPerCode: { maxHits: 60, windowSeconds: 5 * 60, maxTrackedKeys: 10_000 },
+  // Будильники — третья запись с той же публичной ссылки. Тридцать на код за пять минут:
+  // сотрудник заводит записку вручную и снимает её касанием, десятка обращений за смену
+  // хватает с запасом, а потолок на число будильников (`ALARM_LIMITS`) стоит отдельно
+  // и от частоты не зависит. Счёт свой, чтобы набивание будильников не выбирало предел
+  // отправок и не запирало кухню, и наоборот.
+  alarmPerCode: { maxHits: 30, windowSeconds: 5 * 60, maxTrackedKeys: 10_000 },
 } as const;
 
 const EVERYONE = "все";
@@ -154,6 +160,7 @@ const submitEveryone = createRateLimiter(FILL_LIMITS.submitEveryone);
 const scanPerClient = createRateLimiter(FILL_LIMITS.scanPerClient);
 const shiftModePerCode = createRateLimiter(FILL_LIMITS.shiftModePerCode);
 const roundPerCode = createRateLimiter(FILL_LIMITS.roundPerCode);
+const alarmPerCode = createRateLimiter(FILL_LIMITS.alarmPerCode);
 
 function strictest(verdicts: readonly RateVerdict[]): RateVerdict {
   const refused = verdicts.filter((verdict) => !verdict.allowed);
@@ -195,6 +202,14 @@ export function checkRoundAllowed(code: string, now: Date): RateVerdict {
   ]);
 }
 
+/** Пускать ли действие с будильником: считается код станции и вся сеть сразу. */
+export function checkAlarmAllowed(code: string, now: Date): RateVerdict {
+  return strictest([
+    alarmPerCode.hit(code, now),
+    submitEveryone.hit(EVERYONE, now),
+  ]);
+}
+
 /** Полный сброс. Нужен тестам, которые делят один процесс. */
 export function forgetAllFillHits(): void {
   submitPerCode.clearAll();
@@ -202,6 +217,7 @@ export function forgetAllFillHits(): void {
   scanPerClient.clearAll();
   shiftModePerCode.clearAll();
   roundPerCode.clearAll();
+  alarmPerCode.clearAll();
 }
 
 /** Имя переменной окружения: сколько доверенных посредников стоит перед продуктом. */

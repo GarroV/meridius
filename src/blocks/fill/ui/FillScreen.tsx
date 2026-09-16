@@ -8,6 +8,7 @@ import { getRounds } from "@/blocks/data";
 import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
 
+import { listAlarms } from "../alarms";
 import { pickFillLocales } from "../locale";
 import { CHECKLIST_PARAM } from "../params";
 import {
@@ -19,6 +20,7 @@ import { buildRoundsPanel } from "../rounds-view";
 import { loadFillTarget } from "../station";
 import type { FillTarget } from "../station";
 import { buildChoiceView, buildFillView } from "../view";
+import { dropAlarmAction, setAlarmAction } from "./alarm-action";
 import { ChoiceScreen } from "./ChoiceScreen";
 import { FillForm } from "./FillForm";
 import { markRoundAction } from "./round-action";
@@ -162,6 +164,10 @@ export async function FillScreen({
           },
         });
 
+  // Будильники читаются тем же `now`, что и версия с обходами: отсчёт до звонка
+  // уходит в браузер секундами от этого мига, а не мигом времени (часы планшета врут).
+  const alarms = await listAlarms(code, now);
+
   const view = buildFillView({
     // Пункты уже отфильтрованы действующим режимом смены (`loadFillTarget`):
     // фильтр живёт в одном месте, а не повторяется здесь.
@@ -198,6 +204,9 @@ export async function FillScreen({
           submit={submitFillAction}
           rounds={panel}
           mark={markRoundAction}
+          alarms={alarms}
+          addAlarm={setAlarmAction}
+          dropAlarm={dropAlarmAction}
         />
       </NextIntlClientProvider>
     </div>

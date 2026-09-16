@@ -465,6 +465,27 @@
         "broken": "Could not mark it. Reload the page and try again.",
         "offline": "Connection lost. Try again."
       }
+    },
+    "alarms": {
+      "title": "Alarms",
+      "timeLabel": "At what time",
+      "labelLabel": "What for",
+      "labelPlaceholder": "For example: take out the dough",
+      "add": "Set",
+      "drop": "Remove the alarm \u00ab{label}\u00bb",
+      "ringing": "Alarm for {time}",
+      "acknowledge": "Got it",
+      "noSound": "No sound: the tablet keeps a page silent until someone taps on it.",
+      "hint": "An alarm is one-off and lives until the checklist stops working. It rings while this screen is open.",
+      "refused": {
+        "pastTime": "That time has already passed. Pick a later one.",
+        "outsideWindow": "An alarm can only be set within the station's working hours: {window}.",
+        "checklistClosed": "No checklist is open at this station right now — there is nowhere to put an alarm.",
+        "tooMany": "No more than {count} alarms at a time. Remove one you no longer need.",
+        "tooOften": "Too often. Try again in {minutes} min.",
+        "broken": "Could not do it. Reload the page and try again.",
+        "offline": "Connection lost. Try again."
+      }
     }
   },
   "feed": {
