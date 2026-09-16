@@ -1,0 +1,256 @@
+// Сетка обходов: пункты × интервалы, с пропусками.
+//
+// Зачем таблица именно здесь и только здесь. Сетка часов в бумажном чек-листе —
+// артефакт печати, а не модель продукта: на экране станции регулярность показывается
+// СОСТОЯНИЕМ проверки («сделано в 11:05», «пора», «пропущено»), а не таблицей (D065).
+// Но у отчёта другой вопрос — «в какие часы обход сыпется», — и на него отвечает
+// только таблица: разговор получается про нагрузку и расстановку людей, а не про то,
+// кто виноват.
+//
+// Здесь нет ни одного запроса и ни одного часового пояса: всё местное время уже
+// посчитано базой (D026) и пришло сюда числами. Пропуск не хранится нигде — он
+// выводится из расписания при чтении, ровно как тревоги (D053, D066).
+import {
+  flattenItems,
+  formatLocalTime,
+  intervalsForItem,
+  isPeriodic,
+  parseLocalTime,
+  severityOf,
+} from "@/blocks/data";
+import type {
+  ChecklistWindow,
+  Item,
+  LocalizedText,
+  Section,
+  Severity,
+  ShiftMode,
+} from "@/blocks/data";
+
+/**
+ * Один проход окна одного чек-листа: те сутки, в которые обход ждали.
+ *
+ * `sections` — содержимое версии, действовавшей в эти сутки, а не сегодняшней:
+ * версии неизменяемы (D002), и отчёт за месяц обязан считать каждый день по тому
+ * расписанию, которое тогда и было.
+ */
+export interface RoundsDay {
+  readonly checklistId: string;
+  /** Местные сутки прохода окна, «ГГГГ-ММ-ДД». У окна через полночь — сутки начала. */
+  readonly localDate: string;
+  readonly window: ChecklistWindow;
+  readonly mode: ShiftMode;
+  readonly sections: readonly Section[];
+  /**
+   * Сколько минут прошло с начала прохода на момент просмотра. По нему и только по
+   * нему решается, закрылся ли интервал: у прошедших суток число заведомо больше
+   * длины окна, у сегодняшних — режет сетку ровно там, где стоит смена.
+   */
+  readonly elapsedMinutes: number;
+}
+
+/** Отметка обхода в том виде, в каком её различает сетка. */
+export interface RoundsMark {
+  readonly checklistId: string;
+  readonly localDate: string;
+  readonly itemId: string;
+  /** Начало прохода в минутах от начала окна — то же, что хранит `checks`. */
+  readonly intervalStart: number;
+}
+
+/** Клетка сетки: сколько суток обход сделан, сколько пропущен, сколько ещё впереди. */
+export interface RoundsCell {
+  readonly done: number;
+  readonly missed: number;
+  /** Интервал ещё идёт или не начинался: пропуском он не считается. */
+  readonly pending: number;
+}
+
+export interface RoundsGridRow {
+  /** Ключ строки: пункт живёт внутри своего чек-листа, идентификаторы не глобальны. */
+  readonly key: string;
+  readonly checklistId: string;
+  readonly itemId: string;
+  /** Название на всех языках: язык выбирает экран, а не сетка. */
+  readonly itemTitle: LocalizedText;
+  readonly severity: Severity;
+  /** Клетки по колонкам сетки. `null` — в этот час обход не ждали вовсе. */
+  readonly cells: readonly (RoundsCell | null)[];
+  readonly doneCount: number;
+  readonly missedCount: number;
+  /** Первая колонка, где у строки есть клетка: по ней экран выстраивает порядок. */
+  readonly firstColumn: number;
+}
+
+export interface RoundsGrid {
+  /** Часы прохода, «08:00»: объединение по всем строкам, по возрастанию. */
+  readonly columns: readonly string[];
+  readonly rows: readonly RoundsGridRow[];
+  readonly doneCount: number;
+  readonly missedCount: number;
+  /**
+   * Отметки, не легшие ни в один интервал сегодняшней сетки: методист сменил шаг
+   * посреди смены. Обход БЫЛ сделан, и потерять его молча хуже, чем сказать число
+   * вслух, — но и прикидываться клеткой сетки он не имеет права.
+   */
+  readonly strayMarkCount: number;
+}
+
+/** Накопитель строки: клетки по ключу колонки, пока порядок колонок ещё не известен. */
+interface RowDraft {
+  readonly checklistId: string;
+  readonly itemId: string;
+  itemTitle: LocalizedText;
+  severity: Severity;
+  readonly cells: Map<
+    string,
+    { done: number; missed: number; pending: number }
+  >;
+}
+
+/**
+ * Ключ отметки. Разделитель — символ, которого не бывает ни в идентификаторе, ни
+ * в дате: обычный пробел или дефис склеили бы два разных ключа в один, и отметка
+ * одного пункта молча зачлась бы другому. Записан экранированием, а не самим байтом:
+ * сырой NUL в исходнике делает файл двоичным для git и сбивает разбор типов.
+ */
+function markKey(mark: RoundsMark): string {
+  return `${mark.checklistId}\u0000${mark.localDate}\u0000${mark.itemId}\u0000${String(mark.intervalStart)}`;
+}
+
+/**
+ * Часы прохода в подпись колонки. Смещение считается от начала окна, поэтому окно
+ * через полночь особым случаем не становится: `formatLocalTime` сворачивает сутки сам.
+ */
+function columnOf(
+  window: ChecklistWindow,
+  startMinutes: number,
+): string | null {
+  const windowStart = parseLocalTime(window.start);
+  if (windowStart === null) return null;
+  return formatLocalTime(windowStart + startMinutes);
+}
+
+/** Периодические пункты прохода — в том порядке, в каком они стоят в чек-листе. */
+function periodicItems(day: RoundsDay): Item[] {
+  return flattenItems([...day.sections]).filter((item) => isPeriodic(item));
+}
+
+/**
+ * Сетка обходов по проходам окна и отметкам на них.
+ *
+ * Сутки подаются в любом порядке, но название пункта берётся из САМЫХ ПОЗДНИХ:
+ * переименованный пункт отчёт обязан называть так, как он называется сейчас, иначе
+ * шапка отчёта расходится с редактором.
+ */
+export function buildRoundsGrid(
+  days: readonly RoundsDay[],
+  marks: readonly RoundsMark[],
+): RoundsGrid {
+  const marked = new Set(marks.map(markKey));
+  const usedMarks = new Set<string>();
+  const drafts = new Map<string, RowDraft>();
+  const columns = new Set<string>();
+
+  const ordered = [...days].sort((a, b) =>
+    a.localDate < b.localDate ? -1 : a.localDate > b.localDate ? 1 : 0,
+  );
+
+  for (const day of ordered) {
+    for (const item of periodicItems(day)) {
+      const intervals = intervalsForItem(item, day.window, day.mode);
+      if (intervals.length === 0) continue;
+
+      const key = `${day.checklistId}\u0000${item.id}`;
+      // Тип накопителя объявлен явно: без него `new Map()` в запасном значении
+      // выводится как `Map<any, any>`, и весь счёт клеток ниже молча теряет типы —
+      // `tsc` такое пропускает, а линт с типами ловит.
+      const draft: RowDraft = drafts.get(key) ?? {
+        checklistId: day.checklistId,
+        itemId: item.id,
+        itemTitle: item.title,
+        severity: severityOf(item),
+        cells: new Map(),
+      };
+      // Сутки идут по возрастанию, поэтому последнее название побеждает.
+      draft.itemTitle = item.title;
+      draft.severity = severityOf(item);
+      drafts.set(key, draft);
+
+      for (const interval of intervals) {
+        const column = columnOf(day.window, interval.startMinutes);
+        if (column === null) continue;
+        columns.add(column);
+
+        const cell = draft.cells.get(column) ?? {
+          done: 0,
+          missed: 0,
+          pending: 0,
+        };
+        draft.cells.set(column, cell);
+
+        const mark = markKey({
+          checklistId: day.checklistId,
+          localDate: day.localDate,
+          itemId: item.id,
+          intervalStart: interval.startMinutes,
+        });
+        if (marked.has(mark)) {
+          usedMarks.add(mark);
+          cell.done += 1;
+          continue;
+        }
+        // Граница принадлежит следующему проходу: интервал считается закрытым, только
+        // когда местное время дошло до его конца.
+        if (interval.endMinutes <= day.elapsedMinutes) cell.missed += 1;
+        else cell.pending += 1;
+      }
+    }
+  }
+
+  const columnList = [...columns].sort(byTimeOfDay);
+  const rows = [...drafts.values()]
+    .map((draft) => toRow(draft, columnList))
+    .sort(byFirstColumnThenKey);
+
+  return {
+    columns: columnList,
+    rows,
+    doneCount: sum(rows, (row) => row.doneCount),
+    missedCount: sum(rows, (row) => row.missedCount),
+    strayMarkCount: marks.length - usedMarks.size,
+  };
+}
+
+function byTimeOfDay(a: string, b: string): number {
+  return (parseLocalTime(a) ?? 0) - (parseLocalTime(b) ?? 0);
+}
+
+function byFirstColumnThenKey(a: RoundsGridRow, b: RoundsGridRow): number {
+  if (a.firstColumn !== b.firstColumn) return a.firstColumn - b.firstColumn;
+  return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+}
+
+function sum(
+  rows: readonly RoundsGridRow[],
+  of: (row: RoundsGridRow) => number,
+): number {
+  return rows.reduce((total, row) => total + of(row), 0);
+}
+
+function toRow(draft: RowDraft, columns: readonly string[]): RoundsGridRow {
+  const cells = columns.map((column) => draft.cells.get(column) ?? null);
+  const firstColumn = cells.findIndex((cell) => cell !== null);
+
+  return {
+    key: `${draft.checklistId}:${draft.itemId}`,
+    checklistId: draft.checklistId,
+    itemId: draft.itemId,
+    itemTitle: draft.itemTitle,
+    severity: draft.severity,
+    cells,
+    doneCount: cells.reduce((total, cell) => total + (cell?.done ?? 0), 0),
+    missedCount: cells.reduce((total, cell) => total + (cell?.missed ?? 0), 0),
+    firstColumn: firstColumn === -1 ? columns.length : firstColumn,
+  };
+}

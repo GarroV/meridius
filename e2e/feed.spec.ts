@@ -15,6 +15,9 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { e2eDatabaseUrl } from "./database";
 
 const FEED_PATH = "/admin/feed";
+// Телефон: на этой ширине боковое меню кабинета съедает 208 px, и всё, что не умеет
+// сужаться, раздвигает не себя, а всю страницу.
+const PHONE = { width: 375, height: 800 };
 
 /** Пункты первой версии — те, которые сотрудник и видел. */
 const V1_SECTIONS = [
@@ -462,6 +465,36 @@ test.describe("лента заполнений", () => {
     await page.getByTestId("feed-reset").click();
     await expect(page.getByTestId("feed-screen")).toBeVisible();
     await expect(page.getByLabel("Станция")).toHaveValue("");
+  });
+
+  test("на телефоне лента не уезжает вбок вместе с меню и фильтрами", async ({
+    page,
+  }) => {
+    // Проверка не про красоту, а про то, что экраном вообще можно пользоваться:
+    // уехавшая вбок страница утаскивает и боковое меню, и полосу фильтров, и тревоги.
+    // Ловится это только настоящим браузером на настоящей ширине: разметка при этом
+    // остаётся той же самой, разъезжается вычисленная ширина колонки каркаса.
+    await seed();
+    await signIn(page);
+
+    await page.setViewportSize(PHONE);
+    await page.goto(FEED_PATH);
+    await expect(page.getByTestId("feed-metrics")).toBeVisible();
+
+    const size = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    expect(
+      size.scrollWidth,
+      "Страница шире окна телефона: что-то на ней не умеет сужаться и тащит вбок " +
+        "весь кабинет, а не только себя.",
+    ).toBe(size.clientWidth);
+
+    // Действия верхней полосы переносятся на вторую строку, а не исчезают за краем.
+    await expect(page.getByTestId("feed-report-link")).toBeVisible();
+    // Фильтр остаётся рабочим и на узком поле.
+    await expect(page.getByLabel("Станция")).toBeVisible();
   });
 
   test("станция без заполнений объясняет, что делать дальше, а не молчит", async ({

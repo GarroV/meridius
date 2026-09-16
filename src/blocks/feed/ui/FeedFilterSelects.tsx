@@ -41,7 +41,17 @@ function useAppliesOnChange(): boolean {
   return live;
 }
 
-const FIELD_CLASS = "flex min-w-[150px] flex-col gap-[var(--space-3)]";
+/**
+ * Поле фильтра. 150 px — ширина с эталона, но она включается только с `sm`.
+ *
+ * Почему не безусловно: на телефоне колонке содержимого остаётся 167 px за вычетом
+ * бокового меню, и `min-width` четырёх полей не даёт ей сузиться — колонка каркаса
+ * растёт по min-content, и вбок уезжает вся страница, а не полоса фильтров. Замер
+ * на 375 px: `/admin` — 375, `/admin/feed` — 406, и за окно вылезают ровно эти поля.
+ * Список текст обрезает сам, поэтому узкое поле остаётся рабочим.
+ */
+const FIELD_CLASS =
+  "flex min-w-0 flex-col gap-[var(--space-3)] sm:min-w-[150px]";
 const LABEL_CLASS =
   "text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
 const SELECT_CLASS =

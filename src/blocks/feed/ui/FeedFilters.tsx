@@ -33,12 +33,19 @@ export interface FeedFiltersProps {
   readonly timeZone: string;
   /** Пояс выбран не однозначно — только тогда он и подписывается. */
   readonly timeZoneAmbiguous: boolean;
+  /**
+   * Куда шлёт форма и куда ведёт «Сбросить». По умолчанию — лента: карточка родилась
+   * там. Отчёт об обходах показывает те же фильтры на своём адресе, и подать их же
+   * на адрес ленты значило бы после «Применить» тихо увести человека с отчёта.
+   */
+  readonly action?: string;
 }
 
 export async function FeedFilters({
   selection,
   timeZone,
   timeZoneAmbiguous,
+  action = FEED_PATH,
 }: FeedFiltersProps): Promise<ReactElement> {
   const t = await getTranslations("feed.filters");
 
@@ -47,7 +54,7 @@ export async function FeedFilters({
       <div className={BODY_CLASS}>
         <form
           method="get"
-          action={FEED_PATH}
+          action={action}
           data-testid="feed-filters"
           className={ROW_CLASS}
         >
@@ -72,11 +79,7 @@ export async function FeedFilters({
             </button>
           </noscript>
 
-          <Link
-            href={FEED_PATH}
-            data-testid="feed-reset"
-            className={RESET_CLASS}
-          >
+          <Link href={action} data-testid="feed-reset" className={RESET_CLASS}>
             {t("reset")}
           </Link>
         </form>

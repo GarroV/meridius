@@ -25,6 +25,7 @@ import {
   isPeriodic,
   offsetInWindow,
   parseLocalTime,
+  parseWindowEnd,
 } from "./schedule";
 import {
   checklistVersions,
@@ -213,9 +214,21 @@ function passLocalDate(
   localTime: string,
 ): string {
   const start = parseLocalTime(window.start);
-  const end = parseLocalTime(window.end);
+  // Конец окна — своим разбором: «24:00» законно только здесь, и общий разбор
+  // времени его не знает. Раньше здесь стоял общий, и круглосуточное окно уходило
+  // в ветку «не разобрали»; ответ той ветки случайно совпадал с верным, поэтому
+  // поломка ничем себя не выдавала (T166, issue #76).
+  const end = parseWindowEnd(window.end);
   const now = parseLocalTime(localTime);
-  if (start === null || end === null || now === null) return localDate;
+  // Громко, а не молча сегодняшними сутками: неразобранное окно означает, что
+  // отметка встанет не в тот день, и тихий ответ отличить от верного нельзя.
+  // Для настоящих данных ветка недостижима — окно приходит из колонки `time`.
+  if (start === null || end === null || now === null) {
+    throw new RangeError(
+      `Окно чек-листа не разобрано: «${window.start}»–«${window.end}», ` +
+        `местное время «${localTime}»`,
+    );
+  }
   if (start <= end) return localDate;
   return now >= start ? localDate : previousLocalDate(localDate);
 }
