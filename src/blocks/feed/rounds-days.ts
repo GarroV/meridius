@@ -5,7 +5,7 @@
 // строками. Разделение нарочное — правило «что вообще попало в отчёт» проверяется
 // без базы, а с базой проверяется только то, что она и отдаёт.
 import type { ChecklistWindow, Section, ShiftMode } from "@/blocks/data";
-import { parseLocalTime } from "@/blocks/data";
+import { parseLocalTime, windowLength } from "@/blocks/data";
 
 import type { RoundsDay } from "./rounds-grid";
 
@@ -87,18 +87,6 @@ function daysBetween(from: string, to: string): number {
     throw new RangeError(`Местная дата не разобрана: «${from}» → «${to}»`);
   }
   return Math.round(delta / MS_PER_DAY);
-}
-
-/**
- * Длина прохода окна в минутах. Окно через полночь даёт длину больше остатка суток,
- * и это верно; равные границы база не допускает, поэтому ноль означает целые сутки.
- */
-function windowLength(window: ChecklistWindow): number | null {
-  const start = parseLocalTime(window.start);
-  const end = parseLocalTime(window.end);
-  if (start === null || end === null) return null;
-  const length = (end - start + MINUTES_IN_DAY) % MINUTES_IN_DAY;
-  return length === 0 ? MINUTES_IN_DAY : length;
 }
 
 /**

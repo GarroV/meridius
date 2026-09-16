@@ -63,6 +63,8 @@ interface SeedOptions {
   readonly publishedAt?: Date;
   readonly sections?: Section[];
   readonly publish?: boolean;
+  /** Окно чек-листа, если нужно не обычное утреннее. Время в форме колонки `time`. */
+  readonly window?: { readonly start: string; readonly end: string };
 }
 
 /** Своя цепочка страна → пиццерия → станция → чек-лист на каждый вызов: общей очистки
@@ -71,8 +73,8 @@ async function seed(options: SeedOptions = {}): Promise<Seeded> {
   const station = await createStation({ timezone: "UTC" });
   const checklistId = await createChecklist({
     stationId: station.stationId,
-    windowStart: "06:00:00",
-    windowEnd: "12:00:00",
+    windowStart: options.window?.start ?? "06:00:00",
+    windowEnd: options.window?.end ?? "12:00:00",
   });
   if (options.publish === false) {
     return { stationId: station.stationId, checklistId, versionId: "" };
@@ -169,6 +171,26 @@ describe("отчёт об обходах", () => {
     expect(model.doneCount).toBe(1);
     expect(model.missedCount).toBe(2);
     expect(model.emptyKind).toBeNull();
+  });
+
+  test("круглосуточный чек-лист попадает в отчёт, а не исчезает из него", async () => {
+    // «Круглосуточно» — один из трёх готовых пресетов окна, и база отдаёт его конец
+    // строкой «24:00:00». Проверка идёт через базу нарочно: разбор этой строки уже
+    // дважды ломался, и ломался молча — чек-лист просто переставал существовать для
+    // отчёта, а экран советовал расширить период (issue #75).
+    const seeded = await seed({
+      window: { start: "00:00:00", end: "24:00:00" },
+    });
+    await mark(seeded, 0);
+
+    const model = await modelOf(seeded.stationId, "today", NOON);
+
+    expect(
+      model.emptyKind,
+      "Отчёт объявил пустоту там, где есть работающий круглосуточный чек-лист.",
+    ).toBeNull();
+    expect(model.rows).toHaveLength(1);
+    expect(model.columns).toEqual(["06:00", "08:00", "10:00"]);
   });
 
   test("незакрытый интервал пропуском не считается", async () => {
