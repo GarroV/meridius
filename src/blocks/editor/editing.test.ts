@@ -9,6 +9,7 @@ import type { Item, Section } from "@/blocks/data";
 import {
   addItemAfter,
   addSection,
+  applyScheduleToSection,
   emptyItem,
   insertItems,
   itemCount,
@@ -17,6 +18,7 @@ import {
   moveItem,
   removeItem,
   removeSection,
+  setItemSchedule,
   setItemTitle,
   setSectionTitle,
   unlinkSection,
@@ -324,5 +326,125 @@ describe("linkedBlockId (куда ведёт «Открыть блок», T115)"
     expect(
       unlinked === undefined ? "нет секции" : linkedBlockId(unlinked),
     ).toBeNull();
+  });
+});
+
+describe("регулярность пункта (T137)", () => {
+  const HOURLY = { from: "08:00", to: "16:00", everyMinutes: 60 };
+  const EVERY_TWO = { from: "16:00", to: "23:00", everyMinutes: 120 };
+
+  test("чип ставит расписание одному пункту, соседей не трогает", () => {
+    const next = setItemSchedule(sections(), "b", {
+      schedule: [HOURLY],
+      remindEveryMinutes: 20,
+    });
+
+    expect(next[0]?.items[1]).toMatchObject({
+      schedule: [HOURLY],
+      remindEveryMinutes: 20,
+    });
+    expect(next[0]?.items[0]).not.toHaveProperty("schedule");
+    expect(next[0]?.items[2]).not.toHaveProperty("schedule");
+  });
+
+  test("«убрать регулярность» снимает и расписание, и частоту", () => {
+    // Оставленная частота — поле, которое ни на что не влияет: следующий читатель
+    // примет его за работающее, а звонить будет нечему.
+    const periodic = setItemSchedule(sections(), "b", {
+      schedule: [HOURLY],
+      remindEveryMinutes: 20,
+    });
+
+    const next = setItemSchedule(periodic, "b", { schedule: [] });
+
+    expect(next[0]?.items[1]).not.toHaveProperty("schedule");
+    expect(next[0]?.items[1]).not.toHaveProperty("remindEveryMinutes");
+  });
+
+  test("«молчать» снимает частоту, но расписание оставляет", () => {
+    const periodic = setItemSchedule(sections(), "b", {
+      schedule: [HOURLY],
+      remindEveryMinutes: 60,
+    });
+
+    const next = setItemSchedule(periodic, "b", { schedule: [HOURLY] });
+
+    expect(next[0]?.items[1]?.schedule).toStrictEqual([HOURLY]);
+    expect(next[0]?.items[1]).not.toHaveProperty("remindEveryMinutes");
+  });
+
+  test("«применить ко всей секции» кладёт настройку на каждый пункт секции", () => {
+    // Секция носителем расписания НЕ становится (D075): это перенос настройки на
+    // семь строк, работа редактора, а не новая сущность модели. Поэтому и проверяем
+    // пункты, а не поле у секции.
+    const next = applyScheduleToSection(sections(), "s1", {
+      schedule: [HOURLY, EVERY_TWO],
+      remindEveryMinutes: 10,
+    });
+
+    for (const one of next[0]?.items ?? []) {
+      expect(one).toMatchObject({
+        schedule: [HOURLY, EVERY_TWO],
+        remindEveryMinutes: 10,
+      });
+    }
+    expect(next[0]?.items).toHaveLength(3);
+  });
+
+  test("«применить ко всей секции» не выходит за свою секцию", () => {
+    const next = applyScheduleToSection(sections(), "s1", {
+      schedule: [HOURLY],
+    });
+
+    for (const one of next[1]?.items ?? []) {
+      expect(one).not.toHaveProperty("schedule");
+    }
+  });
+
+  test("расписание не хранится у секции: у секции появиться нечему", () => {
+    const next = applyScheduleToSection(sections(), "s1", {
+      schedule: [HOURLY],
+    });
+
+    expect(next[0]).not.toHaveProperty("schedule");
+  });
+
+  test("смена типа ответа расписание НЕ стирает", () => {
+    // `updateItem` пересобирал нечисловой пункт заново из перечисленных полей, и
+    // `schedule` в этот список не входил: методист переключал «число» на «да/нет»
+    // и терял обход молча. Тот же класс дефекта, что разбор, отбрасывавший расписание.
+    const periodic = setItemSchedule(sections(), "b", {
+      schedule: [HOURLY],
+      remindEveryMinutes: 20,
+    });
+
+    const asNumber = updateItem(periodic, "b", { type: "number" });
+    const backToBool = updateItem(asNumber, "b", { type: "bool" });
+
+    expect(backToBool[0]?.items[1]).toMatchObject({
+      schedule: [HOURLY],
+      remindEveryMinutes: 20,
+    });
+  });
+
+  test("смена типа не стирает и подсказку — прежнее поведение осталось", () => {
+    // Контрольная: правка `updateItem` не имела права поменять то, что уже работало.
+    const withHint = updateItem(sections(), "b", {
+      hint: { ru: "У задней стенки" },
+    });
+
+    const next = updateItem(withHint, "b", { type: "text" });
+
+    expect(next[0]?.items[1]?.hint).toStrictEqual({ ru: "У задней стенки" });
+  });
+
+  test("исходный список не меняется: функции чистые", () => {
+    const before = sections();
+
+    setItemSchedule(before, "b", { schedule: [HOURLY] });
+    applyScheduleToSection(before, "s1", { schedule: [HOURLY] });
+
+    expect(before[0]?.items[1]).not.toHaveProperty("schedule");
+    expect(before[0]?.items[0]).not.toHaveProperty("schedule");
   });
 });

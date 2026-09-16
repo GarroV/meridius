@@ -5,7 +5,12 @@
 // Здесь живут правила клавиатуры (принцип 5): Enter создаёт следующий пункт и говорит,
 // куда ставить курсор; Alt+стрелки переставляют пункт; вставка списка кладёт пачку
 // пунктов за один раз. Каждое лишнее касание мыши — это лишняя минута на чек-лист.
-import type { Item, LocalizedText, Section } from "@/blocks/data";
+import type {
+  Item,
+  LocalizedText,
+  ScheduleSegment,
+  Section,
+} from "@/blocks/data";
 
 /** Новый опознаватель. `crypto` есть и в браузере, и в Node — импорт не нужен. */
 function newId(): string {
@@ -161,16 +166,77 @@ export function updateItem(
       const merged = { ...item, ...patch };
       if (merged.type === "number") return merged;
       // Границы у нечислового пункта не видны на экране и не правятся: оставить их
-      // значит увезти в базу невидимое значение. Собираем пункт заново, без них.
-      return {
-        id: merged.id,
-        title: merged.title,
-        type: merged.type,
-        severity: merged.severity,
-        ...(merged.hint === undefined ? {} : { hint: merged.hint }),
-      };
+      // значит увезти в базу невидимое значение. Убираем ровно их, а не собираем
+      // пункт заново из списка полей: перечисление молча теряло всё, что появилось
+      // у пункта позже, — так смена типа ответа стирала расписание обхода (T137).
+      const { min, max, ...withoutBounds } = merged;
+      void min;
+      void max;
+      return withoutBounds;
     }),
   );
+}
+
+/**
+ * Настройка регулярности, как её отдаёт окно чипа. Пустой список отрезков означает
+ * «пункт обычный»: `schedule` и частота снимаются оба.
+ */
+export interface ScheduleSetting {
+  readonly schedule: readonly ScheduleSegment[];
+  readonly remindEveryMinutes?: number;
+}
+
+/**
+ * Пункт с применённой настройкой.
+ *
+ * Оба поля СНИМАЮТСЯ, а не переписываются пустым значением: `isPeriodic` считает пункт
+ * обычным и по отсутствию поля, и по пустому списку, и два способа записать одно
+ * состояние расходятся молча. Частота без расписания не остаётся никогда — звонить
+ * было бы нечему, а поле следующий читатель примет за работающее.
+ */
+function withSchedule(item: Item, setting: ScheduleSetting): Item {
+  const { schedule, remindEveryMinutes, ...rest } = item;
+  void schedule;
+  void remindEveryMinutes;
+  if (setting.schedule.length === 0) return rest;
+  return {
+    ...rest,
+    schedule: [...setting.schedule],
+    ...(setting.remindEveryMinutes === undefined
+      ? {}
+      : { remindEveryMinutes: setting.remindEveryMinutes }),
+  };
+}
+
+/** Регулярность одного пункта: чип в его строке открыл окно и оно вернуло настройку. */
+export function setItemSchedule(
+  sections: readonly Section[],
+  itemId: string,
+  setting: ScheduleSetting,
+): Section[] {
+  return mapItems(sections, (items) =>
+    items.map((item) =>
+      item.id === itemId ? withSchedule(item, setting) : item,
+    ),
+  );
+}
+
+/**
+ * «Применить ко всей секции» — кнопка того же окна.
+ *
+ * Секция носителем расписания НЕ становится (D075): это перенос настройки на семь
+ * строк, то есть работа редактора, а не новая сущность модели. Поэтому здесь и нет
+ * никакой записи у самой секции — только у её пунктов.
+ */
+export function applyScheduleToSection(
+  sections: readonly Section[],
+  sectionId: string,
+  setting: ScheduleSetting,
+): Section[] {
+  return mapSection(sections, sectionId, (section) => ({
+    ...section,
+    items: section.items.map((item) => withSchedule(item, setting)),
+  }));
 }
 
 /** Текст пункта на языке интерфейса; тексты на других языках остаются как были. */
