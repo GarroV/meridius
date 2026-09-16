@@ -80,6 +80,21 @@ function hhmm(value: string): string {
 }
 
 /**
+ * Конец окна как граница отрезка.
+ *
+ * «24:00» — законное время ОКНА: именно так записано окно «без ограничения», одно из
+ * трёх готовых (`window-field.ts`). Но время ОТРЕЗКА таким быть не может: сутки обхода
+ * замкнуты, `parseLocalTime` часов больше 23 не знает, и `assertValidSchedule` такой
+ * отрезок отвергает — то есть самое широкое окно давало бы единственный отрезок,
+ * который нельзя сохранить. Подставить 00:00 тоже нельзя: отрезок 00:00–00:00 схлопнется
+ * в точку. «До конца суток» в этой модели — последняя минута суток, и она даёт ровно
+ * те же проходы: при часовом шаге двадцать четыре, последний — 23:00–23:59.
+ */
+function windowEndForSegment(value: string): string {
+  return parseLocalTime(value) === null ? "23:59" : hhmm(value);
+}
+
+/**
  * Отрезок, который подставляется кнопкой «добавить отрезок».
  *
  * Предлагается ПРОДОЛЖЕНИЕ последнего отрезка, а не окно целиком: неравномерная сетка
@@ -93,7 +108,7 @@ export function nextSegment(
 ): ScheduleSegment {
   const last = schedule.at(-1);
   const from = last === undefined ? hhmm(window.start) : hhmm(last.to);
-  const to = hhmm(window.end);
+  const to = windowEndForSegment(window.end);
   return {
     from,
     // Пустой отрезок запрещён (`assertValidSchedule`), а «от конца окна до конца окна»

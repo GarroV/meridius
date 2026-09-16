@@ -165,6 +165,22 @@ describe("nextSegment", () => {
       everyMinutes: 60,
     });
   });
+
+  test("окно «без ограничения» даёт законный отрезок, а не время 24:00", () => {
+    // «00:00–24:00» — так записано окно «без ограничения» (одно из трёх готовых).
+    // Время ОКНА 24:00 законно, время ОТРЕЗКА — нет: `assertValidSchedule` его не
+    // разберёт и сохранение черновика упадёт отказом `badSchedule`.
+    const wholeDay: ChecklistWindow = { start: "00:00", end: "24:00" };
+
+    const proposed = nextSegment([], wholeDay);
+
+    expect(proposed.from).not.toBe(proposed.to);
+    expect(proposed).toStrictEqual({
+      from: "00:00",
+      to: "23:59",
+      everyMinutes: 60,
+    });
+  });
 });
 
 describe("canAddSegment", () => {
