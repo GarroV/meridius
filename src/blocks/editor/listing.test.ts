@@ -21,6 +21,7 @@ import {
 import { createChecklist, saveDraft } from "./drafts";
 import { NO_FILTER } from "./filter";
 import { listChecklists, listStations } from "./listing";
+import { publish } from "./publish";
 
 afterAll(closeTestDb);
 
@@ -55,7 +56,7 @@ describe("listChecklists", () => {
       windowStart: "06:00:00",
       windowEnd: "11:00:00",
       publishedNumber: 1,
-      hasDraft: true,
+      hasUnpublishedChanges: true,
       itemCount: 1,
       submissions7d: 1,
     });
@@ -79,7 +80,7 @@ describe("listChecklists", () => {
     expect(row).toBeDefined();
     expect(row?.stationName).toBeNull();
     expect(row?.publishedNumber).toBeNull();
-    expect(row?.hasDraft).toBe(true);
+    expect(row?.hasUnpublishedChanges).toBe(true);
   });
 
   test("чек-листы одной пиццерии идут подряд: список читается как путь", async () => {
@@ -100,6 +101,96 @@ describe("listChecklists", () => {
       .map((entry) => entry.id);
 
     expect(mine).toStrictEqual([first, second]);
+  });
+});
+
+/** Чек-лист, доведённый до опубликованной версии: черновик и публикация совпадают. */
+async function publishedChecklist(title: string): Promise<string> {
+  const station = await createStation();
+  const checklistId = await createChecklist({
+    stationId: station.stationId,
+    title: { ru: title },
+    window: MORNING,
+  });
+  await saveDraft(checklistId, sampleSections("исходный"));
+  await publish(checklistId);
+  return checklistId;
+}
+
+/** Горит ли метка «черновик» у этого чек-листа на экране списка. */
+async function draftLabelOf(checklistId: string): Promise<boolean | undefined> {
+  return (await listChecklists(NO_FILTER)).find(
+    (entry) => entry.id === checklistId,
+  )?.hasUnpublishedChanges;
+}
+
+describe("метка «черновик» в списке (T152)", () => {
+  // Метка обещает методисту «здесь есть неопубликованные правки». Зажигалась она по
+  // наличию строки черновика — а `publishVersion` черновик не удаляет, он остаётся
+  // жить как единственная мутируемая строка в цепочке. Значит метка горела у всех
+  // чек-листов всегда: на стенде показа — у всех девяти, при побайтово совпадающих
+  // `sections`. Постоянный шум неотличим от настоящего расхождения, то есть метка
+  // не сообщала ничего. Считается она теперь по РАЗЛИЧИЮ СОДЕРЖИМОГО.
+
+  test("сразу после публикации метка гаснет: править нечего", async () => {
+    // Отрицательный прогон задачи. Идём настоящей публикацией, а не подкладыванием
+    // одинаковых строк: черновик после неё остаётся, и именно это ломало метку.
+    const checklistId = await publishedChecklist("Опубликован и не тронут");
+
+    expect(await draftLabelOf(checklistId)).toBe(false);
+  });
+
+  test("настоящая правка после публикации метку зажигает", async () => {
+    const checklistId = await publishedChecklist("Опубликован и поправлен");
+
+    await saveDraft(checklistId, sampleSections("поправленный"));
+
+    expect(await draftLabelOf(checklistId)).toBe(true);
+  });
+
+  test("правка на один символ считается правкой", async () => {
+    // Граница: расхождение бывает и в одну букву названия пункта, и метка обязана
+    // его увидеть. Сравнение по содержимому, а не по числу пунктов или секций.
+    const checklistId = await publishedChecklist("Опубликован и переименован");
+    const edited = sampleSections("исходный");
+    const section = edited[0];
+    const item = section?.items[0];
+    if (section === undefined || item === undefined) {
+      throw new Error("Образец разметки пуст: проверять нечего");
+    }
+
+    await saveDraft(checklistId, [
+      {
+        ...section,
+        items: [{ ...item, title: { ...item.title, ru: "Пункт исходныи" } }],
+      },
+    ]);
+
+    expect(await draftLabelOf(checklistId)).toBe(true);
+  });
+
+  test("возврат правки обратно метку снова гасит", async () => {
+    // Метка следит за состоянием, а не за тем, что черновик когда-то трогали:
+    // иначе она загоралась бы навсегда от первой же отменённой правки.
+    const checklistId = await publishedChecklist("Поправлен и возвращён");
+    await saveDraft(checklistId, sampleSections("поправленный"));
+    expect(await draftLabelOf(checklistId)).toBe(true);
+
+    await saveDraft(checklistId, sampleSections("исходный"));
+
+    expect(await draftLabelOf(checklistId)).toBe(false);
+  });
+
+  test("до первой публикации метка горит: не опубликовано ничего", async () => {
+    const station = await createStation();
+    const checklistId = await createChecklist({
+      stationId: station.stationId,
+      title: { ru: "Ещё не публиковался" },
+      window: MORNING,
+    });
+    await saveDraft(checklistId, sampleSections("набранный"));
+
+    expect(await draftLabelOf(checklistId)).toBe(true);
   });
 });
 
