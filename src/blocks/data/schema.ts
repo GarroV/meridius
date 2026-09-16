@@ -48,6 +48,11 @@ const ANSWERS_MAX_BYTES = 65_536; // 64 КиБ — девятикратный з
 // той же публичной страницы, что и заполнение.
 const CHECK_VALUE_MAX_BYTES = 4_096; // 4 КиБ на одно значение
 const CHECK_COMMENT_MAX_LENGTH = 2_000;
+// Подпись будильника. В базе — заслон, а не рабочая мерка: рабочий предел вдвое меньше
+// и стоит в блоке fill (`FILL_INPUT_LIMITS.maxAlarmLabelLength`), как у комментария
+// к ответу (500 в блоке против 2000 здесь). Строку сюда пишет неопознанный человек
+// из интернета, и забытая проверка в блоке не должна означать, что база примет что угодно.
+const ALARM_LABEL_MAX_LENGTH = 240;
 
 function jsonbSizeLimit(column: string, maxBytes: number) {
   return sql.raw(`pg_column_size(${column}) <= ${String(maxBytes)}`);
@@ -339,6 +344,45 @@ export const checks = pgTable(
   ],
 );
 
+/**
+ * Будильники станции — записка на сегодня (D070).
+ *
+ * Единственная таблица продукта, строки которой законно УДАЛЯТЬ. Правило неизменяемости
+ * истории (D002) сюда не распространяется: заполнение и отметка обхода — свидетельство
+ * о смене, а будильник — записка сотрудника самому себе на ближайшие часы. Её заводят,
+ * её снимают, и назавтра её никто не ищет.
+ *
+ * Хранится строкой, а не в памяти вкладки, по одной причине: планшет на кухне гаснет и
+ * перезагружается посреди смены, а будильник обязан это пережить.
+ */
+export const alarms = pgTable(
+  "alarms",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // Будильник принадлежит СТАНЦИИ, а не чек-листу: на станции может быть открыто
+    // несколько чек-листов (экран выбора), а планшет у неё один.
+    stationId: uuid("station_id")
+      .notNull()
+      .references(() => stations.id, { onDelete: "cascade" }),
+    // Местные сутки станции, в которых будильник живёт: назавтра строка просто
+    // перестаёт читаться, и регулярности у неё не появляется (D070).
+    localDate: date("local_date").notNull(),
+    // Момент звонка. Считает база из часового пояса пиццерии (D026).
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    label: text("label").notNull(),
+    createdAt: serverTimestamp(CREATED_AT),
+  },
+  (table) => [
+    index("alarms_station_date_idx").on(table.stationId, table.localDate),
+    // Подпись — короткая записка, а не докладная: её читают одним взглядом на 375 px.
+    // Пустая запрещена: будильник без подписи звонит и не говорит, зачем.
+    check(
+      "alarms_label_length",
+      sql`length(label) between 1 and ${sql.raw(String(ALARM_LABEL_MAX_LENGTH))}`,
+    ),
+  ],
+);
+
 export type Country = typeof countries.$inferSelect;
 export type Store = typeof stores.$inferSelect;
 export type Station = typeof stations.$inferSelect;
@@ -348,3 +392,4 @@ export type Block = typeof blocks.$inferSelect;
 export type Submission = typeof submissions.$inferSelect;
 export type StoreShiftMode = typeof storeShiftModes.$inferSelect;
 export type Check = typeof checks.$inferSelect;
+export type Alarm = typeof alarms.$inferSelect;

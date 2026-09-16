@@ -33,9 +33,10 @@ export type {
   StoreShiftMode,
   Submission,
 } from "./schema";
-export type { Check } from "./schema";
+export type { Alarm, Check } from "./schema";
 export type { AnswerValue } from "./types";
 export {
+  alarms,
   blocks,
   checklistVersions,
   checklists,
