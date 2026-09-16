@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { CHECKLIST_PARAM } from "@/blocks/fill/params";
 import { FillScreen } from "@/blocks/fill/ui/FillScreen";
 
 /**
@@ -24,9 +25,22 @@ export const metadata: Metadata = {
 
 export default async function StationFillPage({
   params,
+  searchParams,
 }: {
   readonly params: Promise<{ code: string }>;
+  /**
+   * `?c=<id>` — какой из открытых сейчас чек-листов станции показать. Параметр
+   * появляется только после выбора на самой странице; повторённый или чужой
+   * идентификатор экран отбрасывает сам и снова показывает выбор.
+   */
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { code } = await params;
-  return <FillScreen code={code} />;
+  const chosen = (await searchParams)[CHECKLIST_PARAM];
+  return (
+    <FillScreen
+      code={code}
+      checklistId={typeof chosen === "string" ? chosen : undefined}
+    />
+  );
 }

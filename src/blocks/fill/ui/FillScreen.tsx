@@ -3,19 +3,25 @@ import { headers } from "next/headers";
 import type { ReactElement } from "react";
 
 import type { Locale } from "@/blocks/core/locale";
+import { PUBLIC_FILL_PREFIX } from "@/blocks/core/public-routes";
+import { getRounds } from "@/blocks/data";
 import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
 
 import { pickFillLocales } from "../locale";
+import { CHECKLIST_PARAM } from "../params";
 import {
   checkScanAllowed,
   identifyClient,
   trustedProxyHops,
 } from "../rate-limit";
+import { buildRoundsPanel } from "../rounds-view";
 import { loadFillTarget } from "../station";
 import type { FillTarget } from "../station";
-import { buildFillView } from "../view";
+import { buildChoiceView, buildFillView } from "../view";
+import { ChoiceScreen } from "./ChoiceScreen";
 import { FillForm } from "./FillForm";
+import { markRoundAction } from "./round-action";
 import { chooseShiftModeAction } from "./shift-mode-action";
 import { StateScreen } from "./StateScreen";
 import { submitFillAction } from "./submit-action";
@@ -48,8 +54,14 @@ function translatorFor(locale: Locale) {
 
 export async function FillScreen({
   code,
+  checklistId,
 }: {
   readonly code: string;
+  /**
+   * Выбранный чек-лист из адресной строки (`?c=`). Чужой или закрывшийся
+   * идентификатор не подставляет свой молча — экран снова показывает выбор.
+   */
+  readonly checklistId?: string | undefined;
 }): Promise<ReactElement> {
   const requestHeaders = await headers();
   const client = identifyClient({
@@ -75,7 +87,10 @@ export async function FillScreen({
     );
   }
 
-  const target: FillTarget = await loadFillTarget(code, new Date());
+  // Время берётся один раз и идёт и в выбор версии, и в состояние обходов: два вызова
+  // `new Date()` на границе часа развели бы экран и его обходы по разным проходам.
+  const now = new Date();
+  const target: FillTarget = await loadFillTarget(code, now, checklistId);
 
   if (target.kind === "unknown-code" || target.kind === "no-checklist") {
     const locale = await refusalLocale();
@@ -101,6 +116,51 @@ export async function FillScreen({
   );
   const locale = locales[0] ?? "ru";
   const t = translatorFor(locale);
+
+  // Несколько чек-листов открыты в одну минуту — выбирает сотрудник, а не порядок
+  // сортировки (#60). Ссылка, а не форма: переход обязан работать до того, как на
+  // телефон в подсобке доедет клиентский код.
+  if (target.kind === "choice") {
+    return (
+      <div lang={locale}>
+        <ChoiceScreen
+          view={buildChoiceView({
+            options: target.options,
+            storeName: target.storeName,
+            stationName: target.stationName,
+            locales,
+          })}
+          title={t("choice.title")}
+          text={t("choice.text")}
+          hrefFor={(id) =>
+            `${PUBLIC_FILL_PREFIX}${encodeURIComponent(code)}?${CHECKLIST_PARAM}=${encodeURIComponent(id)}`
+          }
+        />
+      </div>
+    );
+  }
+
+  // Состояние обходов считает слой данных по местному времени пиццерии: экран его
+  // только показывает. `null` — обходов у этой версии нет или чек-лист уже закрыт.
+  const rounds = await getRounds(target.version.id, now);
+  const panel =
+    rounds === null
+      ? { items: [], missedTotal: 0 }
+      : buildRoundsPanel({
+          rounds,
+          sections: target.sections,
+          locales,
+          labels: {
+            checkBefore: (time) => t("rounds.checkBefore", { time }),
+            checkNow: t("rounds.checkNow"),
+            doneAt: (time) => t("rounds.doneAt", { time }),
+            nextAt: (time) => t("rounds.nextAt", { time }),
+            finished: t("rounds.finished"),
+            missed: (count) => t("rounds.missed", { count }),
+            yes: t("rounds.yes"),
+            no: t("rounds.no"),
+          },
+        });
 
   const view = buildFillView({
     // Пункты уже отфильтрованы действующим режимом смены (`loadFillTarget`):
@@ -136,6 +196,8 @@ export async function FillScreen({
           shift={{ mode: target.mode, chosen: target.modeChosen }}
           choose={chooseShiftModeAction}
           submit={submitFillAction}
+          rounds={panel}
+          mark={markRoundAction}
         />
       </NextIntlClientProvider>
     </div>

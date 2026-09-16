@@ -183,6 +183,26 @@ test.describe("редактор чек-листа", () => {
     await expect(items.nth(2)).toHaveValue("Протереть столы");
   });
 
+  test("длинное название секции видно целиком, а не обрезается на середине слова", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await createChecklist(page, `Длинный заголовок ${label()}`);
+
+    // Такой заголовок даёт импорт боевого пакета: период суток, часы и подсекция.
+    const long = "Открытие 05:00–08:00 · Приём смены у менеджера";
+    const title = page.getByTestId("section-title").first();
+    await title.fill(long);
+
+    // Поле не прокручивается — значит текст помещается целиком. Проверка именно
+    // такая, потому что `toHaveValue` проходит и на обрезанном на экране поле:
+    // значение в разметке полное, а видно «Открытие 05:00–08:00 · П».
+    const fits = await title.evaluate(
+      (node: HTMLInputElement) => node.scrollWidth <= node.clientWidth + 1,
+    );
+    expect(fits, `заголовок «${long}» не помещается в поле`).toBe(true);
+  });
+
   test("Alt+стрелки переставляют пункт и оставляют на нём курсор", async ({
     page,
   }) => {

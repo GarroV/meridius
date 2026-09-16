@@ -140,6 +140,11 @@ export const FILL_LIMITS = {
     windowSeconds: 5 * 60,
     maxTrackedKeys: 10_000,
   },
+  // Отметки обходов — запись с той же публичной ссылки, но их за смену много: на
+  // станции несколько периодических пунктов, и каждый час по каждому идёт касание.
+  // Шестьдесят на код за пять минут — запас на самую плотную станцию; общий счёт сети
+  // при этом остаётся тем же, поэтому поток с улицы упирается в него, а не в кухню.
+  roundPerCode: { maxHits: 60, windowSeconds: 5 * 60, maxTrackedKeys: 10_000 },
 } as const;
 
 const EVERYONE = "все";
@@ -148,6 +153,7 @@ const submitPerCode = createRateLimiter(FILL_LIMITS.submitPerCode);
 const submitEveryone = createRateLimiter(FILL_LIMITS.submitEveryone);
 const scanPerClient = createRateLimiter(FILL_LIMITS.scanPerClient);
 const shiftModePerCode = createRateLimiter(FILL_LIMITS.shiftModePerCode);
+const roundPerCode = createRateLimiter(FILL_LIMITS.roundPerCode);
 
 function strictest(verdicts: readonly RateVerdict[]): RateVerdict {
   const refused = verdicts.filter((verdict) => !verdict.allowed);
@@ -181,12 +187,21 @@ export function checkShiftModeAllowed(code: string, now: Date): RateVerdict {
   ]);
 }
 
+/** Пускать ли отметку обхода: считается код станции и вся сеть сразу. */
+export function checkRoundAllowed(code: string, now: Date): RateVerdict {
+  return strictest([
+    roundPerCode.hit(code, now),
+    submitEveryone.hit(EVERYONE, now),
+  ]);
+}
+
 /** Полный сброс. Нужен тестам, которые делят один процесс. */
 export function forgetAllFillHits(): void {
   submitPerCode.clearAll();
   submitEveryone.clearAll();
   scanPerClient.clearAll();
   shiftModePerCode.clearAll();
+  roundPerCode.clearAll();
 }
 
 /** Имя переменной окружения: сколько доверенных посредников стоит перед продуктом. */

@@ -22,6 +22,7 @@ import {
 
 import type {
   Answer,
+  AnswerValue,
   Item,
   LocalizedText,
   Section,
@@ -42,6 +43,11 @@ const CREATED_AT = "created_at";
 // граница не зависит от того, насколько удачно сжался вход.
 const SECTIONS_MAX_BYTES = 262_144; // 256 КиБ — двенадцатикратный запас к 22 КБ
 const ANSWERS_MAX_BYTES = 65_536; // 64 КиБ — девятикратный запас к 7 КБ
+// Отметка обхода — одно значение пункта: «да», число или короткая строка. Здесь предел
+// нужен на строку, а не на весь документ: строк за смену сотни, и каждая приходит с
+// той же публичной страницы, что и заполнение.
+const CHECK_VALUE_MAX_BYTES = 4_096; // 4 КиБ на одно значение
+const CHECK_COMMENT_MAX_LENGTH = 2_000;
 
 function jsonbSizeLimit(column: string, maxBytes: number) {
   return sql.raw(`pg_column_size(${column}) <= ${String(maxBytes)}`);
@@ -280,6 +286,59 @@ export const storeShiftModes = pgTable(
   ],
 );
 
+/**
+ * Отметки периодических проверок — обходов (D066, D075).
+ *
+ * Таблица только пополняется: повторный обход в тот же час — новая строка, а не правка
+ * прежней. Пропуска здесь нет и не будет: пропуск — это ОТСУТСТВИЕ строки против сетки
+ * расписания, и выводится он при чтении (D053). Хранимый пропуск потребовал бы фоновой
+ * работы, которая его проставляет, и колонки состояния, которую после каждого сбоя
+ * чинят руками.
+ *
+ * Проход, в который встала отметка, считает сервер: `interval_start` — минуты от начала
+ * окна чек-листа, та же система координат, что у `Interval.startMinutes`. С устройства
+ * он не приходит и прийти не может — планшет с уехавшими часами закрывал бы девятичасовой
+ * обход в одиннадцать, и девятичасовой переставал бы быть пропущенным.
+ */
+export const checks = pgTable(
+  "checks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // Станция запоминается здесь так же, как в заполнениях: перенос чек-листа на другую
+    // станцию не должен задним числом переписывать, где обход делали (принцип 3).
+    stationId: uuid("station_id")
+      .notNull()
+      .references(() => stations.id, { onDelete: "restrict" }),
+    // Версия, на экране которой стояла отметка. Читаются отметки по чек-листу, а не по
+    // версии: методист публикует следующую версию посреди смены (T041), и утренние
+    // обходы не имеют права исчезнуть с экрана станции.
+    versionId: uuid("version_id")
+      .notNull()
+      .references(() => checklistVersions.id, { onDelete: "restrict" }),
+    itemId: text("item_id").notNull(),
+    // Местная дата прохода ОКНА, а не дата отметки: у окна через полночь обход в час ночи
+    // относится к проходу, начавшемуся вчера (D055).
+    localDate: date("local_date").notNull(),
+    intervalStart: integer("interval_start").notNull(),
+    value: jsonb("value").$type<AnswerValue>().notNull(),
+    comment: text("comment"),
+    at: serverTimestamp("at"),
+  },
+  (table) => [
+    // Главный запрос экрана станции — «отметки этой станции за сегодняшний проход».
+    index("checks_station_date_idx").on(table.stationId, table.localDate),
+    index("checks_version_idx").on(table.versionId),
+    // Проход начинается не раньше окна: отрицательное смещение означало бы отметку до
+    // открытия чек-листа, то есть ошибку счёта, а не событие смены.
+    check("checks_interval_start", sql`interval_start >= 0`),
+    check("checks_value_size", jsonbSizeLimit("value", CHECK_VALUE_MAX_BYTES)),
+    check(
+      "checks_comment_length",
+      sql`comment is null or length(comment) <= ${sql.raw(String(CHECK_COMMENT_MAX_LENGTH))}`,
+    ),
+  ],
+);
+
 export type Country = typeof countries.$inferSelect;
 export type Store = typeof stores.$inferSelect;
 export type Station = typeof stations.$inferSelect;
@@ -288,3 +347,4 @@ export type ChecklistVersion = typeof checklistVersions.$inferSelect;
 export type Block = typeof blocks.$inferSelect;
 export type Submission = typeof submissions.$inferSelect;
 export type StoreShiftMode = typeof storeShiftModes.$inferSelect;
+export type Check = typeof checks.$inferSelect;

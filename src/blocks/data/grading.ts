@@ -1,5 +1,6 @@
 // Что считается проваленным пунктом. Правило живёт в одном месте: и лента заполнений,
 // и карточка считают провалы одинаково, иначе два экрана покажут разные числа.
+import { isPeriodic } from "./schedule";
 import { severityOf } from "./severity";
 import type { Answer, Item, Section } from "./types";
 
@@ -71,6 +72,13 @@ export function countFailed(snapshot: Section[], answers: Answer[]): number {
  * Режим смены здесь не при чём: критичный пункт показывается во ВСЕХ трёх режимах
  * (матрица в `severity.ts`), поэтому его отсутствие в ответах — всегда пропуск, а не
  * следствие сокращения смены.
+ *
+ * Периодические пункты из счёта исключены, и это не поблажка. У обхода свой учёт —
+ * таблица отметок и сетка расписания (D066): его пропуск считается по проходам и виден
+ * на станции отдельной строкой. В заполнении ответа на обход не бывает НИКОГДА, потому
+ * что обход отмечают не формой; без этого исключения каждая отправка чек-листа с восемью
+ * обходами поднимала бы восемь тревог о «критичном пункте без ответа» — и тревога,
+ * которая звучит всегда, перестаёт значить что-либо.
  */
 export function countUnansweredCritical(
   snapshot: Section[],
@@ -78,6 +86,9 @@ export function countUnansweredCritical(
 ): number {
   const answered = new Set(answers.map((answer) => answer.itemId));
   return flattenItems(snapshot).filter(
-    (item) => severityOf(item) === "critical" && !answered.has(item.id),
+    (item) =>
+      severityOf(item) === "critical" &&
+      !isPeriodic(item) &&
+      !answered.has(item.id),
   ).length;
 }

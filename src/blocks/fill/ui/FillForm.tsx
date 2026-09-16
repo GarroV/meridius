@@ -15,9 +15,11 @@ import {
   toAnswers,
 } from "../answers";
 import type { DraftAnswer, FillDraft } from "../answers";
-import type { FillItemView, FillScreenView } from "../model";
+import type { FillItemView, FillScreenView, RoundsPanelView } from "../model";
+import type { RoundOutcome } from "../rounds";
 import type { ShiftModeOutcome } from "../shift-mode";
 import type { SubmitOutcome } from "../submit";
+import { RoundsPanel } from "./RoundsPanel";
 import type { ShiftState } from "./ShiftModeBar";
 import { ShiftModeBar } from "./ShiftModeBar";
 import { StateScreen } from "./StateScreen";
@@ -93,6 +95,10 @@ export interface FillFormProps {
   readonly choose: (input: unknown) => Promise<ShiftModeOutcome>;
   /** Серверное действие: POST уходит на тот же адрес `/s/<код>`. */
   readonly submit: (input: unknown) => Promise<SubmitOutcome>;
+  /** Обходы станции: отдельная панель, в форму эти пункты не входят (D076). */
+  readonly rounds: RoundsPanelView;
+  /** Серверное действие отметки обхода: тот же адрес `/s/<код>`. */
+  readonly mark: (input: unknown) => Promise<RoundOutcome>;
 }
 
 type Translate = ReturnType<typeof useTranslations>;
@@ -187,6 +193,8 @@ export function FillForm({
   shift,
   choose,
   submit,
+  rounds,
+  mark,
 }: FillFormProps): ReactElement {
   const t = useTranslations("fill");
   const [draft, setDraft] = useState<FillDraft>(emptyDraft);
@@ -303,7 +311,9 @@ export function FillForm({
   return (
     <main data-testid="fill-screen" className={SCREEN_CLASS}>
       <header className={HEAD_CLASS}>
-        <div className={TITLE_CLASS}>{view.checklistTitle}</div>
+        <div data-testid="fill-title" className={TITLE_CLASS}>
+          {view.checklistTitle}
+        </div>
         <div className={WHERE_CLASS}>{view.where}</div>
         <div className="mt-[var(--space-4)]">
           <ShiftModeBar code={code} shift={shift} choose={choose} />
@@ -450,28 +460,40 @@ export function FillForm({
         </section>
       ))}
 
-      <div className={FOOT_CLASS}>
-        {phase.kind === "failed" ? (
-          <p
-            data-testid="fill-notice"
-            role="alert"
-            className={NOTICE_ERR_CLASS}
+      <RoundsPanel
+        panel={rounds}
+        code={code}
+        versionId={versionId}
+        mark={mark}
+      />
+
+      {/* Подвал с отправкой нужен только тем, кому есть что отправлять. Станция,
+          где остались одни обходы, отправляет каждый обход отдельно, и кнопка
+          «Готово» на ней означала бы пустое заполнение. */}
+      {view.totalItems === 0 && rounds.items.length > 0 ? null : (
+        <div className={FOOT_CLASS}>
+          {phase.kind === "failed" ? (
+            <p
+              data-testid="fill-notice"
+              role="alert"
+              className={NOTICE_ERR_CLASS}
+            >
+              {phase.notice}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            data-testid="fill-submit"
+            className={BUTTON_CLASS}
+            disabled={!summary.canSubmit || phase.kind === "sending"}
+            onClick={() => {
+              void send();
+            }}
           >
-            {phase.notice}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          data-testid="fill-submit"
-          className={BUTTON_CLASS}
-          disabled={!summary.canSubmit || phase.kind === "sending"}
-          onClick={() => {
-            void send();
-          }}
-        >
-          {buttonLabel()}
-        </button>
-      </div>
+            {buttonLabel()}
+          </button>
+        </div>
+      )}
     </main>
   );
 }

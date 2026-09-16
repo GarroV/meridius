@@ -2,11 +2,13 @@
 // и next/navigation здесь: их приносит только серверный компонент, а сама сборка
 // проверяется модульными тестами без базы и без React.
 import type { Locale } from "@/blocks/core/locale";
-import { severityOf } from "@/blocks/data";
+import { isPeriodic, severityOf } from "@/blocks/data";
 import type { Item, LocalizedText, Section } from "@/blocks/data";
 
 import { pickFillText } from "./locale";
 import type {
+  FillChoiceOption,
+  FillChoiceView,
   FillItemView,
   FillScreenView,
   FillSectionView,
@@ -121,7 +123,10 @@ function buildSectionView(
   labels: FillViewLabels,
 ): FillSectionView | null {
   const items = section.items
-    .filter((item) => hasTitle(item.title))
+    // Периодические пункты в форму не идут: их отмечают обходом по расписанию, а не
+    // отправкой чек-листа (D076). Попади они сюда — сотрудник отвечал бы на «линию
+    // начинения» один раз за смену, и вся регулярность превратилась бы в галочку.
+    .filter((item) => hasTitle(item.title) && !isPeriodic(item))
     .map((item) => buildItemView(item, locales, labels));
   if (items.length === 0) return null;
 
@@ -156,5 +161,34 @@ export function buildFillView(input: BuildFillViewInput): FillScreenView {
     where,
     sections,
     totalItems,
+  };
+}
+
+export interface BuildChoiceViewInput {
+  readonly options: readonly FillChoiceOption[];
+  readonly storeName: string;
+  readonly stationName: string;
+  readonly locales: readonly Locale[];
+}
+
+/**
+ * Список чек-листов, открытых на станции в одну минуту (D021 не нарушается: это те
+ * же названия и окна, что сотрудник увидит, открыв любой из них, — ничего сверх).
+ *
+ * Порядок приходит снизу и здесь не пересортировывается: слой данных ставит их по
+ * началу окна, и список обязан выглядеть одинаково при каждом сканировании — иначе
+ * сотрудник, привыкший тыкать во вторую строку, однажды откроет не то.
+ */
+export function buildChoiceView(input: BuildChoiceViewInput): FillChoiceView {
+  return {
+    where: joinNonEmpty(
+      [input.storeName, input.stationName],
+      TEXT_PART_SEPARATOR,
+    ),
+    options: input.options.map((option) => ({
+      checklistId: option.checklistId,
+      title: pickFillText(option.title, input.locales),
+      window: option.window,
+    })),
   };
 }
