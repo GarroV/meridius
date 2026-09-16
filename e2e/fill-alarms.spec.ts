@@ -178,6 +178,59 @@ test.describe("будильники станции", () => {
     await expect(page.getByTestId(`alarm-${alarmId}`)).toHaveCount(0);
   });
 
+  test("оба поля названы видимой надписью, а не только для чтения с экрана", async ({
+    page,
+  }) => {
+    const stand = await seedFillStand("будильник-надписи");
+    await page.goto(stickerPath(stand.code));
+
+    // D093, дословно «Давай вернем»: надписи над полями видны глазом. Проверяется
+    // именно размер отрисованной надписи, а не её наличие в разметке: `sr-only`
+    // оставляет элемент в дереве и коробку 1×1 px, поэтому `toBeVisible` на нём
+    // проходит — то есть проверка «надпись есть» была бы зелёной и до правки.
+    for (const [testId, text] of [
+      ["alarm-time-label", "Во сколько"],
+      ["alarm-label-label", "Зачем"],
+    ] as const) {
+      const label = page.getByTestId(testId);
+      await expect(label).toContainText(text);
+      const box = await label.boundingBox();
+      expect(box, `надпись ${testId} не отрисована`).not.toBeNull();
+      expect(box?.width ?? 0).toBeGreaterThan(30);
+      expect(box?.height ?? 0).toBeGreaterThan(8);
+    }
+
+    // Панель стала на строку выше — это принято владельцем. Но не шире: 375 px держится.
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test("у полей есть пиктограммы, и в поле времени она не вторая", async ({
+    page,
+  }) => {
+    const stand = await seedFillStand("будильник-пиктограммы");
+    await page.goto(stickerPath(stand.code));
+
+    // D094, дословно «Сделай пиктограммы , потом посмотрим». Пиктограмма стоит в строке
+    // НАДПИСИ, а не внутри поля: у `input[type=time]` уже есть своя, браузерная, и вторая
+    // в том же поле — не то, что просили. Подробности в журнале блока (T168).
+    for (const testId of ["alarm-time-icon", "alarm-label-icon"] as const) {
+      const icon = page.getByTestId(testId);
+      await expect(icon).toBeAttached();
+      // Пиктограмма ничего не сообщает читалке: слово рядом уже сказано надписью.
+      await expect(icon).toHaveAttribute("aria-hidden", "true");
+      const box = await icon.boundingBox();
+      expect(box?.width ?? 0).toBeGreaterThan(8);
+    }
+
+    // Внутри самого поля времени своей пиктограммы нет — только нативная.
+    await expect(page.getByTestId("alarm-time").locator("svg")).toHaveCount(0);
+  });
+
   test("на станции видны только её будильники: соседняя не подмешивается", async ({
     page,
   }) => {

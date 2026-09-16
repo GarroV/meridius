@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 import { ALARM_LIMITS } from "../alarm-limits";
 import type { AlarmOutcome, AlarmRefusal, AlarmView } from "../alarms";
@@ -49,7 +49,14 @@ const DROP_CLASS =
 // и стоят вторым рядом.
 const FORM_CLASS =
   "flex flex-col gap-[var(--space-4)] border-t border-[var(--line)] px-[var(--space-7)] py-[var(--space-5)]";
-const FORM_ROW_CLASS = "flex items-center gap-[var(--space-4)]";
+// Нижний край, а не середина: у времени над полем стоит надпись, у кнопки её нет,
+// и по центру кнопка уезжала бы выше поля ровно на высоту надписи.
+const FORM_ROW_CLASS = "flex items-end gap-[var(--space-4)]";
+const FIELD_CLASS = "flex flex-col gap-[var(--space-3)]";
+// Надпись над полем — тем же голосом, что `.field__label` эталона: верхний регистр,
+// микро-кегль, разрядка, третий уровень чернил.
+const FIELD_LABEL_CLASS =
+  "flex items-center gap-[var(--space-2)] text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
 const INPUT_CLASS =
   "min-h-[var(--tap-min)] rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface px-[var(--space-5)] text-[length:var(--fs-lead)] text-ink focus:border-[var(--accent)] focus:outline-none";
 const BUTTON_CLASS =
@@ -62,6 +69,47 @@ const RINGING_CLASS =
   "mx-[var(--space-7)] mt-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--warn-line)] bg-[var(--warn-soft)] px-[var(--space-6)] py-[var(--space-5)] text-[var(--warn-ink)]";
 const RINGING_ROW_CLASS =
   "mt-[var(--space-4)] flex flex-wrap items-center gap-[var(--space-4)]";
+
+/** Размер пиктограммы у надписи: на уровне микро-кегля, не крупнее самой надписи. */
+const ICON_SIZE = 13;
+
+/**
+ * Пиктограммы у надписей полей (D094, дословно «Сделай пиктограммы , потом посмотрим»).
+ *
+ * Стоят в строке НАДПИСИ, а не внутри поля. Причина одна и важная: `input[type="time"]`
+ * рисует СВОЮ иконку часов силами браузера, и вторая, поставленная рядом в том же поле,
+ * дала бы два циферблата в одном вводе — не то, о чём просили. Нативную при этом не
+ * прячем: в Chromium она и есть кнопка, открывающая выбор времени, а на планшете это
+ * основной способ ввода; убрав её ради красоты, мы забрали бы работающее нажатие.
+ *
+ * Для читалки пиктограммы пусты (`aria-hidden`): слово рядом уже сказано надписью,
+ * и второе имя того же поля только удлиняет озвучку.
+ */
+function FieldIcon({
+  testId,
+  children,
+}: {
+  readonly testId: string;
+  readonly children: ReactNode;
+}): ReactElement {
+  return (
+    <svg
+      data-testid={testId}
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      {children}
+    </svg>
+  );
+}
 
 export interface AlarmsPanelProps {
   readonly alarms: readonly AlarmView[];
@@ -281,34 +329,57 @@ export function AlarmsPanel({
       ))}
 
       <div className={FORM_CLASS}>
-        <label className="sr-only" htmlFor="alarm-label">
-          {t("labelLabel")}
-        </label>
-        <input
-          id="alarm-label"
-          data-testid="alarm-label"
-          className={`${INPUT_CLASS} w-full`}
-          maxLength={ALARM_LIMITS.maxLabelLength}
-          placeholder={t("labelPlaceholder")}
-          value={label}
-          onChange={(event) => {
-            setLabel(event.target.value);
-          }}
-        />
-        <div className={FORM_ROW_CLASS}>
-          <label className="sr-only" htmlFor="alarm-time">
-            {t("timeLabel")}
+        <div className={FIELD_CLASS}>
+          <label
+            className={FIELD_LABEL_CLASS}
+            htmlFor="alarm-label"
+            data-testid="alarm-label-label"
+          >
+            {/* Записка: лист с загнутым углом и строкой текста. */}
+            <FieldIcon testId="alarm-label-icon">
+              <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+              <polyline points="14 3 14 9 20 9" />
+              <line x1="8" y1="14" x2="15" y2="14" />
+            </FieldIcon>
+            {t("labelLabel")}
           </label>
           <input
-            id="alarm-time"
-            data-testid="alarm-time"
-            type="time"
-            className={`${INPUT_CLASS} w-[8rem] shrink-0`}
-            value={time}
+            id="alarm-label"
+            data-testid="alarm-label"
+            className={`${INPUT_CLASS} w-full`}
+            maxLength={ALARM_LIMITS.maxLabelLength}
+            placeholder={t("labelPlaceholder")}
+            value={label}
             onChange={(event) => {
-              setTime(event.target.value);
+              setLabel(event.target.value);
             }}
           />
+        </div>
+        <div className={FORM_ROW_CLASS}>
+          <div className={`${FIELD_CLASS} shrink-0`}>
+            <label
+              className={FIELD_LABEL_CLASS}
+              htmlFor="alarm-time"
+              data-testid="alarm-time-label"
+            >
+              {/* Часы: циферблат и стрелки. */}
+              <FieldIcon testId="alarm-time-icon">
+                <circle cx="12" cy="12" r="9" />
+                <polyline points="12 7 12 12 16 14" />
+              </FieldIcon>
+              {t("timeLabel")}
+            </label>
+            <input
+              id="alarm-time"
+              data-testid="alarm-time"
+              type="time"
+              className={`${INPUT_CLASS} w-[8rem]`}
+              value={time}
+              onChange={(event) => {
+                setTime(event.target.value);
+              }}
+            />
+          </div>
           <button
             type="button"
             data-testid="alarm-add"
