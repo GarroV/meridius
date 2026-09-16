@@ -74,7 +74,7 @@ function hardcodedPaths(): string[] {
 
     const source = withoutComments(readFileSync(file, "utf8"));
     for (const [, , literal] of source.matchAll(ADMIN_LITERAL)) {
-      offenders.push(`${relative}: "${literal}"`);
+      offenders.push(`${relative}: "${literal ?? ""}"`);
     }
   }
 
@@ -115,16 +115,16 @@ describe("адреса кабинета (T124)", () => {
     // Блок `auth` держит собственную копию этого адреса (`ADMIN_HOME_PATH`): куда попадает
     // вошедший — его дело, а импортировать core оттуда можно, но это чужой файл и правит его
     // не этот блок. Пока копия жива, за неё отвечает сторож: разъехаться молча она не может.
-    expect(declaredLiteral("src/blocks/auth/routes.ts", "ADMIN_HOME_PATH")).toBe(
-      ADMIN_HOME.path,
-    );
+    expect(
+      declaredLiteral("src/blocks/auth/routes.ts", "ADMIN_HOME_PATH"),
+    ).toBe(ADMIN_HOME.path);
   });
 
   test("главная — не раздел меню: в списке разделов её адреса нет", () => {
     // Иначе главная попала бы в боковое меню шестым пунктом и подсвечивалась как раздел,
     // которым не является (T112).
-    expect(Object.values(ADMIN_SECTIONS).map((section) => section.path)).not.toContain(
-      ADMIN_HOME.path,
-    );
+    expect(
+      Object.values(ADMIN_SECTIONS).map((section) => section.path),
+    ).not.toContain(ADMIN_HOME.path);
   });
 });

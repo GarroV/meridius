@@ -165,8 +165,11 @@ export function buildDrift(
  * подпись одинакова на обоих языках продукта и не зависит от того, какие данные о языках
  * собраны в этой сборке Node.
  */
+function two(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
 export function formatStartedAt(startedAt: number): string {
   const at = new Date(startedAt);
-  const two = (value: number): string => String(value).padStart(2, "0");
   return `${two(at.getDate())}.${two(at.getMonth() + 1)} ${two(at.getHours())}:${two(at.getMinutes())}`;
 }
