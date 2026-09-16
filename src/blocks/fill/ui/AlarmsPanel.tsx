@@ -76,12 +76,17 @@ export interface AlarmsPanelProps {
  * в любом случае, и именно она, а не звук, сообщает сотруднику о будильнике. Вернувшееся
  * `false` говорит панели, что звук не пошёл, и она пишет об этом прямо в плашке.
  */
-function beep(): boolean {
+async function beep(): Promise<boolean> {
   try {
     // Обращение внутри try намеренно: в среде без Web Audio это бросит, и ветка
     // «звука нет» одна на оба случая — нет поддержки и не дали звучать.
     const ctx = new globalThis.AudioContext();
-    void ctx.resume();
+    // Состояние спрашивается ПОСЛЕ того, как разрешение доиграно: сразу после вызова
+    // оно ещё «suspended» всегда, и панель писала бы «звука нет» даже там, где звук
+    // пошёл. Надпись, которая врёт в половине случаев, учит не читать панель вовсе.
+    await ctx.resume();
+    if (ctx.state !== "running") return false;
+
     for (let index = 0; index < BEEPS; index++) {
       const start = ctx.currentTime + index * BEEP_GAP_SECONDS;
       const tone = ctx.createOscillator();
@@ -92,7 +97,7 @@ function beep(): boolean {
       tone.start(start);
       tone.stop(start + BEEP_SECONDS);
     }
-    return ctx.state === "running";
+    return true;
   } catch {
     return false;
   }
@@ -130,7 +135,9 @@ export function AlarmsPanel({
         setRinging((current) =>
           current.includes(alarm.id) ? current : [...current, alarm.id],
         );
-        if (!beep()) setSilent(true);
+        void beep().then((sounded) => {
+          if (!sounded) setSilent(true);
+        });
       }, delay);
     });
 
