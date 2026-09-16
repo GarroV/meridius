@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
 
+import { useLive } from "@/blocks/core/ui/use-live";
 import type { Item, Section } from "@/blocks/data";
 
 import { INITIAL_EDITOR_STATE } from "../action-state";
@@ -42,7 +43,6 @@ import { itemInputId } from "./ItemRow";
 import { PropertiesCard } from "./PropertiesCard";
 import { SectionCard } from "./SectionCard";
 import { LibraryPanel, StationNotice, VersionsPanel } from "./SidePanels";
-import { useLive } from "./use-live";
 
 export interface ChecklistEditorProps {
   readonly checklistId: string;

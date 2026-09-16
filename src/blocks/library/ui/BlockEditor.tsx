@@ -12,6 +12,7 @@ import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
 
+import { useLive } from "@/blocks/core/ui/use-live";
 import type { Item, Section } from "@/blocks/data";
 import {
   addItemAfter,
@@ -23,7 +24,6 @@ import {
 } from "@/blocks/editor/editing";
 import { parsePastedLines, parsePastedList } from "@/blocks/editor/paste";
 import { itemInputId, ItemRow } from "@/blocks/editor/ui/ItemRow";
-import { useLive } from "@/blocks/editor/ui/use-live";
 
 import type { LibraryActionState } from "../action-state";
 import { INITIAL_LIBRARY_STATE } from "../action-state";
