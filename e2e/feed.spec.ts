@@ -350,6 +350,9 @@ interface FactCell {
   readonly left: number;
   readonly right: number;
   readonly borderLeft: number;
+  /** Насколько содержимое ячейки шире самой ячейки: 0 — влезло целиком. */
+  readonly overflow: number;
+  readonly text: string;
 }
 
 /** Ряд полосы фактов: края ряда и сколько ячеек в него легло. */
@@ -378,6 +381,13 @@ async function factCells(page: Page): Promise<readonly FactCell[]> {
           borderLeft: Number.parseFloat(
             globalThis.getComputedStyle(cell).borderLeftWidth,
           ),
+          overflow: Math.max(
+            0,
+            ...[...cell.children].map(
+              (line) => line.scrollWidth - line.clientWidth,
+            ),
+          ),
+          text: cell.textContent.replaceAll(/\s+/gu, " ").trim(),
         };
       },
     ),
@@ -442,6 +452,23 @@ function assertNoDanglingBorder(cells: readonly FactCell[]): void {
       cell.borderLeft,
       "У ячейки, открывающей ряд полосы фактов, есть левая граница: разделять ей " +
         "нечего, и она висит в пустоте (дефект T171).",
+    ).toBe(0);
+  }
+}
+
+/**
+ * Третья половина того же дефекта, найденная сверкой с эталоном: ячейка укладывается в
+ * ряд, а её подпись в ячейку — нет. Карточка обрезает переполнение (`overflow-hidden`
+ * ради скруглённых углов), поэтому обрезка НЕ видна ни в ширине страницы, ни в
+ * геометрии рядов: «отправлено» просто становится «отправл». Проверяется прямо:
+ * содержимое ячейки не шире самой ячейки.
+ */
+function assertNoClippedText(cells: readonly FactCell[]): void {
+  for (const cell of cells) {
+    expect(
+      cell.overflow,
+      `Подпись факта не влезает в свою ячейку и обрезается: «${cell.text}». ` +
+        "Полоса выглядит целой, а слова в ней потеряны.",
     ).toBe(0);
   }
 }
@@ -767,6 +794,7 @@ test.describe("лента заполнений", () => {
     expect(wide.at(0)?.count).toBe(FACT_COUNT);
     assertRowsFillWidth(wide);
     assertNoDanglingBorder(wideCells);
+    assertNoClippedText(wideCells);
 
     await page.setViewportSize(PHONE);
     await page.goto(cardUrl);
@@ -785,6 +813,7 @@ test.describe("лента заполнений", () => {
     ).toBe(FACT_COUNT);
     assertRowsFillWidth(phone);
     assertNoDanglingBorder(phoneCells);
+    assertNoClippedText(phoneCells);
   });
 
   /**
