@@ -57,7 +57,8 @@ const {
 } = await import("../src/blocks/data/index.ts");
 const { STATION_CODE_ALPHABET, STATION_CODE_LENGTH } =
   await import("../src/blocks/catalog/index.ts");
-const { stationScanUrl } = await import("../src/blocks/qr/scan-url.ts");
+const { stationLinkLines } = await import("../src/blocks/qr/station-links.ts");
+const { publicBasePath } = await import("../src/blocks/qr/sticker-origin.ts");
 const { eq, inArray } = await import("drizzle-orm");
 
 const NAMESPACE = "meridius/import/v1";
@@ -492,10 +493,18 @@ try {
     `  блоков библиотеки ${library.length} · пунктов в них ${library.reduce((n, b) => n + b.items.length, 0)} (заведены, никуда не вставлены)`,
   );
   console.log("\nСсылки станций — то, что уходит внутрь напечатанного QR:");
-  for (const s of packet.stations) {
-    console.log(
-      `  ${s.name.ru}\n    ${stationScanUrl(origin, codeFor(s.key))}`,
-    );
+  // Имя — на языке страны, ссылка — с базовым путём площадки. И то и другое
+  // человек читает глазами и по нему раскладывает наклейки: русское имя в
+  // английской стране и ссылка без префикса площадки (она ведёт в 502) выглядят
+  // одинаково убедительно и не ловятся ничем, кроме похода на кухню.
+  for (const link of stationLinkLines({
+    stations: packet.stations,
+    locale: packet.country.locale,
+    origin,
+    basePath: publicBasePath(process.env),
+    codeFor: (key) => codeFor(key),
+  })) {
+    console.log(`  ${link.name}\n    ${link.url}`);
   }
 } finally {
   await globalThis.meridiusPool?.end();

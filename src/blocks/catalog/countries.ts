@@ -6,7 +6,7 @@ import { asc, count, eq } from "drizzle-orm";
 import type { Locale } from "@/blocks/core/locale";
 import { countries, getDb, stores } from "@/blocks/data";
 
-import { CatalogError, asHistoryConflict, requireName } from "./errors";
+import { CatalogError, asDeletionConflict, requireName } from "./errors";
 
 // Формат id проверяется до похода в базу: иначе некорректная строка доходит до
 // драйвера и падает кодом 22P02 (см. такую же проверку в submissions.ts), а по
@@ -14,7 +14,7 @@ import { CatalogError, asHistoryConflict, requireName } from "./errors";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Что значит имя в сообщениях requireName/asHistoryConflict — вынесено в константу,
+// Что значит имя в сообщениях requireName/asDeletionConflict — вынесено в константу,
 // чтобы литерал не повторялся в трёх местах файла (sonarjs/no-duplicate-string).
 const WHAT_COUNTRY = "страна";
 
@@ -135,7 +135,7 @@ export async function deleteCountry(id: string): Promise<void> {
       .where(eq(countries.id, id))
       .returning({ id: countries.id });
   } catch (error) {
-    asHistoryConflict(error, WHAT_COUNTRY);
+    asDeletionConflict(error, WHAT_COUNTRY);
   }
   if (deletedRows.length === 0) throw countryNotFound(id);
 }

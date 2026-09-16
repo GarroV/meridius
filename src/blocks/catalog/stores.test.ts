@@ -3,11 +3,19 @@
 // держится транзакцией и внешним ключом `on delete restrict`, заглушкой это не проверить.
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { afterAll, describe, expect, test } from "vitest";
 
 import type { Answer } from "@/blocks/data";
-import { saveSubmission, stations, stores } from "@/blocks/data";
+import {
+  checks,
+  saveSubmission,
+  setShiftMode,
+  stations,
+  storeShiftModes,
+  stores,
+  submissions,
+} from "@/blocks/data";
 import { closeTestDb, getTestDb } from "@/blocks/data/testing/db";
 import {
   createChecklist,
@@ -53,6 +61,28 @@ async function storeExists(storeId: string): Promise<boolean> {
     .from(stores)
     .where(eq(stores.id, storeId));
   return rows.length > 0;
+}
+
+/** Сколько строк режима смены осталось у пиццерии: настройка, которую снимает удаление. */
+async function shiftModeCount(storeId: string): Promise<number> {
+  const rows = await db
+    .select({ modeCount: count(storeShiftModes.id) })
+    .from(storeShiftModes)
+    .where(eq(storeShiftModes.storeId, storeId));
+  return rows[0]?.modeCount ?? 0;
+}
+
+/**
+ * Сколько заполнений у станций пиццерии. Нужен именно ноль: проверка запрета, зелёная
+ * на базе с историей, ничего не доказывает — отказать могла история, а не то, что проверяют.
+ */
+async function submissionCountOfStore(storeId: string): Promise<number> {
+  const rows = await db
+    .select({ submissionCount: count(submissions.id) })
+    .from(submissions)
+    .innerJoin(stations, eq(submissions.stationId, stations.id))
+    .where(eq(stations.storeId, storeId));
+  return rows[0]?.submissionCount ?? 0;
 }
 
 describe("createStore / listStores / updateStore / countStationsOfStore", () => {
@@ -262,5 +292,93 @@ describe("deleteStore", () => {
     expect(await storeExists(station.storeId)).toBe(true);
     expect(await stationExists(station.stationId)).toBe(true);
     expect(await stationExists(freeStation.id)).toBe(true);
+  });
+
+  test("пиццерия с заданным режимом смены и нулём заполнений удаляется вместе с режимом", async () => {
+    // Дефект T154: `store_shift_modes` держит пиццерию внешним ключом `restrict`, и до
+    // этой задачи удаление отказывало НАВСЕГДА — при нуле заполнений, да ещё и с чужой
+    // причиной («ссылаются заполнения»). Режим смены — настройка пиццерии, а не история
+    // работы: он снимается вместе с ней и в той же транзакции.
+    const countryId = await createCountry({
+      name: uniqueName("Страна с режимом"),
+      locale: "ru",
+    });
+    const storeId = await createStore({
+      countryId,
+      name: uniqueName("Пиццерия с режимом"),
+      timezone: "UTC",
+    });
+    // Перестановок несколько: таблица только пополняется (D055), и снять надо все строки.
+    await setShiftMode(
+      { storeId, mode: "reduced", staffPresent: 2 },
+      new Date(),
+    );
+    await setShiftMode({ storeId, mode: "critical" }, new Date());
+    expect(await shiftModeCount(storeId)).toBe(2);
+    expect(await submissionCountOfStore(storeId)).toBe(0);
+
+    await deleteStore(storeId, { confirmed: true });
+
+    expect(await storeExists(storeId)).toBe(false);
+    expect(await shiftModeCount(storeId)).toBe(0);
+  });
+
+  test("отказ по истории откатывает и снятие режима смены: настройка остаётся на месте", async () => {
+    // Порядок внутри транзакции не должен создавать частичной зачистки: режим снимается
+    // раньше, чем падает удаление станции, и обязан вернуться откатом.
+    const station = await createStation();
+    await setShiftMode(
+      { storeId: station.storeId, mode: "reduced" },
+      new Date(),
+    );
+    const checklistId = await createChecklist({
+      stationId: station.stationId,
+    });
+    const versionId = await createPublishedVersion(
+      checklistId,
+      sampleSections("режим-и-история"),
+    );
+    await saveSubmission({
+      mode: "normal",
+      versionId,
+      answers: [boolAnswer("item-режим-и-история", true)],
+      startedAt: Date.now(),
+    });
+
+    await expect(
+      deleteStore(station.storeId, { confirmed: true }),
+    ).rejects.toMatchObject({ code: "referencedByHistory" });
+
+    expect(await storeExists(station.storeId)).toBe(true);
+    expect(await shiftModeCount(station.storeId)).toBe(1);
+  });
+
+  test("отметка обхода без единого заполнения отказывает своей формулировкой, а не историей заполнений", async () => {
+    // Обход можно отметить, не закончив заполнение: заполнений ноль, а удаление всё равно
+    // запрещено — и причину надо назвать ту, что есть на самом деле (T154).
+    const station = await createStation();
+    const checklistId = await createChecklist({
+      stationId: station.stationId,
+    });
+    const versionId = await createPublishedVersion(
+      checklistId,
+      sampleSections("обход"),
+    );
+    await db.insert(checks).values({
+      stationId: station.stationId,
+      versionId,
+      itemId: "item-обход",
+      localDate: "2026-09-16",
+      intervalStart: 0,
+      value: true,
+    });
+
+    expect(await submissionCountOfStore(station.storeId)).toBe(0);
+    await expect(
+      deleteStore(station.storeId, { confirmed: true }),
+    ).rejects.toMatchObject({ code: "referencedByChecks" });
+
+    expect(await storeExists(station.storeId)).toBe(true);
+    expect(await stationExists(station.stationId)).toBe(true);
   });
 });

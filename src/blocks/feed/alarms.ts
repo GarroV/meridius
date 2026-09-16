@@ -9,10 +9,14 @@
 // Своих правил здесь два, и оба взяты из уже принятых решений, а не выдуманы заново:
 //  1. Провал критичного пункта — событие. Что считать провалом и что критичным,
 //     решает `data` (`countFailedCritical` → `isFailed` + `severityOf`), а не этот файл.
-//  2. Критичный пункт, оставленный БЕЗ ОТВЕТА, — тоже событие, и отдельное. Неполное
+//  2. Критичный пункт, оставленный БЕЗ ОТВЕТА, — тоже тревога, и отдельная. Неполное
 //     заполнение продукт принимает сознательно, поэтому «газ» можно просто не тронуть:
 //     тогда ни провала (ответа нет), ни пропуска (заполнение есть) — и без этой тревоги
-//     самый важный пункт продукта уходил бы из надзора молча, тише обычного.
+//     самый важный пункт продукта уходил бы из надзора молча, тише обычного. Но это
+//     СОСТОЯНИЕ, а не событие, и поднимается оно по ЗАКРЫТИЮ окна чек-листа — тем же
+//     правилом, что пропущенный чек-лист (D054). Пока окно открыто, сотрудник вернётся
+//     к «газу» штатным порядком, и тревога в момент отправки подсвечивала бы недоработку
+//     продукта, а не сети (указание владельца 14.09).
 //  3. Незаполненный чек-лист — состояние: версия опубликована и привязана к станции,
 //     проход окна за сегодня по местному времени пиццерии закончился, заполнения в нём
 //     нет, и в действовавшем режиме смены в чек-листе оставался хотя бы один пункт.
@@ -150,6 +154,62 @@ function localNowSql(at: Date) {
   return sql`(${at.toISOString()}::timestamptz at time zone ${timezoneNames.name})`;
 }
 
+/**
+ * Проход окна чек-листа, закончившийся СЕГОДНЯ по местному времени пиццерии.
+ *
+ * Один набор выражений на двоих: по нему считается и пропущенный чек-лист, и критичный
+ * пункт, оставшийся без ответа. Держать их одним куском обязательно — правило подъёма
+ * у них общее (D054), а две копии этого счёта разъехались бы на первой же правке, и
+ * разъехались бы молча: обе продолжали бы что-то показывать.
+ *
+ * Берётся именно закончившийся проход, а не начавшийся: у окна через полночь
+ * (20:00–00:00) проход, начатый сегодня, кончается завтра, и по началу вечернее
+ * закрытие не порождало бы тревоги никогда — а именно оно и есть самое важное.
+ */
+interface WindowPass {
+  /** Проход уже закрылся: раньше этого момента тревоге звучать не о чем. */
+  readonly closed: SQL;
+  /** Начало прохода в местном времени. У окна через полночь — вчерашние сутки. */
+  readonly startLocal: SQL;
+  /** Конец прохода в местном времени: сегодняшняя дата плюс конец окна. */
+  readonly endLocal: SQL;
+  /**
+   * Момент закрытия окна секундами эпохи, а не отметкой времени: для node-postgres
+   * drizzle отключает разбор дат драйвером и сам разбирает только СВОИ колонки, поэтому
+   * сырое выражение вернулось бы строкой «2026-09-06 12:00:00+00» (проверено на этой
+   * базе). Число же не зависит ни от разборщика, ни от локали.
+   */
+  readonly closedAtEpoch: SQL<number>;
+}
+
+function windowPassEndingToday(at: Date): WindowPass {
+  const localNow = localNowSql(at);
+  const localDate = sql`${localNow}::date`;
+  const localTime = sql`${localNow}::time`;
+
+  const startLocal = sql`(case
+        when ${checklists.windowStart} <= ${checklists.windowEnd}
+          then ${localDate} + ${checklists.windowStart}
+        else (${localDate} - 1) + ${checklists.windowStart}
+      end)`;
+  const endLocal = sql`(${localDate} + ${checklists.windowEnd})`;
+
+  return {
+    closed: sql`${localTime} >= ${checklists.windowEnd}`,
+    startLocal,
+    endLocal,
+    closedAtEpoch: sql<number>`extract(epoch from (${endLocal} at time zone ${timezoneNames.name}))::float8`,
+  };
+}
+
+/** Заполнение попало в этот проход окна: между открытием и закрытием. */
+function submittedInPass(pass: WindowPass): SQL[] {
+  return [
+    sql`(${submissions.submittedAt} at time zone ${timezoneNames.name}) >= ${pass.startLocal}`,
+    sql`(${submissions.submittedAt} at time zone ${timezoneNames.name}) < ${pass.endLocal}`,
+  ];
+}
+
 /** Провалы критичных пунктов в заполнениях за текущие местные сутки пиццерии. */
 async function listCriticalFailures(
   scope: AlarmScope,
@@ -193,40 +253,127 @@ async function listCriticalFailures(
     .orderBy(desc(submissions.submittedAt), desc(submissions.id))
     .limit(MAX_SCANNED);
 
-  // Одно заполнение может дать обе тревоги сразу: часть критичных пунктов провалена,
-  // часть не тронута. Складывать их в одну строку с двумя числами значит писать текст,
-  // который читают со второго раза, — а тревогу читают с первого.
-  const alarms = rows.flatMap((row) => {
-    const of = (kind: AlarmKind, itemCount: number): Alarm[] =>
-      itemCount === 0
-        ? []
-        : [
-            {
-              kind,
-              key: `${kind}:${row.submissionId}`,
-              countryId: row.countryId,
-              storeId: row.storeId,
-              storeName: row.storeName,
-              stationId: row.stationId,
-              stationName: row.stationName,
-              checklistId: row.checklistId,
-              checklistTitle: row.checklistTitle,
-              timeZone: row.timeZone,
-              at: row.submittedAt,
-              submissionId: row.submissionId,
-              itemCount,
-              mode: row.mode,
-            },
-          ];
+  const alarms = rows.flatMap((row) =>
+    alarmOf(
+      row,
+      "criticalFailed",
+      countFailedCritical(row.snapshot, row.answers),
+    ),
+  );
 
-    return [
-      ...of("criticalFailed", countFailedCritical(row.snapshot, row.answers)),
-      ...of(
-        "criticalUnanswered",
-        countUnansweredCritical(row.snapshot, row.answers),
-      ),
-    ];
-  });
+  return { alarms, capped: rows.length === MAX_SCANNED };
+}
+
+/** Строка заполнения в том виде, в каком из неё собирается тревога. */
+interface SubmissionRow {
+  readonly submissionId: string;
+  readonly submittedAt: Date;
+  readonly countryId: string;
+  readonly storeId: string;
+  readonly storeName: string;
+  readonly stationId: string;
+  readonly stationName: string;
+  readonly checklistId: string;
+  readonly checklistTitle: LocalizedText;
+  readonly timeZone: string;
+  readonly mode: ShiftMode;
+}
+
+/**
+ * Тревога по заполнению — или ничего, если считать нечего.
+ *
+ * Одно заполнение может дать обе тревоги сразу: часть критичных пунктов провалена,
+ * часть не тронута. Складывать их в одну строку с двумя числами значит писать текст,
+ * который читают со второго раза, — а тревогу читают с первого.
+ */
+function alarmOf(
+  row: SubmissionRow,
+  kind: AlarmKind,
+  itemCount: number,
+): Alarm[] {
+  if (itemCount === 0) return [];
+  return [
+    {
+      kind,
+      key: `${kind}:${row.submissionId}`,
+      countryId: row.countryId,
+      storeId: row.storeId,
+      storeName: row.storeName,
+      stationId: row.stationId,
+      stationName: row.stationName,
+      checklistId: row.checklistId,
+      checklistTitle: row.checklistTitle,
+      timeZone: row.timeZone,
+      at: row.submittedAt,
+      submissionId: row.submissionId,
+      itemCount,
+      mode: row.mode,
+    },
+  ];
+}
+
+/**
+ * Критичные пункты, оставшиеся без ответа в заполнениях того прохода окна, который
+ * СЕГОДНЯ закрылся.
+ *
+ * Отдельный запрос, а не ветка в счёте провалов, ровно потому, что момент подъёма у них
+ * разный: провал случился и известен точно в ту же секунду, а молчание становится фактом
+ * только с закрытием окна. До закрытия сотрудник вернётся к пункту штатным порядком, и
+ * тревога об этом — «подсветка нашей недоработки, а не того, что мы не можем это
+ * сделать» (владелец, 14.09).
+ *
+ * Время тревоги — время ОТПРАВКИ, а не закрытия окна: строка ведёт в конкретную карточку
+ * («Открыть»), и управляющему нужно знать, когда заполняли, — иначе в полосе все
+ * вечерние тревоги показывали бы одну и ту же полночь.
+ *
+ * Снятый с работы чек-лист здесь НЕ исключается, в отличие от пропущенного: там тревога
+ * о работе, которую перестали ждать, а тут — о работе, которая уже сделана наполовину.
+ * Архивирование чек-листа задним числом не отменяет того, что «газ» не тронули.
+ */
+async function listUnansweredCritical(
+  scope: AlarmScope,
+  at: Date,
+): Promise<Scanned> {
+  const pass = windowPassEndingToday(at);
+
+  const rows = await getDb()
+    .select({
+      submissionId: submissions.id,
+      submittedAt: submissions.submittedAt,
+      snapshot: submissions.snapshot,
+      answers: submissions.answers,
+      mode: submissions.mode,
+      countryId: stores.countryId,
+      storeId: stores.id,
+      storeName: stores.name,
+      stationId: stations.id,
+      stationName: stations.name,
+      timeZone: stores.timezone,
+      checklistId: checklists.id,
+      checklistTitle: checklists.title,
+    })
+    .from(submissions)
+    .innerJoin(
+      checklistVersions,
+      eq(submissions.versionId, checklistVersions.id),
+    )
+    .innerJoin(checklists, eq(checklistVersions.checklistId, checklists.id))
+    .innerJoin(stations, eq(submissions.stationId, stations.id))
+    .innerJoin(stores, eq(stations.storeId, stores.id))
+    .leftJoin(timezoneNames, ZONE_MATCHES)
+    .where(
+      and(...scopeConditions(scope), pass.closed, ...submittedInPass(pass)),
+    )
+    .orderBy(desc(submissions.submittedAt), desc(submissions.id))
+    .limit(MAX_SCANNED);
+
+  const alarms = rows.flatMap((row) =>
+    alarmOf(
+      row,
+      "criticalUnanswered",
+      countUnansweredCritical(row.snapshot, row.answers),
+    ),
+  );
 
   return { alarms, capped: rows.length === MAX_SCANNED };
 }
@@ -234,32 +381,15 @@ async function listCriticalFailures(
 /**
  * Чек-листы, чьё окно за сегодня закрылось без заполнения.
  *
- * Проход окна берётся тот, что **закончился сегодня** по местному времени: для
- * обычного окна (06:00–12:00) это сегодняшнее утро, для окна через полночь
- * (20:00–00:00) — вчерашний вечер, закрывшийся в полночь. Иначе вечернее закрытие
- * не порождало бы тревоги никогда: его проход, начатый сегодня, заканчивается уже
- * завтра, а именно оно и есть самое важное.
+ * Проход окна — тот же, по которому поднимается критичный пункт без ответа
+ * (`windowPassEndingToday`): закончившийся сегодня по местному времени.
  */
 async function listMissedChecklists(
   scope: AlarmScope,
   at: Date,
 ): Promise<Scanned> {
-  const localNow = localNowSql(at);
-  const localDate = sql`${localNow}::date`;
-  const localTime = sql`${localNow}::time`;
-
-  // Начало прохода: у окна через полночь оно во вчерашних сутках.
-  const startLocal = sql`(case
-        when ${checklists.windowStart} <= ${checklists.windowEnd}
-          then ${localDate} + ${checklists.windowStart}
-        else (${localDate} - 1) + ${checklists.windowStart}
-      end)`;
-  const endLocal = sql`(${localDate} + ${checklists.windowEnd})`;
-  // Момент закрытия окна отдаётся секундами эпохи, а не отметкой времени: для
-  // node-postgres drizzle отключает разбор дат драйвером и сам разбирает только СВОИ
-  // колонки, поэтому сырое выражение вернулось бы строкой «2026-09-06 12:00:00+00»
-  // (проверено на этой базе). Число же не зависит ни от разборщика, ни от локали.
-  const closedAtEpoch = sql<number>`extract(epoch from (${endLocal} at time zone ${timezoneNames.name}))::float8`;
+  const pass = windowPassEndingToday(at);
+  const { startLocal, closedAtEpoch } = pass;
 
   // Режим смены берётся за те сутки, в которых окно НАЧАЛОСЬ: чек-лист ждали от той
   // смены, которая его и открыла, а не от той, что пришла после полуночи (D055).
@@ -283,8 +413,7 @@ async function listMissedChecklists(
       .where(
         and(
           eq(filledVersion.checklistId, checklists.id),
-          sql`(${submissions.submittedAt} at time zone ${timezoneNames.name}) >= ${startLocal}`,
-          sql`(${submissions.submittedAt} at time zone ${timezoneNames.name}) < ${endLocal}`,
+          ...submittedInPass(pass),
         ),
       ),
   );
@@ -323,7 +452,7 @@ async function listMissedChecklists(
         ...scopeConditions(scope),
         // Снятый с работы чек-лист не ждут: методист убрал его из работы сам.
         isNull(checklists.archivedAt),
-        sql`${localTime} >= ${checklists.windowEnd}`,
+        pass.closed,
         notFilled,
       ),
     )
@@ -371,18 +500,11 @@ async function countUnknownTimezoneStores(scope: AlarmScope): Promise<number> {
   return row?.stores ?? 0;
 }
 
-/** Провалы впереди пустых пунктов: отказ громче молчания, хотя оба стоят внимания. */
-function ordered(alarms: readonly Alarm[]): Alarm[] {
-  return [
-    ...alarms.filter((alarm) => alarm.kind === "criticalFailed"),
-    ...alarms.filter((alarm) => alarm.kind === "criticalUnanswered"),
-  ];
-}
-
 /**
  * Все тревоги по этим фильтрам на момент `at`. Порядок — сперва то, что случилось и
- * известно точно (провал критичного пункта, затем критичный пункт без ответа), потом
- * то, чего не случилось (незаполненный чек-лист). Внутри вида свежие сверху.
+ * известно точно (провал критичного пункта), потом то, что стало фактом с закрытием
+ * окна: критичный пункт без ответа, затем незаполненный чек-лист. Внутри вида свежие
+ * сверху.
  *
  * `at` приходит параметром, а не берётся внутри: границы местных суток и закрытие
  * окна иначе невозможно проверить тестом, не подменяя системные часы.
@@ -391,15 +513,17 @@ export async function listAlarms(
   scope: AlarmScope,
   at: Date,
 ): Promise<AlarmList> {
-  const [failures, missed, unknownTimezoneStores] = await Promise.all([
-    listCriticalFailures(scope, at),
-    listMissedChecklists(scope, at),
-    countUnknownTimezoneStores(scope),
-  ]);
+  const [failures, unanswered, missed, unknownTimezoneStores] =
+    await Promise.all([
+      listCriticalFailures(scope, at),
+      listUnansweredCritical(scope, at),
+      listMissedChecklists(scope, at),
+      countUnknownTimezoneStores(scope),
+    ]);
 
   return {
-    alarms: [...ordered(failures.alarms), ...missed.alarms],
-    capped: failures.capped || missed.capped,
+    alarms: [...failures.alarms, ...unanswered.alarms, ...missed.alarms],
+    capped: failures.capped || unanswered.capped || missed.capped,
     unknownTimezoneStores,
   };
 }

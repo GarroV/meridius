@@ -3,7 +3,7 @@
 // ссылку немедленно (D006, D021) и удаление не спорит с историей заполнений.
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, describe, expect, test } from "vitest";
 
 import {
@@ -68,6 +68,14 @@ async function emptyStore(): Promise<string> {
 async function stationRow(id: string) {
   const [row] = await db.select().from(stations).where(eq(stations.id, id));
   return row;
+}
+
+/** Снимает чек-лист с работы: то же, что делает методист с чек-листом, по которому заполняли. */
+async function archive(checklistId: string): Promise<void> {
+  await db
+    .update(checklists)
+    .set({ archivedAt: sql`now()` })
+    .where(eq(checklists.id, checklistId));
 }
 
 describe("станции справочника", () => {
@@ -251,6 +259,46 @@ describe("привязка чек-листа к станции (T017)", () => {
       .where(eq(checklists.id, checklistId));
     expect(checklist).toBeDefined();
     expect(checklist?.stationId).toBeNull();
+  });
+
+  test("снятый с работы чек-лист после сноса станции не попадает в свободные", async () => {
+    // Снос пиццерии отвязывает её чек-листы (`on delete set null`), и снятые с работы
+    // возвращались в список привязки наравне с рабочими. Найдено 13.09: после сноса
+    // демо-пиццерий там осело три архивных чек-листа. Это мусор, который копится
+    // незаметно, — и хуже того, привязка вернула бы в работу то, что методист снял.
+    const storeId = await emptyStore();
+    const created = await createStation({ storeId, name: unique("Кухня") });
+    const archived = await createChecklist();
+    const working = await createChecklist();
+    await assignChecklist(created.id, archived);
+    await assignChecklist(created.id, working);
+    await archive(archived);
+
+    await deleteStation(created.id);
+
+    const ids = (await listUnassignedChecklists()).map((item) => item.id);
+    expect(ids).not.toContain(archived);
+    // Рабочий чек-лист, наоборот, обязан вернуться в свободные: его привязывают заново.
+    expect(ids).toContain(working);
+  });
+
+  test("снятый с работы чек-лист привязать нельзя: checklistArchived", async () => {
+    // Список свободных — не единственный путь: чек-лист снимают с работы, пока экран
+    // справочника открыт со старым списком. Правило стоит в слое, как и проверка пояса.
+    const storeId = await emptyStore();
+    const created = await createStation({ storeId, name: unique("Кухня") });
+    const archived = await createChecklist();
+    await archive(archived);
+
+    await expect(assignChecklist(created.id, archived)).rejects.toMatchObject({
+      code: "checklistArchived",
+    });
+
+    const [row] = await db
+      .select({ stationId: checklists.stationId })
+      .from(checklists)
+      .where(eq(checklists.id, archived));
+    expect(row?.stationId).toBeNull();
   });
 });
 

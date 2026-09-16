@@ -1,6 +1,7 @@
 import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
 
+import { BUILD_COMMIT_VAR, headCommit } from "./src/blocks/core/build-stamp";
 import { PUBLIC_FILL_PREFIX, securityHeaders } from "./src/security-headers";
 
 // Язык определяется по заголовку браузера в src/i18n/request.ts — без маршрутов вида /ru/… и без cookie.
@@ -24,8 +25,18 @@ const EVERYTHING_EXCEPT_PUBLIC_FILL = `/:path((?!${PUBLIC_FILL_PREFIX.slice(1)})
 // поэтому разработка и сквозные сценарии живут как раньше (D045).
 const basePath = (process.env["BASE_PATH"] ?? "").replace(/\/$/, "");
 
+// Коммит, из которого собран продукт, запекается в сборку (D033) и доезжает до подписи
+// в подвале кабинета (T156). Считается от рабочего каталога, а не от пути этого модуля:
+// конфигурацию Next собирает во временный файл, и путь от `import.meta.url` указывал бы
+// внутрь `.next`. Рабочий каталог у `next dev`, `next build` и `next start` — корень копии.
+//
+// Пусто — не отказ: на площадке репозитория рядом может не быть вовсе, и продукт скажет
+// «сборка не подписана» вместо того, чтобы выдумать коммит.
+const buildCommit = headCommit(process.cwd()) ?? "";
+
 const nextConfig: NextConfig = {
   ...(basePath === "" ? {} : { basePath }),
+  env: { [BUILD_COMMIT_VAR]: buildCommit },
   typedRoutes: true,
   // Next 16 иначе кладёт в корень свои AGENTS.md и CLAUDE.md — инструкции агентам ведём мы, не сборщик.
   agentRules: false,

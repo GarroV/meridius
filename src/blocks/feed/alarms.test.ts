@@ -216,6 +216,89 @@ describe("провал критичного пункта — тревога", ()
   });
 });
 
+describe("критичный пункт без ответа — по закрытию окна", () => {
+  // Тревога об отсутствии ответа — про работу, которую УЖЕ нельзя доделать, а не про
+  // работу, которую ещё не бросили. Пока окно открыто, сотрудник вернётся к «газу»
+  // штатным порядком, и полоса, кричащая об этом в момент отправки, подсвечивает
+  // недоработку продукта, а не сети. Момент подъёма — тот же, что у пропущенного
+  // чек-листа: закрытие окна за эти сутки (D054).
+
+  test("окно ещё открыто: молчим — дозаполнить пока можно", async () => {
+    const { storeId, versionId } = await prepare();
+    await fill(versionId, MORNING, [answer("i-tables", true, MORNING)]);
+
+    expect(await alarmsOf({ storeId }, MORNING)).toStrictEqual([]);
+  });
+
+  test("окно закрылось: тревога поднялась", async () => {
+    const { storeId, versionId } = await prepare();
+    const submissionId = await fill(versionId, MORNING, [
+      answer("i-tables", true, MORNING),
+    ]);
+
+    const alarms = await alarmsOf({ storeId }, AFTERNOON);
+
+    expect(alarms).toHaveLength(1);
+    expect(alarms[0]).toMatchObject({
+      kind: "criticalUnanswered",
+      itemCount: 1,
+      submissionId,
+    });
+  });
+
+  test("провал критичного звучит сразу, окна не ждёт", async () => {
+    // Разные по природе события: провал СЛУЧИЛСЯ и известен точно, отсутствие ответа
+    // станет фактом только с закрытием окна. Задержать провал до полудня значило бы
+    // придержать единственное, что требует вмешательства прямо сейчас.
+    const { storeId, versionId } = await prepare();
+    await fill(versionId, MORNING, [answer("i-gas", false, MORNING)]);
+
+    const alarms = await alarmsOf({ storeId }, MORNING);
+
+    expect(alarms.map((alarm) => alarm.kind)).toStrictEqual(["criticalFailed"]);
+  });
+
+  test("окно через полночь: вечерний проход закрылся в полночь", async () => {
+    // Тот же разворот, что у пропущенного: берётся проход, закончившийся СЕГОДНЯ.
+    // По дате отправки вечернее заполнение не попало бы в надзор никогда — его сутки
+    // кончаются раньше, чем закрывается его же окно.
+    const evening = new Date("2026-09-05T21:00:00Z");
+    const { storeId, versionId } = await prepare({
+      windowStart: "20:00:00",
+      windowEnd: "00:00:00",
+    });
+    await fill(versionId, evening, [answer("i-tables", true, evening)]);
+
+    const alarms = await alarmsOf(
+      { storeId },
+      new Date("2026-09-06T00:30:00Z"),
+    );
+
+    expect(alarms.map((alarm) => alarm.kind)).toStrictEqual([
+      "criticalUnanswered",
+    ]);
+  });
+
+  test("тот же вечерний проход до полуночи ещё молчит", async () => {
+    const evening = new Date("2026-09-05T21:00:00Z");
+    const { storeId, versionId } = await prepare({
+      windowStart: "20:00:00",
+      windowEnd: "00:00:00",
+    });
+    await fill(versionId, evening, [answer("i-tables", true, evening)]);
+
+    const alarms = await alarmsOf(
+      { storeId },
+      new Date("2026-09-05T23:00:00Z"),
+    );
+
+    // Осталась тревога о ПОЗАВЧЕРАШНЕМ вечере: его проход закрылся сегодня в полночь
+    // и заполнен не был. Идущий прямо сейчас проход при этом молчит — это и есть
+    // разница между «окно закрылось» и «идёт смена».
+    expect(alarms.map((alarm) => alarm.kind)).toStrictEqual(["missed"]);
+  });
+});
+
 describe("незаполненный чек-лист — тревога", () => {
   test("окно закрылось, заполнения нет: пропущен", async () => {
     const { storeId, stationId, checklistId } = await prepare();
