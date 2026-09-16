@@ -10,6 +10,7 @@ import { feedHref, toFeedView } from "../view";
 import { FeedFilters } from "./FeedFilters";
 import { RoundsEmpty } from "./RoundsEmpty";
 import { RoundsGridTable } from "./RoundsGridTable";
+import { TopbarActions } from "./TopbarActions";
 
 /**
  * Экран отчёта об обходах: второй взгляд на те же фильтры, что у ленты (`FeedScreen.tsx`),
@@ -85,7 +86,7 @@ export async function RoundsReportScreen({
       breadcrumb={breadcrumbOf(model, t)}
       title={t("report.title")}
       topbarAction={
-        <>
+        <TopbarActions>
           <span className={META_CLASS} data-testid="feed-period">
             {periodText(model, format, t)}
           </span>
@@ -96,7 +97,7 @@ export async function RoundsReportScreen({
           >
             {t("report.backToFeed")}
           </Link>
-        </>
+        </TopbarActions>
       }
     >
       <FeedFilters

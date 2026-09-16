@@ -16,9 +16,14 @@ import type { FeedPeriod } from "../period";
 
 const CARD_CLASS =
   "bg-surface rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
-const GRID_CLASS = "grid grid-cols-3 gap-[var(--space-7)]";
+// Три плитки в ряд — как на эталоне, но только с `sm`. На телефоне колонке содержимого
+// остаётся 167 px, и три колонки требуют 198: подпись вроде «Проваленных критичных»
+// не влезает в треть и раздвигает колонку каркаса, унося вбок всю страницу (замер на
+// 375 px: этот блок один давал scrollWidth 406). Поставленные друг под друга плитки
+// читаются на телефоне лучше сплюснутых, а разделитель переезжает слева наверх.
+const GRID_CLASS = "grid grid-cols-1 gap-[var(--space-7)] sm:grid-cols-3";
 const CELL_CLASS = "p-[var(--space-7)]";
-const CELL_DIVIDED_CLASS = `${CELL_CLASS} border-l border-[var(--line)]`;
+const CELL_DIVIDED_CLASS = `${CELL_CLASS} border-t border-[var(--line)] sm:border-t-0 sm:border-l`;
 const VALUE_CLASS =
   "text-[length:var(--fs-num-hero)] leading-[1.1] font-semibold font-[family-name:var(--font-num)] [font-variant-numeric:tabular-nums]";
 const CAPTION_CLASS =

@@ -11,6 +11,7 @@ import { FeedEmpty } from "./FeedEmpty";
 import { FeedFilters } from "./FeedFilters";
 import { FeedMetrics } from "./FeedMetrics";
 import { FeedTable } from "./FeedTable";
+import { TopbarActions } from "./TopbarActions";
 
 /**
  * Экран ленты заполнений (эталон `docs/furca/design/screens/feed.html`).
@@ -90,7 +91,7 @@ export async function FeedScreen({
       breadcrumb={breadcrumbOf(model, t)}
       title={t("title")}
       topbarAction={
-        <>
+        <TopbarActions>
           <span className={META_CLASS} data-testid="feed-period">
             {periodText(model, format, t)}
           </span>
@@ -101,7 +102,7 @@ export async function FeedScreen({
           >
             {t("report.link")}
           </Link>
-        </>
+        </TopbarActions>
       }
     >
       <FeedFilters
