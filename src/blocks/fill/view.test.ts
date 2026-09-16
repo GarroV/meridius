@@ -606,7 +606,9 @@ describe("buildFillView: колонки табличного пункта (T141)
   test("нетабличный пункт колонок не получает", () => {
     const view = buildFillView(
       baseInput({
-        sections: [section({ id: "s1", items: [item({ id: "b1", type: "bool" })] })],
+        sections: [
+          section({ id: "s1", items: [item({ id: "b1", type: "bool" })] }),
+        ],
       }),
     );
 
