@@ -29,10 +29,9 @@ import {
   stepOptionsFor,
 } from "../schedule-field";
 import { SELECT_ARROW_SMALL } from "./select-style";
+import { stepLabel } from "./step-label";
 
 type Translate = ReturnType<typeof useTranslations>;
-
-const MINUTES_IN_HOUR = 60;
 
 const CHIP_CLASS =
   "flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border px-[var(--space-4)] text-[length:var(--fs-dense)] whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--focus-ring)]";
@@ -59,19 +58,6 @@ const GHOST_BUTTON_CLASS =
   "flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-4)] text-[length:var(--fs-dense)] text-[var(--ink-2)] hover:bg-[var(--surface-3)] hover:text-[var(--ink)]";
 const NOTICE_CLASS =
   "rounded-[var(--r-control)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-5)] py-[var(--space-4)] text-[length:var(--fs-meta)] text-[var(--err)]";
-
-/**
- * Шаг обхода словами. Часы и минуты — два отдельных ключа словаря, потому что оба
- * числительных склоняются, а склеивать их в одну строку кода значит писать русскую
- * грамматику в TypeScript.
- */
-function stepLabel(everyMinutes: number, t: Translate): string {
-  const hours = Math.floor(everyMinutes / MINUTES_IN_HOUR);
-  const minutes = everyMinutes % MINUTES_IN_HOUR;
-  if (hours === 0) return t("stepMinutes", { count: minutes });
-  if (minutes === 0) return t("stepHours", { count: hours });
-  return `${t("stepHours", { count: hours })} ${t("stepMinutes", { count: minutes })}`;
-}
 
 /** Подпись чипа: состояние пункта одним словом или одной строкой. */
 function chipLabel(item: Item, t: Translate): string {

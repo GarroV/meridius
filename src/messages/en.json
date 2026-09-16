@@ -277,6 +277,11 @@
       "range": "{min}…{max}",
       "empty": "The draft has no items yet",
       "major": "Major item",
+      "rounds": "Checked on rounds",
+      "roundsEvery": "{from}–{to}, every {step}",
+      "roundsRemind": "While overdue, reminds every {count, plural, one {# minute} other {# minutes}}",
+      "roundsSilent": "No reminder while overdue",
+      "roundsNote": "These items are not part of the fill-in form: they are marked at the station when their time comes.",
       "mode": {
         "normal": "Full",
         "reduced": "Reduced",
