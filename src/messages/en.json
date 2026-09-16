@@ -393,8 +393,9 @@
       "failed": "{count, plural, one {# critical item failed} other {# critical items failed}}. The manager will see your comment today."
     },
     "invalid": {
-      "title": "This code no longer works",
-      "text": "The sticker has been replaced. Ask your manager for the new one — the old code was revoked."
+      "title": "This code does not work",
+      "text": "Typed the code by hand? Check it and try again — a single typo is enough to lead nowhere.",
+      "reissued": "Scanned the sticker? Then it has been replaced and the old code was revoked. Ask your manager for a new one."
     },
     "none": {
       "title": "Nothing to fill in right now",
