@@ -4,8 +4,10 @@
 // пункта, а вход блока data ведёт за собой пул подключений и драйвер `pg`, которого в
 // браузере нет (тем же путём отсюда уже уезжал `isUuid`, T121). Из data берётся только
 // модуль расписания — он чистые функции над временем.
-import { parseLocalTime } from "@/blocks/data/schedule";
+import { overlappingSegments, parseLocalTime } from "@/blocks/data/schedule";
 import type { ChecklistWindow, Item, ScheduleSegment } from "@/blocks/data";
+
+const MINUTES_IN_DAY = 24 * 60;
 
 /**
  * Частота повторения сигнала о просрочке (D068). Список ЗАКРЫТ решением владельца:
@@ -129,9 +131,58 @@ export function nextSegment(
  */
 export const MAX_SEGMENTS = 8;
 
-/** Есть ли куда добавить ещё отрезок. По нему окно настройки гасит кнопку. */
+/** Минут суток, не занятых ни одним отрезком. Отрезки не пересекаются — значит, сумма. */
+function freeMinutes(schedule: readonly ScheduleSegment[]): number {
+  const taken = schedule.reduce((sum, segment) => {
+    const from = parseLocalTime(segment.from);
+    const to = parseLocalTime(segment.to);
+    if (from === null || to === null) return sum;
+    return sum + ((to - from + MINUTES_IN_DAY) % MINUTES_IN_DAY);
+  }, 0);
+  return Math.max(MINUTES_IN_DAY - taken, 0);
+}
+
+/**
+ * Есть ли куда добавить ещё отрезок. По нему окно настройки гасит кнопку.
+ *
+ * Два повода отказать, и оба обязаны быть здесь. Первый — предел числа отрезков.
+ * Второй — сутки, расписанные целиком: свободного времени не осталось, и кнопка
+ * предложила бы отрезок поверх уже набранных, то есть пересечение (T161). Кнопка,
+ * набирающая то, что правило запрещает, — это отказ на собственное нажатие методиста.
+ */
 export function canAddSegment(schedule: readonly ScheduleSegment[]): boolean {
-  return schedule.length < MAX_SEGMENTS;
+  return schedule.length < MAX_SEGMENTS && freeMinutes(schedule) > 0;
+}
+
+/** Почему набранное расписание нельзя применить. */
+export type ScheduleProblem =
+  | { readonly kind: "empty"; readonly index: number }
+  | {
+      readonly kind: "overlap";
+      readonly first: number;
+      readonly second: number;
+    };
+
+/**
+ * Что мешает применить набранное расписание, или `null`.
+ *
+ * Оба правила — те же, которыми отказывает запись (`assertValidSchedule`), и второе
+ * берётся у неё целиком (`overlappingSegments`): свой свод тех же правил разошёлся бы
+ * с первым молча. Ловим здесь, в окне настройки, а не отказом на сохранении: отказ
+ * приходит через два экрана, когда методист уже не помнит, какие границы свёл.
+ *
+ * Пустой отрезок называется первым: он и виднее, и у отрезка нулевой длины пересечений
+ * не бывает по определению — сказать про него «пересекается» значило бы увести в сторону.
+ */
+export function scheduleProblemOf(
+  schedule: readonly ScheduleSegment[],
+): ScheduleProblem | null {
+  const empty = schedule.findIndex((segment) => segment.from === segment.to);
+  if (empty !== -1) return { kind: "empty", index: empty };
+
+  const overlap = overlappingSegments(schedule);
+  if (overlap === null) return null;
+  return { kind: "overlap", first: overlap[0], second: overlap[1] };
 }
 
 /**

@@ -103,6 +103,60 @@ function isSegment(value: unknown): value is ScheduleSegment {
   );
 }
 
+/** Отрезок как дуга на круге суток: начало и длина. Полночь дугу не разрывает. */
+interface Arc {
+  readonly start: number;
+  readonly length: number;
+}
+
+function arcOf(segment: ScheduleSegment): Arc | null {
+  const from = parseLocalTime(segment.from);
+  const to = parseLocalTime(segment.to);
+  if (from === null || to === null) return null;
+  return {
+    start: from,
+    length: (to - from + MINUTES_IN_DAY) % MINUTES_IN_DAY,
+  };
+}
+
+/**
+ * Дуги накрывают друг друга. Границы считаются полуоткрытыми `[от, до)`, поэтому
+ * смежные отрезки (08:00–12:00 и 12:00–16:00) пересечением НЕ являются: именно такую
+ * пару предлагает кнопка «добавить отрезок», и запрет на неё запретил бы обычный случай.
+ */
+function arcsOverlap(a: Arc, b: Arc): boolean {
+  return (
+    (b.start - a.start + MINUTES_IN_DAY) % MINUTES_IN_DAY < a.length ||
+    (a.start - b.start + MINUTES_IN_DAY) % MINUTES_IN_DAY < b.length
+  );
+}
+
+/**
+ * Номера первой пары отрезков, накрывающих один и тот же момент суток, или `null`.
+ *
+ * Пересечение отрезков — не мелкая неаккуратность, а ЛОЖНЫЙ ПРОПУСК в отчёте. Отметка
+ * встаёт ровно в один проход (D066, `currentInterval` берёт первый подходящий), а
+ * второй проход, идущий в тот же миг, закрывается без своей отметки и уходит в отчёт
+ * пропуском — против сотрудника, который обход сделал (T161, issue #70).
+ *
+ * Живёт здесь, а не в редакторе: правило зовут обе стороны — отказ на записи и окно
+ * настройки, которое гасит кнопку «Готово» до отказа. Два свода одного правила
+ * разъезжаются, и разъезжаются молча.
+ */
+export function overlappingSegments(
+  schedule: readonly ScheduleSegment[],
+): readonly [number, number] | null {
+  const arcs = schedule.map((segment) => arcOf(segment));
+  for (const [first, a] of arcs.entries()) {
+    if (a === null) continue;
+    for (const [offset, b] of arcs.slice(first + 1).entries()) {
+      if (b === null) continue;
+      if (arcsOverlap(a, b)) return [first, first + 1 + offset];
+    }
+  }
+  return null;
+}
+
 /**
  * Проверка расписания на границе записи: импорт пакета и редактор зовут её ДО того,
  * как расписание уедет в неизменяемую версию. Сломанное расписание там неисправимо —
@@ -137,6 +191,16 @@ export function assertValidSchedule(
         `Шаг должен быть целым числом минут больше нуля, получено ${String(segment.everyMinutes)}`,
       );
     }
+  }
+
+  // Пересечение — после разбора каждого отрезка: на сломанном времени говорить о
+  // наложении нечего, и первым обязан назваться тот отказ, который ближе к причине.
+  const overlap = overlappingSegments(schedule);
+  if (overlap !== null) {
+    const [first, second] = overlap;
+    throw new RangeError(
+      `Отрезки ${String(first + 1)} и ${String(second + 1)} пересекаются: обход отметят в одном, а второй закроется в тот же миг без отметки и покажет пропуск тому, кто обход сделал`,
+    );
   }
 }
 

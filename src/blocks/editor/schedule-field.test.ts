@@ -14,6 +14,7 @@ import {
   REMIND_OPTIONS,
   removeSegment,
   replaceSegment,
+  scheduleProblemOf,
   STEP_OPTIONS,
   stepOptionsFor,
 } from "./schedule-field";
@@ -249,5 +250,66 @@ describe("removeSegment", () => {
     removeSegment(before, 1);
 
     expect(before).toStrictEqual(threeSegments());
+  });
+});
+
+describe("scheduleProblemOf", () => {
+  test("исправное расписание замечаний не даёт", () => {
+    expect(scheduleProblemOf(threeSegments())).toBeNull();
+  });
+
+  test("пустой отрезок называет свой номер", () => {
+    expect(
+      scheduleProblemOf([
+        segment("08:00", "12:00", 60),
+        segment("14:00", "14:00", 60),
+      ]),
+    ).toStrictEqual({ kind: "empty", index: 1 });
+  });
+
+  test("пересечение называет оба номера", () => {
+    // Пересечение — ложный пропуск в отчёте: отметка встаёт в один проход (D066),
+    // второй закрывается в тот же миг без отметки. Ловим здесь, а не отказом на
+    // сохранении: отказ придёт через два экрана, когда уже не вспомнить, какие границы
+    // сведены. Правило одно на обе стороны — `overlappingSegments` блока data.
+    expect(
+      scheduleProblemOf([
+        segment("08:00", "16:00", 60),
+        segment("08:20", "16:00", 60),
+      ]),
+    ).toStrictEqual({ kind: "overlap", first: 0, second: 1 });
+  });
+
+  test("смежные отрезки пересечением не считаются", () => {
+    expect(
+      scheduleProblemOf([
+        segment("08:00", "12:00", 60),
+        segment("12:00", "16:00", 120),
+      ]),
+    ).toBeNull();
+  });
+});
+
+describe("кнопка «добавить отрезок» и предел суток", () => {
+  const DAY_WINDOW = { start: "08:00", end: "23:00" } satisfies ChecklistWindow;
+
+  test("предложенные подряд отрезки ни разу не пересекаются", () => {
+    // Иначе два предела разъезжаются молча: кнопка набирает то, что правило запрещает,
+    // и методист получает отказ на собственное нажатие.
+    let schedule: ScheduleSegment[] = [];
+    while (canAddSegment(schedule)) {
+      schedule = [...schedule, nextSegment(schedule, DAY_WINDOW)];
+      expect(scheduleProblemOf(schedule), JSON.stringify(schedule)).toBeNull();
+    }
+    expect(schedule.length).toBeGreaterThan(0);
+  });
+
+  test("сутки, расписанные целиком, добавить больше не дают", () => {
+    expect(
+      canAddSegment([
+        segment("08:00", "23:00", 60),
+        segment("23:00", "08:00", 60),
+      ]),
+    ).toBe(false);
   });
 });

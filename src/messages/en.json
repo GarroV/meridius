@@ -235,6 +235,8 @@
       "removeSegment": "Remove",
       "limit": "One item holds no more than {count, plural, one {# stretch} other {# stretches}}",
       "emptySegment": "Stretch {number}: start and end are the same — there would be no rounds at all.",
+      "overlapSegments": "Stretches {first} and {second} overlap: a round gets marked in one of them, the other closes unmarked at the same moment — and reports a miss against the person who did the round.",
+      "dayFull": "The day is fully covered: there is no free time left for another stretch.",
       "remind": "Remind while overdue",
       "remindSilent": "Do not remind",
       "remindEvery": "Every {count, plural, one {# minute} other {# minutes}}",

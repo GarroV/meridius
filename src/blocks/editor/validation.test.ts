@@ -351,6 +351,15 @@ function withSchedule(item: Record<string, unknown>): unknown[] {
   ];
 }
 
+/** Непересекающиеся часовые отрезки подряд: ими проверяется предел их числа. */
+function hourlySegments(count: number): unknown[] {
+  return Array.from({ length: count }, (_unused, index) => ({
+    from: `${String(index).padStart(2, "0")}:00`,
+    to: `${String(index + 1).padStart(2, "0")}:00`,
+    everyMinutes: 60,
+  }));
+}
+
 describe("расписание периодической проверки (T137)", () => {
   const HOURLY = { from: "08:00", to: "16:00", everyMinutes: 60 };
   const EVERY_TWO = { from: "16:00", to: "23:00", everyMinutes: 120 };
@@ -408,6 +417,35 @@ describe("расписание периодической проверки (T137
   test("не список вместо расписания — отказ", () => {
     expect(() =>
       parseSections(withSchedule({ schedule: "каждый час" })),
+    ).toThrow(EditorInputError);
+  });
+
+  test("пересекающиеся отрезки до версии не доезжают (T161)", () => {
+    // Пересечение — ложный пропуск в отчёте: отметка встаёт в один проход (D066), а
+    // второй закрывается в тот же миг без отметки. Правило одно на обе стороны, и
+    // сервер обязан отказать даже тогда, когда окно настройки обошли.
+    expect(() =>
+      parseSections(
+        withSchedule({
+          schedule: [HOURLY, { from: "08:20", to: "16:00", everyMinutes: 60 }],
+        }),
+      ),
+    ).toThrow(EditorInputError);
+  });
+
+  test("отрезков больше предела — отказ, а не молчаливое обрезание списка", () => {
+    // Предел числа отрезков знали только окно настройки (`canAddSegment`, оно гасит
+    // кнопку) и разбор на сервере — но проверкой был покрыт лишь первый. Два предела,
+    // разъехавшись, дают отказ без объяснения на кнопку, которая была доступна.
+    expect(() =>
+      parseSections(
+        withSchedule({ schedule: hourlySegments(LIMITS.scheduleSegments) }),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      parseSections(
+        withSchedule({ schedule: hourlySegments(LIMITS.scheduleSegments + 1) }),
+      ),
     ).toThrow(EditorInputError);
   });
 

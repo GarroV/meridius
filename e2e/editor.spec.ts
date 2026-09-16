@@ -675,6 +675,42 @@ test.describe("редактор чек-листа", () => {
     await expect(page.getByTestId("schedule-apply")).toBeEnabled();
   });
 
+  test("пересекающиеся отрезки не дают применить настройку", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await createChecklist(page, `Пересечение ${label()}`);
+    await page.getByTestId("item-title").first().click();
+    await page.keyboard.type("Линия начинения");
+
+    await openSchedule(page, 0);
+    await page.getByTestId("schedule-add").click();
+    await page.getByTestId("schedule-add").click();
+    await expect(page.getByTestId("schedule-segment")).toHaveCount(2);
+
+    // Два отрезка расписали сутки целиком: третьему места нет, и кнопка это говорит
+    // вслух, а не предлагает отрезок поверх уже набранных.
+    await expect(page.getByTestId("schedule-add")).toBeDisabled();
+    await expect(page.getByTestId("schedule-add-hint")).toHaveText(
+      "Сутки расписаны целиком: свободного времени под ещё один отрезок не осталось.",
+    );
+
+    // Второй отрезок заезжает на первый. Раньше такое расписание сохранялось молча:
+    // отметка вставала в проход первого отрезка, проход второго закрывался без своей
+    // отметки — и сотрудник, который обход СДЕЛАЛ, видел в отчёте пропуск.
+    await page.getByTestId("schedule-from-1").fill("10:00");
+    const notice = page.getByTestId("schedule-broken");
+    await expect(notice).toBeVisible();
+    await expect(notice).toHaveAttribute("data-problem", "overlap");
+    await expect(notice).toContainText("Отрезки 1 и 2 пересекаются");
+    await expect(page.getByTestId("schedule-apply")).toBeDisabled();
+    await expect(page.getByTestId("schedule-apply-section")).toBeDisabled();
+
+    await page.getByTestId("schedule-from-1").fill("11:00");
+    await expect(page.getByTestId("schedule-broken")).toHaveCount(0);
+    await expect(page.getByTestId("schedule-apply")).toBeEnabled();
+  });
+
   test("предпросмотр показывает периодический пункт состоянием, а не строкой формы", async ({
     page,
   }) => {

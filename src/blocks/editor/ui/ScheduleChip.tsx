@@ -26,6 +26,7 @@ import {
   REMIND_OPTIONS,
   removeSegment,
   replaceSegment,
+  scheduleProblemOf,
   stepOptionsFor,
 } from "../schedule-field";
 import { SELECT_ARROW_SMALL } from "./select-style";
@@ -69,17 +70,6 @@ function chipLabel(item: Item, t: Translate): string {
     to: summary.to,
     step: stepLabel(summary.everyMinutes, t),
   });
-}
-
-/**
- * Пустой отрезок — единственное, что запрещено правилами расписания
- * (`assertValidSchedule`): начало совпало с концом, и обхода не будет ни одного.
- * Ловим это здесь, а не отказом на сохранении: отказ придёт через два экрана и
- * методист уже не вспомнит, какой отрезок он свёл в точку.
- */
-function emptySegmentAt(schedule: readonly ScheduleSegment[]): number | null {
-  const index = schedule.findIndex((segment) => segment.from === segment.to);
-  return index === -1 ? null : index;
 }
 
 function SegmentRow({
@@ -201,8 +191,12 @@ export function ScheduleChip({
     setOpen(true);
   }
 
-  const emptyAt = emptySegmentAt(schedule);
-  const broken = emptyAt !== null;
+  // Правила расписания — одни и те же на обе стороны (`scheduleProblemOf` зовёт то же
+  // `overlappingSegments`, которым отказывает запись). Ловим их здесь, а не отказом на
+  // сохранении: отказ придёт через два экрана, и методист уже не вспомнит, какие
+  // границы он свёл.
+  const problem = scheduleProblemOf(schedule);
+  const broken = problem !== null;
   const setting: ScheduleSetting = {
     schedule,
     // Частота без расписания не имеет смысла: звонить было бы нечему (D068).
@@ -279,11 +273,20 @@ export function ScheduleChip({
                 ))
               )}
 
-              {broken ? (
-                <div data-testid="schedule-broken" className={NOTICE_CLASS}>
-                  {t("emptySegment", { number: emptyAt + 1 })}
+              {problem === null ? null : (
+                <div
+                  data-testid="schedule-broken"
+                  data-problem={problem.kind}
+                  className={NOTICE_CLASS}
+                >
+                  {problem.kind === "empty"
+                    ? t("emptySegment", { number: problem.index + 1 })
+                    : t("overlapSegments", {
+                        first: problem.first + 1,
+                        second: problem.second + 1,
+                      })}
                 </div>
-              ) : null}
+              )}
 
               <div className="flex items-center gap-[var(--space-5)]">
                 <button
@@ -301,8 +304,10 @@ export function ScheduleChip({
                   {t("add")}
                 </button>
                 {canAddSegment(schedule) ? null : (
-                  <span className={HINT_CLASS}>
-                    {t("limit", { count: MAX_SEGMENTS })}
+                  <span data-testid="schedule-add-hint" className={HINT_CLASS}>
+                    {schedule.length >= MAX_SEGMENTS
+                      ? t("limit", { count: MAX_SEGMENTS })
+                      : t("dayFull")}
                   </span>
                 )}
               </div>
