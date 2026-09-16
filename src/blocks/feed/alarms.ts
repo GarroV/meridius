@@ -26,15 +26,7 @@
 // Лента заполнений для этого не переиспользуется намеренно: у неё свой период и свой
 // предел выдачи в 200 строк, и тревога, пропавшая из-за выбранного периода, — это
 // именно та тихая потеря, ради которой тревоги и заводились.
-import {
-  and,
-  countDistinct,
-  desc,
-  eq,
-  isNull,
-  notExists,
-  sql,
-} from "drizzle-orm";
+import { and, desc, eq, isNull, notExists, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 

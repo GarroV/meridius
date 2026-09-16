@@ -75,10 +75,14 @@ export function shiftLocalDate(localDate: string, deltaDays: number): string {
   return shifted.toISOString().slice(0, 10);
 }
 
+/** Местная дата в момент UTC-полуночи: сравнивать сутки по календарю, а не по часам. */
+function midnightOf(localDate: string): number {
+  return Date.parse(`${localDate}T00:00:00Z`);
+}
+
 /** Сколько суток от одной местной даты до другой. */
 function daysBetween(from: string, to: string): number {
-  const at = (value: string): number => Date.parse(`${value}T00:00:00Z`);
-  const delta = at(to) - at(from);
+  const delta = midnightOf(to) - midnightOf(from);
   if (Number.isNaN(delta)) {
     throw new RangeError(`Местная дата не разобрана: «${from}» → «${to}»`);
   }
