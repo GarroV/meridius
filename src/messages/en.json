@@ -120,6 +120,7 @@
       "referencedByHistory": "Submissions reference this record — deletion is not allowed",
       "referencedByChecks": "Check marks reference this record — deletion is not allowed",
       "countryNotEmpty": "This country still has pizzerias — delete them first",
+      "checklistArchived": "This checklist is withdrawn — it cannot be assigned to a station",
       "confirmationRequired": "Deletion needs confirmation",
       "notFound": "Record not found",
       "codeCollision": "This QR code is already taken — try again"

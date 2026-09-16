@@ -1,7 +1,7 @@
 // Станции пиццерии и привязка к ним чек-листов. Запросы живут здесь, а не в блоке
 // data: туда ходят через его схему и `getDb()`, но собственный CRUD каждого блока
 // в нём не собирается (решение D024).
-import { asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import type { LocalizedText } from "@/blocks/data";
 import { checklists, getDb, stations } from "@/blocks/data";
@@ -229,12 +229,26 @@ export async function assignChecklist(
     .where(eq(stations.id, stationId));
   if (station === undefined) throw notFound(WHAT);
 
+  // Снятый с работы чек-лист привязать нельзя: методист убрал его из работы, и привязка
+  // вернула бы его на станцию молча. Условие стоит в самой записи, а не проверкой до неё:
+  // чек-лист снимают с работы и в ту минуту, когда справочник уже показал список.
   const [row] = await getDb()
     .update(checklists)
     .set({ stationId })
-    .where(eq(checklists.id, checklistId))
+    .where(and(eq(checklists.id, checklistId), isNull(checklists.archivedAt)))
     .returning({ id: checklists.id });
-  if (row === undefined) throw notFound("чек-лист");
+  if (row === undefined) {
+    // Запись не тронута по двум разным причинам, и человеку они говорят разное.
+    const [existing] = await getDb()
+      .select({ archivedAt: checklists.archivedAt })
+      .from(checklists)
+      .where(eq(checklists.id, checklistId));
+    if (existing === undefined) throw notFound("чек-лист");
+    throw new CatalogError(
+      "checklistArchived",
+      `чек-лист ${checklistId}: снят с работы, привязать его к станции нельзя`,
+    );
+  }
 }
 
 /** Снимает привязку. Чек-лист остаётся, но его QR больше не открывается ниоткуда. */
@@ -249,11 +263,18 @@ export async function detachChecklist(checklistId: string): Promise<void> {
   if (row === undefined) throw notFound("чек-лист");
 }
 
-/** Чек-листы, которые ещё не привязаны ни к одной станции: их и предлагает экран. */
+/**
+ * Чек-листы, которые ещё не привязаны ни к одной станции: их и предлагает экран.
+ *
+ * Снятые с работы сюда не попадают, хотя станции у них тоже нет. Снос пиццерии отвязывает
+ * её чек-листы (`on delete set null`), и архивные оседали в этом списке как мусор, который
+ * никто не видит: у методиста в его списке их нет, а справочник предлагал привязать их
+ * заново — то есть вернуть в работу снятое.
+ */
 export async function listUnassignedChecklists(): Promise<StationChecklist[]> {
   return getDb()
     .select({ id: checklists.id, title: checklists.title })
     .from(checklists)
-    .where(isNull(checklists.stationId))
+    .where(and(isNull(checklists.stationId), isNull(checklists.archivedAt)))
     .orderBy(asc(checklists.createdAt));
 }

@@ -15,6 +15,7 @@ export const CATALOG_ERROR_CODES = [
   "referencedByHistory",
   "referencedByChecks",
   "countryNotEmpty",
+  "checklistArchived",
   "confirmationRequired",
   "notFound",
   "codeCollision",
