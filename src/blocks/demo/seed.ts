@@ -6,13 +6,15 @@
 // строки с описанием и разбирать частичные расхождения — а это ровно тот код,
 // который тихо расходится с данными. Опознаватели контура постоянны (см. model.ts),
 // поэтому снятие точечное: чужой строки сид не касается ни одной.
-import { eq, inArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 
 import type { Answer, Database, Section } from "@/blocks/data";
 import {
+  alarms,
   blocks,
   checklistVersions,
   checklists,
+  checks,
   countries,
   getDb,
   stations,
@@ -22,6 +24,7 @@ import {
 } from "@/blocks/data";
 
 import { DEMO } from "./dataset";
+import { DemoSeedError } from "./failure";
 import type { DemoDataset } from "./model";
 
 const HOUR_MS = 3_600_000;
@@ -82,6 +85,132 @@ function withAnswerTimes(
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 /**
+ * Что в базе принадлежит демонстрационному контуру ПРЯМО СЕЙЧАС.
+ *
+ * Границу проводит страна: своё — это всё, что висит под демонстрационной страной, и
+ * ничего сверх неё. Опознаватели из описания добавляются к найденному, а не заменяют
+ * его: описание говорит, что в контуре обязано быть, но не что в нём успели завести
+ * руками на показе.
+ *
+ * До T173 снятие шло ТОЛЬКО по опознавателям из описания, и первая же станция,
+ * заведённая в демо-пиццерии обычным действием в админке, ломала стенд необратимо:
+ * станция оставалась, внешний ключ не давал удалить пиццерию, а сид падал трассой
+ * драйвера. То же уровнем выше — заведённая пиццерия не давала удалить страну.
+ *
+ * Чек-лист считается своим не только по текущей станции, но и по станции, замороженной
+ * в любой его версии. Методист вправе отвязать чек-лист от станции (`on delete set null`
+ * в схеме, `detachChecklist` в справочнике), и без второго условия отвязанный чек-лист
+ * выпадал бы из контура насовсем — та же щель, из-за которой уборка смоука снимает
+ * чек-листы раньше станций (журнал блока, 07.09.2026).
+ */
+interface Contour {
+  readonly storeIds: readonly string[];
+  readonly stationIds: readonly string[];
+  readonly checklistIds: readonly string[];
+  readonly versionIds: readonly string[];
+}
+
+function distinct(...groups: readonly (readonly string[])[]): string[] {
+  return [...new Set(groups.flat())];
+}
+
+async function contourOf(tx: Transaction, data: DemoDataset): Promise<Contour> {
+  const storeRows = await tx
+    .select({ id: stores.id })
+    .from(stores)
+    .where(eq(stores.countryId, data.country.id));
+  const storeIds = distinct(
+    storeRows.map((row) => row.id),
+    data.stores.map((store) => store.id),
+  );
+
+  const stationRows = await tx
+    .select({ id: stations.id })
+    .from(stations)
+    .where(inArray(stations.storeId, storeIds));
+  const stationIds = distinct(
+    stationRows.map((row) => row.id),
+    data.stations.map((station) => station.id),
+  );
+
+  const attachedChecklists = await tx
+    .select({ id: checklists.id })
+    .from(checklists)
+    .where(inArray(checklists.stationId, stationIds));
+  const publishedOnContour = await tx
+    .select({ id: checklistVersions.checklistId })
+    .from(checklistVersions)
+    .where(inArray(checklistVersions.stationId, stationIds));
+  const checklistIds = distinct(
+    attachedChecklists.map((row) => row.id),
+    publishedOnContour.map((row) => row.id),
+    data.checklists.map((checklist) => checklist.id),
+  );
+
+  const versionRows = await tx
+    .select({ id: checklistVersions.id })
+    .from(checklistVersions)
+    .where(inArray(checklistVersions.checklistId, checklistIds));
+  const versionIds = distinct(
+    versionRows.map((row) => row.id),
+    data.checklists.map((checklist) => checklist.draft.id),
+    data.checklists.flatMap((checklist) =>
+      checklist.versions.map((version) => version.id),
+    ),
+  );
+
+  return { storeIds, stationIds, checklistIds, versionIds };
+}
+
+/**
+ * Рабочие строки, которые держат контур снаружи: заполнение или отметка обхода,
+ * сделанные на станции ВНЕ контура по версии демонстрационного чек-листа. Снять их
+ * сид не имеет права — это настоящее свидетельство о смене, а история неприкосновенна
+ * (принцип 3); оставить тоже нельзя — база не даст удалить версию.
+ *
+ * Случай не выдуманный: он получается, если демонстрационный чек-лист назначили на
+ * рабочую станцию. Поэтому сид отказывается и называет помеху поимённо, а не падает
+ * кодом внешнего ключа.
+ */
+async function foreignHolds(
+  tx: Transaction,
+  contour: Contour,
+): Promise<string[]> {
+  // Копия списка, а не он сам: `notInArray` принимает только изменяемый массив,
+  // а описание контура наружу отдаётся неизменяемым.
+  const inside = [...contour.stationIds];
+  const heldSubmissions = await tx
+    .select({ id: submissions.id, stationId: submissions.stationId })
+    .from(submissions)
+    .where(
+      and(
+        inArray(submissions.versionId, contour.versionIds),
+        notInArray(submissions.stationId, inside),
+      ),
+    );
+  const heldChecks = await tx
+    .select({ id: checks.id, stationId: checks.stationId })
+    .from(checks)
+    .where(
+      and(
+        inArray(checks.versionId, contour.versionIds),
+        notInArray(checks.stationId, inside),
+      ),
+    );
+
+  return [
+    ...heldSubmissions.map(
+      (row) =>
+        `заполнение ${row.id} сделано на станции ${row.stationId} вне контура`,
+    ),
+    ...heldChecks.map(
+      (row) =>
+        `отметка обхода ${row.id} сделана на станции ${row.stationId} вне контура`,
+    ),
+  ];
+}
+
+/**
  * Снимает прошлый контур. Порядок обратный вставке: сначала то, что ссылается,
  * потом то, на что ссылаются, — иначе внешний ключ не даст удалить.
  */
@@ -89,26 +218,63 @@ async function removeContour(
   tx: Transaction,
   data: DemoDataset,
 ): Promise<number> {
-  const stationIds = data.stations.map((station) => station.id);
-  const storeIds = data.stores.map((store) => store.id);
-  const checklistIds = data.checklists.map((checklist) => checklist.id);
-  const blockIds = data.blocks.map((block) => block.id);
-  const submissionIds = data.submissions.map((submission) => submission.id);
-
-  if (stationIds.length === 0 || checklistIds.length === 0) {
-    throw new Error(
+  if (data.stations.length === 0 || data.checklists.length === 0) {
+    throw new DemoSeedError(
       "Описание контура без станций или чек-листов: заводить и снимать нечего",
     );
   }
 
-  // Заполнения снимаются и по станции контура, а не только по своему опознавателю:
+  const contour = await contourOf(tx, data);
+
+  const holds = await foreignHolds(tx, contour);
+  if (holds.length > 0) {
+    throw new DemoSeedError(
+      [
+        "Демонстрационный контур не снять: на него ссылаются заполнения или отметки",
+        "обхода, сделанные на станциях ВНЕ контура. Стереть их сид не имеет права —",
+        "это свидетельство о настоящей смене, а история в продукте неприкосновенна.",
+        "",
+        ...holds.map((hold) => `  ${hold}`),
+        "",
+        "Так получается, когда демонстрационный чек-лист назначают на рабочую станцию.",
+        "Что делать: снимите назначение в справочнике, чтобы это не повторилось, —",
+        "а с уже накопленными строками решите отдельно. Средствами продукта их не",
+        "удалить, и это сознательно: такое удаление всегда решение человека, а не",
+        "сценария. Контур сид не тронул — он остался таким, каким был.",
+      ].join("\n"),
+    );
+  }
+
+  const blockIds = data.blocks.map((block) => block.id);
+  const submissionIds = data.submissions.map((submission) => submission.id);
+
+  // Будильники сняты явно, хотя схема и так уносит их вслед за станцией
+  // (`on delete cascade`): снятое молча не попадает в счёт строк, а счёт печатается
+  // запускающему и по нему видно, что прогон вообще что-то делал.
+  const removedAlarms = await tx
+    .delete(alarms)
+    .where(inArray(alarms.stationId, contour.stationIds))
+    .returning({ id: alarms.id });
+
+  const removedChecks = await tx
+    .delete(checks)
+    .where(
+      or(
+        inArray(checks.stationId, contour.stationIds),
+        inArray(checks.versionId, contour.versionIds),
+      ),
+    )
+    .returning({ id: checks.id });
+
+  // Заполнения снимаются по станции контура, а не только по своему опознавателю:
   // на показе по демо-коду заполняют по-настоящему, и такие записи держали бы версию
   // внешним ключом — повторный прогон падал бы вместо того, чтобы обновить контур.
   const removedSubmissions = await tx
     .delete(submissions)
     .where(
       or(
-        inArray(submissions.stationId, stationIds),
+        inArray(submissions.stationId, contour.stationIds),
+        inArray(submissions.versionId, contour.versionIds),
         ...(submissionIds.length > 0
           ? [inArray(submissions.id, submissionIds)]
           : []),
@@ -116,40 +282,41 @@ async function removeContour(
     )
     .returning({ id: submissions.id });
 
-  // Режимы смены снимаются вместе с контуром: они ссылаются на пиццерию внешним
-  // ключом, и без этого повторный прогон упёрся бы в него при удалении пиццерий.
-  await tx
-    .delete(storeShiftModes)
-    .where(inArray(storeShiftModes.storeId, storeIds));
-
   const removedVersions = await tx
     .delete(checklistVersions)
-    .where(inArray(checklistVersions.checklistId, checklistIds))
+    .where(inArray(checklistVersions.id, contour.versionIds))
     .returning({ id: checklistVersions.id });
 
   const removedChecklists = await tx
     .delete(checklists)
-    .where(inArray(checklists.id, checklistIds))
+    .where(inArray(checklists.id, contour.checklistIds))
     .returning({ id: checklists.id });
+
+  // Режимы смены снимаются вместе с контуром: они ссылаются на пиццерию внешним
+  // ключом, и без этого повторный прогон упёрся бы в него при удалении пиццерий.
+  const removedShiftModes = await tx
+    .delete(storeShiftModes)
+    .where(inArray(storeShiftModes.storeId, contour.storeIds))
+    .returning({ id: storeShiftModes.id });
 
   const removedStations = await tx
     .delete(stations)
-    .where(inArray(stations.id, stationIds))
+    .where(inArray(stations.id, contour.stationIds))
     .returning({ id: stations.id });
 
-  const removedStores =
-    storeIds.length === 0
-      ? []
-      : await tx
-          .delete(stores)
-          .where(inArray(stores.id, storeIds))
-          .returning({ id: stores.id });
+  const removedStores = await tx
+    .delete(stores)
+    .where(inArray(stores.id, contour.storeIds))
+    .returning({ id: stores.id });
 
   const removedCountry = await tx
     .delete(countries)
     .where(eq(countries.id, data.country.id))
     .returning({ id: countries.id });
 
+  // Блоки библиотеки снимаются только по опознавателям описания, и это не недосмотр:
+  // блок не привязан ни к стране, ни к станции, поэтому блок, заведённый методистом
+  // на показе, от рабочего неотличим. Трогать его сид не имеет права.
   const removedBlocks =
     blockIds.length === 0
       ? []
@@ -159,9 +326,12 @@ async function removeContour(
           .returning({ id: blocks.id });
 
   return [
+    removedAlarms,
+    removedChecks,
     removedSubmissions,
     removedVersions,
     removedChecklists,
+    removedShiftModes,
     removedStations,
     removedStores,
     removedCountry,
