@@ -12,6 +12,16 @@ function isSupported(tag: string): tag is Locale {
   return (LOCALES as readonly string[]).includes(tag);
 }
 
+/**
+ * Язык продукта из строки, которую вернул next-intl. Он отвечает обычной строкой, а
+ * словари и `<html lang>` работают с нашим типом. Приведение живёт здесь, а не
+ * утверждением типа на месте: чужая строка иначе доехала бы до индексации словаря и
+ * обернулась бы `undefined` вместо текста — молча.
+ */
+export function asLocale(tag: string): Locale {
+  return isSupported(tag) ? tag : DEFAULT_LOCALE;
+}
+
 function parseQuality(parameter: string | undefined): number {
   if (parameter === undefined) return DEFAULT_QUALITY;
   const match = /^q=(?<value>[\d.]+)$/.exec(parameter.trim());

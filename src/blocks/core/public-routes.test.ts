@@ -16,7 +16,7 @@ import { describe, expect, test } from "vitest";
 import { repositoryRoot } from "@/blocks/core/repo-copy";
 import { withoutComments } from "@/blocks/core/source-text";
 
-import { PUBLIC_FILL_PREFIX } from "./public-routes";
+import { PUBLIC_FILL_PREFIX, PUBLIC_FILL_ROOT } from "./public-routes";
 
 /** Файл, которому literal `"/s/"` принадлежит по праву. */
 const CANONICAL = "src/blocks/core/public-routes.ts";
@@ -48,6 +48,38 @@ function sourceFiles(directory: string): string[] {
   }
   return found;
 }
+
+describe("голый /s — тот же публичный маршрут (T187)", () => {
+  test("выведен из префикса, а не записан второй строкой", () => {
+    expect(PUBLIC_FILL_ROOT).toBe("/s");
+    expect(PUBLIC_FILL_ROOT).toBe(PUBLIC_FILL_PREFIX.slice(0, -1));
+
+    // Проверяется именно происхождение, а не значение: равенство осталось бы верным и
+    // для второго литерала, а он пережил бы переезд маршрута молча — ровно тот класс,
+    // ради которого этот файл и заведён. Поэтому смотрим в сам текст модуля.
+    const code = withoutComments(
+      readFileSync(path.join(repositoryRoot(), CANONICAL), "utf8"),
+    );
+    expect(code).not.toMatch(/["\'`]\/s["\'`]/);
+  });
+
+  test("охрана кабинета отпускает этот адрес раньше, чем доходит до сессии", () => {
+    const code = withoutComments(
+      readFileSync(path.join(repositoryRoot(), "src", "proxy.ts"), "utf8"),
+    );
+    // Ищем в ТЕЛЕ функции, а не во всём файле: и корень, и кука упомянуты ещё и в
+    // импортах наверху, а там порядок строк ничего не значит. Сторож, считавший от
+    // начала файла, пропустил удаление самой ветки — поймано отрицательным прогоном.
+    const body = code.slice(code.indexOf("export function proxy("));
+    const root = body.indexOf("PUBLIC_FILL_ROOT");
+    const session = body.indexOf("SESSION_COOKIE_NAME");
+
+    expect(root, "в теле proxy() нет ветки про голый /s").toBeGreaterThan(-1);
+    // Порядок веток и есть суть дефекта: пока адрес доходил до проверки сессии, кухонный
+    // работник получал 307 на пароль админки вместо понятного отказа.
+    expect(root).toBeLessThan(session);
+  });
+});
 
 describe("префикс публичного заполнения (T120)", () => {
   test("объявлен один раз и равен /s/", () => {

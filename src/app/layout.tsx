@@ -1,9 +1,23 @@
 import type { Metadata } from "next";
+import { NextIntlClientProvider } from "next-intl";
 import { Golos_Text, IBM_Plex_Mono } from "next/font/google";
 import { getLocale } from "next-intl/server";
 import type { ReactNode } from "react";
 
+import { asLocale, type Locale } from "@/blocks/core/locale";
+import { HtmlLangSync } from "@/blocks/core/ui/HtmlLangSync";
+import en from "@/messages/en.json";
+import ru from "@/messages/ru.json";
+
 import "./globals.css";
+
+/**
+ * Словари для клиентской стороны. Наверх отдаётся ТОЛЬКО раздел `failure`: граница ошибки
+ * (`error.tsx`) обязана быть клиентской, а значит серверные `getTranslations` ей
+ * недоступны. Весь словарь отдавать нельзя — это 28 КБ на каждую страницу, в том числе
+ * на экран заполнения с кухонного телефона.
+ */
+const MESSAGES: Record<Locale, typeof en> = { en, ru };
 
 /**
  * Шрифты эталона (`docs/furca/design/screens/*.html` грузят их из Google Fonts).
@@ -39,13 +53,23 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
-  const locale = await getLocale();
+  const locale = asLocale(await getLocale());
   return (
     <html
       lang={locale}
       className={`${golosText.variable} ${plexMono.variable}`}
     >
-      <body className="bg-canvas text-ink font-ui">{children}</body>
+      <body className="bg-canvas text-ink font-ui">
+        <NextIntlClientProvider
+          locale={locale}
+          messages={{ failure: MESSAGES[locale].failure }}
+        >
+          {children}
+        </NextIntlClientProvider>
+        {/* Язык документа догоняет язык содержимого: страница заполнения может говорить
+            на языке страны, а запрос — на другом (T179, см. сам компонент). */}
+        <HtmlLangSync requestLocale={locale} />
+      </body>
     </html>
   );
 }

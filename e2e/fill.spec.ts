@@ -331,7 +331,10 @@ test.describe("язык экрана заполнения", () => {
     await page.goto(`/s/${stand.code}`);
 
     await expect(page.getByText("Открытие кухни")).toBeVisible();
-    await expect(page.locator('[lang="ru"]')).toBeVisible();
+    // Корень содержимого, а не любой элемент с lang: с T179 язык объявляют оба — и
+    // <html> (его подтягивает core/ui/HtmlLangSync к языку экрана), и сам экран.
+    // Прежний селектор стал неоднозначным и падал на strict mode, хотя проверял то же.
+    await expect(page.locator('body > [lang="ru"]')).toBeVisible();
     await context.close();
   });
 });
