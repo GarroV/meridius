@@ -311,6 +311,54 @@ test.describe("редактор чек-листа", () => {
     );
   });
 
+  test("табличный пункт: колонки заводятся по месту и переживают сохранение", async ({
+    page,
+  }) => {
+    // Третий род пункта — журнал замеса теста (T141, D074): колонки задаёт методист,
+    // строки заводит сотрудник. Проверяется вместе с сохранением, потому что колонка,
+    // не пережившая перезагрузку, выглядит на экране точно так же, как пережившая.
+    await signIn(page);
+    await createChecklist(page, `Замес теста ${label()}`);
+
+    await page.getByTestId("item-title").first().click();
+    await page.keyboard.type("Журнал замесов");
+    await page.getByTestId("item-type").first().selectOption("table");
+
+    // Первая колонка заводится вместе с типом: курсору сразу есть куда встать.
+    await expect(page.getByTestId("item-column")).toHaveCount(1);
+    await page.getByTestId("column-title").first().fill("Температура теста");
+    await page.getByTestId("column-norm").first().fill("24…26 °C");
+
+    await page.getByTestId("column-add").first().click();
+    await page.getByTestId("column-title").nth(1).fill("Вес, г");
+
+    // Регулярность табличному пункту не предлагается: журнал заводят строками за
+    // смену, а у обхода свой учёт (D076).
+    await expect(page.getByTestId("item-schedule-chip")).toHaveCount(0);
+
+    await page.getByTestId("save-draft").click();
+    await expect(page.getByTestId("editor-meta")).toHaveText(
+      "Черновик сохранён",
+    );
+
+    await page.reload();
+    await expect(page.getByTestId("item-type").first()).toHaveValue("table");
+    await expect(page.getByTestId("column-title").first()).toHaveValue(
+      "Температура теста",
+    );
+    await expect(page.getByTestId("column-norm").first()).toHaveValue(
+      "24…26 °C",
+    );
+    await expect(page.getByTestId("column-title").nth(1)).toHaveValue("Вес, г");
+
+    // Предпросмотр показывает колонки с нормами, а не пустую сетку.
+    await page.getByRole("link", { name: "Предпросмотр" }).click();
+    await expect(page.getByTestId("preview-screen")).toBeVisible();
+    await expect(page.getByTestId("preview-table")).toHaveText(
+      "Журнал: Температура теста (24…26 °C) · Вес, г",
+    );
+  });
+
   test("черновик сохраняется, версия публикуется, предпросмотр показывает то же самое", async ({
     page,
     context,
