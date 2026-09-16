@@ -97,12 +97,14 @@ async function seed(): Promise<Seeded> {
     );
     const checklistId = checklist.rows[0]?.id ?? "";
 
-    // Версия опубликована три дня назад: отчёт за неделю считает прошедшие сутки по
-    // тому расписанию, которое тогда и действовало, и без этого их бы просто не было.
+    // Версия опубликована вчера: в период тогда попадают ровно двое суток — вчера
+    // и сегодня. Три дня назад клетка полуночного обхода была бы «пропущено» даже при
+    // сделанном обходе, и это верно (пропуск в клетке сильнее сделанного), но сценарию
+    // нужны обе клетки сразу.
     const version = await pool.query<{ id: string }>(
       `insert into checklist_versions
          (checklist_id, version_number, status, station_id, sections, published_at)
-       values ($1, 1, 'published', $2, $3, now() - interval '3 days') returning id`,
+       values ($1, 1, 'published', $2, $3, now() - interval '1 day') returning id`,
       [checklistId, stationId, JSON.stringify(SECTIONS)],
     );
     const versionId = version.rows[0]?.id ?? "";

@@ -30,8 +30,12 @@ import type {
  * блока — в полосе тревог ленты (`AlarmStrip`). Пропуск здесь — число, а не краска.
  */
 
+// `min-w-0` и `overflow-hidden` на самой карточке — не украшение: без них карточка
+// берёт ширину по содержимому, то есть по таблице, и переполнение уходит выше по
+// дереву, утаскивая вбок всю страницу. Замерено в браузере на 375 px: страница была
+// шире окна на 24 px, и уезжали шапка с фильтрами, а не таблица.
 const CARD_CLASS =
-  "bg-surface rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
+  "bg-surface min-w-0 overflow-hidden rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
 const HEAD_CLASS =
   "flex items-center gap-[var(--space-6)] rounded-t-[var(--r-block)] border-b border-[var(--line)] bg-[var(--surface-3)] px-[var(--space-7)] py-[var(--space-6)]";
 const TITLE_CLASS =
