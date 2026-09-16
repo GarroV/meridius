@@ -628,6 +628,32 @@ test.describe("редактор чек-листа", () => {
     }
   });
 
+  // Закрывает дыру, найденную отрицательным прогоном (П4 в журнале блока): перечитывание
+  // черновика при открытии можно было выключить целиком, и весь набор оставался зелёным.
+  // Снаружи это выглядит как «Отмена, которая не отменяет»: пункт остался разовым, а окно
+  // при следующем открытии показывает брошенный набор отрезков.
+  test("«Отмена» действительно отменяет: окно открывается состоянием пункта", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await createChecklist(page, `Отмена ${label()}`);
+    await page.getByTestId("item-title").first().click();
+    await page.keyboard.type("Протереть витрину");
+
+    await openSchedule(page, 0);
+    await page.getByTestId("schedule-add").click();
+    await expect(page.getByTestId("schedule-segment")).toHaveCount(1);
+    await page.getByTestId("schedule-cancel").click();
+
+    await expect(page.getByTestId("item-schedule-chip").first()).toHaveText(
+      "Разово",
+    );
+
+    await openSchedule(page, 0);
+    await expect(page.getByTestId("schedule-segment")).toHaveCount(0);
+    await expect(page.getByTestId("schedule-none")).toBeVisible();
+  });
+
   test("пустой отрезок не даёт применить настройку", async ({ page }) => {
     await signIn(page);
     await createChecklist(page, `Пустой отрезок ${label()}`);
