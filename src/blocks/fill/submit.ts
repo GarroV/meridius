@@ -11,10 +11,12 @@ import {
 } from "@/blocks/data";
 
 import { checkSubmitAllowed } from "./rate-limit";
+import { findRepeatedSubmission } from "./repeat";
 import { findStationVersion } from "./station";
+import { readFillTicket } from "./ticket";
 import type { FillRefusal } from "./validation";
 import {
-  clampStartedAt,
+  clampAnswerTimes,
   matchAnswersToSnapshot,
   parseSubmission,
 } from "./validation";
@@ -61,10 +63,18 @@ export async function submitFilling(
   const parsed = parseSubmission(input);
   if (!parsed.ok) return refuse(parsed.reason);
 
-  const { code, versionId, startedAt, answers } = parsed.value;
+  const { code, versionId, ticket, answers } = parsed.value;
 
   const rate = checkSubmitAllowed(code, now);
   if (!rate.allowed) return refuse("rate-limited", rate.retryAfterSeconds);
+
+  // Начало заполнения — из пропуска, выданного сервером вместе с экраном, а не из
+  // тела запроса. Длительность после D003 осталась единственным признаком
+  // добросовестности, который видит управляющий: пока её называл отправитель,
+  // она не значила ничего, а выглядела как значащая.
+  const pass = readFillTicket(ticket, { code, versionId }, now);
+  if (!pass.ok) return refuse(pass.reason);
+  const startedAt = pass.value;
 
   const version = await findStationVersion(code, versionId);
   // Неизвестный код, перевыпущенный код и версия чужой станции дают один отказ:
@@ -74,20 +84,34 @@ export async function submitFilling(
   const checked = matchAnswersToSnapshot(version.sections, answers);
   if (!checked.ok) return refuse(checked.reason);
 
+  // Этот пропуск уже записан — значит, это повтор: двойное нажатие мимо экрана
+  // или «отправить ещё раз» после того, как первый ответ потерялся по дороге.
+  // Возвращается прежняя квитанция: работа принята, второй записи в ленте нет.
+  const repeated = await findRepeatedSubmission(version.versionId, startedAt);
+  if (repeated !== null) return await receipt(repeated);
+
   // Режим читается на сервере, а не приходит из браузера: заполнение обязано помнить,
   // при каком режиме его собирали, и подделать эту запись отправкой нельзя (D055).
   const shift = await getShiftMode(version.storeId, now);
 
   const submissionId = await saveSubmission({
     versionId: version.versionId,
-    answers: [...checked.value],
-    startedAt: clampStartedAt(startedAt, now),
+    answers: [...clampAnswerTimes(checked.value, startedAt, now)],
+    startedAt,
     mode: shift?.mode ?? "normal",
   });
 
-  // Время и длительность читаются обратно из базы, а не считаются здесь: на экране
-  // сотрудника должно стоять то, что легло в историю, а не то, что показали часы
-  // приложения (отметки времени продукта — серверные, `now()` базы).
+  return await receipt(submissionId);
+}
+
+/**
+ * Что уходит на экран после записи.
+ *
+ * Время и длительность читаются обратно из базы, а не считаются здесь: на экране
+ * сотрудника должно стоять то, что легло в историю, а не то, что показали часы
+ * приложения (отметки времени продукта — серверные, `now()` базы).
+ */
+async function receipt(submissionId: string): Promise<SubmitOutcome> {
   const saved = await getSubmission(submissionId);
   if (saved === null) return refuse("malformed");
 

@@ -459,6 +459,7 @@
     },
     "refused": {
       "tooOften": "Too often. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+      "stale": "This screen has been open too long. Reload the page and mark the items again.",
       "gone": "This sticker is no longer valid — ask your manager for a new one.",
       "broken": "The server did not accept the answers. Check the items and send again."
     },

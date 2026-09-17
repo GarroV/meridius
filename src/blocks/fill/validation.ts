@@ -23,16 +23,16 @@ import { parseTableRows } from "./table-journal";
  * Верхние границы входа. Числа — заслон от мусора, а не рабочая мерка: чек-лист станции
  * это единицы-десятки пунктов (принципы 1 и 2), комментарий — короткая записка
  * («порвался уплотнитель, вызвал техника»), а не докладная.
- *
- * `maxFillDurationMs` — 12 часов: заполнение длиннее смены не бывает, и всё, что старше,
- * означает сбитые часы устройства, а не долгое заполнение.
  */
 export const FILL_INPUT_LIMITS = {
   maxAnswers: 500,
   maxItemIdLength: 128,
   maxTextLength: 1000,
   maxCommentLength: 500,
-  maxFillDurationMs: 12 * 60 * 60 * 1000,
+  // Пропуск экрана: метка времени и подпись base64url от sha256 (43 знака). Предел
+  // стоит здесь, рядом с остальной формой тела, чтобы сверка подписи не считалась
+  // на строке произвольной длины.
+  maxTicketLength: 128,
 } as const;
 
 export const UUID_PATTERN =
@@ -59,12 +59,17 @@ export type FillRefusal =
   | "outside-window"
   // Будильников на станции в этом проходе окна уже столько, сколько разрешено
   // (`ALARM_LIMITS`).
-  | "too-many";
+  | "too-many"
+  // Пропуск экрана выдан больше суток назад (`FILL_TICKET_MAX_AGE_MS`). Подпись
+  // при этом верна: экран просто провисел открытым слишком долго, и лечится это
+  // обновлением страницы, а не «сервер сломался».
+  | "stale";
 
 export interface ParsedSubmission {
   readonly code: string;
   readonly versionId: string;
-  readonly startedAt: number;
+  /** Пропуск, выданный сервером вместе с экраном. Разбирает его `ticket.ts`. */
+  readonly ticket: string;
   readonly answers: readonly Answer[];
 }
 
@@ -112,12 +117,18 @@ function parseAnswer(input: unknown): Answer | null {
 export function parseSubmission(input: unknown): Parsed<ParsedSubmission> {
   if (!isRecord(input)) return MALFORMED;
 
-  const { code, versionId, startedAt, answers } = input;
+  const { code, versionId, ticket, answers } = input;
   if (typeof code !== "string" || !isPlausibleCode(code)) return MALFORMED;
   if (typeof versionId !== "string" || !UUID_PATTERN.test(versionId)) {
     return MALFORMED;
   }
-  if (typeof startedAt !== "number" || !Number.isFinite(startedAt)) {
+  // Здесь проверяется только форма: подпись пропуска сверяет `ticket.ts`, и делает
+  // это после предела частоты — считать HMAC на каждое тело с улицы незачем.
+  if (
+    typeof ticket !== "string" ||
+    ticket === "" ||
+    ticket.length > FILL_INPUT_LIMITS.maxTicketLength
+  ) {
     return MALFORMED;
   }
   if (!Array.isArray(answers)) return MALFORMED;
@@ -130,7 +141,7 @@ export function parseSubmission(input: unknown): Parsed<ParsedSubmission> {
     parsed.push(answer);
   }
 
-  return { ok: true, value: { code, versionId, startedAt, answers: parsed } };
+  return { ok: true, value: { code, versionId, ticket, answers: parsed } };
 }
 
 function matchesType(item: Item, value: Answer["value"]): boolean {
@@ -196,13 +207,25 @@ export function matchAnswersToSnapshot(
 }
 
 /**
- * Время начала заполнения приходит с устройства сотрудника — доверия ему нет.
- * Будущее подтягивается к «сейчас» (иначе длительность отрицательная), а слишком
- * давнее — к границе окна: сбитые часы не должны рисовать в ленте заполнение,
- * которое якобы шло неделю.
+ * Поштучные отметки времени — в границы заполнения, известные серверу.
+ *
+ * Когда сотрудник коснулся каждого пункта, сервер не видит и увидеть не может:
+ * между открытием экрана и отправкой он не участвует. Поэтому отметки остаются
+ * со стороны браузера — но перестают выходить за отрезок, оба конца которого
+ * назначил сервер: начало из пропуска, конец — миг приёма. Карточка заполнения
+ * показывает эти отметки управляющему (`answeredAt`), и «пункт отмечен в 1970
+ * году» или «завтра в 3:00» она показать больше не может.
+ *
+ * Наружу выходят новые объекты: ответы, пришедшие из тела, не правятся на месте.
  */
-export function clampStartedAt(startedAt: number, now: Date): number {
-  const upper = now.getTime();
-  const lower = upper - FILL_INPUT_LIMITS.maxFillDurationMs;
-  return Math.min(Math.max(startedAt, lower), upper);
+export function clampAnswerTimes(
+  answers: readonly Answer[],
+  startedAt: number,
+  now: Date,
+): readonly Answer[] {
+  const upper = Math.max(now.getTime(), startedAt);
+  return answers.map((answer) => ({
+    ...answer,
+    at: Math.min(Math.max(answer.at, startedAt), upper),
+  }));
 }
