@@ -91,6 +91,14 @@ export interface FillFormProps {
   readonly view: FillScreenView;
   readonly code: string;
   readonly versionId: string;
+  /**
+   * Пропуск, выданный сервером вместе с этим экраном. Внутри — серверное время
+   * выдачи и подпись; экран не читает его и не трогает, а возвращает как есть.
+   * Начало заполнения берётся оттуда, а не с часов устройства: длительность,
+   * названную браузером, подделывает кто угодно (D003 — кроме неё, о сотруднике
+   * не собирается ничего).
+   */
+  readonly ticket: string;
   readonly stationName: string;
   readonly storeName: string;
   /** Режим сегодняшней смены и то, ставил ли его кто-нибудь (D055). */
@@ -208,6 +216,7 @@ export function FillForm({
   view,
   code,
   versionId,
+  ticket,
   stationName,
   storeName,
   shift,
@@ -222,10 +231,6 @@ export function FillForm({
   const t = useTranslations("fill");
   const [draft, setDraft] = useState<FillDraft>(emptyDraft);
   const [phase, setPhase] = useState<Phase>({ kind: "filling" });
-  // Момент открытия экрана: длительность заполнения считается от него (D003 —
-  // ничего, кроме длительности, о сотруднике не собираем).
-  const [startedAt] = useState(() => Date.now());
-
   // Пункты для счёта: те же правила провала, что у ленты управляющего (`isFailed`).
   const sections = useMemo(() => gradingSections(view), [view]);
   const itemsById = useMemo(() => gradingItemsById(view), [view]);
@@ -258,7 +263,7 @@ export function FillForm({
       const outcome = await submit({
         code,
         versionId,
-        startedAt,
+        ticket,
         answers: toAnswers(sections, draft),
       });
 
@@ -279,19 +284,24 @@ export function FillForm({
         });
         return;
       }
+      // Просроченный пропуск — единственный отказ, который лечится действием
+      // сотрудника: экран провисел открытым больше суток, и сказать ему надо
+      // «обновите страницу», а не «сервер сломался».
       setPhase({
         kind: "failed",
         notice:
           outcome.reason === "unknown-code"
             ? t("refused.gone")
-            : t("refused.broken"),
+            : outcome.reason === "stale"
+              ? t("refused.stale")
+              : t("refused.broken"),
       });
     } catch {
       // Связь оборвалась. Ответы никуда не делись — они в состоянии этого компонента,
       // экран остаётся тем же, и кнопка предлагает повторить (критерий готовности 7).
       setPhase({ kind: "failed", notice: t("offline.text") });
     }
-  }, [submit, code, versionId, startedAt, sections, draft, t]);
+  }, [submit, code, versionId, ticket, sections, draft, t]);
 
   if (phase.kind === "sent") {
     const { outcome } = phase;

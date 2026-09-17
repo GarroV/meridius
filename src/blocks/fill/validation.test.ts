@@ -4,7 +4,7 @@ import type { Answer, Item, Section } from "@/blocks/data";
 
 import {
   FILL_INPUT_LIMITS,
-  clampStartedAt,
+  clampAnswerTimes,
   matchAnswersToSnapshot,
   parseSubmission,
 } from "./validation";
@@ -12,12 +12,15 @@ import {
 const CODE = "abcdefghjk";
 const VERSION = "3f1c2c0e-9d3a-4b0e-8a2f-6f1d2c3b4a59";
 const AT = 1_757_000_000_000;
+// Форму тела проверяет `parseSubmission`, подпись — `ticket.ts`: здесь годится
+// любая непустая строка в пределах длины.
+const TICKET = `${String(AT)}.подпись`;
 
 function payload(patch: Record<string, unknown> = {}): unknown {
   return {
     code: CODE,
     versionId: VERSION,
-    startedAt: AT,
+    ticket: TICKET,
     answers: [{ itemId: "a", value: true, at: AT }],
     ...patch,
   };
@@ -66,15 +69,18 @@ describe("проверка входящих данных схемой на гр�
     expect(parseSubmission(payload({ code: "a".repeat(500) })).ok).toBe(false);
   });
 
-  it("отбивает время начала, которое не конечное число", () => {
-    for (const startedAt of [
-      "сейчас",
-      null,
-      Number.NaN,
-      Number.POSITIVE_INFINITY,
-    ]) {
-      expect(parseSubmission(payload({ startedAt })).ok).toBe(false);
+  it("отбивает тело без пропуска и с пропуском не строкой", () => {
+    // Пропуск заменил «время начала»: тело, которое его не несёт, — это тело не
+    // с нашего экрана, и разбирать его дальше незачем.
+    for (const ticket of [undefined, "", 42, null, { подпись: true }]) {
+      expect(parseSubmission(payload({ ticket })).ok).toBe(false);
     }
+  });
+
+  it("отбивает пропуск сверх предела длины", () => {
+    const long = "a".repeat(FILL_INPUT_LIMITS.maxTicketLength + 1);
+
+    expect(parseSubmission(payload({ ticket: long })).ok).toBe(false);
   });
 
   it("отбивает ответы не массивом и сверх предела длины", () => {
@@ -226,27 +232,48 @@ describe("сверка ответов со снимком версии", () => {
   });
 });
 
-describe("время начала заполнения", () => {
+function answer(at: number): Answer {
+  return { itemId: "a", value: true, at };
+}
+
+describe("поштучные отметки времени", () => {
   const now = new Date("2026-09-06T09:10:00Z");
+  const startedAt = now.getTime() - 3 * 60 * 1000;
 
-  it("оставляет правдоподобное время как есть", () => {
-    const startedAt = now.getTime() - 3 * 60 * 1000;
+  it("оставляет отметку внутри заполнения как есть", () => {
+    const inside = startedAt + 60 * 1000;
 
-    expect(clampStartedAt(startedAt, now)).toBe(startedAt);
+    expect(clampAnswerTimes([answer(inside)], startedAt, now)[0]?.at).toBe(
+      inside,
+    );
   });
 
-  it("время из будущего подтягивается к «сейчас»", () => {
-    // Часы телефона не синхронизированы с сервером, а отрицательная длительность
-    // заполнения — это мусор в ленте.
-    expect(clampStartedAt(now.getTime() + 60 * 60 * 1000, now)).toBe(
+  it("отметку раньше начала подтягивает к началу", () => {
+    // Часы планшета отстают или отметку назвали телом запроса: карточка
+    // заполнения показывает эти времена управляющему, и «отмечено в 1970 году»
+    // она показывать не должна.
+    expect(clampAnswerTimes([answer(0)], startedAt, now)[0]?.at).toBe(
+      startedAt,
+    );
+  });
+
+  it("отметку после отправки подтягивает к мигу приёма", () => {
+    const future = now.getTime() + 60 * 60 * 1000;
+
+    expect(clampAnswerTimes([answer(future)], startedAt, now)[0]?.at).toBe(
       now.getTime(),
     );
   });
 
-  it("время из глубокого прошлого подтягивается к границе окна", () => {
-    const limit = now.getTime() - FILL_INPUT_LIMITS.maxFillDurationMs;
+  it("не правит пришедшие ответы на месте", () => {
+    // Неизменяемость — правило проекта: наружу выходит новый объект, а тот,
+    // что пришёл из тела запроса, дальше не идёт вовсе.
+    const source = answer(0);
 
-    expect(clampStartedAt(0, now)).toBe(limit);
+    const result = clampAnswerTimes([source], startedAt, now);
+
+    expect(source.at).toBe(0);
+    expect(result[0]).not.toBe(source);
   });
 });
 

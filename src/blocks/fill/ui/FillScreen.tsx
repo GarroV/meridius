@@ -19,6 +19,7 @@ import {
 import { buildRoundsPanel } from "../rounds-view";
 import { loadFillTarget } from "../station";
 import type { FillTarget } from "../station";
+import { issueFillTicket } from "../ticket";
 import { buildChoiceView, buildFillView } from "../view";
 import { dropAlarmAction, setAlarmAction } from "./alarm-action";
 import { ChoiceScreen } from "./ChoiceScreen";
@@ -212,6 +213,12 @@ export async function FillScreen({
           view={view}
           code={code}
           versionId={target.version.id}
+          // Пропуск на отправку: в нём серверное время выдачи экрана, и оттуда
+          // берётся начало заполнения. Браузер его больше не называет — до этой
+          // правки длительность в ленте управляющего была ровно тем числом,
+          // которое захотел написать отправитель, а D003 оставил её единственным
+          // признаком добросовестности: гео и порогов скорости под ней нет.
+          ticket={issueFillTicket({ code, versionId: target.version.id }, now)}
           stationName={target.stationName}
           storeName={target.storeName}
           shift={{ mode: target.mode, chosen: target.modeChosen }}

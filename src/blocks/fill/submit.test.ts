@@ -17,9 +17,22 @@ import {
 
 import { FILL_LIMITS, forgetAllFillHits } from "./rate-limit";
 import { submitFilling } from "./submit";
+import { issueFillTicket } from "./ticket";
 
 const NOW = new Date("2026-09-06T09:30:00Z");
 const STARTED_AT = NOW.getTime() - 3 * 60 * 1000;
+
+/**
+ * Пропуск ровно на ту пару «код + версия», которая стоит в теле.
+ *
+ * Подписывается он сервером в момент выдачи экрана, поэтому в проверках его
+ * выписывают тем же вызовом, что и продукт. Каждый вызов даёт свой пропуск:
+ * время выдачи внутри процесса неповторимо, и две отправки с разными пропусками —
+ * это две разные отправки, а не повтор.
+ */
+function ticketFor(code: string, versionId: string, at: Date = NOW): string {
+  return issueFillTicket({ code, versionId }, at);
+}
 
 function sectionsWith(label: string): Section[] {
   return [
@@ -96,7 +109,7 @@ describe("отправка заполнения", () => {
       {
         code: target.code,
         versionId: target.versionId,
-        startedAt: STARTED_AT,
+        ticket: ticketFor(target.code, target.versionId),
         answers: fullAnswers(target.sections),
       },
       NOW,
@@ -123,7 +136,7 @@ describe("отправка заполнения", () => {
       {
         code: target.code,
         versionId: target.versionId,
-        startedAt: STARTED_AT,
+        ticket: ticketFor(target.code, target.versionId),
         answers: [
           {
             itemId: items[0]?.id,
@@ -171,7 +184,7 @@ describe("гонка с публикацией новой версии", () => {
       {
         code: target.code,
         versionId: given,
-        startedAt: STARTED_AT,
+        ticket: ticketFor(target.code, given),
         answers: [
           { itemId: givenItems[0]?.id, value: true, at: STARTED_AT },
           { itemId: givenItems[1]?.id, value: 3, at: STARTED_AT },
@@ -218,7 +231,9 @@ describe("защита публичной точки записи", () => {
       {
         code: "zzzzzzzzzz",
         versionId: target.versionId,
-        startedAt: STARTED_AT,
+        // Пропуск выписан на ТОТ ЖЕ несуществующий код: иначе отправка остановилась
+        // бы на подписи и до похода в базу не дошла, то есть проверялось бы не то.
+        ticket: ticketFor("zzzzzzzzzz", target.versionId),
         answers: fullAnswers(target.sections),
       },
       NOW,
@@ -236,7 +251,7 @@ describe("защита публичной точки записи", () => {
       {
         code: mine.code,
         versionId: other.versionId,
-        startedAt: STARTED_AT,
+        ticket: ticketFor(mine.code, other.versionId),
         answers: fullAnswers(other.sections),
       },
       NOW,
@@ -253,7 +268,7 @@ describe("защита публичной точки записи", () => {
       {
         code: target.code,
         versionId: target.versionId,
-        startedAt: STARTED_AT,
+        ticket: ticketFor(target.code, target.versionId),
         answers: [{ itemId: items[0]?.id, value: false, at: STARTED_AT }],
       },
       NOW,
@@ -267,22 +282,92 @@ describe("защита публичной точки записи", () => {
 
   it("отсекает поток отправок с одного кода и говорит, когда повторить", async () => {
     const target = await stand("поток");
-    const body = {
+    // Каждая отправка — со своим пропуском: с одним и тем же это был бы повтор
+    // одного заполнения, а не поток, и предел частоты проверялся бы вхолостую.
+    const body = () => ({
       code: target.code,
       versionId: target.versionId,
-      startedAt: STARTED_AT,
+      ticket: ticketFor(target.code, target.versionId),
       answers: fullAnswers(target.sections),
-    };
+    });
     for (let index = 0; index < FILL_LIMITS.submitPerCode.maxHits; index += 1) {
-      expect((await submitFilling(body, NOW)).kind).toBe("saved");
+      expect((await submitFilling(body(), NOW)).kind).toBe("saved");
     }
 
-    const outcome = await submitFilling(body, NOW);
+    const outcome = await submitFilling(body(), NOW);
 
     expect(outcome.kind).toBe("refused");
     if (outcome.kind !== "refused") return;
     expect(outcome.reason).toBe("rate-limited");
     expect(outcome.retryAfterSeconds).toBeGreaterThan(0);
+  });
+
+  it("длительность заполнения не назначается телом запроса", async () => {
+    // D003 снял гео и пороги скорости, оставив длительность единственным признаком
+    // добросовестности, который продукт вообще показывает управляющему. Признак,
+    // который отправитель называет сам, не значит ничего — но выглядит значащим,
+    // и это хуже, чем его отсутствие.
+    //
+    // Проверка написана в обход устройства приёма: она спрашивает не «есть ли
+    // пропуск», а «может ли тело назначить длительность». Поэтому она переживёт
+    // смену способа и останется той же проверкой.
+    // Время здесь настоящее, а не `NOW`: отметку отправки ставит база своими часами,
+    // и длительность сравнима с нулём только тогда, когда оба конца отрезка живут
+    // в одних сутках. С выдуманным «сейчас» проверка мерила бы расстояние до
+    // сегодняшней даты и зеленела бы от чего угодно.
+    const realNow = new Date();
+    const target = await stand("подделка длительности");
+    const forgedStart = realNow.getTime() - 3 * 60 * 60 * 1000;
+
+    const outcome = await submitFilling(
+      {
+        code: target.code,
+        versionId: target.versionId,
+        // Пропуск настоящий: экран человек открыл честно, а «начало» дописал в тело.
+        ticket: ticketFor(target.code, target.versionId, realNow),
+        startedAt: forgedStart,
+        answers: fullAnswers(target.sections),
+      },
+      realNow,
+    );
+
+    // Отправка принимается — лишнее поле не повод терять работу сотрудника, —
+    // но длительность считает сервер, а не тело.
+    expect(outcome.kind).toBe("saved");
+    if (outcome.kind !== "saved") return;
+    expect(outcome.durationMs).toBeLessThan(60 * 1000);
+    const [row] = await listSubmissions({
+      stationId: target.stationId,
+      limit: 1,
+    });
+    expect(row?.durationMs ?? 0).toBeLessThan(60 * 1000);
+  });
+
+  it("повторная отправка того же заполнения не заводит второй записи", async () => {
+    // Кнопка на экране от двойного нажатия защищена (гасится и отсоединяется),
+    // но тело отправляет кто угодно, да и сам продукт предлагает повтор: при
+    // обрыве связи на ответе сотрудник нажимает «отправить ещё раз» с тем же
+    // телом (критерий готовности 7). Второй записи в ленте от этого быть не должно.
+    const target = await stand("повтор");
+    const body = {
+      code: target.code,
+      versionId: target.versionId,
+      ticket: ticketFor(target.code, target.versionId),
+      answers: fullAnswers(target.sections),
+    };
+
+    const first = await submitFilling(body, NOW);
+    const second = await submitFilling(body, NOW);
+
+    expect(first.kind).toBe("saved");
+    // Повтор не наказывается отказом: работа сотрудника принята, и сказать ему
+    // надо именно это, а не «сломалось».
+    expect(second.kind).toBe("saved");
+    const rows = await listSubmissions({
+      stationId: target.stationId,
+      limit: 10,
+    });
+    expect(rows.length).toBe(1);
   });
 
   it("перебор кодов не отдаёт ничего, кроме отказа", async () => {
@@ -297,7 +382,10 @@ describe("защита публичной точки записи", () => {
           {
             code: `guess${String(index).padStart(5, "0")}`,
             versionId: target.versionId,
-            startedAt: STARTED_AT,
+            ticket: ticketFor(
+              `guess${String(index).padStart(5, "0")}`,
+              target.versionId,
+            ),
             answers: fullAnswers(target.sections),
           },
           NOW,
