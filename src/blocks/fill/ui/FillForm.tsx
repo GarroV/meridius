@@ -1,9 +1,10 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 
+import { asLocale } from "@/blocks/core/locale";
 import { StateScreen } from "@/blocks/core/ui/StateScreen";
 import type { Item, TableRow } from "@/blocks/data";
 
@@ -22,6 +23,7 @@ import type { RoundOutcome } from "../rounds";
 import type { ShiftModeOutcome } from "../shift-mode";
 import type { SubmitOutcome } from "../submit";
 import { filledRows } from "../table-journal";
+import { formatStationTime } from "../view";
 import { AlarmsPanel } from "./AlarmsPanel";
 import { RoundsPanel } from "./RoundsPanel";
 import type { ShiftState } from "./ShiftModeBar";
@@ -101,6 +103,12 @@ export interface FillFormProps {
   readonly ticket: string;
   readonly stationName: string;
   readonly storeName: string;
+  /**
+   * Часовой пояс пиццерии: время отправки принадлежит кухне, а не телефону.
+   * Телефон сотрудника может ехать из другой страны — и тогда «отправлено в 23:52»
+   * назвало бы час, которого на этой кухне не было.
+   */
+  readonly timeZone: string;
   /** Режим сегодняшней смены и то, ставил ли его кто-нибудь (D055). */
   readonly shift: ShiftState;
   /** Серверное действие смены режима: тот же адрес `/s/<код>`. */
@@ -219,6 +227,7 @@ export function FillForm({
   ticket,
   stationName,
   storeName,
+  timeZone,
   shift,
   choose,
   submit,
@@ -229,6 +238,10 @@ export function FillForm({
   dropAlarm,
 }: FillFormProps): ReactElement {
   const t = useTranslations("fill");
+  // Язык экрана, а не язык телефона: его посчитала цепочка `pickFillLocales` и
+  // отдал провайдер серверной части. Формат часа при этом всё равно круглосуточный —
+  // см. `formatStationTime`.
+  const locale = asLocale(useLocale());
   const [draft, setDraft] = useState<FillDraft>(emptyDraft);
   const [phase, setPhase] = useState<Phase>({ kind: "filling" });
   // Пункты для счёта: те же правила провала, что у ленты управляющего (`isFailed`).
@@ -308,10 +321,7 @@ export function FillForm({
     const meta = [
       t("sent.where", { station: stationName, store: storeName }),
       t("sent.meta", {
-        time: new Date(outcome.submittedAt).toLocaleTimeString(undefined, {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        time: formatStationTime(outcome.submittedAt, timeZone, locale),
         duration: formatDuration(outcome.durationMs),
       }),
     ];

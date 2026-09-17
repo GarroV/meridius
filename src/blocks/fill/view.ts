@@ -52,6 +52,30 @@ export function formatWindow(windowStart: string, windowEnd: string): string {
   return `${truncateToMinutes(windowStart)}${WINDOW_SEPARATOR}${truncateToMinutes(windowEnd)}`;
 }
 
+/**
+ * Время кухни, а не телефона: миг с сервера в часовом поясе ПИЦЦЕРИИ и в том виде,
+ * в каком продукт показывает время везде — «14:05», круглые сутки, на обоих языках.
+ *
+ * Два умолчания браузера здесь вредны, и оба сняты явно. Пояс: телефон сотрудника
+ * может ехать из другой страны (или просто врать), и «отправлено в 23:52» назвало бы
+ * час, которого на этой кухне не было. Формат часа: у английской локали он
+ * двенадцатичасовой («11:52 PM»), а весь остальной продукт — панель обходов, окно
+ * чек-листа, будильники — говорит круглыми сутками, потому что их считает база
+ * (D026). Одна поверхность, считающая иначе, читается как чужая.
+ */
+export function formatStationTime(
+  at: number | Date,
+  timeZone: string,
+  locale: Locale,
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+  }).format(at);
+}
+
 /** Непустые части через разделитель — пустая часть не оставляет лишнего разделителя. */
 function joinNonEmpty(parts: readonly string[], separator: string): string {
   return parts.filter((part) => part !== "").join(separator);

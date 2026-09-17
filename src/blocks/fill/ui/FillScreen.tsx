@@ -221,6 +221,7 @@ export async function FillScreen({
           ticket={issueFillTicket({ code, versionId: target.version.id }, now)}
           stationName={target.stationName}
           storeName={target.storeName}
+          timeZone={target.timeZone}
           shift={{ mode: target.mode, chosen: target.modeChosen }}
           choose={chooseShiftModeAction}
           submit={submitFillAction}

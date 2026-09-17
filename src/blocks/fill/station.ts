@@ -64,6 +64,12 @@ interface FillTargetReady {
   readonly stationName: string;
   readonly storeName: string;
   readonly countryLocale: string;
+  /**
+   * Часовой пояс пиццерии (`stores.timezone`): время на экране принадлежит кухне,
+   * а не телефону. Отдаётся только на этом исходе — там, где код УЖЕ настоящий:
+   * ответ на подобранный код по-прежнему не несёт о пиццерии ничего (D021).
+   */
+  readonly timeZone: string;
 }
 
 /**
@@ -104,6 +110,7 @@ interface StationContext {
   readonly stationName: string;
   readonly storeName: string;
   readonly countryLocale: string;
+  readonly timeZone: string;
 }
 
 /** Станция, её пиццерия и язык страны — ровно то, что попадёт на экран. */
@@ -114,6 +121,7 @@ async function stationContext(code: string): Promise<StationContext | null> {
       stationName: stations.name,
       storeName: stores.name,
       countryLocale: countries.locale,
+      timeZone: stores.timezone,
     })
     .from(stations)
     .innerJoin(stores, eq(stations.storeId, stores.id))
@@ -190,6 +198,7 @@ export async function loadFillTarget(
     stationName: context.stationName,
     storeName: context.storeName,
     countryLocale: context.countryLocale,
+    timeZone: context.timeZone,
   };
 }
 
