@@ -315,4 +315,34 @@ describe("пути запуска берут порт из одного исто
     expect(codeText).not.toMatch(/--port(?:=|\s+)\d/);
     expect(codeText).not.toMatch(PORT_WORD_WITH_NUMBER);
   });
+
+  // Ещё два скрипта решали про порт сами, и сторож обходил их стороной СОЗНАТЕЛЬНО:
+  // блок, чинивший T190, не имел права их править, а красный гейт на файлах, которые
+  // нельзя тронуть, — это заблокированная волна. Дефект был записан находкой в журнале
+  // и дождался своей задачи (T200). Отдельно неприятен был `qr-print-check.mjs`: его
+  // умолчание `localhost:3160` — не общий 3100, а диапазон ЧУЖОЙ копии, то есть проверка
+  // печати могла молча уйти снимать лист наклеек у соседа.
+  test("scripts/seed-demo.mjs: адрес по умолчанию берётся из общего источника", () => {
+    const content = readFileSync(
+      join(REPO_ROOT, "scripts", "seed-demo.mjs"),
+      "utf8",
+    );
+    const codeText = jsCodeText(content);
+    expect(codeText).toContain("appPort()");
+    expect(codeText).not.toMatch(/localhost:\d/);
+    expect(codeText).not.toMatch(/--port(?:=|\s+)\d/);
+    expect(codeText).not.toMatch(PORT_WORD_WITH_NUMBER);
+  });
+
+  test("scripts/qr-print-check.mjs: адрес по умолчанию берётся из общего источника", () => {
+    const content = readFileSync(
+      join(REPO_ROOT, "scripts", "qr-print-check.mjs"),
+      "utf8",
+    );
+    const codeText = jsCodeText(content);
+    expect(codeText).toContain("appPort()");
+    expect(codeText).not.toMatch(/localhost:\d/);
+    expect(codeText).not.toMatch(/--port(?:=|\s+)\d/);
+    expect(codeText).not.toMatch(PORT_WORD_WITH_NUMBER);
+  });
 });

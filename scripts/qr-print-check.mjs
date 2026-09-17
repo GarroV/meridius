@@ -7,8 +7,11 @@
 // и код распознаётся из растра программно — тем же путём, что и камерой телефона.
 //
 // Запуск:
-//   node scripts/qr-print-check.mjs --url http://localhost:3160 --store <uuid> \
-//        --password <пароль админки> [--out reports/qr-print]
+//   node scripts/qr-print-check.mjs --store <uuid> \
+//        --password <ключ входа> [--url <адрес продукта>] [--out reports/qr-print]
+//
+// Без --url берётся адрес ЭТОЙ копии: порт спрашивается у общего источника
+// (src/blocks/core/app-port.ts), а не назначается здесь числом.
 //
 // Нужен poppler (`pdftoppm`): без него проверка не выполняется, и это провал,
 // а не пропуск — молча пропущенный гейт неотличим от пройденного.
@@ -16,8 +19,19 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
+import { register } from "node:module";
+
 import jsQR from "jsqr";
 import { chromium } from "@playwright/test";
+
+// Хук ставится ДО первого импорта из src/: без него Node не знает ни псевдонима `@/`,
+// ни импортов без расширения, на которых написан код продукта.
+register("./src-resolve-hook.mjs", import.meta.url);
+
+// Порт этой копии — из общего источника (T200). Прежнее умолчание было числом,
+// и числом ЧУЖОГО диапазона: проверка печати молча уходила снимать лист наклеек
+// у соседа и печатала зелёное про его стенд.
+const { appPort } = await import("../src/blocks/core/app-port.ts");
 
 /** Разрешение растра: 300 точек на дюйм — обычная печать наклеек. */
 const DPI = 300;
@@ -169,7 +183,7 @@ function decodeAll({ width, height, pixels }) {
 async function main() {
   requireTool("pdftoppm");
 
-  const url = argument("url", "http://localhost:3160");
+  const url = argument("url", `http://localhost:${String(appPort())}`);
   const store = argument("store");
   const password = argument("password", process.env["ADMIN_PASSWORD"]);
   const out = argument("out", "reports/qr-print");
