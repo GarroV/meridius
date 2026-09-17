@@ -49,7 +49,7 @@ const CARD_HEAD_CLASS =
 const TITLE_INPUT_CLASS =
   "text-ink bg-surface h-[var(--control-h)] w-full max-w-[280px] rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-lead)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const PRIMARY_BUTTON_CLASS =
-  "bg-accent flex h-[var(--control-h)] cursor-pointer items-center rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:cursor-default disabled:opacity-45";
+  "bg-accent flex h-[var(--control-h)] cursor-pointer items-center rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-45";
 const SMALL_BUTTON_CLASS =
   "bg-surface text-ink flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-dense)] font-medium hover:border-[var(--line-control-2)] hover:bg-[var(--surface-2)]";
 

@@ -85,3 +85,22 @@ export function disabledOpacities(source: string): readonly number[] {
   });
   return values;
 }
+
+const DISABLED_CURSOR_RULE = /\.btn:disabled\s*\{[^}]*cursor:\s*([\w-]+)/;
+const DISABLED_CURSOR_CLASS = /disabled:cursor-([\w-]+)/g;
+
+/** Какой курсор эталон ставит недоступной кнопке. */
+export function referenceDisabledCursor(css: string): string | undefined {
+  const found = DISABLED_CURSOR_RULE.exec(css);
+  return found === null ? undefined : found[1];
+}
+
+/** Курсоры, которые вёрстка ставит недоступным элементам. */
+export function disabledCursors(source: string): readonly string[] {
+  const names: string[] = [];
+  source.replace(DISABLED_CURSOR_CLASS, (_whole: string, name: string) => {
+    names.push(name);
+    return "";
+  });
+  return names;
+}

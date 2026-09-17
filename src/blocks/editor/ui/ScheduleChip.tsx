@@ -72,9 +72,9 @@ const TIME_CLASS =
 const SELECT_CLASS =
   "text-ink bg-surface h-[var(--control-h-sm)] rounded-[var(--r-control)] border border-[var(--line-control)] pr-[var(--space-8)] pl-[var(--space-4)] text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:outline-none";
 const BUTTON_CLASS =
-  "bg-surface text-ink flex h-[var(--control-h)] cursor-pointer items-center rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium hover:border-[var(--line-control-2)] hover:bg-[var(--surface-2)] disabled:cursor-default disabled:opacity-45";
+  "bg-surface text-ink flex h-[var(--control-h)] cursor-pointer items-center rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium hover:border-[var(--line-control-2)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-45";
 const PRIMARY_BUTTON_CLASS =
-  "bg-accent flex h-[var(--control-h)] cursor-pointer items-center rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:cursor-default disabled:opacity-45";
+  "bg-accent flex h-[var(--control-h)] cursor-pointer items-center rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-45";
 const GHOST_BUTTON_CLASS =
   "flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-4)] text-[length:var(--fs-dense)] text-[var(--ink-2)] hover:bg-[var(--surface-3)] hover:text-[var(--ink)]";
 const NOTICE_CLASS =

@@ -4,10 +4,12 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  disabledCursors,
   disabledOpacities,
   isColorValue,
   outlineColorTokens,
   parseTokens,
+  referenceDisabledCursor,
   referenceDisabledOpacity,
 } from "./design-reference";
 
@@ -149,5 +151,53 @@ describe("сторож гашения недоступных элементов"
     }
 
     expect(wrong).toEqual([]);
+  });
+});
+
+describe("сторож курсора недоступных элементов", () => {
+  // Курсор недоступной кнопки продукт задавал двумя способами сразу, и на соседних
+  // экранах одна и та же недоступная кнопка вела себя по-разному. Расхождение с
+  // эталоном здесь вторично: первично то, что продукт расходился сам с собой.
+  it("вёрстка ставит курсор ровно тот, что эталон", () => {
+    const expected = referenceDisabledCursor(readFileSync(COMPONENTS, "utf8"));
+    const wrong: string[] = [];
+
+    for (const file of sourceFiles(path.join(ROOT, "blocks"))) {
+      for (const cursor of disabledCursors(readFileSync(file, "utf8"))) {
+        if (cursor !== expected) {
+          wrong.push(
+            `${path.relative(ROOT, file)}: ${cursor} вместо ${String(expected)}`,
+          );
+        }
+      }
+    }
+
+    expect(wrong).toEqual([]);
+  });
+});
+
+describe("referenceDisabledCursor", () => {
+  it("читает курсор недоступной кнопки из эталона", () => {
+    expect(
+      referenceDisabledCursor(
+        ".btn:disabled { opacity: .45; cursor: not-allowed; }",
+      ),
+    ).toBe("not-allowed");
+  });
+
+  it("правила нет — и сказать нечего", () => {
+    expect(
+      referenceDisabledCursor(".btn { cursor: pointer; }"),
+    ).toBeUndefined();
+  });
+});
+
+describe("disabledCursors", () => {
+  it("находит курсоры недоступных элементов", () => {
+    expect(
+      // Значение намеренно не то, которое встречается в продукте: массовая замена по
+      // вёрстке уже дважды переписывала пример внутри теста.
+      disabledCursors("disabled:cursor-wait hover:cursor-pointer"),
+    ).toEqual(["wait"]);
   });
 });
