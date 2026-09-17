@@ -59,7 +59,9 @@ export function PropertiesCard({
 
   return (
     <div className="bg-surface mb-[var(--space-8)] rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]">
-      <div className="flex gap-[var(--space-6)] p-[var(--space-7)]">
+      {/* Ниже складки три поля свойств встают столбиком: в строку они помещаются
+        только обрезанными — «Открытие см…» вместо названия чек-листа. */}
+      <div className="flex gap-[var(--space-6)] p-[var(--space-7)] max-md:flex-col">
         <div className="flex min-w-0 flex-1 flex-col gap-[var(--space-3)]">
           <label className={FIELD_LABEL_CLASS} htmlFor="checklist-title">
             {t("title")}
