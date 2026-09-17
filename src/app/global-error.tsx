@@ -3,16 +3,16 @@
 import type { ReactElement } from "react";
 
 import { DEFAULT_LOCALE } from "@/blocks/core/locale";
-import {
-  STATUS_ACTION_CLASS,
-  StatusCard,
-  StatusScreen,
-} from "@/blocks/core/ui/StatusCard";
+import { STATE_ACTION_CLASS, StateScreen } from "@/blocks/core/ui/StateScreen";
 
 /**
  * Последний рубеж: сюда попадают только ошибки самой корневой разметки — то есть случай,
  * когда `src/app/error.tsx` рисовать уже не в чем. Next требует, чтобы этот экран отдавал
  * собственные `<html>` и `<body>`: обычная разметка до него не дожила.
+ *
+ * Вид тот же, что у обычной границы ошибки (T213, T214): полный экран, крупный заголовок,
+ * окрашенная плашка отказа, акцентная кнопка во всю ширину. Экран, который человек видит
+ * раз в жизни, не должен выглядеть как ещё один продукт.
  *
  * ЯЗЫК ЗДЕСЬ ОДИН — английский, язык продукта по умолчанию, и это осознанная плата.
  * Причины две, и обе проверяемые. Первая: язык страницы вычисляет как раз корневая
@@ -31,31 +31,33 @@ export default function GlobalError({
 }): ReactElement {
   return (
     <html lang={DEFAULT_LOCALE}>
-      <body className="bg-canvas text-ink font-ui">
-        <StatusScreen>
-          <StatusCard
-            testId="global-failure"
-            title="The product did not start"
-            text="Even the page frame could not be built, so nothing can be shown here. The reason is written to the server log. Try again — if it keeps failing, pass the error code below to whoever runs the service."
-            action={
-              <button
-                type="button"
-                onClick={reset}
-                className={STATUS_ACTION_CLASS}
-                data-testid="global-failure-retry"
-              >
-                Try again
-              </button>
-            }
-            note={
-              error.digest === undefined ? undefined : (
-                <span data-testid="global-failure-digest">
-                  Error code: {error.digest}
-                </span>
-              )
-            }
-          />
-        </StatusScreen>
+      <body className="bg-surface text-ink font-ui">
+        <StateScreen
+          testId="global-failure"
+          tone="plain"
+          title="The product did not start"
+          notice="Even the page frame could not be built, so nothing can be shown here. The reason is written to the server log. Try again — if it keeps failing, pass the error code below to whoever runs the service."
+          noticeTone="err"
+          action={
+            <button
+              type="button"
+              onClick={reset}
+              className={STATE_ACTION_CLASS}
+              data-testid="global-failure-retry"
+            >
+              Try again
+            </button>
+          }
+          {...(error.digest === undefined
+            ? {}
+            : {
+                note: (
+                  <span data-testid="global-failure-digest">
+                    Error code: {error.digest}
+                  </span>
+                ),
+              })}
+        />
       </body>
     </html>
   );

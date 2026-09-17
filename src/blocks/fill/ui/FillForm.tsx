@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 
+import { StateScreen } from "@/blocks/core/ui/StateScreen";
 import type { Item, TableRow } from "@/blocks/data";
 
 import {
@@ -26,7 +27,6 @@ import { RoundsPanel } from "./RoundsPanel";
 import type { ShiftState } from "./ShiftModeBar";
 import { ShiftModeBar } from "./ShiftModeBar";
 import { TableJournal } from "./TableJournal";
-import { StateScreen } from "./StateScreen";
 
 /**
  * Экран заполнения по эталону `docs/furca/design/screens/fill.html` (класс `.fill`).

@@ -1,8 +1,8 @@
-// Экраны отказа продукта: «не открылось» и «такого адреса нет» (T175, T177).
+// Экраны отказа продукта: «не открылось» и «такого адреса нет» (T175, T177, T215).
 //
-// Почему сторож читает файлы, а не вызывает код. Эти четыре файла Next находит ПО ИМЕНИ
+// Почему сторож читает файлы, а не вызывает код. Эти пять файлов Next находит ПО ИМЕНИ
 // и месту: `src/app/error.tsx`, `src/app/global-error.tsx`, `src/app/not-found.tsx`,
-// `src/app/admin/not-found.tsx`. Переименуй любой — продукт соберётся, все прогоны
+// `src/app/admin/error.tsx`, `src/app/admin/not-found.tsx`. Переименуй любой — продукт соберётся, все прогоны
 // останутся зелёными, а человек снова увидит английскую заглушку Next вместо продукта.
 // Ровно так это и было найдено: границы ошибки в проекте не было ВОВСЕ, и недоступная
 // база отдавала «A server error occurred» без единого слова о причине, в то время как
@@ -55,6 +55,30 @@ describe("граница ошибки продукта", () => {
     expect(code).toContain("error.digest");
   });
 
+  test("у кабинета своя граница, и она рисует каркас", () => {
+    const code = sourceOf("src/app/admin/error.tsx");
+
+    // Без этого файла отказ внутри кабинета уходит на публичную границу: методист при
+    // недоступной базе терял меню и шапку и оказывался на экране, похожем на публичную
+    // сторону, — тогда как соседний отказ «такого раздела нет» каркас сохранял (T215).
+    expect(code).toContain('"use client"');
+    expect(code).toContain("AdminShell");
+    expect(code).toContain("onClick={reset}");
+    // Наружу, как и на публичной границе, идёт только код события.
+    expect(code).not.toContain("error.message");
+    expect(code).not.toContain("error.stack");
+  });
+
+  test("разметка кабинета отдаёт клиентской стороне словарь каркаса", () => {
+    const code = sourceOf("src/app/admin/layout.tsx");
+
+    // Граница ошибки кабинета клиентская, а рисует она меню с подписями: без этих
+    // разделов словаря экран соберётся, но вместо подписей покажет ключи.
+    expect(code).toContain("NextIntlClientProvider");
+    expect(code).toMatch(/admin:\s*MESSAGES/);
+    expect(code).toMatch(/failure:\s*MESSAGES/);
+  });
+
   test("global-error отдаёт собственные html и body", () => {
     const code = sourceOf("src/app/global-error.tsx");
 
@@ -90,5 +114,37 @@ describe("экраны «такого адреса нет»", () => {
     // Без неё Next отвечает 404 раньше охраны, и перебор адресов рассказывает гостю,
     // какие разделы существуют.
     expect(code).toContain("notFound()");
+  });
+});
+
+describe("чей экран: сотрудника или кабинета", () => {
+  // Сверка с эталоном (T201, T216) нашла у трёх расхождений один корень: публичные
+  // пути рисовали АДМИНСКУЮ карточку `StatusCard` — рамку с тенью на сером канвасе, —
+  // хотя открывают их с телефона, где эталон требует полноэкранного состояния
+  // (`StateScreen`: белый фон от края, крупный заголовок, акцентная кнопка во всю
+  // ширину). Сторож смотрит именно на выбор компонента: вёрстка у каждого своя и
+  // проверяется живым браузером, а перепутать их снова можно одной строкой импорта.
+  const STAFF_SCREENS = [
+    "src/app/not-found.tsx",
+    "src/app/error.tsx",
+    "src/app/global-error.tsx",
+  ];
+  const ADMIN_SCREENS = [
+    "src/app/admin/not-found.tsx",
+    "src/app/admin/error.tsx",
+  ];
+
+  test.each(STAFF_SCREENS)("%s — полноэкранное состояние", (file) => {
+    const code = sourceOf(file);
+
+    expect(code).toContain("StateScreen");
+    expect(code).not.toContain("StatusCard");
+  });
+
+  test.each(ADMIN_SCREENS)("%s — карточка внутри каркаса", (file) => {
+    const code = sourceOf(file);
+
+    expect(code).toContain("StatusCard");
+    expect(code).toContain("AdminShell");
   });
 });
