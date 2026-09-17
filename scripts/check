@@ -27,6 +27,9 @@ run "формат"           npx --no-install prettier --check .
 run "типы"             bash -c 'npx --no-install next typegen && npx --no-install tsc --noEmit'
 run "линт с типами"    npx --no-install eslint .
 run "тесты"            npx --no-install vitest run --coverage --reporter=junit --outputFile=reports/vitest.junit.xml
+# Порог покрытия относительный (T180): сравнение с прошлой принятой приёмкой, а не с
+# числом из принципов. Идёт сразу после тестов — раньше их отчёта ещё нет.
+run "порог покрытия"   node scripts/coverage-gate.mjs
 run "мёртвый код"      npx --no-install knip
 run "границы модулей"  npx --no-install depcruise src
 run "сквозные сценарии" npx --no-install playwright test

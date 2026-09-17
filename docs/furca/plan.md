@@ -75,7 +75,8 @@ MERIDIUS · 6 сентября 2026. Черновик, утверждается 
 | Формат | `prettier --check .` | Prettier с дефолтами |
 | Линт с типами | `eslint .` | ESLint 10.10 flat config, typescript-eslint `strictTypeChecked` + `stylisticTypeChecked`, плюс точечные правила sonarjs / unicorn / @eslint-react / import-x / depend (не пресеты целиком) |
 | Проверка типов | `next typegen && tsc --noEmit` | TypeScript 6.0.3, строгий конфиг с `noUncheckedIndexedAccess` |
-| Тесты и порог | `vitest run --coverage` | Vitest 5; порог **относительный** — не ниже предыдущей приёмки |
+| Тесты и порог | `vitest run --coverage` | Vitest 5 |
+| Порог покрытия | `node scripts/coverage-gate.mjs` | Своя проверка: сравнивает `reports/coverage/coverage-summary.json` с базой в `coverage-baseline.json` по всем четырём мерам. Порог **относительный** — не ниже предыдущей принятой приёмки; абсолютного числа нет сознательно. База двигается только вверх, командой `--update` после принятой приёмки. Отсутствие отчёта или меры в нём — провал, а не пропуск |
 | Мёртвый код | `knip` | Неиспользуемые файлы, экспорты, зависимости |
 | Границы модулей | `depcruise src` | dependency-cruiser; правила выведены из графа блоков выше |
 
