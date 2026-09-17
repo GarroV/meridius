@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { DEFAULT_LOCALE, pickLocale } from "./locale";
+import { asLocale, DEFAULT_LOCALE, pickLocale } from "./locale";
 
 describe("pickLocale", () => {
   test("возвращает русский на телефоне с русской локалью", () => {
@@ -35,5 +35,20 @@ describe("pickLocale", () => {
 
   test("на звёздочке отдаёт язык по умолчанию", () => {
     expect(pickLocale("*")).toBe(DEFAULT_LOCALE);
+  });
+});
+
+describe("asLocale", () => {
+  test("пропускает поддержанный язык как есть", () => {
+    expect(asLocale("ru")).toBe("ru");
+    expect(asLocale("en")).toBe("en");
+  });
+
+  // Ради этого приведение и заведено: чужая строка иначе доехала бы до индексации
+  // словаря и обернулась бы `undefined` вместо текста — молча.
+  test("сводит неизвестную строку к языку по умолчанию, а не отдаёт её дальше", () => {
+    expect(asLocale("de")).toBe(DEFAULT_LOCALE);
+    expect(asLocale("ru-RU")).toBe(DEFAULT_LOCALE);
+    expect(asLocale("")).toBe(DEFAULT_LOCALE);
   });
 });
