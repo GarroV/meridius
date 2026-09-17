@@ -10,8 +10,9 @@ const LOGIN_PATH = "/admin/login";
 const ADMIN_PATH = "/admin";
 const SESSION_COOKIE = "meridius_admin";
 const DAY_MS = 24 * 60 * 60 * 1000;
-// Столько неудач подряд с одного адреса терпит вход (src/blocks/auth/rate-limit.ts).
-const FAILURES_BEFORE_LOCK = 5;
+// Столько попыток подряд с одного клиента терпит вход (src/blocks/auth/rate-limit.ts).
+// Считаются попытки, а не одни промахи: место в счёте занимается до проверки пароля.
+const ATTEMPTS_BEFORE_LOCK = 5;
 
 test.describe("вход в админку", () => {
   // Эталон входа написан по-русски, поэтому и браузер здесь русский.
@@ -162,15 +163,17 @@ test.describe("вход в админку", () => {
   test("перебор пароля упирается в предел и сообщает, когда повторить", async ({
     browser,
   }) => {
-    // Свой адрес в заголовке: счёт неудач ведётся по нему, и этот сценарий не запирает
-    // вход остальным, которые идут параллельно с тем же сервером.
+    // Свой адрес в заголовке: клиент опознаётся корзиной от его хэша, и этот сценарий
+    // не запирает вход остальным, которые идут параллельно с тем же сервером. Корзина
+    // этого адреса (8651) не совпадает с корзиной клиента без заголовка (3541), под
+    // которым в админку ходят все прочие сценарии.
     const context = await browser.newContext({
       locale: "ru-RU",
       extraHTTPHeaders: { "x-forwarded-for": "203.0.113.77" },
     });
     const page = await context.newPage();
 
-    for (let attempt = 0; attempt < FAILURES_BEFORE_LOCK; attempt++) {
+    for (let attempt = 0; attempt < ATTEMPTS_BEFORE_LOCK; attempt++) {
       await page.goto(LOGIN_PATH);
       await page.getByLabel("Пароль").fill("подобранный-пароль");
       await page.getByTestId("login-submit").click();
