@@ -2,6 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { sessionSecret } from "@/blocks/auth/config";
 import { PUBLIC_FILL_ROOT } from "@/blocks/core/public-routes";
+import {
+  FILL_DOCUMENT_LOCALE_HEADER,
+  fillDocumentLocale,
+} from "@/blocks/fill/locale";
 import { PUBLIC_FILL_PREFIX, securityHeaders } from "@/security-headers";
 import { LOGIN_PATH } from "@/blocks/auth/routes";
 import { SESSION_COOKIE_NAME, readSessionToken } from "@/blocks/auth/session";
@@ -52,6 +56,13 @@ function publicFillResponse(request: NextRequest): NextResponse {
 
   const requestHeaders = new Headers(request.headers);
   for (const header of headers) requestHeaders.set(header.key, header.value);
+  // Язык документа для корневой разметки: она рендерится раньше страницы и спросить
+  // экран не может, а своё умолчание у неё другое — см. `fillDocumentLocale`.
+  // `set`, а не `append`: значение клиента здесь всегда затирается своим.
+  requestHeaders.set(
+    FILL_DOCUMENT_LOCALE_HEADER,
+    fillDocumentLocale(request.headers.get("accept-language")),
+  );
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   for (const header of headers) response.headers.set(header.key, header.value);

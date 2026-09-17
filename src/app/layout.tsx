@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { Golos_Text, IBM_Plex_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import { getLocale } from "next-intl/server";
 import type { ReactNode } from "react";
 
 import { asLocale, type Locale } from "@/blocks/core/locale";
 import { HtmlLangSync } from "@/blocks/core/ui/HtmlLangSync";
+import { FILL_DOCUMENT_LOCALE_HEADER } from "@/blocks/fill/locale";
 import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
 
@@ -53,7 +55,14 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
-  const locale = asLocale(await getLocale());
+  // Язык документа. Обычный маршрут берёт язык запроса, публичный экран заполнения —
+  // тот, что назвал сам маршрут (`src/proxy.ts`): у него своё последнее звено цепочки
+  // (русский), и два умолчания на один запрос давали документ, объявленный английским
+  // поверх русского текста. Значение приходит заголовком, поэтому проверяется списком
+  // языков продукта, а не принимается на веру.
+  const declared = (await headers()).get(FILL_DOCUMENT_LOCALE_HEADER);
+  const locale =
+    declared === null ? asLocale(await getLocale()) : asLocale(declared);
   return (
     <html
       lang={locale}

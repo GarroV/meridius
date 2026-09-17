@@ -458,3 +458,47 @@ test.describe("числовой пункт называет свои грани�
     await expect(label).toHaveText("160…180 · within range");
   });
 });
+
+test.describe("язык документа на отказе по коду", () => {
+  /**
+   * Запрос идёт СЫРЫМ `fetch`, а не браузером, и по двум причинам сразу.
+   * Первая: браузер Playwright всегда шлёт `Accept-Language`, а расхождение живёт
+   * именно на запросе БЕЗ него — так ходит встроенный браузер сканера QR, с которого
+   * на этот экран и попадают. Вторая: `HtmlLangSync` чинит `<html lang>` после
+   * гидратации, и в живой вкладке проверка была бы зелёной поверх кривого документа.
+   * Синтезатор речи и браузерный перевод читают то, что пришло по проводу.
+   */
+  function langOf(pattern: RegExp, html: string): string | null {
+    return pattern.exec(html)?.[1] ?? null;
+  }
+
+  test("без Accept-Language документ объявляет тот же язык, на котором говорит", async ({
+    baseURL,
+  }) => {
+    // Act
+    const response = await fetch(`${baseURL ?? ""}/s/zzzzzzzzzz`);
+    const html = await response.text();
+
+    // Assert
+    const documentLang = langOf(/<html[^>]*\slang="([a-z-]+)"/, html);
+    const contentLang = langOf(/<div lang="([a-z-]+)"/, html);
+    expect(contentLang).not.toBeNull();
+    expect(documentLang).toBe(contentLang);
+    // И это именно русский — последнее звено цепочки экрана заполнения, а не язык
+    // продукта: иначе проверка прошла бы, если оба съехали бы в английский.
+    expect(documentLang).toBe("ru");
+    expect(html).toContain("Этот код не работает");
+  });
+
+  test("с Accept-Language язык остаётся языком телефона", async ({
+    baseURL,
+  }) => {
+    const response = await fetch(`${baseURL ?? ""}/s/zzzzzzzzzz`, {
+      headers: { "accept-language": "en-GB,en;q=0.9" },
+    });
+    const html = await response.text();
+
+    expect(langOf(/<html[^>]*\slang="([a-z-]+)"/, html)).toBe("en");
+    expect(langOf(/<div lang="([a-z-]+)"/, html)).toBe("en");
+  });
+});
