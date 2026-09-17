@@ -14,8 +14,12 @@ import { LinkedItemRow } from "./LinkedItemRow";
 
 const CARD_CLASS =
   "bg-surface rounded-[var(--r-block)] border shadow-[var(--sh-xs)]";
+// `flex-wrap` — последний источник горизонтальной прокрутки на телефоне (T211):
+// кнопки секции и подпись «N пунктов» не сжимаются, и шапка требовала 416 px при
+// экране 375. Прокрутка прятала не текст, а кнопку удаления пункта: строки внутри
+// карточки наследовали её ширину. На настольной ширине перенос не срабатывает.
 const HEAD_CLASS =
-  "flex items-center gap-[var(--space-5)] rounded-t-[var(--r-block)] border-b px-[var(--space-6)] py-[var(--space-5)]";
+  "flex flex-wrap items-center gap-[var(--space-5)] rounded-t-[var(--r-block)] border-b px-[var(--space-6)] py-[var(--space-5)]";
 // `flex-1 min-w-0` обязательны: у `input` своя ширина по умолчанию (около двадцати
 // знаков), она не растёт под содержимое и не сжимается под соседей. Без этого длинный
 // заголовок секции обрезался на середине слова — «Opening 05:00–08:00 · S».
