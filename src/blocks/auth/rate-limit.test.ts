@@ -259,7 +259,9 @@ describe("корзина клиента", () => {
     // Корзина берётся от хэша, а не от самого адреса: адреса в сети идут подряд, и
     // остаток от них посадил бы целую подсеть в одну корзину.
     const neighbours = new Set(
-      Array.from({ length: 16 }, (_, last) => bucketOf(`203.0.113.${last}`)),
+      Array.from({ length: 16 }, (_, last) =>
+        bucketOf(`203.0.113.${String(last)}`),
+      ),
     );
 
     expect(neighbours.size).toBeGreaterThan(8);
