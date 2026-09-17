@@ -80,7 +80,9 @@ describe("занятие места в счёте", () => {
     const client = key();
 
     const burst = await Promise.all(
-      Array.from({ length: BURST }, () => countAttempt(client, NOW, later(-15))),
+      Array.from({ length: BURST }, () =>
+        countAttempt(client, NOW, later(-15)),
+      ),
     );
 
     const numbers = burst.map((count) => count.attempts).sort((a, b) => a - b);
