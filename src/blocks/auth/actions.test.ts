@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { signIn, signOut } from "./actions";
 import { hashPassword } from "./password";
-import { LOGIN_LIMITS, forgetLoginFailures } from "./rate-limit";
+import { LOGIN_LIMITS, forgetLoginAttempts } from "./rate-limit";
 import { SESSION_COOKIE_NAME, readSessionToken } from "./session";
 
 interface StoredCookie {
@@ -62,7 +62,7 @@ const BURST = 40;
 
 const CLIENT_HEADER = "x-forwarded-for";
 
-// Счёт неудач живёт в общей базе прогона, поэтому ключ клиента у каждой проверки свой:
+// Счёт попыток живёт в общей базе прогона, поэтому ключ клиента у каждой проверки свой:
 // иначе соседний файл прогона считал бы наши промахи своими. Так же разведены между
 // собой и коды станций в тестах блока `data`.
 let CLIENT = "203.0.113.7";
@@ -74,7 +74,7 @@ beforeEach(async () => {
   OTHER = `198.51.100.3-${randomUUID()}`;
   // Снимается и общий счёт: он один на всех, и накопленное прошлыми проверками
   // прогона не должно запирать эту.
-  await forgetLoginFailures(CLIENT);
+  await forgetLoginAttempts(CLIENT);
   requestHeaders.clear();
   requestHeaders.set(CLIENT_HEADER, CLIENT);
   process.env["ADMIN_PASSWORD_HASH"] = await cheapHash();
@@ -175,11 +175,11 @@ describe("signIn", () => {
   });
 });
 
-/** Тратит весь запас неудач текущего клиента. */
+/** Тратит весь запас попыток текущего клиента: считаются они, а не одни промахи. */
 async function exhaust(): Promise<void> {
   for (
     let attempt = 0;
-    attempt < LOGIN_LIMITS.perClient.maxFailures;
+    attempt < LOGIN_LIMITS.perClient.maxAttempts;
     attempt++
   ) {
     await signIn("не тот пароль");
@@ -187,7 +187,7 @@ async function exhaust(): Promise<void> {
 }
 
 describe("ограничение частоты попыток", () => {
-  test("после предела неудач отказывает даже верному паролю", async () => {
+  test("после предела попыток отказывает даже верному паролю", async () => {
     await exhaust();
 
     await expect(signIn(PASSWORD)).resolves.toMatchObject({
@@ -215,10 +215,10 @@ describe("ограничение частоты попыток", () => {
     await expect(signIn(PASSWORD)).resolves.toEqual({ status: "ok" });
   });
 
-  test("удачный вход обнуляет счёт неудач", async () => {
+  test("удачный вход обнуляет счёт попыток", async () => {
     for (
       let attempt = 0;
-      attempt < LOGIN_LIMITS.perClient.maxFailures - 1;
+      attempt < LOGIN_LIMITS.perClient.maxAttempts - 1;
       attempt++
     ) {
       await signIn("не тот пароль");
@@ -237,7 +237,7 @@ describe("ограничение частоты попыток", () => {
     // граница продукта (ролей нет, D014).
     for (
       let attempt = 0;
-      attempt < LOGIN_LIMITS.perClient.maxFailures - 1;
+      attempt < LOGIN_LIMITS.perClient.maxAttempts - 1;
       attempt++
     ) {
       await signIn("не тот пароль");
