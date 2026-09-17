@@ -280,4 +280,46 @@ test.describe("карточка заполнения на телефоне", () 
       ).toBe(0);
     }
   });
+
+  // Вторая половина T203, которую блок `feed` починить не мог: заголовок налезал на
+  // метки, потому что боковое меню съедало 208 px из 375 и заголовку оставалось 6 px
+  // при собственном минимуме 104. Схлопывающееся меню (T193, блок `core`) убрало
+  // причину — замер после слияния обоих блоков: заголовку 343 px, пересечения нет.
+  // Проверка стоит здесь, чтобы наложение не вернулось незаметно: оно выглядит как
+  // «текст немного налезает», а не как поломка, и глазами ловится плохо.
+  test("заголовок карточки не налезает на метки шапки", async ({ page }) => {
+    const seeded = await seed();
+    await signIn(page);
+
+    await page.setViewportSize(PHONE);
+    await page.goto(`/admin/feed/${seeded.submissionId}`);
+    await expect(page.getByTestId("outcome-tag")).toBeVisible();
+
+    const measured = await page.evaluate(() => {
+      const heading = document.querySelector("h1");
+      const tag = document.querySelector('[data-testid="outcome-tag"]');
+      if (!heading || !tag) return null;
+      const h = heading.getBoundingClientRect();
+      const t = tag.getBoundingClientRect();
+      const overlapX = Math.min(h.right, t.right) - Math.max(h.left, t.left);
+      const overlapY = Math.min(h.bottom, t.bottom) - Math.max(h.top, t.top);
+      return {
+        overlap: overlapX > 0 && overlapY > 0 ? Math.round(overlapX) : 0,
+        headingWidth: Math.round(h.width),
+        headingText: heading.scrollWidth,
+      };
+    });
+
+    expect(measured, "заголовка или метки нет на экране вовсе").not.toBeNull();
+    expect(
+      measured?.overlap,
+      "Заголовок карточки и метка шапки накладываются друг на друга: " +
+        "заголовку не хватает ширины, и его текст проходит под меткой.",
+    ).toBe(0);
+    expect(
+      measured?.headingText,
+      `Текст заголовка (${String(measured?.headingText)} px) не помещается в отведённую ` +
+        `ему ширину (${String(measured?.headingWidth)} px) и выливается из своей коробки.`,
+    ).toBeLessThanOrEqual(measured?.headingWidth ?? 0);
+  });
 });
