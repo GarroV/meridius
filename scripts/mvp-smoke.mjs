@@ -260,10 +260,9 @@ async function createChecklist(page, catalog) {
   await page.goto(`${BASE_URL}/admin/checklists/new`, {
     waitUntil: "domcontentloaded",
   });
-  await page
-    .getByTestId("new-checklist-form")
-    .getByRole("textbox")
-    .fill(CHECKLIST);
+  // Поле названия ищется опознавателем, а не «единственным текстовым полем формы»:
+  // с T185 рядом стоят два поля времени, и «единственное» перестало быть единственным.
+  await page.getByTestId("new-checklist-title").fill(CHECKLIST);
   // Круглосуточное окно: смоук обязан проходить в любой час, а не только утром.
   await page.locator("#new-checklist-window").selectOption(ANY_WINDOW_VALUE);
   await page.getByTestId("create-checklist").click();
