@@ -3,6 +3,7 @@ import type { AbstractIntlMessages } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
+import { ADMIN_FRAME_CLASS } from "@/blocks/core/ui/admin-frame";
 import { AdminNav } from "@/blocks/core/ui/AdminNav";
 
 import { loadEditor } from "../drafts";
@@ -60,10 +61,7 @@ export async function EditorScreen({ checklistId }: { checklistId: string }) {
       // Наружу уходит только словарь редактора: остальные разделы браузеру не нужны.
       messages={{ editor: messages["editor"] as AbstractIntlMessages }}
     >
-      <div
-        data-testid="editor-screen"
-        className="grid min-h-screen grid-cols-[208px_1fr]"
-      >
+      <div data-testid="editor-screen" className={ADMIN_FRAME_CLASS}>
         <AdminNav active="checklists" />
         <ChecklistEditor
           checklistId={checklistId}

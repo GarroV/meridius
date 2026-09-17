@@ -67,6 +67,65 @@ h3 { font-size: var(--fs-body); line-height: var(--lh-body); }
 .content { padding: var(--space-9); display: flex; flex-direction: column; gap: var(--space-8); }
 .content--narrow { max-width: 880px; }
 
+/* ── Кабинет ниже складки (--page-fold: 768px) ───────────────
+   Решение владельца D092: «Должна быть хоть какая-то возможность,
+   чтобы человек мог поправить. Про полноценную работу речи не идёт».
+   То есть НЕ переработка экранов под телефон — схлопывающееся меню и
+   читаемые заголовки, списки и кнопки на 375 px. Таблицы и сетки
+   разделов остаются со своей прокруткой.
+
+   Раньше этого блока здесь не было вовсе: `.app` держал 208px на любой
+   ширине, и на 375 px содержимому доставалось 167 px из 375 — замерено.
+   Отсюда заголовок в три строки и обрезанные значения (дефект #73, T193).
+
+   Число 767.98px — это «строго ниже 768»: у медиазапросов нет доступа
+   к переменным, поэтому граница --page-fold продублирована числом ровно
+   один раз, здесь. */
+@media (max-width: 767.98px) {
+  /* Меню перестаёт быть колонкой. Строки заданы явно: при align-content:
+     stretch свободная высота раздувала полосу меню с 53 до 291 px. */
+  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+
+  /* Боковое меню становится верхней полосой в одну строку со своей
+     горизонтальной прокруткой — тот же приём, что у вкладок. Выезжающей
+     шторки по кнопке здесь нет сознательно: шторка — это состояние, то
+     есть скрипт на каждом экране кабинета и неработающее меню без него. */
+  .nav {
+    flex-direction: row; align-items: center;
+    gap: var(--space-6);
+    overflow-x: auto;
+    border-right: 0; border-bottom: 1px solid var(--line-strong);
+    padding: var(--space-4) 0;
+  }
+  .nav__brand { flex-shrink: 0; padding: 0 var(--space-5); }
+  .nav__brand span { display: none; }   /* приписка отнимает место у разделов */
+  .nav__group { flex-direction: row; align-items: center; }
+  .nav__label { display: none; }        /* в одну строку читалась бы как пункт */
+  .nav__item {
+    padding: var(--space-4) var(--space-5);
+    white-space: nowrap;
+    border-left: 0; border-bottom: 2px solid transparent;
+  }
+  .nav__item--active { border-left-color: transparent; border-bottom-color: var(--accent); }
+  .nav__foot { display: none; }         /* справка, а не навигация */
+
+  /* Действие раздела переносится на следующую строку, а не сжимает заголовок:
+     кнопка раздела шире половины экрана на 375 px. */
+  .topbar { flex-wrap: wrap; gap: var(--space-5); padding: var(--space-7); }
+
+  /* Прокрутка достаётся содержимому, а не документу: иначе вбок уезжает вся
+     страница вместе с заголовком и кнопкой (справочник давал 926 px при 375).
+     position: relative — вторая половина той же починки: поля sr-only (их
+     ставят ради программ чтения с экрана) объявлены position: absolute, и без
+     позиционирования у .content их вмещающим блоком остаётся страница —
+     прокрутка их не обрезает, и страницу утаскивает вбок на 299 px при body
+     шириной честные 375. */
+  .content {
+    position: relative;
+    padding: var(--space-7); gap: var(--space-7); overflow-x: auto;
+  }
+}
+
 /* ── Кнопки ──────────────────────────────────────────────── */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-4);

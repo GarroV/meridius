@@ -26,10 +26,15 @@ if (!process.env.DATABASE_URL) {
 const { seedDemo, describeSeedFailure } =
   await import("../src/blocks/demo/index.ts");
 const { stationScanUrl } = await import("../src/blocks/qr/scan-url.ts");
+// Порт — из общего источника, а не свой разбор process.env.PORT с числом-умолчанием
+// (T200). Прежний разбор не знал про настройки копии: сид печатал ссылки станций на
+// общий 3100, то есть на стенд соседа, и человек шёл сканировать чужой продукт.
+const { appPort } = await import("../src/blocks/core/app-port.ts");
 
+// Внешний адрес площадки остаётся сильнее умолчания: это законное переопределение
+// (продукт за прокси), а не своё решение про порт.
 const origin =
-  process.env.PUBLIC_BASE_URL ||
-  `http://localhost:${process.env.PORT || "3100"}`;
+  process.env.PUBLIC_BASE_URL || `http://localhost:${String(appPort())}`;
 
 try {
   const summary = await seedDemo();
