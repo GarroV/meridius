@@ -1,15 +1,21 @@
-// Карточка состояния: «страницы нет», «не открылось», «пусто» — экраны, у которых
-// содержимого нет и показать надо причину.
+// Карточка состояния КАБИНЕТА: «такого раздела нет», «страница не открылась» — экраны,
+// у которых содержимого нет и показать надо причину. Всегда стоит внутри каркаса
+// (`AdminShell`), поэтому и выглядит как всё остальное в кабинете: карточка с рамкой и
+// тенью на сером канвасе, заголовок var(--fs-title).
 //
-// Живёт в `core`, потому что такие экраны не принадлежат ни одному блоку: адрес, которого
-// нет, и отказ базы случаются под любым разделом. Модуль эталона у состояния один на весь
-// продукт — `docs/furca/design/screens/states.html` (карточка, заголовок, пояснение,
-// действие), поэтому и разметка здесь одна.
+// Сотрудническая поверхность берёт НЕ ЭТО, а полноэкранное состояние
+// `core/ui/StateScreen.tsx`: телефон на кухне — другой характер экрана, белый фон от
+// края и крупный заголовок. До T213 карточка стояла и там, и человек, отсканировавший
+// оборванную наклейку, получал кусок кабинета.
+//
+// Модуль эталона у состояний один на весь продукт —
+// `docs/furca/design/screens/states.html`, раздел «Админка — состояния».
 //
 // Компонент намеренно без "use client" и без единого серверного вызова: его берут и
-// серверные экраны (`not-found.tsx`), и клиентские (`error.tsx` — Next требует, чтобы
-// граница ошибки была клиентской). Появись здесь обращение к `next-intl/server` или к
-// данным — клиентская сторона перестала бы собираться, поэтому тексты приходят пропами.
+// серверные экраны (`admin/not-found.tsx`), и клиентские (`admin/error.tsx` — Next
+// требует, чтобы граница ошибки была клиентской). Появись здесь обращение к
+// `next-intl/server` или к данным — клиентская сторона перестала бы собираться, поэтому
+// тексты приходят пропами.
 import type { ReactElement, ReactNode } from "react";
 
 const CARD_CLASS =
@@ -22,14 +28,32 @@ const TEXT_CLASS = "m-0 max-w-[520px]";
 const NOTE_CLASS =
   "font-num m-0 text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 
-/** Кнопка и ссылка действия выглядят одинаково: на этих экранах действие всегда одно. */
+/**
+ * Кнопка и ссылка действия выглядят одинаково: на этих экранах действие всегда одно.
+ * Оно акцентное (`.btn.btn--primary` эталона: заливка var(--accent), текст
+ * var(--ink-inverse)) — ровно как у эталонного пустого состояния «Чек-листов пока
+ * нет». До T213 кнопка была вторичной, и единственный выход из тупика ничем не
+ * отличался от карточки, в которой стоял.
+ */
 export const STATUS_ACTION_CLASS =
-  "bg-surface text-ink inline-flex h-[var(--control-h)] cursor-pointer items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium no-underline hover:border-[var(--line-control-2)] hover:bg-[var(--surface-2)]";
+  "bg-accent inline-flex h-[var(--control-h)] cursor-pointer items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] no-underline hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)]";
+
+/**
+ * Плашка отказа внутри карточки — `.notice.notice--err` эталона (блок «Ошибка
+ * сохранения» в states.html): фон var(--err-soft), рамка var(--err-line), цвет
+ * var(--err). Отказ окрашен затем, чтобы не читаться как «здесь пока пусто»,
+ * нарисованное тем же нейтральным серым (T214).
+ */
+const NOTICE_ERR_CLASS =
+  "w-full rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-7)] py-[var(--space-6)] text-left text-[length:var(--fs-dense)] text-[var(--err)]";
 
 export interface StatusCardProps {
   readonly testId: string;
   readonly title: string;
-  readonly text: string;
+  /** Абзац объяснения под заголовком. Может отсутствовать, когда объяснение — в плашке. */
+  readonly text?: string;
+  /** Плашка цвета ошибки: чем именно отказ отличается от пустого состояния. */
+  readonly notice?: ReactNode;
   /** Единственное действие экрана: вернуться или повторить. */
   readonly action?: ReactNode;
   /** Мелкая строка под действием — например, код ошибки для поддержки. */
@@ -40,6 +64,7 @@ export function StatusCard({
   testId,
   title,
   text,
+  notice,
   action,
   note,
 }: StatusCardProps): ReactElement {
@@ -47,26 +72,13 @@ export function StatusCard({
     <div className={CARD_CLASS} data-testid={testId}>
       <div className={BODY_CLASS}>
         <p className={TITLE_CLASS}>{title}</p>
-        <p className={TEXT_CLASS}>{text}</p>
+        {text === undefined ? null : <p className={TEXT_CLASS}>{text}</p>}
+        {notice === undefined ? null : (
+          <div className={NOTICE_ERR_CLASS}>{notice}</div>
+        )}
         {action}
         {note === undefined ? null : <p className={NOTE_CLASS}>{note}</p>}
       </div>
     </div>
-  );
-}
-
-/**
- * Карточка состояния посреди пустого экрана — для страниц вне каркаса кабинета:
- * публичного отказа и границы ошибки, которая рисуется вместо любого экрана продукта.
- */
-export function StatusScreen({
-  children,
-}: {
-  readonly children: ReactNode;
-}): ReactElement {
-  return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center p-[var(--space-8)]">
-      {children}
-    </main>
   );
 }

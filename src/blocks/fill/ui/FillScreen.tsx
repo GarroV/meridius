@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 
 import type { Locale } from "@/blocks/core/locale";
 import { PUBLIC_FILL_PREFIX } from "@/blocks/core/public-routes";
+import { StateScreen } from "@/blocks/core/ui/StateScreen";
 import { getRounds } from "@/blocks/data";
 import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
@@ -26,7 +27,6 @@ import { ChoiceScreen } from "./ChoiceScreen";
 import { FillForm } from "./FillForm";
 import { markRoundAction } from "./round-action";
 import { chooseShiftModeAction } from "./shift-mode-action";
-import { StateScreen } from "./StateScreen";
 import { submitFillAction } from "./submit-action";
 
 /**

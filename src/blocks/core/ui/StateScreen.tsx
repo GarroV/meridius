@@ -1,17 +1,27 @@
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 /**
- * Одно из состояний экрана сотрудника вне самого заполнения: «отправлено»,
- * «ссылка недействительна», «для станции нет чек-листа». Компонент чисто
- * презентационный — ни языков, ни данных он не знает, все строки уже
+ * Одно из состояний сотруднической поверхности — всё, что человек с телефона
+ * видит вместо экрана: «отправлено», «ссылка недействительна», «для станции
+ * нет чек-листа», «такого адреса нет», «страница не открылась». Компонент
+ * чисто презентационный — ни языков, ни данных он не знает, все строки уже
  * готовы в props (см. контракт вызывающей стороны).
  *
+ * Живёт в `core`, а не в `fill`: с T213 его берут и маршруты продукта
+ * (`src/app/not-found.tsx`, `src/app/error.tsx`, `src/app/global-error.tsx`).
+ * До переноса публичные пути рисовали админскую карточку `StatusCard` —
+ * рамка и тень на сером канвасе вместо полного экрана, — и сотрудник на
+ * кухне получал экран, сделанный для кабинета. Границы модулей
+ * (`.dependency-cruiser.cjs`) запрещают `core` импортировать `fill`, так что
+ * общая вещь и лежит в `core`, доступном каждому блоку.
+ *
  * Эталон — `docs/furca/design/screens/states.html` (блоки «Отправлено»,
- * «Ссылка недействительна», «Для станции нет чек-листа»). Разметка того
- * эталона написана классами `.fill`/`.center`/`.big`/`.muted`/`.notice`/
- * `.ok-mark` (сами классы — `docs/furca/design/app.css` и локальный
- * `<style>` в states.html), здесь она перенесена на утилиты Tailwind поверх
- * тех же токенов — так же, как это уже сделано в `PreviewScreen.tsx`.
+ * «Ссылка недействительна», «Для станции нет чек-листа», «Нет сети при
+ * отправке»). Разметка того эталона написана классами `.fill`/`.center`/
+ * `.big`/`.muted`/`.notice`/`.ok-mark`/`.btn--primary.btn--fill` (сами
+ * классы — `docs/furca/design/app.css` и локальный `<style>` в states.html),
+ * здесь она перенесена на утилиты Tailwind поверх тех же токенов — так же,
+ * как это уже сделано в `PreviewScreen.tsx`.
  */
 
 export interface StateScreenProps {
@@ -24,8 +34,22 @@ export interface StateScreenProps {
   readonly meta?: readonly string[];
   /** Абзац объяснения под заголовком. Может отсутствовать. */
   readonly text?: string;
-  /** Плашка-предупреждение внизу (стиль notice--warn). Может отсутствовать. */
+  /** Плашка внизу. Может отсутствовать. */
   readonly notice?: string;
+  /**
+   * Цвет плашки: "warn" — предупреждение (умолчание, как у «отправлено, но
+   * критический пункт провален»), "err" — отказ. Разный цвет здесь и нужен
+   * затем, чтобы «сломалось» не читалось как «здесь пока пусто» (T214).
+   */
+  readonly noticeTone?: "warn" | "err";
+  /**
+   * Единственное действие экрана — выход из тупика. Кнопка или ссылка,
+   * одетая в `STATE_ACTION_CLASS`. Может отсутствовать: у «нет чек-листа»
+   * выхода нет, человек просто уходит.
+   */
+  readonly action?: ReactNode;
+  /** Мелкая строка под действием — например, код ошибки для поддержки. */
+  readonly note?: ReactNode;
 }
 
 // Корень — аналог `.fill` из app.css: экран заполнения шириной не больше
@@ -61,12 +85,31 @@ const MUTED_CLASS = "text-[var(--ink-2)]";
 // повторяющиеся пробелы внутри строки.
 const META_CLASS = `whitespace-pre-line ${MUTED_CLASS}`;
 
-// Аналог `.notice.notice--warn`: фон var(--warn-soft), рамка var(--warn-
-// line), цвет var(--warn-ink), скругление var(--r-block), текст var(--fs-
-// dense). В эталоне у плашки `style="text-align:left"` поверх унаследованного
+// Аналог `.notice`: скругление var(--r-block), текст var(--fs-dense).
+// В эталоне у плашки `style="text-align:left"` поверх унаследованного
 // от `.center` центрирования — `text-left` здесь делает то же самое.
-const NOTICE_CLASS =
-  "w-full rounded-[var(--r-block)] border border-[var(--warn-line)] bg-[var(--warn-soft)] px-[var(--space-7)] py-[var(--space-6)] text-left text-[length:var(--fs-dense)] text-[var(--warn-ink)]";
+const NOTICE_BASE_CLASS =
+  "w-full rounded-[var(--r-block)] border px-[var(--space-7)] py-[var(--space-6)] text-left text-[length:var(--fs-dense)]";
+// `.notice--warn`: фон var(--warn-soft), рамка var(--warn-line), цвет var(--warn-ink).
+const NOTICE_WARN_CLASS = `${NOTICE_BASE_CLASS} border-[var(--warn-line)] bg-[var(--warn-soft)] text-[var(--warn-ink)]`;
+// `.notice--err`: фон var(--err-soft), рамка var(--err-line), цвет var(--err).
+const NOTICE_ERR_CLASS = `${NOTICE_BASE_CLASS} border-[var(--err-line)] bg-[var(--err-soft)] text-[var(--err)]`;
+
+/**
+ * Единственное действие полноэкранного состояния — акцентная кнопка во всю
+ * ширину: `.btn.btn--primary.btn--fill` из эталона с его же ограничением
+ * `max-width:280px` (блок «Нет сети при отправке» в states.html). Кнопка и
+ * ссылка выглядят одинаково: на этих экранах действие всегда одно и оно и
+ * есть выход из тупика (T213).
+ */
+export const STATE_ACTION_CLASS =
+  "bg-accent inline-flex h-[52px] w-full max-w-[280px] cursor-pointer items-center justify-center gap-[var(--space-4)] rounded-[var(--r-block)] border border-[var(--accent)] text-[length:var(--fs-title)] leading-none font-medium text-[var(--ink-inverse)] no-underline hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)]";
+
+// Мелкая строка под действием — код ошибки для поддержки. Тот же вид, что у
+// такой же строки админской карточки состояния: var(--fs-meta), var(--ink-3),
+// цифровая гарнитура, чтобы код читался вслух по телефону.
+const NOTE_CLASS =
+  "font-num m-0 text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 
 // Кружок `.ok-mark`: 56×56, скругление 50%, фон var(--ok-soft), рамка
 // var(--ok-line).
@@ -106,6 +149,9 @@ export function StateScreen({
   meta,
   text,
   notice,
+  noticeTone = "warn",
+  action,
+  note,
 }: StateScreenProps): ReactElement {
   // Пустой `meta` не должен оставлять в разметке пустой блок — только
   // непустой список строк превращается в текст с переносами.
@@ -120,8 +166,16 @@ export function StateScreen({
         {metaText !== null ? <p className={META_CLASS}>{metaText}</p> : null}
         {text !== undefined ? <p className={MUTED_CLASS}>{text}</p> : null}
         {notice !== undefined ? (
-          <div className={NOTICE_CLASS}>{notice}</div>
+          <div
+            className={
+              noticeTone === "err" ? NOTICE_ERR_CLASS : NOTICE_WARN_CLASS
+            }
+          >
+            {notice}
+          </div>
         ) : null}
+        {action}
+        {note === undefined ? null : <p className={NOTE_CLASS}>{note}</p>}
       </div>
     </main>
   );
