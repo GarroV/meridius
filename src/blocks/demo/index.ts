@@ -13,6 +13,7 @@ export { DEMO } from "./dataset";
 export type { Census, SmokeNames, SmokeSweep } from "./smoke";
 export {
   SMOKE_MARKER,
+  blocksChanged,
   censusDifferences,
   contourCensus,
   countDetachedChecklists,

@@ -45,6 +45,7 @@ try {
 }
 
 const {
+  blocksChanged,
   censusDifferences,
   contourCensus,
   countDetachedChecklists,
@@ -495,6 +496,11 @@ try {
   process.exit(1);
 }
 
+// Блоки библиотеки в контур не входят (граница идёт по стране), поэтому с описанием они
+// не сверяются, а сверяются сами с собой: сколько было на входе, столько обязано остаться
+// на выходе. Иначе смоук не стартовал бы ни на одном стенде с настоящим пакетом (T206).
+const blocksBefore = (await readCensus()).blocks;
+
 const mismatchBefore = await contourMismatch();
 if (mismatchBefore !== undefined) {
   console.error(
@@ -564,8 +570,11 @@ let cleanupFailure;
 try {
   await sweep("данные этого прогона");
   const mismatchAfter = await contourMismatch();
+  const blocksDrift = blocksChanged(blocksBefore, (await readCensus()).blocks);
   if (mismatchAfter !== undefined) cleanupFailure = mismatchAfter;
-  else say("после прогона в базе ровно демо-контур");
+  else if (blocksDrift !== undefined) cleanupFailure = blocksDrift;
+  else
+    say("после прогона в базе ровно демо-контур, блоков библиотеки столько же");
 } catch (error) {
   cleanupFailure = `уборка не удалась: ${error.message}`;
 }

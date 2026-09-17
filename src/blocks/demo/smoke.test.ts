@@ -37,6 +37,7 @@ import { DEMO } from "./dataset";
 import type { DemoDataset } from "./model";
 import {
   SMOKE_MARKER,
+  blocksChanged,
   censusDifferences,
   contourCensus,
   countDetachedChecklists,
@@ -392,6 +393,30 @@ describe("перепись контура", () => {
     expect(differences[0]).toContain("чек-листов");
     expect(differences[0]).toContain(String(expected.checklists + 8));
     expect(differences[0]).toContain(String(expected.checklists));
+  });
+
+  // Блоки библиотеки страну не имеют, поэтому границу контура (она проходит по стране,
+  // см. seed.ts) они не пересекают ни в какую сторону: заведённый на показе блок от
+  // рабочего неотличим, и сид его намеренно не снимает. Сверять их с описанием контура
+  // значит отказываться стартовать на любом стенде, куда завели настоящий пакет, —
+  // ровно это и случилось 17.09 на стенде с импортом от 15.09 (T206).
+  test("блоки библиотеки с контуром не сверяются: их граница — не страна", () => {
+    const expected = contourCensus(DEMO);
+    const actual = { ...expected, blocks: expected.blocks + 6 };
+
+    expect(censusDifferences(actual, expected)).toEqual([]);
+  });
+
+  test("blocksChanged молчит, когда блоков столько же, сколько было", () => {
+    expect(blocksChanged(7, 7)).toBeUndefined();
+  });
+
+  // Контроль за блоками не снят, он переехал с равенства на неизменность: смоук
+  // отвечает за то, что убрал СВОИ строки, а не за то, что в базе больше ничего нет.
+  test("blocksChanged называет и прибавку, и пропажу", () => {
+    expect(blocksChanged(7, 8)).toContain("8");
+    expect(blocksChanged(7, 8)).toContain("7");
+    expect(blocksChanged(7, 6)).toContain("6");
   });
 
   test("потерянная строка контура ловится тоже: расхождение читается в обе стороны", () => {
