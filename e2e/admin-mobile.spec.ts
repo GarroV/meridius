@@ -73,7 +73,7 @@ async function frameWidths(page: Page): Promise<{
       const id = element.dataset["testid"];
       widest = `<${element.tagName.toLowerCase()}${
         id === undefined ? "" : ` data-testid="${id}"`
-      } class="${element.className.toString().slice(0, 90)}"> правый край ${String(
+      } class="${(element.getAttribute("class") ?? "").slice(0, 90)}"> правый край ${String(
         Math.round(box.right),
       )}`;
     }
