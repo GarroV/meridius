@@ -35,33 +35,18 @@ jobs:
       - name: Браузер для сквозных сценариев
         run: npx --no-install playwright install --with-deps chromium
 
-      # `scripts/up` здесь не зовётся, хотя подъём одной командой — критерий
-      # готовности продукта: скрипт заканчивается `exec next start` и держит сервер
-      # в foreground, то есть в неинтерактивном прогоне управление не возвращает
-      # никогда (проверено — прогон висел до отмены). Пока у него нет режима
-      # подготовки без запуска (задача T194), шаги повторены здесь явно.
-      # Секрет подписи сессии берётся свой: на значении из `.env.example` продукт
-      # намеренно отказывает во входе (src/blocks/auth/config.ts), потому что файл
-      # лежит в git. Сервер для сквозных сценариев поднимает сам playwright.
-      - name: Окружение стенда
-        run: |
-          cp .env.example .env
-          sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=ci-only-$(openssl rand -hex 24)|" .env
-
-      - name: База
-        run: |
-          docker compose -p meridius up -d db
-          for _ in $(seq 1 60); do
-            state=$(docker inspect -f '{{.State.Health.Status}}' meridius-db-1 2>/dev/null || echo starting)
-            [ "$state" = "healthy" ] && break
-            sleep 1
-          done
-          [ "$state" = "healthy" ] || { docker compose -p meridius logs db; exit 1; }
-
-      - name: Миграции и демонстрационный контур
-        run: |
-          npm run --silent db:migrate
-          node scripts/seed-demo.mjs
+      # Стенд поднимает ТА ЖЕ команда, что и человек у себя, — только в режиме
+      # подготовки (T194). До этого шаги были повторены здесь руками — потому что
+      # `scripts/up` заканчивался `exec next start` и не возвращал управления, — и критерий
+      # готовности «продукт поднимается одной командой» никто не проверял вовсе: два
+      # списка шагов разошлись бы молча.
+      #
+      # Секрет подписи сессии и хэш пароля кабинета скрипт заводит свои сам: на
+      # значениях из `.env.example` продукт намеренно отказывает во входе
+      # (src/blocks/auth/config.ts), потому что файл лежит в git. Сервер для сквозных
+      # сценариев поднимает сам playwright, со своими тестовыми значениями.
+      - name: Стенд одной командой (без запуска сервера)
+        run: ./scripts/up --no-start
 
       - name: Весь набор проверок
         run: ./scripts/check
