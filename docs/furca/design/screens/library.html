@@ -12,6 +12,18 @@
 <style>
 
   .split { display: grid; grid-template-columns: 320px 1fr; align-items: start; gap: var(--space-8); }
+
+  /* Ниже 1024 px колонки складываются в одну (T223, дефект #100). Без этого правила
+     карточка правки блока на 390 px оставалась полоской в 18 px у правого края —
+     замерено живым браузером, и одинаково в эталоне и в продукте, то есть пробел был
+     здесь, а не в вёрстке. Граница взята не от складки кабинета (--page-fold, 768 px):
+     складка убирает боковое меню, а колонке списка это места не добавляет — она
+     фиксированные 320 px, и на 768 px карточке осталось бы 172 px. Число продублировано
+     здесь ровно один раз, как и 767.98 в app.css: у медиазапросов нет доступа к
+     переменным. */
+  @media (max-width: 1023.98px) {
+    .split { grid-template-columns: minmax(0, 1fr); }
+  }
   .li { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--line); cursor: pointer; }
   .li:hover { background: var(--surface-2); }
   .li--sel { background: var(--accent-soft); color: var(--accent); font-weight: var(--w-medium); }

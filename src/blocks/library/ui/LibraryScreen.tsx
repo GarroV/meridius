@@ -22,6 +22,18 @@ import type { LibraryBlockRow, LibraryModel, LibrarySelection } from "./model";
 
 type Translate = Awaited<ReturnType<typeof getTranslations>>;
 
+// Список блоков и карточка правки: две колонки, пока для них есть место, и одна, когда
+// места нет (T223, дефект #100).
+//
+// Почему граница на `lg`, а не на складке кабинета (`--page-fold`, 768 px). Складка —
+// про каркас: ниже неё боковое меню становится верхней полосой. Колонке списка это места
+// не добавляет, она фиксированные 320 px. Замерено в этой копии живым браузером: на
+// 1280 px карточке правки достаётся 684 px, на 768 px осталось бы 172 px, а на 390 px
+// было 18 px — то есть полоска у правого края вместо карточки. Ровно так же и по той же
+// причине складывается редактор (`ChecklistEditor`, `max-lg`): экран с колонкой
+// постоянной ширины упирается раньше, чем кабинет целиком.
+const SPLIT_CLASS =
+  "grid items-start gap-[var(--space-8)] [grid-template-columns:320px_1fr] max-lg:[grid-template-columns:minmax(0,1fr)]";
 const CARD_CLASS =
   "bg-surface rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
 const CARD_HEAD_CLASS =
@@ -212,7 +224,7 @@ export async function LibraryScreen({
       {model.selection === null ? (
         <EmptyLibrary t={t} />
       ) : (
-        <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:320px_1fr]">
+        <div className={SPLIT_CLASS}>
           <section className={CARD_CLASS} data-testid="library-list">
             <div className={CARD_HEAD_CLASS}>
               <h2 className={CARD_TITLE_CLASS}>{t("listTitle")}</h2>
