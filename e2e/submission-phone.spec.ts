@@ -241,7 +241,7 @@ test.describe("карточка заполнения на телефоне", () 
     const clipped = await page.evaluate(() =>
       [...document.querySelectorAll('[data-testid="answer-row"] > *')]
         .filter((cell) => cell.scrollWidth - cell.clientWidth > 1)
-        .map((cell) => cell.textContent?.slice(0, 40) ?? ""),
+        .map((cell) => cell.textContent.slice(0, 40)),
     );
     expect(
       clipped,
