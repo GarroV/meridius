@@ -160,6 +160,8 @@ const {
   checklist: CHECKLIST,
 } = smokeNames(label);
 const COMMENT = "Two sauce buckets are unlabelled, moved to the fridge.";
+// Подпись будильника — на языке экрана: страна смоука заводится с локалью `en`.
+const ALARM = "Take the dough out of the proofer";
 
 let step = 0;
 const done = [];
@@ -174,13 +176,20 @@ function check(condition, what) {
   say(`✓ ${what}`);
 }
 
-async function shot(page, name) {
+/**
+ * Снимок экрана целиком или названного узла, когда показывают не экран, а деталь:
+ * панель на 375 px занимает шестую часть кадра, и на общем снимке владелец не
+ * различит ни надписей, ни пиктограмм — того самого, ради чего показ и делается.
+ */
+async function shot(page, name, target) {
   step += 1;
   const file = path.join(
     OUT_DIR,
     `${String(step).padStart(2, "0")}-${name}.png`,
   );
-  await page.screenshot({ path: file, fullPage: true });
+  await (target === undefined
+    ? page.screenshot({ path: file, fullPage: true })
+    : target.screenshot({ path: file }));
   done.push(file);
   say(`снимок: ${path.relative(process.cwd(), file)}`);
 }
@@ -393,6 +402,34 @@ async function fillFromPhone(browser, code) {
       "без объяснения провала отправка не даётся",
     );
     await comment.fill(COMMENT);
+
+    // Будильник (D070) живёт на этом же экране, и смоук заводит его по-настоящему:
+    // панель отказывает по времени, окну и частоте, и такой отказ обязан находить
+    // смоук, а не станция. Время считается в UTC — страна заводится часовым поясом
+    // по умолчанию (`UTC`), а окно чек-листа круглосуточное, поэтому ближайшие
+    // минуты всегда внутри прохода.
+    const ring = new Date(Date.now() + 10 * 60 * 1000);
+    const ringAt = `${String(ring.getUTCHours()).padStart(2, "0")}:${String(
+      ring.getUTCMinutes(),
+    ).padStart(2, "0")}`;
+    await page.getByTestId("alarm-time").fill(ringAt);
+    await page.getByTestId("alarm-label").fill(ALARM);
+    await page.getByTestId("alarm-add").tap();
+    const ringRow = page.getByText(ALARM, { exact: true });
+    const appeared = await ringRow
+      .waitFor({ timeout: STEP_TIMEOUT })
+      .then(() => true)
+      .catch(() => false);
+    if (!appeared) {
+      // Отказ панели показывается человеку и обязан дойти до отчёта дословно: без
+      // него провал выглядит как «строка не появилась», и причину ищут заново.
+      const notice = page.getByTestId("alarm-notice");
+      const why =
+        (await notice.count()) > 0 ? await notice.innerText() : "молча";
+      throw new Error(`будильник на ${ringAt} не завёлся: ${why}`);
+    }
+    check(true, `будильник на ${ringAt} заведён`);
+    await shot(page, "fill-alarms", page.getByTestId("alarms-panel"));
 
     // Горизонтальной прокрутки на телефоне быть не должно — это требование экрана.
     const overflow = await page.evaluate(
