@@ -33,7 +33,7 @@ const WHAT_CLASS = "text-[length:var(--fs-dense)] text-[var(--err)]";
 const WHEN_CLASS =
   "font-[family-name:var(--font-num)] text-[length:var(--fs-num)] [font-variant-numeric:tabular-nums] text-[var(--ink-2)]";
 const OPEN_CLASS =
-  "ml-auto inline-flex h-[var(--control-h-sm)] items-center rounded-[var(--r-control)] px-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] no-underline hover:bg-[var(--surface-2)] hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]";
+  "ml-auto inline-flex h-[var(--control-h-sm)] items-center rounded-[var(--r-control)] px-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] no-underline hover:bg-[var(--surface-2)] hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]";
 const FOOT_CLASS =
   "border-t border-[var(--err-line)] px-[var(--space-7)] py-[var(--space-5)] text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const QUIET_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";

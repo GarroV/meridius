@@ -35,7 +35,7 @@ import { stepLabel } from "./step-label";
 type Translate = ReturnType<typeof useTranslations>;
 
 const CHIP_CLASS =
-  "flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border px-[var(--space-4)] text-[length:var(--fs-dense)] whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--focus-ring)]";
+  "flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border px-[var(--space-4)] text-[length:var(--fs-dense)] whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]";
 const CHIP_OFF_CLASS =
   "bg-surface border-[var(--line-control)] text-[var(--ink-3)] hover:border-[var(--line-control-2)] hover:text-[var(--ink-2)]";
 const CHIP_ON_CLASS =

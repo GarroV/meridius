@@ -248,7 +248,7 @@ export function ItemRow({
                   className="peer sr-only"
                 />
                 <span
-                  className={`inline-flex h-[19px] items-center rounded-[var(--r-mark)] px-[var(--space-4)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] uppercase transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-[var(--focus-ring)] ${
+                  className={`inline-flex h-[19px] items-center rounded-[var(--r-mark)] px-[var(--space-4)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] uppercase transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-[var(--accent)] ${
                     severity === level
                       ? SEVERITY_TONE[level]
                       : // Не `--ink-3`: на дорожке `--seg-track` он даёт 4,4:1 — ниже

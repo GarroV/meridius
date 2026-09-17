@@ -31,13 +31,13 @@ const BAR_CLASS =
 // (критерий 10). Была 51x18 — вдвое ниже требуемого (T176). Растёт только высота
 // коробки: отступов по бокам нет, поэтому строка шапки не разъезжается.
 const CHANGE_CLASS =
-  "inline-flex min-h-[var(--tap-min)] min-w-[var(--tap-min)] cursor-pointer items-center justify-center rounded-[var(--r-mark)] border-0 bg-transparent p-0 text-[length:var(--fs-dense)] text-[var(--accent)] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]";
+  "inline-flex min-h-[var(--tap-min)] min-w-[var(--tap-min)] cursor-pointer items-center justify-center rounded-[var(--r-mark)] border-0 bg-transparent p-0 text-[length:var(--fs-dense)] text-[var(--accent)] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]";
 
 const PANEL_CLASS =
   "mt-[var(--space-6)] flex flex-col gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--line)] bg-[var(--surface-2)] p-[var(--space-6)]";
 // Зона нажатия не меньше var(--tap-min): экран рассчитан на кухню и занятые руки.
 const CHOICE_CLASS =
-  "flex min-h-[var(--tap-min)] w-full cursor-pointer flex-col items-start gap-[var(--space-2)] rounded-[var(--r-block)] border border-[var(--line-control)] bg-surface px-[var(--space-6)] py-[var(--space-5)] text-left transition-colors hover:border-[var(--accent-line)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-default disabled:opacity-60";
+  "flex min-h-[var(--tap-min)] w-full cursor-pointer flex-col items-start gap-[var(--space-2)] rounded-[var(--r-block)] border border-[var(--line-control)] bg-surface px-[var(--space-6)] py-[var(--space-5)] text-left transition-colors hover:border-[var(--accent-line)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:cursor-default disabled:opacity-60";
 const CHOICE_SELECTED_CLASS =
   "border-[var(--accent)] shadow-[0_0_0_3px_var(--focus-soft)]";
 const CHOICE_TITLE_CLASS =
