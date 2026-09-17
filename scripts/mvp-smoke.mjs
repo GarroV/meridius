@@ -70,7 +70,7 @@ if (!anyWindowPreset) {
     "в WINDOW_PRESETS нет круглосуточного окна: смоук обязан проходить в любой час, а выбрать такое окно нечем",
   );
 }
-const ANY_WINDOW_VALUE = "any"; // ПОРЧА: проверка, что работа CI ловит протухание смоука
+const ANY_WINDOW_VALUE = windowFieldValue(anyWindowPreset.value);
 
 const PHONE = { width: 375, height: 812 };
 const DESKTOP = { width: 1440, height: 960 };
