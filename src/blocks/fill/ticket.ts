@@ -33,6 +33,9 @@ import type { Parsed } from "./validation";
 const SECRET_VARIABLE = "SESSION_SECRET";
 const TICKET_PURPOSE = "meridius.fill.ticket.v1";
 
+/** Кодировка подписи. Та же, что у подписи сессии, и сравнивается так же. */
+const SIGNATURE_ENCODING = "base64url";
+
 // 32 знака ≈ 192 бита при base64: подпись перестаёт быть подбираемой. Та же мерка,
 // что у подписи сессии, — она задаёт стойкость обеих.
 const MIN_SECRET_LENGTH = 32;
@@ -94,13 +97,29 @@ function sign(issuedAt: number, subject: FillTicketSubject): string {
     .update(
       `${TICKET_PURPOSE}\n${String(issuedAt)}\n${subject.code}\n${subject.versionId}`,
     )
-    .digest("base64url");
+    .digest(SIGNATURE_ENCODING);
 }
 
+/**
+ * Сравнение подписей — тем же приёмом, что и подпись сессии (`auth/session.ts`).
+ *
+ * Обе строки сперва ДЕКОДИРУЮТСЯ, и сравниваются длины уже декодированных
+ * буферов. Сравнивать длину строк и брать байты как UTF-8 нельзя: подпись
+ * base64url всегда ASCII, а приходит она от клиента целиком, и пара «длина в
+ * символах сошлась, длина в байтах — нет» собирается одной строкой (43
+ * кириллических знака). `timingSafeEqual` на такой паре бросает `RangeError`,
+ * то есть публичная точка записи падает на специально собранном теле — без
+ * всякого подбора секрета.
+ *
+ * `Buffer.from(…, "base64url")` не бросает никогда: посторонние знаки он
+ * отбрасывает, и негодная подпись становится буфером другой длины, то есть
+ * обычным отказом.
+ */
 function sameSignature(given: string, expected: string): boolean {
-  // Длина сравнивается отдельно: `timingSafeEqual` на разной длине бросает.
-  if (given.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+  const left = Buffer.from(given, SIGNATURE_ENCODING);
+  const right = Buffer.from(expected, SIGNATURE_ENCODING);
+
+  return left.length === right.length && timingSafeEqual(left, right);
 }
 
 /**

@@ -232,13 +232,13 @@ describe("сверка ответов со снимком версии", () => {
   });
 });
 
+function answer(at: number): Answer {
+  return { itemId: "a", value: true, at };
+}
+
 describe("поштучные отметки времени", () => {
   const now = new Date("2026-09-06T09:10:00Z");
   const startedAt = now.getTime() - 3 * 60 * 1000;
-
-  function answer(at: number): Answer {
-    return { itemId: "a", value: true, at };
-  }
 
   it("оставляет отметку внутри заполнения как есть", () => {
     const inside = startedAt + 60 * 1000;
