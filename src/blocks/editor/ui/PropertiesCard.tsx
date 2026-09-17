@@ -14,12 +14,23 @@ const FIELD_LABEL_CLASS =
   "text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
 const CONTROL_CLASS =
   "text-ink bg-surface h-[var(--control-h)] w-full rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-lead)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
+const TIME_CLASS =
+  "text-ink bg-surface h-[var(--control-h)] min-w-0 flex-1 rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-4)] font-[family-name:var(--font-num)] text-[length:var(--fs-body)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
+const HINT_CLASS =
+  "text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--ink-3)]";
 
 /**
- * Свойства чек-листа: название, станция, окно. Окно выбирается из готовых вариантов
- * (эталон): произвольное время — это два поля и лишние касания там, где вариантов
- * по сути три. Уже записанное нестандартное окно показывается отдельным пунктом,
- * чтобы открытие чек-листа не переписало его молча.
+ * Свойства чек-листа: название, станция, окно.
+ *
+ * Окно задаётся двумя способами сразу, и это не дубль: список — быстрый выбор трёх
+ * обычных смен станции, поля времени — своё окно для всего остального (T185; до него
+ * 05:00–17:00 из боевых данных нельзя было ни завести, ни поправить). Уже записанное
+ * нестандартное окно по-прежнему стоит в списке отдельным пунктом, чтобы открытие
+ * чек-листа не переписало его молча.
+ *
+ * Здесь, в отличие от экрана заведения, источник один — состояние экрана: и список, и
+ * поля времени зовут `onWindow`, а на сервер окно уезжает скрытым полем шапки. Правило
+ * «своё сильнее списка» поэтому нужно только на заведении, где состояния нет вовсе.
  */
 export function PropertiesCard({
   title,
@@ -114,6 +125,36 @@ export function PropertiesCard({
               </option>
             )}
           </select>
+
+          <div className="flex flex-wrap items-center gap-[var(--space-4)]">
+            <span className={HINT_CLASS}>{t("windowOwn")}</span>
+            <input
+              type="time"
+              data-testid="checklist-window-from"
+              aria-label={t("windowOwnFrom")}
+              className={TIME_CLASS}
+              value={window.start}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                // Пустое значение приходит, пока время дописывается, — тот же случай,
+                // что у отрезков обхода: записать его значит стереть границу на
+                // середине набора.
+                if (event.target.value === "") return;
+                onWindow({ ...window, start: event.target.value });
+              }}
+            />
+            <span className={HINT_CLASS}>–</span>
+            <input
+              type="time"
+              data-testid="checklist-window-to"
+              aria-label={t("windowOwnTo")}
+              className={TIME_CLASS}
+              value={window.end}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                if (event.target.value === "") return;
+                onWindow({ ...window, end: event.target.value });
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>

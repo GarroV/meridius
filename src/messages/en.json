@@ -180,6 +180,10 @@
       "windowEvening": "Evening, 20:00–00:00",
       "windowAny": "Any time",
       "windowCustom": "{start}–{end}",
+      "windowOwn": "Custom window",
+      "windowOwnFrom": "Custom window: start",
+      "windowOwnTo": "Custom window: end",
+      "windowOwnHint": "No such shift in the list? Set both bounds of your own window — it wins over the list.",
       "create": "Create checklist",
       "cancel": "Cancel"
     },
@@ -272,7 +276,8 @@
       "remindNeedsSchedule": "The reminder starts working once there is at least one stretch.",
       "apply": "Done",
       "applyToSection": "Apply to the whole section",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "escHint": "Esc to close"
     },
     "keys": {
       "enter": "next item",

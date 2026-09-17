@@ -10,7 +10,12 @@ import type { EditorActionState } from "./action-state";
 import type { ChecklistInput } from "./drafts";
 import type { EditorErrorCode } from "./validation";
 import { EditorInputError, LIMITS, parseSections } from "./validation";
-import { WINDOW_FIELD, parseWindowField } from "./window-field";
+import {
+  WINDOW_FIELD,
+  WINDOW_FROM_FIELD,
+  WINDOW_TO_FIELD,
+  windowFromFields,
+} from "./window-field";
 
 // Предел, о котором говорит сообщение об отказе: «не больше N пунктов».
 const LIMIT_BY_CODE: Partial<Record<EditorErrorCode, number>> = {
@@ -39,16 +44,23 @@ export function sectionsFrom(form: FormData): Section[] {
 /**
  * Свойства чек-листа из формы. Проверку значений делает слой черновика.
  *
- * Окно приходит ОДНИМ полем, и отправляет его сам список на экране (`window-field.ts`).
- * Пара полей `windowStart`/`windowEnd` считалась из состояния React и отставала от
- * выбора, сделанного до того как экран ожил: на сервер уезжала не та смена (T129).
+ * Окно приходит с экрана ГОТОВЫМИ полями, а не копией состояния React: список
+ * отправляет выбранную смену сам (`window-field.ts`), а два поля времени — своё окно,
+ * если методист набрал его целиком (T185). Прежняя пара `windowStart`/`windowEnd`
+ * считалась из состояния и отставала от выбора, сделанного до того как экран ожил:
+ * на сервер уезжала не та смена (T129). Здесь отправляет ровно то, во что человек
+ * напечатал, — и без единого скрипта тоже.
  */
 export function checklistInputFrom(form: FormData): ChecklistInput {
   const stationId = formText(form, "stationId");
   return {
     stationId: stationId === "" ? null : stationId,
     title: { [formText(form, "locale")]: formText(form, "title") },
-    window: parseWindowField(formText(form, WINDOW_FIELD)),
+    window: windowFromFields(
+      formText(form, WINDOW_FIELD),
+      formText(form, WINDOW_FROM_FIELD),
+      formText(form, WINDOW_TO_FIELD),
+    ),
   };
 }
 

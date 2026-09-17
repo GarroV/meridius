@@ -7,6 +7,7 @@ import {
   WINDOW_PRESETS,
   parseWindowField,
   windowFieldValue,
+  windowFromFields,
 } from "./window-field";
 
 describe("windowFieldValue", () => {
@@ -63,5 +64,49 @@ describe("готовые окна", () => {
     );
 
     expect(new Set(values).size).toBe(WINDOW_PRESETS.length);
+  });
+});
+
+describe("windowFromFields", () => {
+  test("обе половины своего окна заполнены — окно берётся из них", () => {
+    // Ради этого случая всё и затевалось: 05:00–17:00 из демонстрационных данных
+    // ни одним готовым окном не выражается (T185).
+    expect(windowFromFields("06:00|11:00", "05:00", "17:00")).toStrictEqual({
+      start: "05:00",
+      end: "17:00",
+    });
+  });
+
+  test("заполнена только половина — окно берётся из списка", () => {
+    // Недособранное своё окно не должно молча отменять выбранное в списке: методист
+    // начал вводить время и передумал, а чек-лист завёлся бы с пустой границей.
+    expect(windowFromFields("20:00|00:00", "05:00", "")).toStrictEqual({
+      start: "20:00",
+      end: "00:00",
+    });
+    expect(windowFromFields("20:00|00:00", "", "17:00")).toStrictEqual({
+      start: "20:00",
+      end: "00:00",
+    });
+  });
+
+  test("своё окно не заполнено — окно берётся из списка", () => {
+    expect(windowFromFields("00:00|24:00", "", "")).toStrictEqual({
+      start: "00:00",
+      end: "24:00",
+    });
+  });
+
+  test("пробелы вместо времени — это не время", () => {
+    expect(windowFromFields("06:00|11:00", "  ", " ")).toStrictEqual({
+      start: "06:00",
+      end: "11:00",
+    });
+  });
+
+  test("пустой список и пустое своё окно дают пустые границы, а не подставленное окно", () => {
+    // Отказ обязан прийти от `parseWindow` на границе слоя данных — здесь не место
+    // придумывать за методиста смену.
+    expect(windowFromFields("", "", "")).toStrictEqual({ start: "", end: "" });
   });
 });

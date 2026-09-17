@@ -592,6 +592,39 @@ test.describe("редактор чек-листа", () => {
     );
   });
 
+  // T185: окон в списке три, а в боевых данных живут 05:00–17:00 и 06:00–23:00 —
+  // смены, которые методист не мог завести руками ВООБЩЕ. Сценарий проходит обе
+  // формы: заведение (полями рядом со списком) и правку (тем же полем на экране).
+  test("своё окно временем заводится и переживает правку", async ({ page }) => {
+    await signIn(page);
+    await page.goto(`${CHECKLISTS_PATH}/new`);
+    await page.getByTestId("new-checklist-title").fill(`Дневной ${label()}`);
+    await page.getByTestId("new-checklist-window-from").fill("05:00");
+    await page.getByTestId("new-checklist-window-to").fill("17:00");
+    await page.getByTestId("create-checklist").click();
+
+    await expect(page.getByTestId("editor-screen")).toBeVisible();
+    // Окно доехало до базы своим, а не подменилось утром из списка: список на экране
+    // правки показывает его отдельным пунктом, а поля — его границами.
+    await expect(page.getByTestId("checklist-window")).toHaveValue(
+      "05:00|17:00",
+    );
+    await expect(page.getByTestId("checklist-window-from")).toHaveValue(
+      "05:00",
+    );
+    await expect(page.getByTestId("checklist-window-to")).toHaveValue("17:00");
+
+    await page.getByTestId("checklist-window-to").fill("23:00");
+    await saveDraft(page);
+    await page.reload();
+
+    // Главное: правка съездила через сервер, а не осталась на экране.
+    await expect(page.getByTestId("checklist-window-from")).toHaveValue(
+      "05:00",
+    );
+    await expect(page.getByTestId("checklist-window-to")).toHaveValue("23:00");
+  });
+
   // Предпросмотр — показ, а не работающий экран заполнения: отвечает сотрудник, открыв
   // чек-лист по QR-коду станции. Поэтому здесь не должно быть ни одного элемента, который
   // выглядит нажимаемым и не нажимается: серая кнопка «осталось N» читалась как сломанная.
