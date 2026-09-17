@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
+
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { hashPassword } from "../password";
-import { LOGIN_LIMITS, forgetAllLoginFailures } from "../rate-limit";
+import { LOGIN_LIMITS, forgetLoginFailures } from "../rate-limit";
 import { ADMIN_HOME_PATH, LOGIN_PATH } from "../routes";
 import { SESSION_COOKIE_NAME } from "../session";
 import { submitLogin } from "./login-action";
@@ -9,8 +11,12 @@ import { submitSignOut } from "./sign-out-action";
 
 const jar = vi.hoisted(() => new Map<string, string>());
 
+// Ключ клиента у каждой проверки свой: счёт неудач живёт в общей базе прогона, и
+// соседний файл не должен считать наши промахи своими.
+const client = vi.hoisted(() => ({ address: "203.0.113.7" }));
+
 vi.mock("next/headers", () => ({
-  headers: () => Promise.resolve({ get: () => "203.0.113.7" }),
+  headers: () => Promise.resolve({ get: () => client.address }),
   cookies: () =>
     Promise.resolve({
       get: (name: string) => {
@@ -54,7 +60,10 @@ function formWith(password: FormDataEntryValue): FormData {
 
 beforeEach(async () => {
   jar.clear();
-  forgetAllLoginFailures();
+  client.address = `203.0.113.7-${randomUUID()}`;
+  // Снимается и общий счёт: он один на всех, и накопленное прошлыми проверками
+  // прогона не должно запирать эту.
+  await forgetLoginFailures(client.address);
   process.env["ADMIN_PASSWORD_HASH"] = await hashPassword(PASSWORD, {
     cost: 1024,
     blockSize: 8,

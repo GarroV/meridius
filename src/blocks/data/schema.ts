@@ -383,6 +383,27 @@ export const alarms = pgTable(
   ],
 );
 
+/**
+ * Счёт неудачных попыток входа в кабинет (блок `auth`, T212).
+ *
+ * Данными продукта эти строки не являются — это состояние защиты, и живёт оно здесь
+ * по одной причине: счёт обязан пережить перезапуск процесса. Пока он лежал в памяти,
+ * «Повторите через 15 минут» снималось любой выкладкой и любым падением, то есть защита
+ * единственного пароля продукта (D014) держалась на непрерывности процесса.
+ *
+ * Ключ — не адрес клиента, а sha256 от области счёта и ключа клиента: адрес приходит
+ * подделываемым заголовком, и хранить его продукт не должен (D001 — людей продукт не
+ * опознаёт вовсе). Форма отпечатка проверяется в самой базе (миграция 0010).
+ */
+export const loginFailures = pgTable("login_failures", {
+  attemptKey: text("attempt_key").primaryKey(),
+  // Начало окна: отсчёт от первой неудачи, поэтому отказ кончается в названный срок.
+  windowStartedAt: timestamp("window_started_at", {
+    withTimezone: true,
+  }).notNull(),
+  failures: integer("failures").notNull(),
+});
+
 export type Country = typeof countries.$inferSelect;
 export type Store = typeof stores.$inferSelect;
 export type Station = typeof stations.$inferSelect;

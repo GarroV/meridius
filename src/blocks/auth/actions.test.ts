@@ -1,8 +1,10 @@
+import { randomUUID } from "node:crypto";
+
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { signIn, signOut } from "./actions";
 import { hashPassword } from "./password";
-import { LOGIN_LIMITS, forgetAllLoginFailures } from "./rate-limit";
+import { LOGIN_LIMITS, forgetLoginFailures } from "./rate-limit";
 import { SESSION_COOKIE_NAME, readSessionToken } from "./session";
 
 interface StoredCookie {
@@ -56,11 +58,20 @@ async function cheapHash(): Promise<string> {
 }
 
 const CLIENT_HEADER = "x-forwarded-for";
-const CLIENT = "203.0.113.7";
+
+// Счёт неудач живёт в общей базе прогона, поэтому ключ клиента у каждой проверки свой:
+// иначе соседний файл прогона считал бы наши промахи своими. Так же разведены между
+// собой и коды станций в тестах блока `data`.
+let CLIENT = "203.0.113.7";
+let OTHER = "198.51.100.3";
 
 beforeEach(async () => {
   jar.clear();
-  forgetAllLoginFailures();
+  CLIENT = `203.0.113.7-${randomUUID()}`;
+  OTHER = `198.51.100.3-${randomUUID()}`;
+  // Снимается и общий счёт: он один на всех, и накопленное прошлыми проверками
+  // прогона не должно запирать эту.
+  await forgetLoginFailures(CLIENT);
   requestHeaders.clear();
   requestHeaders.set(CLIENT_HEADER, CLIENT);
   process.env["ADMIN_PASSWORD_HASH"] = await cheapHash();
@@ -196,7 +207,7 @@ describe("ограничение частоты попыток", () => {
   test("перебор с одного адреса не закрывает вход с другого", async () => {
     await exhaust();
 
-    requestHeaders.set(CLIENT_HEADER, "198.51.100.3");
+    requestHeaders.set(CLIENT_HEADER, OTHER);
 
     await expect(signIn(PASSWORD)).resolves.toEqual({ status: "ok" });
   });

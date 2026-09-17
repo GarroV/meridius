@@ -64,7 +64,7 @@ export async function signIn(password: string): Promise<SignInResult> {
 
   // Счёт попыток проверяется до scrypt: перебирающий не должен получать даже той работы,
   // которую сервер тратит на проверку пароля.
-  const verdict = checkLoginAllowed(client, now);
+  const verdict = await checkLoginAllowed(client, now);
   if (!verdict.allowed) {
     return {
       status: "throttled",
@@ -74,11 +74,11 @@ export async function signIn(password: string): Promise<SignInResult> {
 
   const matches = await verifyPassword(password, adminPasswordHash());
   if (!matches) {
-    registerLoginFailure(client, now);
+    await registerLoginFailure(client, now);
     return { status: "rejected" };
   }
 
-  forgetLoginFailures(client);
+  await forgetLoginFailures(client);
 
   const store = await cookies();
   store.set(SESSION_COOKIE_NAME, createSessionToken(secret, new Date()), {

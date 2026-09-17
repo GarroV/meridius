@@ -1,15 +1,28 @@
 /**
- * Ограничение частоты неудачных попыток входа (T066).
+ * Ограничение частоты неудачных попыток входа (T066, T212).
  *
- * Пароль один на всю сеть, админка смотрит в интернет, и до этой правки перебор упирался
- * только в стоимость scrypt — около 0,1 с на попытку. Теперь считаются неудачи.
+ * Пароль один на всю сеть, кабинет смотрит в интернет, и до T066 перебор упирался только
+ * в стоимость scrypt. Теперь считаются неудачи: пять с одного адреса за 15 минут и общий
+ * потолок в 50 на всех.
  *
- * Хранилище — память процесса: схему базы ведёт блок `data`, и заводить ради счётчика
- * таблицу дороже, чем польза. Отсюда два честных ограничения, которые надо знать:
- * счётчики теряются при перезапуске приложения и не общие у нескольких экземпляров.
- * Для одного экземпляра MVP этого достаточно; на нескольких предел станет мягче ровно
- * во столько раз, сколько экземпляров.
+ * Счёт живёт в базе (`attempt-store.ts`), а не в памяти процесса. Это не украшение:
+ * пока он лежал в памяти, отказ «Повторите через 15 минут» снимался перезапуском
+ * процесса — то есть ограничитель держался на том, что процесс не перезапускали,
+ * а перезапускается он сам (выкладка, падение, `restart: unless-stopped`).
+ *
+ * Отказ базы здесь — отказ во входе, а не проход мимо счёта: впустить, не сумев
+ * посчитать, значит снять ограничитель ровно в тот момент, когда по продукту стучат.
+ * Кабинет без базы всё равно пуст, поэтому цена такого отказа — экран ошибки, а не
+ * открытая настежь форма.
  */
+import {
+  countFailure,
+  forgetAllFailures,
+  forgetFailures,
+  readFailureWindows,
+  sweepExpiredFailures,
+} from "./attempt-store";
+import type { FailureWindow } from "./attempt-store";
 
 /** Приговор попытке: пускать ли и, если нет, через сколько секунд повторять. */
 export interface ThrottleVerdict {
@@ -17,106 +30,39 @@ export interface ThrottleVerdict {
   readonly retryAfterSeconds: number;
 }
 
-export interface ThrottleOptions {
-  /** Сколько неудач в окне допускается, прежде чем начнётся отказ. */
+/** Предел одной области счёта: сколько неудач в окне допускается. */
+export interface ThrottleLimit {
   readonly maxFailures: number;
   readonly windowSeconds: number;
-  /** Потолок числа клиентов в памяти: заголовок с адресом подделывается. */
-  readonly maxTrackedClients: number;
-}
-
-export interface LoginThrottle {
-  check: (key: string, now: Date) => ThrottleVerdict;
-  registerFailure: (key: string, now: Date) => void;
-  /** Удачный вход: счётчик клиента снимается. */
-  clear: (key: string) => void;
-  clearAll: () => void;
-  /** Сколько клиентов сейчас в памяти. Нужно проверке, что хранилище не растёт. */
-  size: () => number;
-}
-
-interface FailureWindow {
-  readonly startedAt: number;
-  readonly failures: number;
 }
 
 const ALLOWED: ThrottleVerdict = { allowed: true, retryAfterSeconds: 0 };
 const MILLISECONDS = 1000;
 
 /**
+ * Приговор по записанному окну. Вся арифметика отказа — здесь, отдельно от хранилища:
+ * так правило «окно отсчитывается от первой неудачи» проверяется само по себе.
+ *
  * Окно фиксированное: отсчёт идёт от первой неудачи, а не от последней. Так отказ
- * гарантированно кончается в названный срок — иначе попытки злоумышленника продлевали бы
+ * гарантированно кончается в названный срок — иначе попытки перебирающего продлевали бы
  * блокировку администратору бесконечно.
  */
-export function createLoginThrottle(options: ThrottleOptions): LoginThrottle {
-  const windows = new Map<string, FailureWindow>();
-  const windowMs = options.windowSeconds * MILLISECONDS;
+export function verdictFor(
+  window: FailureWindow | undefined,
+  now: Date,
+  limit: ThrottleLimit,
+): ThrottleVerdict {
+  if (window === undefined) return ALLOWED;
 
-  function liveWindow(key: string, at: number): FailureWindow | undefined {
-    const found = windows.get(key);
-    if (found === undefined) return undefined;
-    if (at - found.startedAt >= windowMs) {
-      windows.delete(key);
-      return undefined;
-    }
-    return found;
-  }
-
-  function dropExpired(at: number): void {
-    for (const [key, window] of windows) {
-      if (at - window.startedAt >= windowMs) windows.delete(key);
-    }
-  }
-
-  // Map хранит ключи в порядке первой вставки, а запись создаётся первой неудачей клиента:
-  // первый ключ — самое старое окно, его и вытесняем.
-  function evictOverflow(): void {
-    while (windows.size > options.maxTrackedClients) {
-      const oldest = windows.keys().next().value;
-      if (oldest === undefined) return;
-      windows.delete(oldest);
-    }
-  }
+  const endsAt =
+    window.startedAt.getTime() + limit.windowSeconds * MILLISECONDS;
+  const at = now.getTime();
+  if (at >= endsAt) return ALLOWED;
+  if (window.failures < limit.maxFailures) return ALLOWED;
 
   return {
-    check(key, now) {
-      const at = now.getTime();
-      const window = liveWindow(key, at);
-      if (window === undefined || window.failures < options.maxFailures) {
-        return ALLOWED;
-      }
-      return {
-        allowed: false,
-        retryAfterSeconds: Math.ceil(
-          (window.startedAt + windowMs - at) / MILLISECONDS,
-        ),
-      };
-    },
-
-    registerFailure(key, now) {
-      const at = now.getTime();
-      dropExpired(at);
-      const window = liveWindow(key, at);
-      windows.set(
-        key,
-        window === undefined
-          ? { startedAt: at, failures: 1 }
-          : { startedAt: window.startedAt, failures: window.failures + 1 },
-      );
-      evictOverflow();
-    },
-
-    clear(key) {
-      windows.delete(key);
-    },
-
-    clearAll() {
-      windows.clear();
-    },
-
-    size() {
-      return windows.size;
-    },
+    allowed: false,
+    retryAfterSeconds: Math.ceil((endsAt - at) / MILLISECONDS),
   };
 }
 
@@ -126,28 +72,53 @@ export function createLoginThrottle(options: ThrottleOptions): LoginThrottle {
  * а заголовок подделывается, и без общего счёта перебор шёл бы с нового адреса каждый раз.
  * Общий предел заметно выше клиентского, чтобы чужие промахи не запирали администратора
  * при первой же случайной опечатке соседа.
+ *
+ * Общий потолок заодно держит размер таблицы: строка появляется только на попытке,
+ * которую он впустил, а после него не впускается ни одна.
  */
 export const LOGIN_LIMITS = {
-  perClient: {
-    maxFailures: 5,
-    windowSeconds: 15 * 60,
-    maxTrackedClients: 10_000,
-  },
-  everyone: { maxFailures: 50, windowSeconds: 15 * 60, maxTrackedClients: 1 },
+  perClient: { maxFailures: 5, windowSeconds: 15 * 60 },
+  everyone: { maxFailures: 50, windowSeconds: 15 * 60 },
 } as const;
 
-const EVERYONE = "все";
+/** Области счёта. Входят в отпечаток ключа, поэтому клиент не сядет на общую строку. */
+const CLIENT_SCOPE = "клиент";
+const EVERYONE_SCOPE = "все";
+/** У общего счёта ключ один на всех: он адресов не различает — в этом и смысл. */
+const EVERYONE_KEY = "";
 
-const perClient = createLoginThrottle(LOGIN_LIMITS.perClient);
-const everyone = createLoginThrottle(LOGIN_LIMITS.everyone);
+function scopes(client: string): readonly (readonly [string, string])[] {
+  return [
+    [CLIENT_SCOPE, client],
+    [EVERYONE_SCOPE, EVERYONE_KEY],
+  ];
+}
+
+/** Самое длинное окно: до него строка ещё может понадобиться, после — уже нет. */
+function longestWindowSeconds(): number {
+  return Math.max(
+    LOGIN_LIMITS.perClient.windowSeconds,
+    LOGIN_LIMITS.everyone.windowSeconds,
+  );
+}
+
+function expiryEdge(now: Date, windowSeconds: number): Date {
+  return new Date(now.getTime() - windowSeconds * MILLISECONDS);
+}
 
 /** Пускать ли эту попытку. Отказ называет больший из двух сроков ожидания. */
-export function checkLoginAllowed(client: string, now: Date): ThrottleVerdict {
-  const verdicts = [
-    perClient.check(client, now),
-    everyone.check(EVERYONE, now),
-  ];
-  const refused = verdicts.filter((verdict) => !verdict.allowed);
+export async function checkLoginAllowed(
+  client: string,
+  now: Date,
+): Promise<ThrottleVerdict> {
+  const [clientWindow, everyoneWindow] = await readFailureWindows(
+    scopes(client),
+  );
+
+  const refused = [
+    verdictFor(clientWindow, now, LOGIN_LIMITS.perClient),
+    verdictFor(everyoneWindow, now, LOGIN_LIMITS.everyone),
+  ].filter((verdict) => !verdict.allowed);
   if (refused.length === 0) return ALLOWED;
 
   return {
@@ -159,22 +130,39 @@ export function checkLoginAllowed(client: string, now: Date): ThrottleVerdict {
 }
 
 /** Неверный пароль: считается и клиенту, и всем сразу. */
-export function registerLoginFailure(client: string, now: Date): void {
-  perClient.registerFailure(client, now);
-  everyone.registerFailure(EVERYONE, now);
+export async function registerLoginFailure(
+  client: string,
+  now: Date,
+): Promise<void> {
+  await sweepExpiredFailures(expiryEdge(now, longestWindowSeconds()));
+  await Promise.all([
+    countFailure(
+      CLIENT_SCOPE,
+      client,
+      now,
+      expiryEdge(now, LOGIN_LIMITS.perClient.windowSeconds),
+    ),
+    countFailure(
+      EVERYONE_SCOPE,
+      EVERYONE_KEY,
+      now,
+      expiryEdge(now, LOGIN_LIMITS.everyone.windowSeconds),
+    ),
+  ]);
 }
 
 /**
  * Удачный вход снимает оба счётчика: тот, кто знает пароль, — не перебор, и запирать
  * его из-за чужих промахов незачем.
  */
-export function forgetLoginFailures(client: string): void {
-  perClient.clear(client);
-  everyone.clear(EVERYONE);
+export async function forgetLoginFailures(client: string): Promise<void> {
+  await Promise.all([
+    forgetFailures(CLIENT_SCOPE, client),
+    forgetFailures(EVERYONE_SCOPE, EVERYONE_KEY),
+  ]);
 }
 
-/** Полный сброс. Нужен тестам, которые делят один процесс. */
-export function forgetAllLoginFailures(): void {
-  perClient.clearAll();
-  everyone.clearAll();
+/** Полный сброс. Нужен тестам, которые делят одну базу. */
+export async function forgetAllLoginFailures(): Promise<void> {
+  await forgetAllFailures();
 }
