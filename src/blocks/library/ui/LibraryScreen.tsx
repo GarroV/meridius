@@ -48,8 +48,15 @@ const ROW_SELECTED_CLASS =
   "text-accent flex items-center gap-[var(--space-4)] border-b border-[var(--line)] bg-[var(--accent-soft)] px-[var(--space-6)] py-[var(--space-5)] font-medium no-underline";
 const ROW_META_CLASS =
   "ml-auto text-[length:var(--fs-meta)] font-normal text-[var(--ink-3)]";
+// Метка «где используется». Переносится ВНУТРИ себя, а не только между соседями
+// (T223): подпись собирается из названия чек-листа, станции, пиццерии и города, и на
+// английском выходит длиннее, чем на русском. Замерено на телефоне: «Morning opening —
+// Kitchen · Demoland, Central Square» занимала 405 px в карточке шириной 358 и вылезала
+// за её рамку — при том что сами метки друг относительно друга переносились исправно.
+// Поэтому высота минимальная, а не жёсткая: метка в две строки выше пилюли, но целая.
+// На широком экране подпись помещается в строку, и вид не меняется вовсе.
 const TAG_ACCENT_CLASS =
-  "inline-flex h-[20px] items-center rounded-[var(--r-mark)] border border-[var(--accent-line)] bg-[var(--accent-soft)] px-[var(--space-4)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] whitespace-nowrap text-[var(--accent)] uppercase no-underline hover:border-[var(--accent)]";
+  "inline-flex max-w-full min-h-[20px] items-center rounded-[var(--r-mark)] border border-[var(--accent-line)] bg-[var(--accent-soft)] px-[var(--space-4)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--accent)] uppercase no-underline hover:border-[var(--accent)]";
 const META_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const BTN_PRIMARY_CLASS =
   "bg-accent inline-flex h-[var(--control-h)] cursor-pointer items-center justify-center rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)]";
