@@ -17,7 +17,7 @@
  */
 
 /** Раннеры проекта. Прямой вызов любого из них мимо npm-скрипта заводит второй список. */
-export const RUNNERS = ["vitest", "playwright"] as const;
+const RUNNERS = ["vitest", "playwright"] as const;
 
 /** Строки кода без комментариев: пояснения в скриптах упоминают и раннеры, и флаги. */
 export function codeLines(text: string): readonly string[] {
