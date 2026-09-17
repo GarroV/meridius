@@ -61,7 +61,7 @@ export function LoginForm({ labels }: { readonly labels: LoginLabels }) {
         type="submit"
         disabled={pending}
         data-testid="login-submit"
-        className="bg-accent flex h-[var(--control-h)] w-full items-center justify-center rounded-[var(--r-control)] border border-[var(--accent)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:opacity-60"
+        className="bg-accent flex h-[var(--control-h)] w-full items-center justify-center rounded-[var(--r-control)] border border-[var(--accent)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:opacity-45"
       >
         {pending ? labels.submitting : labels.submit}
       </button>

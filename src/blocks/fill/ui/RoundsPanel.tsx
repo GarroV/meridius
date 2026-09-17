@@ -36,7 +36,7 @@ const NOTE_CLASS =
   "mt-[var(--space-1)] text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const ACTIONS_CLASS = "mt-[var(--space-5)] flex flex-wrap gap-[var(--space-4)]";
 const BUTTON_CLASS =
-  "min-h-[var(--tap-min)] cursor-pointer rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface px-[var(--space-6)] text-[length:var(--fs-lead)] transition-colors hover:border-[var(--accent-line)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:cursor-default disabled:opacity-60";
+  "min-h-[var(--tap-min)] cursor-pointer rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface px-[var(--space-6)] text-[length:var(--fs-lead)] transition-colors hover:border-[var(--accent-line)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:cursor-default disabled:opacity-45";
 const PRIMARY_CLASS = "border-[var(--accent)] text-[var(--accent)]";
 const INPUT_CLASS =
   "min-h-[var(--tap-min)] w-full rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface px-[var(--space-5)] text-[length:var(--fs-lead)] text-ink focus:border-[var(--accent)] focus:outline-none";

@@ -46,7 +46,7 @@ const LI_SELECTED_CLASS =
 const LI_META_CLASS =
   "ml-auto text-[length:var(--fs-meta)] font-normal text-[var(--ink-3)]";
 const BTN_GHOST_SM_CLASS =
-  "normal-case inline-flex h-[var(--control-h-sm)] items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-ink disabled:cursor-not-allowed disabled:opacity-60";
+  "normal-case inline-flex h-[var(--control-h-sm)] items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-ink disabled:cursor-not-allowed disabled:opacity-45";
 const BTN_SM_CLASS =
   "normal-case bg-surface text-ink inline-flex h-[var(--control-h-sm)] items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-dense)] font-medium no-underline hover:border-[var(--line-control-2)] hover:bg-[var(--surface-2)]";
 const BTN_PRIMARY_SM_CLASS =

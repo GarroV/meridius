@@ -40,7 +40,7 @@ const TIME_CLASS =
 const LABEL_CLASS =
   "flex-1 text-[length:var(--fs-lead)] leading-[21px] break-words";
 const DROP_CLASS =
-  "min-h-[var(--tap-min)] min-w-[var(--tap-min)] shrink-0 cursor-pointer rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface text-[length:var(--fs-lead)] text-[var(--ink-3)] transition-colors hover:border-[var(--accent-line)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:cursor-default disabled:opacity-60";
+  "min-h-[var(--tap-min)] min-w-[var(--tap-min)] shrink-0 cursor-pointer rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface text-[length:var(--fs-lead)] text-[var(--ink-3)] transition-colors hover:border-[var(--accent-line)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:cursor-default disabled:opacity-45";
 // Заведение идёт двумя строками, а не одной: на 375 px «время + подпись + кнопка»
 // в строку не помещаются, и подпись сжимается до полутора слов — подсказка обрывается
 // на середине. Подпись — главное поле, ей отдана вся ширина; время и кнопка короткие
@@ -58,7 +58,7 @@ const FIELD_LABEL_CLASS =
 const INPUT_CLASS =
   "min-h-[var(--tap-min)] rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface px-[var(--space-5)] text-[length:var(--fs-lead)] text-ink focus:border-[var(--accent)] focus:outline-none";
 const BUTTON_CLASS =
-  "min-h-[var(--tap-min)] cursor-pointer rounded-[var(--r-control)] border border-[var(--accent)] bg-surface px-[var(--space-6)] text-[length:var(--fs-lead)] text-[var(--accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:cursor-default disabled:opacity-60";
+  "min-h-[var(--tap-min)] cursor-pointer rounded-[var(--r-control)] border border-[var(--accent)] bg-surface px-[var(--space-6)] text-[length:var(--fs-lead)] text-[var(--accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:cursor-default disabled:opacity-45";
 const HINT_CLASS =
   "px-[var(--space-7)] pb-[var(--space-6)] text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const NOTICE_CLASS =

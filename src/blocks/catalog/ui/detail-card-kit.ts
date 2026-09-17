@@ -41,7 +41,7 @@ export const FIELD_LABEL_CLASS =
 export const INPUT_CLASS =
   "text-ink bg-surface h-[var(--control-h)] w-full rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-lead)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 export const SELECT_CLASS =
-  "text-ink bg-surface h-[var(--control-h)] w-full appearance-none rounded-[var(--r-control)] border border-[var(--line-control)] pr-[var(--space-8)] pl-[var(--space-5)] text-[length:var(--fs-lead)] [background-image:linear-gradient(45deg,transparent_50%,var(--ink-3)_50%),linear-gradient(135deg,var(--ink-3)_50%,transparent_50%)] [background-position:calc(100%-14px)_13px,calc(100%-9px)_13px] [background-repeat:no-repeat] [background-size:5px_5px,5px_5px] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none disabled:opacity-60";
+  "text-ink bg-surface h-[var(--control-h)] w-full appearance-none rounded-[var(--r-control)] border border-[var(--line-control)] pr-[var(--space-8)] pl-[var(--space-5)] text-[length:var(--fs-lead)] [background-image:linear-gradient(45deg,transparent_50%,var(--ink-3)_50%),linear-gradient(135deg,var(--ink-3)_50%,transparent_50%)] [background-position:calc(100%-14px)_13px,calc(100%-9px)_13px] [background-repeat:no-repeat] [background-size:5px_5px,5px_5px] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none disabled:opacity-45";
 // Значение, которое эта версия не даёт править (страна пиццерии — T117): та же коробка,
 // что у INPUT_CLASS, но без фокуса и стрелки выпадающего списка — оно не элемент формы.
 // Раньше на этом месте был `<select disabled>`, а серый неактивный контрол читается как

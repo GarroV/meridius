@@ -1,4 +1,4 @@
-// Разбор токенов дизайн-системы — чтобы проверять их применение машиной, а не глазом.
+// Разбор эталона дизайн-системы — чтобы сверять с ним продукт машиной, а не глазом.
 //
 // Токены живут одним файлом эталона (`docs/furca/design/reference/tokens.css`), и
 // продукт подставляет их в вёрстку по имени. Имя подходит любое: CSS не проверяет, что
@@ -60,4 +60,28 @@ export function outlineColorTokens(source: string): readonly string[] {
     return "";
   });
   return names;
+}
+
+const DISABLED_RULE = /\.btn:disabled\s*\{[^}]*opacity:\s*([\d.]+)/;
+const DISABLED_CLASS = /disabled:opacity-(\d+)/g;
+
+/**
+ * Насколько эталон гасит недоступную кнопку (`.btn:disabled`) — долей единицы.
+ *
+ * Читается из эталона, а не переписывается числом: переписанное число расходится с
+ * эталоном молча, и сверка начинает подтверждать саму себя.
+ */
+export function referenceDisabledOpacity(css: string): number | undefined {
+  const found = DISABLED_RULE.exec(css);
+  return found === null ? undefined : Number(found[1]);
+}
+
+/** Доли гашения, которые вёрстка задаёт недоступным элементам. */
+export function disabledOpacities(source: string): readonly number[] {
+  const values: number[] = [];
+  source.replace(DISABLED_CLASS, (_whole: string, percent: string) => {
+    values.push(Number(percent) / 100);
+    return "";
+  });
+  return values;
 }
