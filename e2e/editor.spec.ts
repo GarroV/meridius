@@ -34,6 +34,19 @@ const EVENING_LABEL = "Вечер, 20:00–00:00";
 const EVENING_WINDOW = "20:00|00:00";
 const MORNING_WINDOW = "06:00|11:00";
 
+// Ширина телефона из решения D092 — та же, на которой проверяются экраны заполнения.
+const PHONE = { width: 375, height: 812 } as const;
+
+/** Ширина документа и окна: расхождение — это и есть горизонтальная прокрутка. */
+async function pageWidth(
+  page: Page,
+): Promise<{ scrollWidth: number; clientWidth: number }> {
+  return page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+}
+
 function label(): string {
   return Math.random().toString(36).slice(2, 8);
 }
@@ -590,6 +603,37 @@ test.describe("редактор чек-листа", () => {
     await expect(page.getByTestId("checklist-window")).toHaveValue(
       MORNING_WINDOW,
     );
+  });
+
+  // T178 и решение D092: кабинет обязан быть пригоден для правки с телефона. Обе формы
+  // ниже — обычные: ни таблицы, ни сложного разбора, то есть послаблений D092 у них нет.
+  // Ловится это только настоящим браузером на настоящей ширине — разметка та же самая,
+  // разъезжается вычисленная ширина (тот же приём, что у ленты в `feed.spec.ts`).
+  test("формы кабинета живут на 375 px: заведение и удаление не уезжают вбок", async ({
+    page,
+  }) => {
+    await signIn(page);
+    const editorUrl = await createChecklist(page, `Телефон ${label()}`);
+
+    await page.setViewportSize(PHONE);
+
+    await page.goto(`${CHECKLISTS_PATH}/new`);
+    await expect(page.getByTestId("new-checklist-form")).toBeVisible();
+    const creation = await pageWidth(page);
+    expect(
+      creation.scrollWidth,
+      "Экран заведения шире окна телефона: методист листает вбок вместо того, чтобы " +
+        "завести чек-лист.",
+    ).toBe(creation.clientWidth);
+
+    await page.goto(`${editorUrl}/delete`);
+    await expect(page.getByTestId("remove-checklist-screen")).toBeVisible();
+    const removal = await pageWidth(page);
+    expect(
+      removal.scrollWidth,
+      "Экран подтверждения удаления шире окна телефона: кнопка «Отмена» уезжает за " +
+        "край, а рядом стоит необратимое действие.",
+    ).toBe(removal.clientWidth);
   });
 
   // T185: окон в списке три, а в боевых данных живут 05:00–17:00 и 06:00–23:00 —

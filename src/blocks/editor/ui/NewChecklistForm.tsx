@@ -65,7 +65,12 @@ const CONTROL_CLASS =
   "text-ink bg-surface h-[var(--control-h)] w-full rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-lead)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const CARD_CLASS =
   "bg-surface max-w-[880px] rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
-const ROW_CLASS = "flex gap-[var(--space-6)] [&>*]:min-w-0 [&>*]:flex-1";
+// Поля становятся в строку, пока строка их вмещает, и переносятся, когда нет: у каждого
+// поля есть своя ширина (`basis`), иначе `flex-1` с нулевой основой не переносит НИКОГДА
+// и три поля делят между собой хоть 60 точек. `min-w-0` при этом обязателен — без него
+// поле, оставшееся на строке одно, не сжимается до ширины телефона и тащит форму вбок.
+const ROW_CLASS =
+  "flex flex-wrap gap-[var(--space-6)] [&>*]:min-w-0 [&>*]:flex-1 [&>*]:basis-[220px]";
 const TIME_CLASS =
   "text-ink bg-surface h-[var(--control-h)] min-w-0 flex-1 rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-4)] font-[family-name:var(--font-num)] text-[length:var(--fs-body)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const HINT_CLASS =
@@ -204,7 +209,7 @@ export function NewChecklistForm({
 
         <input type="hidden" name="locale" value={locale} />
 
-        <div className="flex items-center gap-[var(--space-5)]">
+        <div className="flex flex-wrap items-center gap-[var(--space-5)]">
           {/*
             `data-live` — признак того, что форма ожила (`core/ui/use-live.tsx`). До гидратации
             кнопка выглядит рабочей и отправляет форму обычным способом браузера, и это

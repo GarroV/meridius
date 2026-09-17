@@ -83,7 +83,12 @@ export async function RemoveChecklistScreen({
           {explanation}
         </p>
 
-        <div className="flex items-center gap-[var(--space-5)]">
+        {/*
+          Кнопки переносятся, а не уезжают за край: рядом стоит необратимое действие,
+          и «Отмена», ушедшая за правую границу экрана телефона, — это выбор без
+          второго варианта (D092).
+        */}
+        <div className="flex flex-wrap items-center gap-[var(--space-5)]">
           <form action={submitDeleteChecklist}>
             <input type="hidden" name="checklistId" value={id} />
             <button
