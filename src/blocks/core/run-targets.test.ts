@@ -94,6 +94,9 @@ describe("цели прогона — один список", () => {
 
   test("флаги прогона заданы один раз — в package.json", () => {
     expect(PACKAGE.scripts["test"]).toContain("--coverage");
+    // Один только машинный отчёт — это красный прогон, который НЕ печатает, что упало:
+    // при `--reporter=junit` в одиночку консоль показывает лишь «отчёт записан».
+    expect(PACKAGE.scripts["test"]).toContain("--reporter=default");
     expect(PACKAGE.scripts["test"]).toContain(
       "--outputFile=reports/vitest.junit.xml",
     );

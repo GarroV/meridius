@@ -12,7 +12,7 @@
     "start": "node scripts/next-app.mjs start",
     "up": "./scripts/up",
     "check": "./scripts/check",
-    "test": "vitest run --coverage --reporter=junit --outputFile=reports/vitest.junit.xml",
+    "test": "vitest run --coverage --reporter=default --reporter=junit --outputFile=reports/vitest.junit.xml",
     "e2e": "playwright test",
     "format": "prettier --write .",
     "db:generate": "node scripts/db-generate-refused.mjs",
