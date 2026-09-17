@@ -183,6 +183,8 @@
       "windowOwn": "Custom window",
       "windowOwnFrom": "Custom window: start",
       "windowOwnTo": "Custom window: end",
+      "windowOwnFromShort": "from",
+      "windowOwnToShort": "to",
       "windowOwnHint": "No such shift in the list? Set both bounds of your own window — it wins over the list.",
       "create": "Create checklist",
       "cancel": "Cancel"

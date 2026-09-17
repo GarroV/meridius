@@ -43,6 +43,8 @@ export interface NewChecklistLabels {
   readonly windowOwn: string;
   readonly windowOwnFrom: string;
   readonly windowOwnTo: string;
+  readonly windowOwnFromShort: string;
+  readonly windowOwnToShort: string;
   readonly windowOwnHint: string;
   readonly create: string;
   readonly cancel: string;
@@ -75,6 +77,8 @@ const TIME_CLASS =
   "text-ink bg-surface h-[var(--control-h)] min-w-0 flex-1 rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-4)] font-[family-name:var(--font-num)] text-[length:var(--fs-body)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const HINT_CLASS =
   "text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--ink-3)]";
+const BOUND_CLASS =
+  "flex min-w-0 flex-1 basis-[132px] items-center gap-[var(--space-4)]";
 const FIELD_CLASS = "flex flex-col gap-[var(--space-3)]";
 const BTN_PRIMARY_CLASS =
   "bg-accent inline-flex h-[var(--control-h)] items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60";
@@ -185,23 +189,42 @@ export function NewChecklistForm({
               тем же способом, что и выбор списка, — без состояния React и без скриптов;
               заполненные обе границы сильнее списка (`windowFromFields`).
             */}
-            <div className="flex flex-wrap items-center gap-[var(--space-4)]">
-              <span className={HINT_CLASS}>{labels.windowOwn}</span>
-              <input
-                type="time"
-                name={WINDOW_FROM_FIELD}
-                data-testid="new-checklist-window-from"
-                aria-label={labels.windowOwnFrom}
-                className={TIME_CLASS}
-              />
-              <span className={HINT_CLASS}>–</span>
-              <input
-                type="time"
-                name={WINDOW_TO_FIELD}
-                data-testid="new-checklist-window-to"
-                aria-label={labels.windowOwnTo}
-                className={TIME_CLASS}
-              />
+            <span className={FIELD_LABEL_CLASS}>{labels.windowOwn}</span>
+            {/*
+              Подпись стоит своей строкой, а не первым словом ряда: на 375 px ряд из
+              подписи и двух полей времени переносился ПОСЕРЕДИНЕ, и первое поле
+              оставалось узкой пустой рамкой без «--:--» — сверка с эталоном поймала
+              именно это. Границы подписаны словами, а не тире: перенесённая на свою
+              строку пара без слов читается как два несвязанных поля.
+            */}
+            {/*
+              Каждая граница — свой блок с собственной шириной, и переносится он целиком.
+              Плоский ряд «от [поле] до [поле]» на узком экране рвался ПОСЕРЕДИНЕ, а поле,
+              делившее строку с соседом, схлопывалось до значка часов: у `flex-1` основа
+              нулевая, поэтому перенос не случался вовсе, а свободная ширина делилась
+              между двумя полями пополам. Поймано сверкой снимков, дважды.
+            */}
+            <div className="flex flex-wrap items-center gap-x-[var(--space-4)] gap-y-[var(--space-3)]">
+              <span className={BOUND_CLASS}>
+                <span className={HINT_CLASS}>{labels.windowOwnFromShort}</span>
+                <input
+                  type="time"
+                  name={WINDOW_FROM_FIELD}
+                  data-testid="new-checklist-window-from"
+                  aria-label={labels.windowOwnFrom}
+                  className={TIME_CLASS}
+                />
+              </span>
+              <span className={BOUND_CLASS}>
+                <span className={HINT_CLASS}>{labels.windowOwnToShort}</span>
+                <input
+                  type="time"
+                  name={WINDOW_TO_FIELD}
+                  data-testid="new-checklist-window-to"
+                  aria-label={labels.windowOwnTo}
+                  className={TIME_CLASS}
+                />
+              </span>
             </div>
             <span className={HINT_CLASS}>{labels.windowOwnHint}</span>
           </div>

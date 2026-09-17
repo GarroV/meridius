@@ -18,6 +18,8 @@ const TIME_CLASS =
   "text-ink bg-surface h-[var(--control-h)] min-w-0 flex-1 rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-4)] font-[family-name:var(--font-num)] text-[length:var(--fs-body)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const HINT_CLASS =
   "text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--ink-3)]";
+const BOUND_CLASS =
+  "flex min-w-0 flex-1 basis-[132px] items-center gap-[var(--space-4)]";
 
 /**
  * Свойства чек-листа: название, станция, окно.
@@ -126,34 +128,48 @@ export function PropertiesCard({
             )}
           </select>
 
-          <div className="flex flex-wrap items-center gap-[var(--space-4)]">
-            <span className={HINT_CLASS}>{t("windowOwn")}</span>
-            <input
-              type="time"
-              data-testid="checklist-window-from"
-              aria-label={t("windowOwnFrom")}
-              className={TIME_CLASS}
-              value={window.start}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                // Пустое значение приходит, пока время дописывается, — тот же случай,
-                // что у отрезков обхода: записать его значит стереть границу на
-                // середине набора.
-                if (event.target.value === "") return;
-                onWindow({ ...window, start: event.target.value });
-              }}
-            />
-            <span className={HINT_CLASS}>–</span>
-            <input
-              type="time"
-              data-testid="checklist-window-to"
-              aria-label={t("windowOwnTo")}
-              className={TIME_CLASS}
-              value={window.end}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                if (event.target.value === "") return;
-                onWindow({ ...window, end: event.target.value });
-              }}
-            />
+          <span className={FIELD_LABEL_CLASS}>{t("windowOwn")}</span>
+          {/* Подпись своей строкой и границы словами — по той же причине, что на экране
+              заведения: ряд «подпись + два поля времени» на 375 px рвался посередине. */}
+          {/*
+            Каждая граница — свой блок с собственной шириной, и переносится он целиком.
+            Плоский ряд «от [поле] до [поле]» на узком экране рвался ПОСЕРЕДИНЕ, а поле,
+            делившее строку с соседом, схлопывалось до значка часов: у `flex-1` основа
+            нулевая, поэтому перенос не случался вовсе, а свободная ширина делилась
+            между двумя полями пополам. Поймано сверкой снимков, дважды.
+          */}
+          <div className="flex flex-wrap items-center gap-x-[var(--space-4)] gap-y-[var(--space-3)]">
+            <span className={BOUND_CLASS}>
+              <span className={HINT_CLASS}>{t("windowOwnFromShort")}</span>
+              <input
+                type="time"
+                data-testid="checklist-window-from"
+                aria-label={t("windowOwnFrom")}
+                className={TIME_CLASS}
+                value={window.start}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                  // Пустое значение приходит, пока время дописывается, — тот же случай,
+                  // что у отрезков обхода: записать его значит стереть границу на
+                  // середине набора.
+                  if (event.target.value === "") return;
+                  onWindow({ ...window, start: event.target.value });
+                }}
+              />
+            </span>
+            <span className={BOUND_CLASS}>
+              <span className={HINT_CLASS}>{t("windowOwnToShort")}</span>
+              <input
+                type="time"
+                data-testid="checklist-window-to"
+                aria-label={t("windowOwnTo")}
+                className={TIME_CLASS}
+                value={window.end}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                  if (event.target.value === "") return;
+                  onWindow({ ...window, end: event.target.value });
+                }}
+              />
+            </span>
           </div>
         </div>
       </div>
