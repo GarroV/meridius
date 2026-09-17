@@ -3,6 +3,9 @@
 export type { DemoSeedSummary, DemoStationCode, SeedOptions } from "./seed";
 export { seedDemo } from "./seed";
 
+// Отказ сида, сказанный словами: печатает `scripts/seed-demo.mjs`.
+export { DemoSeedError, describeSeedFailure } from "./failure";
+
 export type { DemoDataset } from "./model";
 export { DEMO } from "./dataset";
 

@@ -7,9 +7,11 @@ import { and, eq, inArray } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, test } from "vitest";
 
 import {
+  alarms,
   blocks,
   checklistVersions,
   checklists,
+  checks,
   countFailedCritical,
   countries,
   getPublishedVersionForStation,
@@ -24,6 +26,7 @@ import {
   createPublishedVersion,
   createStation,
   sampleSections,
+  uniqueStationCode,
 } from "@/blocks/data/testing/fixtures";
 
 import { DEMO } from "./dataset";
@@ -310,5 +313,236 @@ describe("сид демонстрационного контура", () => {
         (answer) => (answer.comment ?? "").trim() !== "",
       ),
     ).toBe(true);
+  });
+});
+
+/**
+ * Сколько строк лежит в контуре СЕЙЧАС — не по списку опознавателей из описания, а по
+ * принадлежности: страна → пиццерии → станции → чек-листы → версии и заполнения.
+ * Счёт по опознавателям здесь бесполезен: он не увидит ровно того, что заводят в контуре
+ * руками, а именно это и должен снимать повторный прогон.
+ */
+async function contourSize(): Promise<Record<string, number>> {
+  const storeRows = await db
+    .select({ id: stores.id })
+    .from(stores)
+    .where(eq(stores.countryId, DEMO.country.id));
+  const storeIds = storeRows.map((row) => row.id);
+
+  const stationRows =
+    storeIds.length === 0
+      ? []
+      : await db
+          .select({ id: stations.id })
+          .from(stations)
+          .where(inArray(stations.storeId, storeIds));
+  const foundStations = stationRows.map((row) => row.id);
+
+  const checklistRows =
+    foundStations.length === 0
+      ? []
+      : await db
+          .select({ id: checklists.id })
+          .from(checklists)
+          .where(inArray(checklists.stationId, foundStations));
+  const foundChecklists = checklistRows.map((row) => row.id);
+
+  const versionRows =
+    foundChecklists.length === 0
+      ? []
+      : await db
+          .select({ id: checklistVersions.id })
+          .from(checklistVersions)
+          .where(inArray(checklistVersions.checklistId, foundChecklists));
+
+  const submissionRows =
+    foundStations.length === 0
+      ? []
+      : await db
+          .select({ id: submissions.id })
+          .from(submissions)
+          .where(inArray(submissions.stationId, foundStations));
+
+  return {
+    stores: storeIds.length,
+    stations: foundStations.length,
+    checklists: foundChecklists.length,
+    versions: versionRows.length,
+    submissions: submissionRows.length,
+  };
+}
+
+describe("сид на контуре, в котором уже поработали", () => {
+  beforeEach(async () => {
+    await seedDemo({ now: NOW });
+  });
+
+  test("станция, заведённая в демо-пиццерии, снимается повторным прогоном", async () => {
+    const reference = await contourSize();
+    const storeId = DEMO.stores[0]?.id ?? "";
+    const strayId = randomUUID();
+    await db.insert(stations).values({
+      id: strayId,
+      storeId,
+      name: "Manager desk",
+      code: uniqueStationCode(),
+    });
+
+    await seedDemo({ now: NOW });
+
+    expect(await contourSize()).toStrictEqual(reference);
+    expect(
+      await db
+        .select({ id: stations.id })
+        .from(stations)
+        .where(eq(stations.id, strayId)),
+    ).toHaveLength(0);
+  });
+
+  test("пиццерия, заведённая в демо-стране, снимается повторным прогоном", async () => {
+    const reference = await contourSize();
+    const strayStore = randomUUID();
+    const strayStation = randomUUID();
+    await db.insert(stores).values({
+      id: strayStore,
+      countryId: DEMO.country.id,
+      name: "Demoland, Airport",
+      timezone: "UTC",
+    });
+    await db.insert(stations).values({
+      id: strayStation,
+      storeId: strayStore,
+      name: "Kitchen",
+      code: uniqueStationCode(),
+    });
+
+    await seedDemo({ now: NOW });
+
+    expect(await contourSize()).toStrictEqual(reference);
+    expect(
+      await db
+        .select({ id: stores.id })
+        .from(stores)
+        .where(eq(stores.id, strayStore)),
+    ).toHaveLength(0);
+  });
+
+  test("чек-лист, заведённый на демо-станции, снимается вместе с версией и заполнением", async () => {
+    const reference = await contourSize();
+    const stationId = stationIds[0] ?? "";
+    const checklistId = await createChecklist({ stationId });
+    const versionId = await createPublishedVersion(
+      checklistId,
+      sampleSections("демо-показ"),
+    );
+    const submissionId = randomUUID();
+    await db.insert(submissions).values({
+      id: submissionId,
+      versionId,
+      stationId,
+      snapshot: sampleSections("демо-показ"),
+      answers: [],
+      startedAt: NOW,
+    });
+
+    await seedDemo({ now: NOW });
+
+    expect(await contourSize()).toStrictEqual(reference);
+    expect(
+      await db
+        .select({ id: checklists.id })
+        .from(checklists)
+        .where(eq(checklists.id, checklistId)),
+    ).toHaveLength(0);
+  });
+
+  test("отметка обхода и будильник на демо-станции снимаются вместе с контуром", async () => {
+    const stationId = stationIds[0] ?? "";
+    const versionId =
+      DEMO.checklists.find((checklist) => checklist.stationId === stationId)
+        ?.versions[0]?.id ?? "";
+    const checkId = randomUUID();
+    const alarmId = randomUUID();
+    await db.insert(checks).values({
+      id: checkId,
+      stationId,
+      versionId,
+      itemId: "item-1",
+      localDate: "2026-09-01",
+      intervalStart: 0,
+      value: true,
+    });
+    await db.insert(alarms).values({
+      id: alarmId,
+      stationId,
+      at: NOW,
+      label: "Проверить печь",
+    });
+
+    await seedDemo({ now: NOW });
+
+    expect(
+      await db
+        .select({ id: checks.id })
+        .from(checks)
+        .where(eq(checks.id, checkId)),
+    ).toHaveLength(0);
+    expect(
+      await db
+        .select({ id: alarms.id })
+        .from(alarms)
+        .where(eq(alarms.id, alarmId)),
+    ).toHaveLength(0);
+  });
+
+  test("после прогона по обжитому контуру состояние совпадает с эталонным", async () => {
+    const reference = await readState();
+    const storeId = DEMO.stores[0]?.id ?? "";
+    const strayStation = randomUUID();
+    await db.insert(stations).values({
+      id: strayStation,
+      storeId,
+      name: "Manager desk",
+      code: uniqueStationCode(),
+    });
+    const checklistId = await createChecklist({ stationId: strayStation });
+    await createPublishedVersion(checklistId, sampleSections("показ"));
+
+    await seedDemo({ now: NOW });
+
+    expect(await readState()).toStrictEqual(reference);
+  });
+});
+
+describe("сид отказывает понятным текстом", () => {
+  test("называет заполнение рабочей станции, сделанное по версии демо-чек-листа", async () => {
+    await seedDemo({ now: NOW });
+    const foreign = await createStation();
+    const versionId = DEMO.checklists[0]?.versions[0]?.id ?? "";
+    const submissionId = randomUUID();
+    await db.insert(submissions).values({
+      id: submissionId,
+      versionId,
+      stationId: foreign.stationId,
+      snapshot: [],
+      answers: [],
+      startedAt: NOW,
+    });
+
+    try {
+      const failure = await seedDemo({ now: NOW }).catch(
+        (error: unknown) => error,
+      );
+
+      expect(failure).toBeInstanceOf(Error);
+      const text = failure instanceof Error ? failure.message : "";
+      // Человеку должно быть названо И что мешает, И что с этим делать.
+      expect(text).toContain(submissionId);
+      expect(text).toContain(foreign.stationId);
+      expect(text).toMatch(/заполнени/i);
+      expect(text).not.toMatch(/DrizzleQueryError/);
+    } finally {
+      await db.delete(submissions).where(eq(submissions.id, submissionId));
+    }
   });
 });

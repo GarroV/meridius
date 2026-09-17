@@ -23,7 +23,8 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-const { seedDemo } = await import("../src/blocks/demo/index.ts");
+const { seedDemo, describeSeedFailure } =
+  await import("../src/blocks/demo/index.ts");
 const { stationScanUrl } = await import("../src/blocks/qr/scan-url.ts");
 
 const origin =
@@ -49,6 +50,12 @@ try {
       `  ${item.store} · ${item.station}\n    ${stationScanUrl(origin, item.code)}`,
     );
   }
+} catch (error) {
+  // Отказ печатается человеком читаемым текстом, а не трассой драйвера: сид запускают
+  // перед показом, и `DrizzleQueryError` с `ri_triggers.c` не говорит запускающему
+  // ни что помешало, ни что с этим делать (T173).
+  console.error(describeSeedFailure(error));
+  process.exitCode = 1;
 } finally {
   // Пул слоя доступа живёт на globalThis (см. src/blocks/data/client.ts): без его
   // закрытия сценарий висит на открытом соединении вместо того, чтобы завершиться.
