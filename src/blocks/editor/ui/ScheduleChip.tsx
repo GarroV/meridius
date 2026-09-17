@@ -34,15 +34,32 @@ import { stepLabel } from "./step-label";
 
 type Translate = ReturnType<typeof useTranslations>;
 
-// Вид чипа вынесен в экспорт и БЕЗ `cursor-pointer`: ту же строку пункта рисует правка
-// блока библиотеки, и там чип показывает регулярность, но не открывается (D097, T198).
-// Одно место на оба экрана — потому что «блок в админке выглядит так же, как блок в
-// чек-листе» (D096) перестаёт быть правдой в тот же день, когда вид скопирован.
-// Указатель мыши добавляет тот, у кого чип нажимается.
+// Вид чипа вынесен в экспорт: ту же строку пункта рисует правка блока библиотеки, и там
+// чип показывает регулярность, но не открывается (D097, T198). Одно место на оба экрана —
+// потому что «блок в админке выглядит так же, как блок в чек-листе» (D096) перестаёт быть
+// правдой в тот же день, когда вид скопирован.
+//
+// Разделено НЕ по красоте, а по обещанию (T224, дефект #101). Всё, чем элемент обещает
+// нажатие, вынесено в `CHIP_ACTION_CLASS` и `CHIP_OFF_HOVER_CLASS` и добавляется тем, у
+// кого нажатие есть. До этой правки показывающий чип библиотеки брал общий вид целиком, а
+// с ним — отклик на наведение (замерено живым браузером: рамка 215,219,224 → 185,193,202,
+// текст 98,107,119 → 92,102,114) и кольцо фокуса, которое `span` показать не может вовсе.
+// Первое обещает нажатие, второго не бывает: мёртвое правило дожидается дня, когда
+// элемент станет фокусируемым, и срабатывает уже не там, где его писали.
+/** Коробка чипа: высота, рамка, шрифт. Ничего про нажатие. */
 export const CHIP_CLASS =
-  "flex h-[var(--control-h-sm)] items-center rounded-[var(--r-control)] border px-[var(--space-4)] text-[length:var(--fs-dense)] whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]";
+  "flex h-[var(--control-h-sm)] items-center rounded-[var(--r-control)] border px-[var(--space-4)] text-[length:var(--fs-dense)] whitespace-nowrap";
+// Две константы ниже НЕ экспортируются, и это не забывчивость: взять их наружу может
+// только тот, у кого нажатие есть, а такой чип в продукте один — этот. Экспорт означал бы
+// приглашение повторить ошибку T224 на следующем показывающем элементе.
+/** Признаки нажимаемого: рука под курсором и кольцо фокуса. Только настоящей кнопке. */
+const CHIP_ACTION_CLASS =
+  "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]";
 export const CHIP_OFF_CLASS =
-  "bg-surface border-[var(--line-control)] text-[var(--ink-3)] hover:border-[var(--line-control-2)] hover:text-[var(--ink-2)]";
+  "bg-surface border-[var(--line-control)] text-[var(--ink-3)]";
+/** Отклик погашенного чипа на наведение — тоже обещание нажатия, поэтому отдельно. */
+const CHIP_OFF_HOVER_CLASS =
+  "hover:border-[var(--line-control-2)] hover:text-[var(--ink-2)]";
 export const CHIP_ON_CLASS =
   "border-[var(--accent-line)] bg-[var(--accent-soft)] text-[var(--accent)] font-medium";
 // Окно собрано по единственному задокументированному образцу модалки дизайн-системы
@@ -249,7 +266,7 @@ export function ScheduleChip({
         aria-haspopup="dialog"
         aria-expanded={open}
         title={t("open")}
-        className={`${CHIP_CLASS} cursor-pointer ${chipSummary(item).kind === "none" ? CHIP_OFF_CLASS : CHIP_ON_CLASS}`}
+        className={`${CHIP_CLASS} ${CHIP_ACTION_CLASS} ${chipSummary(item).kind === "none" ? `${CHIP_OFF_CLASS} ${CHIP_OFF_HOVER_CLASS}` : CHIP_ON_CLASS}`}
         onClick={openDialog}
       >
         {chipLabel(item, t)}

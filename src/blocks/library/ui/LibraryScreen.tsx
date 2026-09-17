@@ -22,6 +22,18 @@ import type { LibraryBlockRow, LibraryModel, LibrarySelection } from "./model";
 
 type Translate = Awaited<ReturnType<typeof getTranslations>>;
 
+// Список блоков и карточка правки: две колонки, пока для них есть место, и одна, когда
+// места нет (T223, дефект #100).
+//
+// Почему граница на `lg`, а не на складке кабинета (`--page-fold`, 768 px). Складка —
+// про каркас: ниже неё боковое меню становится верхней полосой. Колонке списка это места
+// не добавляет, она фиксированные 320 px. Замерено в этой копии живым браузером: на
+// 1280 px карточке правки достаётся 684 px, на 768 px осталось бы 172 px, а на 390 px
+// было 18 px — то есть полоска у правого края вместо карточки. Ровно так же и по той же
+// причине складывается редактор (`ChecklistEditor`, `max-lg`): экран с колонкой
+// постоянной ширины упирается раньше, чем кабинет целиком.
+const SPLIT_CLASS =
+  "grid items-start gap-[var(--space-8)] [grid-template-columns:320px_1fr] max-lg:[grid-template-columns:minmax(0,1fr)]";
 const CARD_CLASS =
   "bg-surface rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
 const CARD_HEAD_CLASS =
@@ -36,8 +48,15 @@ const ROW_SELECTED_CLASS =
   "text-accent flex items-center gap-[var(--space-4)] border-b border-[var(--line)] bg-[var(--accent-soft)] px-[var(--space-6)] py-[var(--space-5)] font-medium no-underline";
 const ROW_META_CLASS =
   "ml-auto text-[length:var(--fs-meta)] font-normal text-[var(--ink-3)]";
+// Метка «где используется». Переносится ВНУТРИ себя, а не только между соседями
+// (T223): подпись собирается из названия чек-листа, станции, пиццерии и города, и на
+// английском выходит длиннее, чем на русском. Замерено на телефоне: «Morning opening —
+// Kitchen · Demoland, Central Square» занимала 405 px в карточке шириной 358 и вылезала
+// за её рамку — при том что сами метки друг относительно друга переносились исправно.
+// Поэтому высота минимальная, а не жёсткая: метка в две строки выше пилюли, но целая.
+// На широком экране подпись помещается в строку, и вид не меняется вовсе.
 const TAG_ACCENT_CLASS =
-  "inline-flex h-[20px] items-center rounded-[var(--r-mark)] border border-[var(--accent-line)] bg-[var(--accent-soft)] px-[var(--space-4)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] whitespace-nowrap text-[var(--accent)] uppercase no-underline hover:border-[var(--accent)]";
+  "inline-flex max-w-full min-h-[20px] items-center rounded-[var(--r-mark)] border border-[var(--accent-line)] bg-[var(--accent-soft)] px-[var(--space-4)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--accent)] uppercase no-underline hover:border-[var(--accent)]";
 const META_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const BTN_PRIMARY_CLASS =
   "bg-accent inline-flex h-[var(--control-h)] cursor-pointer items-center justify-center rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)]";
@@ -212,7 +231,7 @@ export async function LibraryScreen({
       {model.selection === null ? (
         <EmptyLibrary t={t} />
       ) : (
-        <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:320px_1fr]">
+        <div className={SPLIT_CLASS}>
           <section className={CARD_CLASS} data-testid="library-list">
             <div className={CARD_HEAD_CLASS}>
               <h2 className={CARD_TITLE_CLASS}>{t("listTitle")}</h2>
