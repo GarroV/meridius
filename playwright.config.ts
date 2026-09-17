@@ -1,6 +1,4 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 import { defineConfig, devices } from "@playwright/test";
 
@@ -10,32 +8,26 @@ import {
 } from "./e2e/admin-credentials";
 import { e2eDatabaseUrl } from "./e2e/database";
 import { E2E_PUBLIC_BASE_URL } from "./e2e/public-base-url";
+import { appPort } from "./src/blocks/core/app-port";
 
-// Порт из переменной: параллельные копии репозитория (стройка блоками) иначе делят один
-// порт. Умолчание 3101 — то же, что было: 3100 остаётся за `npm run dev`, сквозные
-// сценарии поднимают свой сервер рядом и разработке не мешают.
+// Порт прогона — соседний к порту самой копии, а не общий.
 //
-// Но умолчания недостаточно: копия блока знает свой порт из настроек, а прогон об этом не
-// спрашивал и уходил на общий 3101 — вне выданных блокам диапазонов. Два блока с полным
-// прогоном одновременно перехватывали сервер друг у друга, и проигравший краснел по чужой
-// причине (T111, issue #21). Поэтому, когда `E2E_PORT` не задан руками, порт берётся
-// соседним к порту самой копии: у каждой копии он свой, и спорить больше не о чем.
-function portOfThisCopy(): number | undefined {
-  const settingsPath = resolve(process.cwd(), ".env");
-  if (!existsSync(settingsPath)) {
-    // Настроек рядом нет (свежий клон, CI) — это не ошибка, просто берём умолчание.
-    return undefined;
-  }
-  // Читаем без try/catch: файл есть, и если он вдруг нечитаем, это не тот случай,
-  // который надо проглотить. Молча взятый чужой порт — как раз то, что чинит T111.
-  const line = /^PORT=(\d+)/m.exec(readFileSync(settingsPath, "utf8"));
-  return line ? Number(line[1]) : undefined;
-}
-
-const copyPort = process.env["E2E_PORT"] ? undefined : portOfThisCopy();
-const PORT = Number(
-  process.env["E2E_PORT"] ?? (copyPort === undefined ? "3101" : copyPort + 1),
-);
+// Параллельные копии репозитория (стройка блоками) иначе делят один порт: копия знает
+// свой порт из настроек, а прогон об этом не спрашивал и уходил на общий — вне
+// выданных блокам диапазонов. Два блока с полным прогоном одновременно перехватывали
+// сервер друг у друга, и проигравший краснел по чужой причине (T111, issue #21).
+//
+// Порт копии здесь БОЛЬШЕ НЕ РАЗБИРАЕТСЯ: своя копия чтения настроек стояла тут же
+// и была третьей по счёту в проекте (T163). Спрашиваем общий источник — тот же, из которого
+// берут порт `npm run dev`, `npm run start` и `./scripts/up`. Умолчание за ним же:
+// прежнее — это порт приложения по умолчанию плюс один, таким оно и осталось.
+//
+// `E2E_PORT` по-прежнему сильнее всего: им прогон уводят с любого занятого порта.
+const explicitPort = process.env["E2E_PORT"];
+const PORT =
+  explicitPort === undefined || explicitPort.trim() === ""
+    ? appPort() + 1
+    : Number(explicitPort);
 const BASE_URL = `http://localhost:${String(PORT)}`;
 
 /**

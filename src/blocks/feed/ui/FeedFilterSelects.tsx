@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
+
+import { useLive } from "@/blocks/core/ui/use-live";
 
 import type { FeedSelection } from "../model";
 import { FEED_PERIODS } from "../period";
@@ -25,21 +26,10 @@ import {
  * включилось. Разметку списков отдаёт сервер, и до гидратации они выглядят рабочими,
  * принимают выбор и НИЧЕГО не делают: обработчика ещё нет, событие уходит в пустоту.
  * Снаружи эти два состояния неразличимы, а разница между ними — целая навигация
- * (T106). Атрибут ставится эффектом, то есть после коммита гидратации: раз он
- * появился, обработчик выбора уже на месте. Это тот же род фактов о разметке, что
- * `data-testid` и `data-kind` рядом, и он же честно описывает вторую половину
- * прогрессивного улучшения — первую описывает кнопка в `<noscript>`.
+ * (T106). Признак берётся общим хуком `useLive` (`@/blocks/core/ui/use-live`): здесь
+ * стоял свой такой же, и три одинаковых по поведению применения в трёх блоках — это
+ * развилка, на которой следующий блок копирует любое из них наугад (T131).
  */
-
-/** `true`, когда компонент смонтирован на клиенте, то есть выбор уже применяется сам. */
-function useAppliesOnChange(): boolean {
-  const [live, setLive] = useState(false);
-  // Пустые зависимости: факт «гидратация доехала» случается один раз за жизнь страницы.
-  useEffect(() => {
-    setLive(true);
-  }, []);
-  return live;
-}
 
 /**
  * Поле фильтра. 150 px — ширина с эталона, но она включается только с `sm`.
@@ -137,7 +127,7 @@ export function FeedFilterSelects({
   selection,
   labels,
 }: FeedFilterSelectsProps): ReactElement {
-  const live = useAppliesOnChange();
+  const live = useLive();
 
   const periodLabels: Record<string, string> = {
     today: labels.periodToday,

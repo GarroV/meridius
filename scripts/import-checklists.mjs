@@ -60,6 +60,10 @@ const { STATION_CODE_ALPHABET, STATION_CODE_LENGTH } =
 const { stationLinkLines } = await import("../src/blocks/qr/station-links.ts");
 const { publicBasePath } = await import("../src/blocks/qr/sticker-origin.ts");
 const { eq, inArray } = await import("drizzle-orm");
+// Умолчание адреса — общий источник порта (src/blocks/core/app-port.ts), а не свой
+// разбор process.env.PORT: разбор на месте не уважал .env копии и печатал ссылки
+// станций на чужой стенд.
+const { appPort } = await import("../src/blocks/core/app-port.ts");
 
 const NAMESPACE = "meridius/import/v1";
 
@@ -478,8 +482,7 @@ try {
   });
 
   const origin =
-    process.env.PUBLIC_BASE_URL ||
-    `http://localhost:${process.env.PORT || "3100"}`;
+    process.env.PUBLIC_BASE_URL || `http://localhost:${String(appPort())}`;
 
   console.log("Пакет заведён.");
   console.log(`  снято чек-листов прошлого прогона: ${summary.removed}`);

@@ -2,10 +2,11 @@
 
 import type { ReactElement } from "react";
 
+import { useLive } from "@/blocks/core/ui/use-live";
+
 import { COUNTRY_PARAM, STATION_PARAM, STORE_PARAM } from "../filter";
 import type { ChecklistFilterSelection, FilterOption } from "../filter-options";
 import { SELECT_ARROW } from "./select-style";
-import { useLive } from "./use-live";
 
 /**
  * Три списка фильтра (эталон `docs/furca/design/screens/templates.html`, строки 48–57):
@@ -26,7 +27,7 @@ import { useLive } from "./use-live";
  * выбор — и не делает ничего: обработчика ещё нет, событие `change` уходит в пустоту,
  * и перехода, которого ждёт следующий шаг, не будет никогда. Снаружи эти два состояния
  * неразличимы (T121, тот же класс, что T106 в ленте). Почему признак ставится эффектом
- * и почему он живёт в `./use-live` — там же в пояснении.
+ * и почему он живёт в `@/blocks/core/ui/use-live` — там же в пояснении.
  */
 
 const FIELD_BASE_CLASS = "flex flex-col gap-[var(--space-3)]";

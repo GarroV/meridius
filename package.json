@@ -7,9 +7,9 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "next dev --port 3100",
+    "dev": "node scripts/next-app.mjs dev",
     "build": "next build",
-    "start": "next start --port 3100",
+    "start": "node scripts/next-app.mjs start",
     "up": "./scripts/up",
     "check": "./scripts/check",
     "test": "vitest run",

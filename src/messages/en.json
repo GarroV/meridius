@@ -14,9 +14,25 @@
     "throttled": "Too many sign-in attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
     "kitchenHint": "Kitchen staff do not need to sign in: the checklist opens from the station QR code."
   },
+  "notFound": {
+    "title": "No such page",
+    "text": "The address does not exist. If you came from a station sticker, the link is incomplete — scan the QR code on the station again.",
+    "home": "Go to the start page"
+  },
+  "failure": {
+    "title": "The page did not open",
+    "text": "The product could not get its data, so the screen has nothing to show. The reason is written to the server log. Try again — if it keeps failing, pass the error code below to whoever runs the service.",
+    "retry": "Try again",
+    "code": "Error code"
+  },
   "admin": {
     "home": "Admin",
     "crumbs": "Workspace",
+    "notFound": {
+      "title": "No such section",
+      "text": "There is no such address in the workspace: it may have a typo, or the section has been removed.",
+      "action": "Back to the workspace"
+    },
     "signedIn": "You are signed in. Choose a section.",
     "signOut": "Sign out",
     "sections": {

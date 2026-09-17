@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useActionState } from "react";
 import type { ReactElement } from "react";
 
+import { useLive } from "@/blocks/core/ui/use-live";
+
 import { submitCreateChecklist } from "../actions";
 import { INITIAL_EDITOR_STATE } from "../action-state";
 import type { StationOption } from "../listing";
@@ -14,7 +16,6 @@ import {
   WINDOW_PRESETS,
   windowFieldValue,
 } from "../window-field";
-import { useLive } from "./use-live";
 
 /**
  * Форма заведения чек-листа (карточка «Свойства чек-листа» из эталона `editor.html`).
@@ -167,7 +168,7 @@ export function NewChecklistForm({
 
         <div className="flex items-center gap-[var(--space-5)]">
           {/*
-            `data-live` — признак того, что форма ожила (`use-live.tsx`). До гидратации
+            `data-live` — признак того, что форма ожила (`core/ui/use-live.tsx`). До гидратации
             кнопка выглядит рабочей и отправляет форму обычным способом браузера, и это
             законный путь: сохранение от скриптов не зависит. Но сценарию нужно уметь
             дождаться ИМЕННО второго пути отправки, иначе он проверит только первый.

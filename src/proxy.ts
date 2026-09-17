@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { sessionSecret } from "@/blocks/auth/config";
+import { PUBLIC_FILL_ROOT } from "@/blocks/core/public-routes";
 import { PUBLIC_FILL_PREFIX, securityHeaders } from "@/security-headers";
 import { LOGIN_PATH } from "@/blocks/auth/routes";
 import { SESSION_COOKIE_NAME, readSessionToken } from "@/blocks/auth/session";
@@ -63,6 +64,14 @@ export function proxy(request: NextRequest): NextResponse {
   // Первым делом и без единого обращения к сессии: публичный маршрут о входе не знает.
   if (pathname.startsWith(PUBLIC_FILL_PREFIX))
     return publicFillResponse(request);
+
+  // Обрезанная ссылка станции (`/s/` браузер приводит к `/s`) — тоже публичная сторона,
+  // а не кабинет: человек с кухни обязан увидеть «такого адреса нет», а не пароль
+  // админки, которого у него нет и не должно быть (T187). Ответ идёт обычным путём, то
+  // есть под общей политикой заголовков из `next.config.ts`: одноразовый ключ здесь
+  // некому тратить — страницы заполнения на этом адресе нет, а два заголовка политики на
+  // одном ответе браузер применил бы пересечением, и разбирать потом было бы нечего.
+  if (pathname === PUBLIC_FILL_ROOT) return NextResponse.next();
 
   // Форма входа — единственный адрес под /admin, доступный без сессии.
   if (pathname === LOGIN_PATH || pathname.startsWith(`${LOGIN_PATH}/`)) {
