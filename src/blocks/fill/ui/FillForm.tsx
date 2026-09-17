@@ -23,7 +23,7 @@ import type { RoundOutcome } from "../rounds";
 import type { ShiftModeOutcome } from "../shift-mode";
 import type { SubmitOutcome } from "../submit";
 import { filledRows } from "../table-journal";
-import { formatStationTime } from "../view";
+import { formatStationTime } from "../station-time";
 import { AlarmsPanel } from "./AlarmsPanel";
 import { RoundsPanel } from "./RoundsPanel";
 import type { ShiftState } from "./ShiftModeBar";

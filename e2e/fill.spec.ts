@@ -370,3 +370,65 @@ test.describe("язык экрана заполнения", () => {
     await context.close();
   });
 });
+
+test.describe("время отправки принадлежит кухне, а не телефону", () => {
+  // Пояса взяты заведомо далёкие друг от друга и от пояса машины прогона: между
+  // Токио и Нью-Йорком 13-14 часов, поэтому час на экране расходится всегда, а не
+  // только в удачную минуту прогона. Телефон вдобавок на en-US — там часы
+  // двенадцатичасовые, и одного совпадения цифр было бы мало.
+  const STORE_TZ = "Asia/Tokyo";
+  const PHONE_TZ = "America/New_York";
+
+  test("телефон в чужом поясе и с 12-часовыми часами — на экране время пиццерии", async ({
+    browser,
+  }) => {
+    // Arrange
+    const stand = await seedFillStand("пояс", {
+      timezone: STORE_TZ,
+      countryLocale: "en",
+    });
+    const context = await browser.newContext({
+      viewport: PHONE,
+      hasTouch: true,
+      isMobile: true,
+      locale: "en-US",
+      timezoneId: PHONE_TZ,
+    });
+    const page = await context.newPage();
+    await page.goto(`/s/${stand.code}`);
+
+    // Act
+    await answerBool(page, "i-oven");
+    await page.getByTestId("fill-number").fill("172");
+    await answerBool(page, "i-sauce");
+    await page.getByTestId("fill-text").fill("evening shift");
+    await page.getByTestId("fill-submit").tap();
+    await expect(page.getByTestId("fill-sent")).toBeVisible();
+
+    // Assert: время на экране — то, что записано в базе, в поясе пиццерии и
+    // круглыми сутками. Ожидаемое считается от записи, а не от часов прогона.
+    const stored = await lastSubmission(stand.stationId);
+    expect(stored).not.toBeNull();
+    const at = stored?.submittedAt ?? new Date();
+    const kitchenTime = new Intl.DateTimeFormat("en", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+      timeZone: STORE_TZ,
+    }).format(at);
+    const phoneTime = new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: PHONE_TZ,
+    }).format(at);
+    // Сторож самой проверки: если бы часы совпали, она прошла бы и на старом коде.
+    expect(phoneTime).not.toBe(kitchenTime);
+
+    await expect(page.getByTestId("fill-sent")).toContainText(
+      `Sent at ${kitchenTime}`,
+    );
+    await expect(page.getByTestId("fill-sent")).not.toContainText(phoneTime);
+
+    await context.close();
+  });
+});
