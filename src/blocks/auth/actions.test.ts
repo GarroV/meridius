@@ -72,9 +72,12 @@ beforeEach(async () => {
   jar.clear();
   CLIENT = `203.0.113.7-${randomUUID()}`;
   OTHER = `198.51.100.3-${randomUUID()}`;
-  // Снимается и общий счёт: он один на всех, и накопленное прошлыми проверками
-  // прогона не должно запирать эту.
+  // Счёт снимается с обоих адресов, а не только с основного: клиент опознаётся
+  // корзиной от хэша, корзин конечное число, и адрес прошлой проверки прогона мог лечь
+  // в ту же корзину. Снимается заодно и общий счёт — он один на всех, и накопленное
+  // соседними проверками не должно запирать эту.
   await forgetLoginAttempts(CLIENT);
+  await forgetLoginAttempts(OTHER);
   requestHeaders.clear();
   requestHeaders.set(CLIENT_HEADER, CLIENT);
   process.env["ADMIN_PASSWORD_HASH"] = await cheapHash();
