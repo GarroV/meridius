@@ -55,6 +55,34 @@ async function createChecklist(page: Page, title: string): Promise<string> {
 }
 
 /**
+ * «Сохранить черновик» и ожидание того, что сохранение СОСТОЯЛОСЬ (T195).
+ *
+ * Почему не просто `toHaveText("Черновик сохранён")`, как стояло в семи местах этого файла.
+ * Надпись появляется, только когда серверное действие ВЕРНУЛОСЬ, то есть её пятисекундный
+ * предел покрывал всю дорогу до сервера и обратно: разбор формы, две записи в базу,
+ * `revalidatePath` и перерисовку экрана. На свободной машине это доли секунды, а под
+ * стройкой (три стенда блоков плюс приёмочный, пять воркеров) то же самое занимает
+ * секунды — и сценарий краснел на ровном месте, показывая «ещё не публиковался».
+ *
+ * Измерено порчей (17.09.2026): семь секунд задержки внутри `submitSaveDraft` дают ровно
+ * то падение, которым T195 и описана, — `Received: "ещё не публиковался"`. С ожиданием
+ * ниже тот же прогон с той же задержкой зелёный, и ни один предел не увеличен: ждём не
+ * дольше, а ДРУГОЕ — сначала ответ сервера (событие, а не перепрашиваемую надпись), и
+ * только потом состояние экрана. Тот же приём уже стоит в `library.spec.ts` и по той же
+ * причине: надпись — следствие ответа, и ждать её вместо него значит ставить сценарий
+ * в зависимость от того, насколько занята машина.
+ */
+async function saveDraft(page: Page): Promise<void> {
+  const answered = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" && response.status() < 400,
+  );
+  await page.getByTestId("save-draft").click();
+  await answered;
+  await expect(page.getByTestId("editor-meta")).toHaveText("Черновик сохранён");
+}
+
+/**
  * Заводит блок библиотеки и возвращает его опознаватель. Блок нужен редактору как
  * данные: его вставляют в чек-лист, и из чек-листа обязан быть путь обратно (T115).
  * Сам экран библиотеки проверяет `library.spec.ts` — здесь он только источник блока.
@@ -296,10 +324,7 @@ test.describe("редактор чек-листа", () => {
       "critical",
     );
 
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     await page.reload();
     await expect(page.getByTestId("item-type").first()).toHaveValue("number");
@@ -336,10 +361,7 @@ test.describe("редактор чек-листа", () => {
     // смену, а у обхода свой учёт (D076).
     await expect(page.getByTestId("item-schedule-chip")).toHaveCount(0);
 
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     await page.reload();
     await expect(page.getByTestId("item-type").first()).toHaveValue("table");
@@ -380,10 +402,7 @@ test.describe("редактор чек-листа", () => {
     await page.keyboard.press("ControlOrMeta+KeyV");
     await expect(page.getByTestId("item-title")).toHaveCount(PASTED_ITEMS);
 
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     // Правка пережила перезагрузку — значит она в базе, а не только на экране.
     await page.reload();
@@ -418,10 +437,7 @@ test.describe("редактор чек-листа", () => {
     await createChecklist(page, title);
     await page.getByTestId("item-title").first().click();
     await page.keyboard.type("Выключить печь");
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     await page.goto(CHECKLISTS_PATH);
     const row = page
@@ -582,10 +598,7 @@ test.describe("редактор чек-листа", () => {
     await createChecklist(page, `Предпросмотр ${label()}`);
     await page.getByTestId("item-title").first().click();
     await page.keyboard.type("Включить печь");
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     await page.getByRole("link", { name: "Предпросмотр" }).click();
     const screen = page.getByTestId("preview-screen");
@@ -632,10 +645,7 @@ test.describe("редактор чек-листа", () => {
     await expect(page.getByTestId("schedule-dialog")).toHaveCount(0);
     await expect(chip).toHaveText("06:00–11:00, каждые 2 часа");
 
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     // Главный шаг: страница перечитана с сервера, то есть расписание съездило
     // в базу и вернулось. До этой проверки всё выше доказывало только состояние экрана.
@@ -774,10 +784,7 @@ test.describe("редактор чек-листа", () => {
     await page.getByTestId("schedule-remind").selectOption("20");
     await page.getByTestId("schedule-apply").click();
 
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     await page.getByRole("link", { name: "Предпросмотр" }).click();
     await expect(page.getByTestId("preview-screen")).toBeVisible();
