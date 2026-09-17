@@ -61,3 +61,82 @@ jobs:
           path: reports/
           retention-days: 14
           if-no-files-found: warn
+
+  # Сквозной смоук MVP жил вне всякого автопрогона и молча разошёлся с продуктом
+  # (T199): поле окна чек-листа уехало с ключей на пары времени, смоук остался на
+  # старом значении и падал на целом продукте. Корень был не в значении, а в том,
+  # что проверку ничто не заставляло проходить — поэтому она здесь, отдельной
+  # работой.
+  #
+  # Почему не шагом `scripts/check`. Тот набор зовут ещё хук pre-push и приёмка
+  # блока, и он намеренно не требует поднятого продукта: сервер для сквозных
+  # сценариев playwright поднимает сам. Смоуку нужен поднятый продукт, свой пароль
+  # кабинета и демо-контур в базе — шаг, который при их отсутствии «пропускается»,
+  # неотличим от пройденного, а это ровно тот дефект, из-за которого задача и
+  # появилась.
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Зависимости
+        run: npm ci
+
+      - name: Браузер для смоука
+        run: npx --no-install playwright install --with-deps chromium
+
+      # Пароль кабинета задаётся ДО подготовки стенда: иначе `scripts/up` заведёт
+      # свой и напечатает его в лог, а смоуку он нужен значением, а не из вывода.
+      - name: Пароль кабинета на этот прогон
+        run: |
+          cp .env.example .env
+          password="$(openssl rand -base64 18 | tr -d '\n/+=' | cut -c1-16)"
+          echo "::add-mask::$password"
+          hash_line="$(printf '%s' "$password" | node scripts/hash-admin-password.mjs)"
+          grep -v '^ADMIN_PASSWORD_HASH=' .env > .env.next
+          printf '%s\n' "$hash_line" >> .env.next
+          mv .env.next .env
+          echo "SMOKE_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      # Та же команда, что у человека: база, миграции, демо-контур, сборка.
+      - name: Стенд одной командой (без запуска сервера)
+        run: ./scripts/up --no-start
+
+      - name: Продукт поднят
+        run: |
+          port="$(node scripts/app-port.mjs)"
+          echo "SMOKE_URL=http://localhost:$port" >> "$GITHUB_ENV"
+          # nohup и disown: шаг заканчивается, а продукт должен пережить его и
+          # дожить до следующего.
+          nohup npm start > smoke-server.log 2>&1 &
+          disown
+          for _ in $(seq 1 60); do
+            if curl -sf "http://localhost:$port" -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "продукт не ответил за минуту"; cat smoke-server.log; exit 1
+
+      - name: Смоук MVP
+        run: node scripts/mvp-smoke.mjs --url "$SMOKE_URL" --password "$SMOKE_PASSWORD"
+
+      # Смоук снимает каждый шаг: снимки — это то, что показывают человеку, и на
+      # красном прогоне они говорят больше, чем строка ошибки.
+      - name: Снимки смоука
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: mvp-smoke
+          path: reports/mvp-smoke/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Журнал продукта, если упало
+        if: failure()
+        run: tail -100 smoke-server.log || true
