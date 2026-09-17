@@ -341,6 +341,173 @@ async function signIn(page: Page): Promise<void> {
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }
 
+/** Ячеек в полосе фактов карточки пять: четыре с эталона и режим смены (D055). */
+const FACT_COUNT = 5;
+
+/** Ячейка полосы фактов: где стоит и есть ли у неё левая граница. */
+interface FactCell {
+  readonly top: number;
+  readonly left: number;
+  readonly right: number;
+  readonly borderLeft: number;
+  /** Насколько содержимое ячейки шире самой ячейки: 0 — влезло целиком. */
+  readonly overflow: number;
+  readonly text: string;
+}
+
+/** Ряд полосы фактов: края ряда и сколько ячеек в него легло. */
+interface FactRow {
+  readonly top: number;
+  readonly left: number;
+  readonly right: number;
+  readonly count: number;
+}
+
+/**
+ * Ячейки полосы фактов, снятые из НАСТОЯЩЕЙ раскладки браузера, а не из классов
+ * разметки: класс меняют, не починив вид, и чинят вид, не тронув класс, — про экран
+ * говорит только геометрия. Левая граница снимается вместе с коробкой: именно она
+ * и оставалась висеть в пустоте, когда ячейка переносилась в новый ряд.
+ */
+async function factCells(page: Page): Promise<readonly FactCell[]> {
+  return page.evaluate(() =>
+    [...document.querySelectorAll('[data-testid="submission-fact"]')].map(
+      (cell) => {
+        const box = cell.getBoundingClientRect();
+        return {
+          top: Math.round(box.top),
+          left: Math.round(box.left),
+          right: Math.round(box.right),
+          borderLeft: Number.parseFloat(
+            globalThis.getComputedStyle(cell).borderLeftWidth,
+          ),
+          overflow: Math.max(
+            0,
+            ...[...cell.children].map(
+              (line) => line.scrollWidth - line.clientWidth,
+            ),
+          ),
+          text: cell.textContent.replaceAll(/\s+/gu, " ").trim(),
+        };
+      },
+    ),
+  );
+}
+
+/** Ячейки, сгруппированные в ряды по верхней кромке. */
+function factRows(cells: readonly FactCell[]): readonly FactRow[] {
+  const rows = new Map<number, FactRow>();
+
+  for (const cell of cells) {
+    const known = rows.get(cell.top);
+    rows.set(
+      cell.top,
+      known === undefined
+        ? { top: cell.top, left: cell.left, right: cell.right, count: 1 }
+        : {
+            top: cell.top,
+            left: Math.min(known.left, cell.left),
+            right: Math.max(known.right, cell.right),
+            count: known.count + 1,
+          },
+    );
+  }
+
+  return [...rows.values()].sort((a, b) => a.top - b.top);
+}
+
+/**
+ * Каждый ряд полосы доходит до обоих краёв карточки. Это и есть проверяемое свойство
+ * раскладки: ячейка, стоящая в ряду одна шириной в долю ряда, обрывает его правый край —
+ * ровно так выглядел дефект T171.
+ */
+function assertRowsFillWidth(rows: readonly FactRow[]): void {
+  const left = Math.min(...rows.map((row) => row.left));
+  const right = Math.max(...rows.map((row) => row.right));
+
+  for (const row of rows) {
+    expect(
+      row.left,
+      "Ряд полосы фактов начинается не от края карточки.",
+    ).toBeLessThanOrEqual(left + 1);
+    expect(
+      row.right,
+      "Ряд полосы фактов обрывается, не дойдя до края карточки: ячейка стоит в нём " +
+        "одна, шириной в долю ряда, — это и есть дефект T171.",
+    ).toBeGreaterThanOrEqual(right - 1);
+  }
+}
+
+/**
+ * Вторая половина того же дефекта: ячейка, открывающая ряд, не несёт левой границы.
+ * Разделитель между соседями — это линия МЕЖДУ ними; в начале ряда он упирается в
+ * пустоту и читается как обрезанная таблица. Геометрией это не ловится: ряд при этом
+ * может быть полным.
+ */
+function assertNoDanglingBorder(cells: readonly FactCell[]): void {
+  const leftEdge = Math.min(...cells.map((cell) => cell.left));
+
+  for (const cell of cells.filter((cell) => cell.left <= leftEdge + 1)) {
+    expect(
+      cell.borderLeft,
+      "У ячейки, открывающей ряд полосы фактов, есть левая граница: разделять ей " +
+        "нечего, и она висит в пустоте (дефект T171).",
+    ).toBe(0);
+  }
+}
+
+/**
+ * Третья половина того же дефекта, найденная сверкой с эталоном: ячейка укладывается в
+ * ряд, а её подпись в ячейку — нет. Карточка обрезает переполнение (`overflow-hidden`
+ * ради скруглённых углов), поэтому обрезка НЕ видна ни в ширине страницы, ни в
+ * геометрии рядов: «отправлено» просто становится «отправл». Проверяется прямо:
+ * содержимое ячейки не шире самой ячейки.
+ */
+function assertNoClippedText(cells: readonly FactCell[]): void {
+  for (const cell of cells) {
+    expect(
+      cell.overflow,
+      `Подпись факта не влезает в свою ячейку и обрезается: «${cell.text}». ` +
+        "Полоса выглядит целой, а слова в ней потеряны.",
+    ).toBe(0);
+  }
+}
+
+/** Поясá двух пиццерий сценария о подписи периода: разные и оба не совпадают с машиной. */
+const MIXED_ZONES = ["Asia/Almaty", "Asia/Tashkent"] as const;
+
+/**
+ * Страна с двумя пиццериями в РАЗНЫХ часовых поясах. Только на такой ленте и появляется
+ * подпись периода: когда пояс у всех пиццерий фильтра один, экран молчит (и правильно —
+ * на эталоне этой строки нет).
+ */
+async function seedMixedZones(): Promise<{ readonly countryId: string }> {
+  const label = randomUUID().slice(0, 8);
+  const pool = new Pool({ connectionString: e2eDatabaseUrl() });
+
+  try {
+    const country = await pool.query<{ id: string }>(
+      "insert into countries (name, locale) values ($1, 'ru') returning id",
+      [`Страна поясов ${label}`],
+    );
+    const countryId = country.rows[0]?.id;
+    if (countryId === undefined) {
+      throw new Error("Страна для сценария о подписи периода не завелась");
+    }
+
+    for (const [index, zone] of MIXED_ZONES.entries()) {
+      await pool.query(
+        "insert into stores (country_id, name, timezone) values ($1, $2, $3)",
+        [countryId, `Пиццерия ${label}-${String(index)}`, zone],
+      );
+    }
+
+    return { countryId };
+  } finally {
+    await pool.end();
+  }
+}
+
 test.describe("лента заполнений", () => {
   // Эталон и тексты сценария русские, поэтому и браузер русский.
   test.use({ locale: "ru-RU" });
@@ -595,5 +762,92 @@ test.describe("лента заполнений", () => {
 
     await page.goto(`${FEED_PATH}/00000000-0000-4000-8000-000000000000`);
     await expect(page.getByTestId("submission-not-found")).toBeVisible();
+  });
+
+  /**
+   * Полоса фактов карточки: ячеек пять (пятая — режим смены, D055), и раскладка обязана
+   * укладывать их в целые ряды. До T183/T171 сетка была объявлена на ЧЕТЫРЕ колонки, и
+   * пятая ячейка вставала одна во втором ряду — шириной в четверть и с левой границей,
+   * упирающейся в пустоту.
+   *
+   * Проверяется геометрия, а не классы разметки: класс можно поменять, не починив вид,
+   * и наоборот. Свойство, которое обязано держаться на любой ширине, — ряд полосы
+   * доходит до края карточки, а не обрывается на доле ряда.
+   */
+  test("полоса фактов карточки не оставляет ячейку одну в обрезанном ряду", async ({
+    page,
+  }) => {
+    const seeded = await seed();
+    await signIn(page);
+
+    const cardUrl = `${FEED_PATH}/${seeded.failedSubmissionId}`;
+    await page.goto(cardUrl);
+    await expect(page.getByTestId("submission-facts")).toBeVisible();
+
+    const wideCells = await factCells(page);
+    const wide = factRows(wideCells);
+    expect(
+      wide,
+      "На широком экране полоса фактов — один ряд, как на эталоне: перенос здесь " +
+        "означает, что колонок объявлено меньше, чем ячеек.",
+    ).toHaveLength(1);
+    expect(wide.at(0)?.count).toBe(FACT_COUNT);
+    assertRowsFillWidth(wide);
+    assertNoDanglingBorder(wideCells);
+    assertNoClippedText(wideCells);
+
+    await page.setViewportSize(PHONE);
+    await page.goto(cardUrl);
+    await expect(page.getByTestId("submission-facts")).toBeVisible();
+
+    const phoneCells = await factCells(page);
+    const phone = factRows(phoneCells);
+    expect(
+      phone.length,
+      "На телефоне полоса обязана переноситься: пять колонок на 375 px — это пять " +
+        "нечитаемых столбиков.",
+    ).toBeGreaterThan(1);
+    expect(
+      phone.reduce((total, row) => total + row.count, 0),
+      "На телефоне видны все факты, а не часть.",
+    ).toBe(FACT_COUNT);
+    assertRowsFillWidth(phone);
+    assertNoDanglingBorder(phoneCells);
+    assertNoClippedText(phoneCells);
+  });
+
+  /**
+   * Подпись периода. Экран показывает сразу несколько пиццерий в разных поясах, общего
+   * «сегодня» у них нет, и границы периода считаются по поясу машины. Прежняя подпись
+   * называла этот пояс временем пиццерии — врала ровно она: строки-то показаны верно,
+   * каждая по поясу своей пиццерии (T183).
+   */
+  test("подпись периода не выдаёт общий пояс за время пиццерии", async ({
+    page,
+  }) => {
+    const mixed = await seedMixedZones();
+    await signIn(page);
+
+    const platformZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    expect(
+      MIXED_ZONES,
+      "Сценарию нужен пояс машины, не совпадающий ни с одним поясом пиццерий: " +
+        "иначе он не отличит общий пояс от пояса пиццерии.",
+    ).not.toContain(platformZone);
+
+    await page.goto(`${FEED_PATH}?country=${mixed.countryId}`);
+    const note = page.getByTestId("feed-timezone");
+    await expect(note).toBeVisible();
+
+    // Назван тот пояс, по которому период и посчитан, — и назван общим для всех.
+    await expect(note).toContainText(platformZone);
+    await expect(note).toContainText("в разных часовых поясах");
+    await expect(note).toContainText("для всех");
+
+    // И не приписан ни одной пиццерии: их поясов в подписи нет, прежней формулировки тоже.
+    for (const zone of MIXED_ZONES) {
+      await expect(note).not.toContainText(zone);
+    }
+    await expect(note).not.toContainText("по времени пиццерии");
   });
 });
