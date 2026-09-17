@@ -11,6 +11,7 @@
 import type { ReactElement, ReactNode } from "react";
 
 import type { AdminSectionKey } from "../admin-sections";
+import { ADMIN_CONTENT_CLASS, ADMIN_FRAME_CLASS } from "./admin-frame";
 import { AdminNav } from "./AdminNav";
 
 const H1_CLASS =
@@ -39,14 +40,15 @@ export function AdminShell({
   narrow = false,
 }: AdminShellProps): ReactElement {
   return (
-    <div
-      data-testid={testId}
-      className="grid min-h-screen grid-cols-[208px_1fr]"
-    >
+    <div data-testid={testId} className={ADMIN_FRAME_CLASS}>
       <AdminNav active={active} />
 
-      <div className="flex min-w-0 flex-col">
-        <header className="bg-surface flex items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)]">
+      <div data-testid="admin-main" className="flex min-w-0 flex-col">
+        {/*
+          Ниже складки верхняя полоса переносит действие на следующую строку, а не сжимает
+          заголовок до нечитаемого: кнопка раздела шире половины экрана на 375 px.
+        */}
+        <header className="bg-surface flex items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)] max-md:flex-wrap max-md:gap-[var(--space-5)] max-md:px-[var(--space-7)]">
           <div className="flex min-w-0 flex-col gap-[var(--space-1)]">
             <div className="text-[length:var(--fs-meta)] text-[var(--ink-3)]">
               {breadcrumb}
@@ -59,9 +61,7 @@ export function AdminShell({
         </header>
 
         <div
-          className={`flex flex-col gap-[var(--space-8)] p-[var(--space-9)]${
-            narrow ? " max-w-[880px]" : ""
-          }`}
+          className={`${ADMIN_CONTENT_CLASS}${narrow ? " max-w-[880px]" : ""}`}
         >
           {children}
         </div>

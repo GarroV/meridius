@@ -20,10 +20,22 @@ import {
   type AdminSectionKey,
 } from "../admin-sections";
 
+// Ниже складки (`--page-fold`, 768 px) меню из боковой колонки становится верхней
+// полосой в одну строку с собственной горизонтальной прокруткой — тот же приём, что у
+// вкладок. Почему не выезжающая шторка по кнопке: шторка — это состояние, то есть
+// клиентский компонент и его гидратация в КАЖДОМ экране кабинета, а без JavaScript — ещё
+// и меню, которое не открывается. Полоса работает без скриптов и без состояния вообще.
+const NAV_CLASS =
+  "bg-surface flex flex-col gap-[var(--space-8)] border-r border-[var(--line-strong)] py-[var(--space-7)] max-md:flex-row max-md:items-center max-md:gap-[var(--space-6)] max-md:overflow-x-auto max-md:border-r-0 max-md:border-b max-md:py-[var(--space-4)]";
+const GROUP_CLASS = "flex flex-col max-md:flex-row max-md:items-center";
+// Подпись группы («РАБОТА», «СПРАВОЧНИК») в полосе не показывается: в одну строку
+// она читалась бы как ещё один пункт меню, а место занимает как два.
 const LABEL_CLASS =
-  "px-[var(--space-7)] pb-[var(--space-3)] text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
+  "px-[var(--space-7)] pb-[var(--space-3)] text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase max-md:hidden";
+// Признак активного пункта переезжает с левой грани на нижнюю: в горизонтальной полосе
+// левая грань читается как разделитель между пунктами, а не как подсветка.
 const ITEM_BASE_CLASS =
-  "flex items-center gap-[var(--space-5)] border-l-2 px-[var(--space-7)] py-[var(--space-4)]";
+  "flex items-center gap-[var(--space-5)] border-l-2 px-[var(--space-7)] py-[var(--space-4)] max-md:border-b-2 max-md:border-l-0 max-md:px-[var(--space-5)] max-md:whitespace-nowrap";
 const ITEM_CLASS = `${ITEM_BASE_CLASS} border-transparent text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-[var(--ink)]`;
 const ITEM_ACTIVE_CLASS = `${ITEM_BASE_CLASS} text-accent border-[var(--accent)] bg-[var(--accent-soft)] font-medium no-underline`;
 
@@ -43,7 +55,7 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
   const t = useTranslations("admin");
 
   return (
-    <nav className="bg-surface flex flex-col gap-[var(--space-8)] border-r border-[var(--line-strong)] py-[var(--space-7)]">
+    <nav className={NAV_CLASS}>
       {/*
         Бренд — ссылка на главную кабинета (T124). До этого из раздела в главную нельзя
         было вернуться ничем, кроме кнопки браузера: меню перечисляет разделы, а главная
@@ -55,16 +67,17 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
       <Link
         href={ADMIN_HOME.path}
         data-testid="nav-home"
-        className="px-[var(--space-7)] text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold tracking-[-0.01em] text-inherit no-underline hover:text-[var(--accent)]"
+        className="px-[var(--space-7)] text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold tracking-[-0.01em] text-inherit no-underline hover:text-[var(--accent)] max-md:shrink-0 max-md:px-[var(--space-5)]"
       >
         {t("nav.brand")}{" "}
-        <span className="font-normal text-[var(--ink-3)]">
+        {/* Приписка бренда ниже складки скрыта: в полосе она отнимает место у разделов. */}
+        <span className="font-normal text-[var(--ink-3)] max-md:hidden">
           {t("nav.brandMuted")}
         </span>
       </Link>
 
       {ADMIN_NAV_GROUPS.map((group) => (
-        <div key={group.key} className="flex flex-col">
+        <div key={group.key} className={GROUP_CLASS}>
           <div className={LABEL_CLASS}>{t(`nav.groups.${group.key}`)}</div>
           {group.items.map((key) => (
             // Переход внутри кабинета — только `Link`: обычному `<a href>` Next не
@@ -88,7 +101,11 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
         </div>
       ))}
 
-      <div className="mt-auto px-[var(--space-7)] text-[length:var(--fs-meta)] text-[var(--ink-3)]">
+      {/*
+        Кто вошёл — справка, а не навигация, и в полосе на 375 px она съедает место у
+        самих разделов. Ниже складки её нет — это плата, а не недосмотр, и она названа в журнале.
+      */}
+      <div className="mt-auto px-[var(--space-7)] text-[length:var(--fs-meta)] text-[var(--ink-3)] max-md:hidden">
         {t("nav.signedIn")}
         <br />
         {t("nav.role")}
