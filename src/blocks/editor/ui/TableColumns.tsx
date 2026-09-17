@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 
 import type { Item } from "@/blocks/data";
 
+import { pickEditorText } from "../localized-text";
 import { MAX_COLUMNS } from "../table-field";
 
 /**
@@ -74,7 +75,7 @@ export function TableColumns({
             id={columnInputId(column.id)}
             data-testid="column-title"
             className={`${INPUT_CLASS} w-[220px]`}
-            value={column.title[locale] ?? ""}
+            value={pickEditorText(column.title, locale)}
             placeholder={t("columnTitlePlaceholder")}
             aria-label={`${t("columnTitle")} ${String(index + 1)}`}
             onChange={(event: ChangeEvent<HTMLInputElement>) => {
@@ -84,7 +85,7 @@ export function TableColumns({
           <input
             data-testid="column-norm"
             className={`${INPUT_CLASS} w-[160px]`}
-            value={column.norm?.[locale] ?? ""}
+            value={pickEditorText(column.norm, locale)}
             placeholder={t("normPlaceholder")}
             aria-label={`${t("norm")} ${String(index + 1)}`}
             onChange={(event: ChangeEvent<HTMLInputElement>) => {

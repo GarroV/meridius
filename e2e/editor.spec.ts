@@ -34,13 +34,28 @@ const EVENING_LABEL = "Вечер, 20:00–00:00";
 const EVENING_WINDOW = "20:00|00:00";
 const MORNING_WINDOW = "06:00|11:00";
 
+// Ширина телефона из решения D092 — та же, на которой проверяются экраны заполнения.
+const PHONE = { width: 375, height: 812 } as const;
+
+/** Ширина документа и окна: расхождение — это и есть горизонтальная прокрутка. */
+async function pageWidth(
+  page: Page,
+): Promise<{ scrollWidth: number; clientWidth: number }> {
+  return page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+}
+
 function label(): string {
   return Math.random().toString(36).slice(2, 8);
 }
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/admin/login");
-  await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+  // Не по подписи: вход зовут оба окна сценария T174, а подпись поля у них разная
+  // («Пароль» / «Password», D009) — `name="password"` от языка интерфейса не зависит.
+  await page.locator('input[name="password"]').fill(E2E_ADMIN_PASSWORD);
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }
@@ -48,10 +63,40 @@ async function signIn(page: Page): Promise<void> {
 /** Заводит чек-лист через экран заведения и возвращает адрес его редактора. */
 async function createChecklist(page: Page, title: string): Promise<string> {
   await page.goto(`${CHECKLISTS_PATH}/new`);
-  await page.getByTestId("new-checklist-form").getByRole("textbox").fill(title);
+  // Поле названия ищется своим опознавателем, а не «единственным полем ввода формы»:
+  // с T185 рядом стоят два поля времени («своё окно»), и роль `textbox` у них та же.
+  await page.getByTestId("new-checklist-title").fill(title);
   await page.getByTestId("create-checklist").click();
   await expect(page.getByTestId("editor-screen")).toBeVisible();
   return page.url();
+}
+
+/**
+ * «Сохранить черновик» и ожидание того, что сохранение СОСТОЯЛОСЬ (T195).
+ *
+ * Почему не просто `toHaveText("Черновик сохранён")`, как стояло в семи местах этого файла.
+ * Надпись появляется, только когда серверное действие ВЕРНУЛОСЬ, то есть её пятисекундный
+ * предел покрывал всю дорогу до сервера и обратно: разбор формы, две записи в базу,
+ * `revalidatePath` и перерисовку экрана. На свободной машине это доли секунды, а под
+ * стройкой (три стенда блоков плюс приёмочный, пять воркеров) то же самое занимает
+ * секунды — и сценарий краснел на ровном месте, показывая «ещё не публиковался».
+ *
+ * Измерено порчей (17.09.2026): семь секунд задержки внутри `submitSaveDraft` дают ровно
+ * то падение, которым T195 и описана, — `Received: "ещё не публиковался"`. С ожиданием
+ * ниже тот же прогон с той же задержкой зелёный, и ни один предел не увеличен: ждём не
+ * дольше, а ДРУГОЕ — сначала ответ сервера (событие, а не перепрашиваемую надпись), и
+ * только потом состояние экрана. Тот же приём уже стоит в `library.spec.ts` и по той же
+ * причине: надпись — следствие ответа, и ждать её вместо него значит ставить сценарий
+ * в зависимость от того, насколько занята машина.
+ */
+async function saveDraft(page: Page): Promise<void> {
+  const answered = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" && response.status() < 400,
+  );
+  await page.getByTestId("save-draft").click();
+  await answered;
+  await expect(page.getByTestId("editor-meta")).toHaveText("Черновик сохранён");
 }
 
 /**
@@ -296,10 +341,7 @@ test.describe("редактор чек-листа", () => {
       "critical",
     );
 
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     await page.reload();
     await expect(page.getByTestId("item-type").first()).toHaveValue("number");
@@ -336,10 +378,7 @@ test.describe("редактор чек-листа", () => {
     // смену, а у обхода свой учёт (D076).
     await expect(page.getByTestId("item-schedule-chip")).toHaveCount(0);
 
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     await page.reload();
     await expect(page.getByTestId("item-type").first()).toHaveValue("table");
@@ -380,10 +419,7 @@ test.describe("редактор чек-листа", () => {
     await page.keyboard.press("ControlOrMeta+KeyV");
     await expect(page.getByTestId("item-title")).toHaveCount(PASTED_ITEMS);
 
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     // Правка пережила перезагрузку — значит она в базе, а не только на экране.
     await page.reload();
@@ -418,10 +454,7 @@ test.describe("редактор чек-листа", () => {
     await createChecklist(page, title);
     await page.getByTestId("item-title").first().click();
     await page.keyboard.type("Выключить печь");
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     await page.goto(CHECKLISTS_PATH);
     const row = page
@@ -572,6 +605,70 @@ test.describe("редактор чек-листа", () => {
     );
   });
 
+  // T178 и решение D092: кабинет обязан быть пригоден для правки с телефона. Обе формы
+  // ниже — обычные: ни таблицы, ни сложного разбора, то есть послаблений D092 у них нет.
+  // Ловится это только настоящим браузером на настоящей ширине — разметка та же самая,
+  // разъезжается вычисленная ширина (тот же приём, что у ленты в `feed.spec.ts`).
+  test("формы кабинета живут на 375 px: заведение и удаление не уезжают вбок", async ({
+    page,
+  }) => {
+    await signIn(page);
+    const editorUrl = await createChecklist(page, `Телефон ${label()}`);
+
+    await page.setViewportSize(PHONE);
+
+    await page.goto(`${CHECKLISTS_PATH}/new`);
+    await expect(page.getByTestId("new-checklist-form")).toBeVisible();
+    const creation = await pageWidth(page);
+    expect(
+      creation.scrollWidth,
+      "Экран заведения шире окна телефона: методист листает вбок вместо того, чтобы " +
+        "завести чек-лист.",
+    ).toBe(creation.clientWidth);
+
+    await page.goto(`${editorUrl}/delete`);
+    await expect(page.getByTestId("remove-checklist-screen")).toBeVisible();
+    const removal = await pageWidth(page);
+    expect(
+      removal.scrollWidth,
+      "Экран подтверждения удаления шире окна телефона: кнопка «Отмена» уезжает за " +
+        "край, а рядом стоит необратимое действие.",
+    ).toBe(removal.clientWidth);
+  });
+
+  // T185: окон в списке три, а в боевых данных живут 05:00–17:00 и 06:00–23:00 —
+  // смены, которые методист не мог завести руками ВООБЩЕ. Сценарий проходит обе
+  // формы: заведение (полями рядом со списком) и правку (тем же полем на экране).
+  test("своё окно временем заводится и переживает правку", async ({ page }) => {
+    await signIn(page);
+    await page.goto(`${CHECKLISTS_PATH}/new`);
+    await page.getByTestId("new-checklist-title").fill(`Дневной ${label()}`);
+    await page.getByTestId("new-checklist-window-from").fill("05:00");
+    await page.getByTestId("new-checklist-window-to").fill("17:00");
+    await page.getByTestId("create-checklist").click();
+
+    await expect(page.getByTestId("editor-screen")).toBeVisible();
+    // Окно доехало до базы своим, а не подменилось утром из списка: список на экране
+    // правки показывает его отдельным пунктом, а поля — его границами.
+    await expect(page.getByTestId("checklist-window")).toHaveValue(
+      "05:00|17:00",
+    );
+    await expect(page.getByTestId("checklist-window-from")).toHaveValue(
+      "05:00",
+    );
+    await expect(page.getByTestId("checklist-window-to")).toHaveValue("17:00");
+
+    await page.getByTestId("checklist-window-to").fill("23:00");
+    await saveDraft(page);
+    await page.reload();
+
+    // Главное: правка съездила через сервер, а не осталась на экране.
+    await expect(page.getByTestId("checklist-window-from")).toHaveValue(
+      "05:00",
+    );
+    await expect(page.getByTestId("checklist-window-to")).toHaveValue("23:00");
+  });
+
   // Предпросмотр — показ, а не работающий экран заполнения: отвечает сотрудник, открыв
   // чек-лист по QR-коду станции. Поэтому здесь не должно быть ни одного элемента, который
   // выглядит нажимаемым и не нажимается: серая кнопка «осталось N» читалась как сломанная.
@@ -582,10 +679,7 @@ test.describe("редактор чек-листа", () => {
     await createChecklist(page, `Предпросмотр ${label()}`);
     await page.getByTestId("item-title").first().click();
     await page.keyboard.type("Включить печь");
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     await page.getByRole("link", { name: "Предпросмотр" }).click();
     const screen = page.getByTestId("preview-screen");
@@ -632,10 +726,7 @@ test.describe("редактор чек-листа", () => {
     await expect(page.getByTestId("schedule-dialog")).toHaveCount(0);
     await expect(chip).toHaveText("06:00–11:00, каждые 2 часа");
 
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     // Главный шаг: страница перечитана с сервера, то есть расписание съездило
     // в базу и вернулось. До этой проверки всё выше доказывало только состояние экрана.
@@ -774,10 +865,7 @@ test.describe("редактор чек-листа", () => {
     await page.getByTestId("schedule-remind").selectOption("20");
     await page.getByTestId("schedule-apply").click();
 
-    await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
-      "Черновик сохранён",
-    );
+    await saveDraft(page);
 
     await page.getByRole("link", { name: "Предпросмотр" }).click();
     await expect(page.getByTestId("preview-screen")).toBeVisible();
@@ -799,5 +887,62 @@ test.describe("редактор чек-листа", () => {
     await expect(
       page.getByTestId("preview-screen").locator("button"),
     ).toHaveCount(0);
+  });
+
+  test("пункт и секция, заведённые в английском окне, видны в русском интерфейсе (T174)", async ({
+    page,
+    browser,
+  }) => {
+    // Отдельный контекст с английским `Accept-Language` — тем же путём, каким язык
+    // интерфейса выбирает `pickLocale` (headers, а не cookie и не вход). Черновик
+    // заводится и набирается там, а открывается — обычным `page` этого файла
+    // (`test.use({ locale: "ru-RU" })` выше по файлу).
+    //
+    // Один вход, а не два: сверка пароля в продукте намеренно небыстрая, и второй
+    // `signIn` в этом же сценарии съедал бы половину его бюджета до всякой полезной
+    // работы. Куки от входа `page` переносятся в английский контекст — вход их не
+    // различает, поэтому второй раз входить незачем.
+    await signIn(page);
+    const enContext = await browser.newContext({ locale: "en-US" });
+    await enContext.addCookies(await page.context().cookies());
+    const enPage = await enContext.newPage();
+
+    const editorUrl = await createChecklist(
+      enPage,
+      `Opening checklist ${label()}`,
+    );
+
+    await enPage.getByTestId("item-title").first().click();
+    await enPage.keyboard.type("Turn on the oven");
+    await enPage
+      .getByTestId("section-title")
+      .first()
+      .fill("Oven and equipment");
+
+    // Сохранение без помощника `saveDraft`: его проверка надписи «Черновик сохранён»
+    // рассчитана на русский интерфейс, а здесь экран английский. Важен сам факт, что
+    // действие сервера ВЕРНУЛОСЬ (та же причина, что у `saveDraft` — T195), а не
+    // текст, в котором подтверждение написано.
+    const saved = enPage.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" && response.status() < 400,
+    );
+    await enPage.getByTestId("save-draft").click();
+    await saved;
+
+    await enContext.close();
+
+    await page.goto(editorUrl);
+    await expect(page.getByTestId("editor-screen")).toBeVisible();
+
+    // До T174 эти поля были пусты: `value={item.title[locale] ?? ""}` не знал ни о
+    // каком языке, кроме языка интерфейса, — и английский текст ниже в данных ЕСТЬ,
+    // но поле ввода его не показывало.
+    await expect(page.getByTestId("item-title").first()).toHaveValue(
+      "Turn on the oven",
+    );
+    await expect(page.getByTestId("section-title").first()).toHaveValue(
+      "Oven and equipment",
+    );
   });
 });

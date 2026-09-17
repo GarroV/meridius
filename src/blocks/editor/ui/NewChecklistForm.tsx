@@ -13,7 +13,9 @@ import { CHECKLISTS_PATH } from "../routes";
 import type { EditorErrorCode } from "../validation";
 import {
   WINDOW_FIELD,
+  WINDOW_FROM_FIELD,
   WINDOW_PRESETS,
+  WINDOW_TO_FIELD,
   windowFieldValue,
 } from "../window-field";
 
@@ -38,6 +40,12 @@ export interface NewChecklistLabels {
   readonly windowMorning: string;
   readonly windowEvening: string;
   readonly windowAny: string;
+  readonly windowOwn: string;
+  readonly windowOwnFrom: string;
+  readonly windowOwnTo: string;
+  readonly windowOwnFromShort: string;
+  readonly windowOwnToShort: string;
+  readonly windowOwnHint: string;
   readonly create: string;
   readonly cancel: string;
   /** Отказы, которых ждём от `submitCreateChecklist`; `{limit}` в них уже подставлен. */
@@ -59,7 +67,18 @@ const CONTROL_CLASS =
   "text-ink bg-surface h-[var(--control-h)] w-full rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-lead)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const CARD_CLASS =
   "bg-surface max-w-[880px] rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
-const ROW_CLASS = "flex gap-[var(--space-6)] [&>*]:min-w-0 [&>*]:flex-1";
+// Поля становятся в строку, пока строка их вмещает, и переносятся, когда нет: у каждого
+// поля есть своя ширина (`basis`), иначе `flex-1` с нулевой основой не переносит НИКОГДА
+// и три поля делят между собой хоть 60 точек. `min-w-0` при этом обязателен — без него
+// поле, оставшееся на строке одно, не сжимается до ширины телефона и тащит форму вбок.
+const ROW_CLASS =
+  "flex flex-wrap gap-[var(--space-6)] [&>*]:min-w-0 [&>*]:flex-1 [&>*]:basis-[220px]";
+const TIME_CLASS =
+  "text-ink bg-surface h-[var(--control-h)] min-w-0 flex-1 rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-4)] font-[family-name:var(--font-num)] text-[length:var(--fs-body)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
+const HINT_CLASS =
+  "text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--ink-3)]";
+const BOUND_CLASS =
+  "flex min-w-0 flex-1 basis-[132px] items-center gap-[var(--space-4)]";
 const FIELD_CLASS = "flex flex-col gap-[var(--space-3)]";
 const BTN_PRIMARY_CLASS =
   "bg-accent inline-flex h-[var(--control-h)] items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60";
@@ -104,6 +123,7 @@ export function NewChecklistForm({
             </label>
             <input
               id="new-checklist-title"
+              data-testid="new-checklist-title"
               name="title"
               type="text"
               required
@@ -161,12 +181,58 @@ export function NewChecklistForm({
                 </option>
               ))}
             </select>
+
+            {/*
+              Своё окно временем (T185). Список — быстрый выбор трёх обычных смен, а не
+              перечень всех: в боевых данных живут 05:00–17:00 и 06:00–23:00, и завести
+              их руками было нечем. Поля настоящие и с именами, поэтому окно уезжает
+              тем же способом, что и выбор списка, — без состояния React и без скриптов;
+              заполненные обе границы сильнее списка (`windowFromFields`).
+            */}
+            <span className={FIELD_LABEL_CLASS}>{labels.windowOwn}</span>
+            {/*
+              Подпись стоит своей строкой, а не первым словом ряда: на 375 px ряд из
+              подписи и двух полей времени переносился ПОСЕРЕДИНЕ, и первое поле
+              оставалось узкой пустой рамкой без «--:--» — сверка с эталоном поймала
+              именно это. Границы подписаны словами, а не тире: перенесённая на свою
+              строку пара без слов читается как два несвязанных поля.
+            */}
+            {/*
+              Каждая граница — свой блок с собственной шириной, и переносится он целиком.
+              Плоский ряд «от [поле] до [поле]» на узком экране рвался ПОСЕРЕДИНЕ, а поле,
+              делившее строку с соседом, схлопывалось до значка часов: у `flex-1` основа
+              нулевая, поэтому перенос не случался вовсе, а свободная ширина делилась
+              между двумя полями пополам. Поймано сверкой снимков, дважды.
+            */}
+            <div className="flex flex-wrap items-center gap-x-[var(--space-4)] gap-y-[var(--space-3)]">
+              <span className={BOUND_CLASS}>
+                <span className={HINT_CLASS}>{labels.windowOwnFromShort}</span>
+                <input
+                  type="time"
+                  name={WINDOW_FROM_FIELD}
+                  data-testid="new-checklist-window-from"
+                  aria-label={labels.windowOwnFrom}
+                  className={TIME_CLASS}
+                />
+              </span>
+              <span className={BOUND_CLASS}>
+                <span className={HINT_CLASS}>{labels.windowOwnToShort}</span>
+                <input
+                  type="time"
+                  name={WINDOW_TO_FIELD}
+                  data-testid="new-checklist-window-to"
+                  aria-label={labels.windowOwnTo}
+                  className={TIME_CLASS}
+                />
+              </span>
+            </div>
+            <span className={HINT_CLASS}>{labels.windowOwnHint}</span>
           </div>
         </div>
 
         <input type="hidden" name="locale" value={locale} />
 
-        <div className="flex items-center gap-[var(--space-5)]">
+        <div className="flex flex-wrap items-center gap-[var(--space-5)]">
           {/*
             `data-live` — признак того, что форма ожила (`core/ui/use-live.tsx`). До гидратации
             кнопка выглядит рабочей и отправляет форму обычным способом браузера, и это

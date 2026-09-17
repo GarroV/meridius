@@ -5,6 +5,7 @@ import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 
 import type { VersionSummary } from "../drafts";
 import type { LibraryEntry } from "../library-links";
+import { pickEditorText } from "../localized-text";
 
 const CARD_CLASS =
   "bg-surface rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
@@ -109,9 +110,7 @@ export function LibraryPanel({
                 data-testid="library-block"
                 className="flex items-center gap-[var(--space-4)] border-b border-[var(--line)] px-[var(--space-6)] py-[var(--space-5)] text-[length:var(--fs-dense)] last:border-b-0"
               >
-                <span>
-                  {block.title[locale] ?? Object.values(block.title)[0] ?? ""}
-                </span>
+                <span>{pickEditorText(block.title, locale)}</span>
                 <span className="text-[length:var(--fs-micro)] text-[var(--ink-3)]">
                   {`· ${String(block.usageCount)}`}
                 </span>

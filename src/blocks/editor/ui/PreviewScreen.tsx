@@ -7,6 +7,7 @@ import type { Item, LocalizedText, Section, ShiftMode } from "@/blocks/data";
 import { isShiftMode, sectionsForMode, severityOf } from "@/blocks/data";
 
 import { loadEditor } from "../drafts";
+import { pickEditorText } from "../localized-text";
 import type { PeriodicItemView } from "../preview-items";
 import { splitPeriodic } from "../preview-items";
 import { checklistPath } from "../routes";
@@ -67,11 +68,6 @@ const FOOTER_CLASS =
 const FOOTER_NOTE_CLASS =
   "flex h-[52px] w-full cursor-default items-center justify-center rounded-[var(--r-block)] border border-[var(--accent)] bg-accent text-[length:var(--fs-title)] font-medium text-[var(--ink-inverse)] opacity-45";
 
-/** Название на языке интерфейса; если его нет — первое, что есть. */
-function pickText(text: LocalizedText, locale: string): string {
-  return text[locale] ?? Object.values(text)[0] ?? "";
-}
-
 function hasTitle(text: LocalizedText): boolean {
   return Object.keys(text).length > 0;
 }
@@ -129,8 +125,8 @@ function tableHint(item: Item, locale: string, t: Translate): string | null {
   const columns = item.columns ?? [];
   if (columns.length === 0) return t("preview.tableEmpty");
   const names = columns.map((column) => {
-    const title = pickText(column.title, locale);
-    const norm = column.norm === undefined ? "" : pickText(column.norm, locale);
+    const title = pickEditorText(column.title, locale);
+    const norm = pickEditorText(column.norm, locale);
     return norm === "" ? title : t("preview.tableNorm", { title, norm });
   });
   return t("preview.table", { columns: names.join(" · ") });
@@ -158,7 +154,7 @@ function ItemRow({
     >
       <span className={ITEM_BOX_CLASS} />
       <span className={ITEM_TEXT_CLASS}>
-        {pickText(item.title, locale)}
+        {pickEditorText(item.title, locale)}
         {severity === "normal" ? null : (
           <span
             className={`ml-[var(--space-2)] font-bold ${
@@ -215,7 +211,9 @@ function PeriodicRow({
 
   return (
     <div data-testid="preview-round" className={ROUNDS_ROW_CLASS}>
-      <div className={ROUNDS_TITLE_CLASS}>{pickText(item.title, locale)}</div>
+      <div className={ROUNDS_TITLE_CLASS}>
+        {pickEditorText(item.title, locale)}
+      </div>
       {(item.schedule ?? []).map((segment) => (
         <div
           key={`${segment.from}-${segment.to}-${String(segment.everyMinutes)}`}
@@ -270,7 +268,7 @@ export async function PreviewScreen({
   const locale = await getLocale();
   const t = await getTranslations("editor");
 
-  const title = pickText(state.checklist.title, locale);
+  const title = pickEditorText(state.checklist.title, locale);
   const address =
     state.station === null
       ? t("list.noStation")
@@ -337,9 +335,9 @@ export async function PreviewScreen({
           <>
             {sections.map((section, sectionIndex) => (
               <div key={section.id}>
-                {pickText(section.title, locale) === "" ? null : (
+                {pickEditorText(section.title, locale) === "" ? null : (
                   <div className={SECTION_TITLE_CLASS}>
-                    {pickText(section.title, locale)}
+                    {pickEditorText(section.title, locale)}
                   </div>
                 )}
                 {section.items.map((item, itemIndex) => (

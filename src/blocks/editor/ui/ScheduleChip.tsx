@@ -40,10 +40,30 @@ const CHIP_OFF_CLASS =
   "bg-surface border-[var(--line-control)] text-[var(--ink-3)] hover:border-[var(--line-control-2)] hover:text-[var(--ink-2)]";
 const CHIP_ON_CLASS =
   "border-[var(--accent-line)] bg-[var(--accent-soft)] text-[var(--accent)] font-medium";
+// Окно собрано по единственному задокументированному образцу модалки дизайн-системы
+// (`design/reference/components.css`: `.overlay` + `.dialog`) — двухполосному: шапка на
+// `--surface-3`, тело, подвал на `--surface-2` с кнопками. До T196 здесь стоял один
+// плоский блок с рамкой: токены были настоящие, но СТРУКТУРА оказывалась вторым видом
+// диалога, то есть продукт объяснял человеку одно и то же двумя способами. Ни один экран
+// эталона `.dialog` живьём не использует, поэтому образцом служит сам css, а не снимок.
 const BACKDROP_CLASS =
   "fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] p-[var(--space-6)]";
+// Ширина эталона — 470 px, но не шире экрана: кабинет обязан оставаться пригодным для
+// правки с телефона (D092), а жёсткие 470 на 375 px дали бы горизонтальную прокрутку.
 const DIALOG_CLASS =
-  "bg-surface flex max-h-full w-[min(520px,100%)] flex-col gap-[var(--space-6)] overflow-auto rounded-[var(--r-block)] border border-[var(--line-strong)] p-[var(--space-7)] shadow-[var(--sh-modal)]";
+  "bg-surface flex max-h-full w-[min(470px,100%)] flex-col overflow-hidden rounded-[var(--r-block)] shadow-[var(--sh-modal)]";
+const DIALOG_HEAD_CLASS =
+  "flex items-center gap-[var(--space-4)] border-b border-[var(--line)] bg-[var(--surface-3)] px-[var(--space-7)] py-[var(--space-6)]";
+const DIALOG_TITLE_CLASS =
+  "text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold";
+// Прокручивается ТЕЛО, а не окно целиком: у эталона на `.dialog` стоит `overflow: hidden`,
+// и полосы обязаны остаться на месте — иначе на коротком экране кнопки уезжают за край
+// вместе с содержимым, и добраться до них нечем.
+const DIALOG_BODY_CLASS =
+  "flex min-h-0 flex-col gap-[var(--space-6)] overflow-y-auto px-[var(--space-7)] py-[var(--space-6)]";
+const DIALOG_FOOT_CLASS =
+  "flex flex-wrap items-center gap-[var(--space-4)] border-t border-[var(--line)] bg-[var(--surface-2)] px-[var(--space-7)] py-[var(--space-5)]";
+const DIALOG_ESC_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const LABEL_CLASS =
   "text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
 const HINT_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
@@ -239,118 +259,126 @@ export function ScheduleChip({
             data-testid="schedule-dialog"
             className={DIALOG_CLASS}
           >
-            <div className="flex flex-col gap-[var(--space-2)]">
-              <div className="text-[length:var(--fs-title)] font-semibold">
-                {t("title")}
-              </div>
-              <div className={HINT_CLASS}>{t("hint")}</div>
+            <div className={DIALOG_HEAD_CLASS}>
+              <span className={DIALOG_TITLE_CLASS}>{t("title")}</span>
             </div>
 
-            <div className="flex flex-col gap-[var(--space-5)]">
-              <span className={LABEL_CLASS}>{t("segments")}</span>
-              {schedule.length === 0 ? (
-                <span data-testid="schedule-none" className={HINT_CLASS}>
-                  {t("none")}
-                </span>
-              ) : (
-                schedule.map((segment, index) => (
-                  <SegmentRow
-                    // Отрезки различаются только содержимым, и оно меняется прямо в поле:
-                    // ключом остаётся место в списке — оно у отрезка и есть опознаватель.
-                    key={`${String(index)}-${segment.from}`}
-                    segment={segment}
-                    index={index}
-                    t={t}
-                    onPatch={(patch) => {
-                      setSchedule((current) =>
-                        replaceSegment(current, index, patch),
-                      );
-                    }}
-                    onRemove={() => {
-                      setSchedule((current) => removeSegment(current, index));
-                    }}
-                  />
-                ))
-              )}
+            <div className={DIALOG_BODY_CLASS}>
+              <div className={HINT_CLASS}>{t("hint")}</div>
 
-              {problem === null ? null : (
-                <div
-                  data-testid="schedule-broken"
-                  data-problem={problem.kind}
-                  className={NOTICE_CLASS}
-                >
-                  {problem.kind === "empty"
-                    ? t("emptySegment", { number: problem.index + 1 })
-                    : t("overlapSegments", {
-                        first: problem.first + 1,
-                        second: problem.second + 1,
-                      })}
+              <div className="flex flex-col gap-[var(--space-5)]">
+                <span className={LABEL_CLASS}>{t("segments")}</span>
+                {schedule.length === 0 ? (
+                  <span data-testid="schedule-none" className={HINT_CLASS}>
+                    {t("none")}
+                  </span>
+                ) : (
+                  schedule.map((segment, index) => (
+                    <SegmentRow
+                      // Отрезки различаются только содержимым, и оно меняется прямо в поле:
+                      // ключом остаётся место в списке — оно у отрезка и есть опознаватель.
+                      key={`${String(index)}-${segment.from}`}
+                      segment={segment}
+                      index={index}
+                      t={t}
+                      onPatch={(patch) => {
+                        setSchedule((current) =>
+                          replaceSegment(current, index, patch),
+                        );
+                      }}
+                      onRemove={() => {
+                        setSchedule((current) => removeSegment(current, index));
+                      }}
+                    />
+                  ))
+                )}
+
+                {problem === null ? null : (
+                  <div
+                    data-testid="schedule-broken"
+                    data-problem={problem.kind}
+                    className={NOTICE_CLASS}
+                  >
+                    {problem.kind === "empty"
+                      ? t("emptySegment", { number: problem.index + 1 })
+                      : t("overlapSegments", {
+                          first: problem.first + 1,
+                          second: problem.second + 1,
+                        })}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-[var(--space-5)]">
+                  <button
+                    type="button"
+                    data-testid="schedule-add"
+                    className={BUTTON_CLASS}
+                    disabled={!canAddSegment(schedule)}
+                    onClick={() => {
+                      setSchedule((current) => [
+                        ...current,
+                        nextSegment(current, checklistWindow),
+                      ]);
+                    }}
+                  >
+                    {t("add")}
+                  </button>
+                  {canAddSegment(schedule) ? null : (
+                    <span
+                      data-testid="schedule-add-hint"
+                      className={HINT_CLASS}
+                    >
+                      {schedule.length >= MAX_SEGMENTS
+                        ? t("limit", { count: MAX_SEGMENTS })
+                        : t("dayFull")}
+                    </span>
+                  )}
                 </div>
-              )}
+              </div>
 
-              <div className="flex items-center gap-[var(--space-5)]">
-                <button
-                  type="button"
-                  data-testid="schedule-add"
-                  className={BUTTON_CLASS}
-                  disabled={!canAddSegment(schedule)}
-                  onClick={() => {
-                    setSchedule((current) => [
-                      ...current,
-                      nextSegment(current, checklistWindow),
-                    ]);
+              <div className="flex flex-col gap-[var(--space-4)]">
+                <span className={LABEL_CLASS}>{t("remind")}</span>
+                <select
+                  data-testid="schedule-remind"
+                  aria-label={t("remind")}
+                  className={`${SELECT_CLASS} w-fit`}
+                  style={SELECT_ARROW_SMALL}
+                  value={remind === undefined ? "" : String(remind)}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                    const raw = event.target.value;
+                    // «Молчать» — это отсутствие значения, а не ноль: два способа записать
+                    // одно состояние расходятся молча (D068).
+                    setRemind(raw === "" ? undefined : Number(raw));
                   }}
                 >
-                  {t("add")}
-                </button>
-                {canAddSegment(schedule) ? null : (
-                  <span data-testid="schedule-add-hint" className={HINT_CLASS}>
-                    {schedule.length >= MAX_SEGMENTS
-                      ? t("limit", { count: MAX_SEGMENTS })
-                      : t("dayFull")}
-                  </span>
-                )}
+                  <option value="">{t("remindSilent")}</option>
+                  {REMIND_OPTIONS.map((minutes) => (
+                    <option key={minutes} value={String(minutes)}>
+                      {t("remindEvery", { count: minutes })}
+                    </option>
+                  ))}
+                </select>
+                {schedule.length === 0 ? (
+                  <span className={HINT_CLASS}>{t("remindNeedsSchedule")}</span>
+                ) : null}
               </div>
             </div>
 
-            <div className="flex flex-col gap-[var(--space-4)]">
-              <span className={LABEL_CLASS}>{t("remind")}</span>
-              <select
-                data-testid="schedule-remind"
-                aria-label={t("remind")}
-                className={`${SELECT_CLASS} w-fit`}
-                style={SELECT_ARROW_SMALL}
-                value={remind === undefined ? "" : String(remind)}
-                onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                  const raw = event.target.value;
-                  // «Молчать» — это отсутствие значения, а не ноль: два способа записать
-                  // одно состояние расходятся молча (D068).
-                  setRemind(raw === "" ? undefined : Number(raw));
-                }}
-              >
-                <option value="">{t("remindSilent")}</option>
-                {REMIND_OPTIONS.map((minutes) => (
-                  <option key={minutes} value={String(minutes)}>
-                    {t("remindEvery", { count: minutes })}
-                  </option>
-                ))}
-              </select>
-              {schedule.length === 0 ? (
-                <span className={HINT_CLASS}>{t("remindNeedsSchedule")}</span>
-              ) : null}
-            </div>
-
-            <div className="mt-[var(--space-2)] flex flex-wrap items-center gap-[var(--space-4)]">
+            <div className={DIALOG_FOOT_CLASS}>
+              {/* Подпись про Esc — слот подвала эталона (`.dialog__esc`), и она здесь
+                  не для красоты: Esc окно действительно закрывает, а до T196 об этом
+                  знал только тот, кто попробовал. */}
+              <span className={DIALOG_ESC_CLASS}>{t("escHint")}</span>
+              <div className="flex-1" />
               <button
                 type="button"
-                data-testid="schedule-apply"
-                className={PRIMARY_BUTTON_CLASS}
-                disabled={broken}
+                data-testid="schedule-cancel"
+                className={GHOST_BUTTON_CLASS}
                 onClick={() => {
-                  apply(false);
+                  setOpen(false);
                 }}
               >
-                {t("apply")}
+                {t("cancel")}
               </button>
               <button
                 type="button"
@@ -365,13 +393,14 @@ export function ScheduleChip({
               </button>
               <button
                 type="button"
-                data-testid="schedule-cancel"
-                className={`${GHOST_BUTTON_CLASS} ml-auto`}
+                data-testid="schedule-apply"
+                className={PRIMARY_BUTTON_CLASS}
+                disabled={broken}
                 onClick={() => {
-                  setOpen(false);
+                  apply(false);
                 }}
               >
-                {t("cancel")}
+                {t("apply")}
               </button>
             </div>
           </div>

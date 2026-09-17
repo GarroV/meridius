@@ -10,6 +10,7 @@ import type { ChecklistWindow, Item, ItemType, Severity } from "@/blocks/data";
 import { severityOf } from "@/blocks/data/severity";
 
 import type { ScheduleSetting } from "../editing";
+import { pickEditorText } from "../localized-text";
 import { ScheduleChip } from "./ScheduleChip";
 import { SELECT_ARROW_SMALL } from "./select-style";
 import { TableColumns } from "./TableColumns";
@@ -156,7 +157,7 @@ export function ItemRow({
           id={itemInputId(item.id)}
           data-testid="item-title"
           className={TITLE_CLASS}
-          value={item.title[locale] ?? ""}
+          value={pickEditorText(item.title, locale)}
           placeholder={t("placeholder")}
           aria-label={t("placeholder")}
           onChange={(event: ChangeEvent<HTMLInputElement>) => {

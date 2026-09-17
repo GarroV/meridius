@@ -23,7 +23,9 @@ async function signIn(page: Page): Promise<void> {
 async function createChecklist(page: Page): Promise<string> {
   const title = `Удаляемый ${Math.random().toString(36).slice(2, 8)}`;
   await page.goto(`${CHECKLISTS_PATH}/new`);
-  await page.getByTestId("new-checklist-form").getByRole("textbox").fill(title);
+  // Поле названия — своим опознавателем, а не «единственным полем ввода формы»:
+  // с T185 рядом стоят два поля времени («своё окно»), и роль `textbox` у них та же.
+  await page.getByTestId("new-checklist-title").fill(title);
   await page.getByTestId("create-checklist").click();
   await expect(page.getByTestId("editor-screen")).toBeVisible();
   return title;

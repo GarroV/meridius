@@ -180,6 +180,12 @@
       "windowEvening": "Вечер, 20:00–00:00",
       "windowAny": "Без ограничения",
       "windowCustom": "{start}–{end}",
+      "windowOwn": "Своё окно",
+      "windowOwnFrom": "Своё окно: начало",
+      "windowOwnTo": "Своё окно: конец",
+      "windowOwnFromShort": "от",
+      "windowOwnToShort": "до",
+      "windowOwnHint": "Если нужной смены нет в списке — задайте обе границы своего окна, оно сильнее выбранного в списке.",
       "create": "Завести чек-лист",
       "cancel": "Отмена"
     },
@@ -272,7 +278,8 @@
       "remindNeedsSchedule": "Напоминание заработает, когда появится хотя бы один отрезок.",
       "apply": "Готово",
       "applyToSection": "Применить ко всей секции",
-      "cancel": "Отмена"
+      "cancel": "Отмена",
+      "escHint": "Esc — закрыть"
     },
     "keys": {
       "enter": "следующий пункт",

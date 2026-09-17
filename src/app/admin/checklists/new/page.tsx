@@ -26,6 +26,12 @@ export default async function NewChecklistPage() {
     windowMorning: t("form.windowMorning"),
     windowEvening: t("form.windowEvening"),
     windowAny: t("form.windowAny"),
+    windowOwn: t("form.windowOwn"),
+    windowOwnFrom: t("form.windowOwnFrom"),
+    windowOwnTo: t("form.windowOwnTo"),
+    windowOwnFromShort: t("form.windowOwnFromShort"),
+    windowOwnToShort: t("form.windowOwnToShort"),
+    windowOwnHint: t("form.windowOwnHint"),
     create: t("form.create"),
     cancel: t("form.cancel"),
     errors: {
