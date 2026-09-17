@@ -4,9 +4,9 @@ import { notFound } from "next/navigation";
 import type { ReactElement } from "react";
 
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
-import type { LocalizedText } from "@/blocks/data";
 
 import { submitDeleteChecklist } from "../actions";
+import { pickEditorText } from "../localized-text";
 import { previewRemoval } from "../removal";
 import { CHECKLISTS_PATH } from "../routes";
 import { EditorInputError } from "../validation";
@@ -28,11 +28,6 @@ const BTN_DANGER_CLASS =
   "inline-flex h-[var(--control-h)] items-center justify-center rounded-[var(--r-control)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-err hover:border-[var(--err)]";
 const BTN_GHOST_CLASS =
   "inline-flex h-[var(--control-h)] items-center justify-center rounded-[var(--r-control)] border border-[var(--line-control)] bg-transparent px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-ink";
-
-/** Название на языке интерфейса; если его нет — первое, что есть (черновик мог начаться на другом). */
-function pickText(text: LocalizedText, locale: string): string {
-  return text[locale] ?? Object.values(text)[0] ?? "";
-}
 
 export async function RemoveChecklistScreen({
   id,
@@ -77,7 +72,7 @@ export async function RemoveChecklistScreen({
             data-testid="remove-checklist-title"
             className="text-ink text-[length:var(--fs-lead)] font-medium"
           >
-            {pickText(preview.title, locale)}
+            {pickEditorText(preview.title, locale)}
           </span>
         </div>
 

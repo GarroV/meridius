@@ -7,6 +7,7 @@ import type { ChecklistWindow, Item, Section } from "@/blocks/data";
 
 import type { ScheduleSetting } from "../editing";
 import { linkedBlockId } from "../editing";
+import { pickEditorText } from "../localized-text";
 import { libraryBlockPath } from "../routes";
 import { ItemRow } from "./ItemRow";
 import { LinkedItemRow } from "./LinkedItemRow";
@@ -120,7 +121,7 @@ export function SectionCard(props: SectionCardProps) {
         <input
           data-testid="section-title"
           className={TITLE_CLASS}
-          value={section.title[locale] ?? ""}
+          value={pickEditorText(section.title, locale)}
           placeholder={t("titlePlaceholder")}
           aria-label={t("titlePlaceholder")}
           readOnly={linked}

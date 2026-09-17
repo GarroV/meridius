@@ -4,18 +4,13 @@ import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { AdminNav } from "@/blocks/core/ui/AdminNav";
-import type { LocalizedText } from "@/blocks/data";
 
 import { loadEditor } from "../drafts";
 import { listStations } from "../listing";
+import { pickEditorText } from "../localized-text";
 import { checklistPreviewPath } from "../routes";
 import type { WindowValue } from "../window-field";
 import { ChecklistEditor } from "./ChecklistEditor";
-
-/** Текст на языке интерфейса, а если его нет — любой имеющийся: пустой заголовок хуже чужого. */
-function pickText(text: LocalizedText, locale: string): string {
-  return text[locale] ?? Object.values(text)[0] ?? "";
-}
 
 /** Время базы «06:00:00» на экране показывается и правится как «06:00». */
 function toFormTime(value: string): string {
@@ -73,7 +68,7 @@ export async function EditorScreen({ checklistId }: { checklistId: string }) {
         <ChecklistEditor
           checklistId={checklistId}
           locale={locale}
-          initialTitle={pickText(state.checklist.title, locale)}
+          initialTitle={pickEditorText(state.checklist.title, locale)}
           initialStationId={state.checklist.stationId ?? ""}
           initialWindow={windowOf(
             state.checklist.windowStart,

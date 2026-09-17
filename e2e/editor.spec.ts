@@ -40,7 +40,9 @@ function label(): string {
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/admin/login");
-  await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+  // Не по подписи: вход зовут оба окна сценария T174, а подпись поля у них разная
+  // («Пароль» / «Password», D009) — `name="password"` от языка интерфейса не зависит.
+  await page.locator('input[name="password"]').fill(E2E_ADMIN_PASSWORD);
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }
@@ -48,7 +50,9 @@ async function signIn(page: Page): Promise<void> {
 /** Заводит чек-лист через экран заведения и возвращает адрес его редактора. */
 async function createChecklist(page: Page, title: string): Promise<string> {
   await page.goto(`${CHECKLISTS_PATH}/new`);
-  await page.getByTestId("new-checklist-form").getByRole("textbox").fill(title);
+  // Поле названия ищется своим опознавателем, а не «единственным полем ввода формы»:
+  // с T185 рядом стоят два поля времени («своё окно»), и роль `textbox` у них та же.
+  await page.getByTestId("new-checklist-title").fill(title);
   await page.getByTestId("create-checklist").click();
   await expect(page.getByTestId("editor-screen")).toBeVisible();
   return page.url();
@@ -806,5 +810,62 @@ test.describe("редактор чек-листа", () => {
     await expect(
       page.getByTestId("preview-screen").locator("button"),
     ).toHaveCount(0);
+  });
+
+  test("пункт и секция, заведённые в английском окне, видны в русском интерфейсе (T174)", async ({
+    page,
+    browser,
+  }) => {
+    // Отдельный контекст с английским `Accept-Language` — тем же путём, каким язык
+    // интерфейса выбирает `pickLocale` (headers, а не cookie и не вход). Черновик
+    // заводится и набирается там, а открывается — обычным `page` этого файла
+    // (`test.use({ locale: "ru-RU" })` выше по файлу).
+    //
+    // Один вход, а не два: сверка пароля в продукте намеренно небыстрая, и второй
+    // `signIn` в этом же сценарии съедал бы половину его бюджета до всякой полезной
+    // работы. Куки от входа `page` переносятся в английский контекст — вход их не
+    // различает, поэтому второй раз входить незачем.
+    await signIn(page);
+    const enContext = await browser.newContext({ locale: "en-US" });
+    await enContext.addCookies(await page.context().cookies());
+    const enPage = await enContext.newPage();
+
+    const editorUrl = await createChecklist(
+      enPage,
+      `Opening checklist ${label()}`,
+    );
+
+    await enPage.getByTestId("item-title").first().click();
+    await enPage.keyboard.type("Turn on the oven");
+    await enPage
+      .getByTestId("section-title")
+      .first()
+      .fill("Oven and equipment");
+
+    // Сохранение без помощника `saveDraft`: его проверка надписи «Черновик сохранён»
+    // рассчитана на русский интерфейс, а здесь экран английский. Важен сам факт, что
+    // действие сервера ВЕРНУЛОСЬ (та же причина, что у `saveDraft` — T195), а не
+    // текст, в котором подтверждение написано.
+    const saved = enPage.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" && response.status() < 400,
+    );
+    await enPage.getByTestId("save-draft").click();
+    await saved;
+
+    await enContext.close();
+
+    await page.goto(editorUrl);
+    await expect(page.getByTestId("editor-screen")).toBeVisible();
+
+    // До T174 эти поля были пусты: `value={item.title[locale] ?? ""}` не знал ни о
+    // каком языке, кроме языка интерфейса, — и английский текст ниже в данных ЕСТЬ,
+    // но поле ввода его не показывало.
+    await expect(page.getByTestId("item-title").first()).toHaveValue(
+      "Turn on the oven",
+    );
+    await expect(page.getByTestId("section-title").first()).toHaveValue(
+      "Oven and equipment",
+    );
   });
 });

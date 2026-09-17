@@ -3,7 +3,6 @@ import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
-import type { LocalizedText } from "@/blocks/data";
 
 import { submitDuplicate } from "../actions";
 import { isFilterActive, type ChecklistFilter } from "../filter";
@@ -13,6 +12,7 @@ import {
   resolveChecklistFilter,
 } from "../filter-options";
 import { listChecklists, listStations, type ChecklistRow } from "../listing";
+import { pickEditorText } from "../localized-text";
 import {
   CHECKLISTS_PATH,
   checklistDeletePath,
@@ -55,11 +55,6 @@ const TAG_DRAFT = `${TAG_BASE} border-[var(--line-strong)] bg-[var(--surface-3)]
 
 const NO_STORE_GROUP_KEY = "\u0000no-store";
 const COLUMN_COUNT = 7;
-
-/** Название на языке интерфейса; если его нет — первое, что есть (черновик мог начаться на другом языке). */
-function pickText(text: LocalizedText, locale: string): string {
-  return text[locale] ?? Object.values(text)[0] ?? "";
-}
 
 function trimSeconds(time: string): string {
   return time.slice(0, 5);
@@ -126,7 +121,7 @@ function ChecklistTableRow({
           href={checklistPath(row.id)}
           className="text-accent no-underline hover:underline"
         >
-          {pickText(row.title, locale)}
+          {pickEditorText(row.title, locale)}
         </Link>
       </td>
       <td className={TD_CLASS}>

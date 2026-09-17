@@ -8,6 +8,8 @@ import type { Item } from "@/blocks/data";
 // ни узловых зависимостей.
 import { severityOf } from "@/blocks/data/severity";
 
+import { pickEditorText } from "../localized-text";
+
 /**
  * Пункт вставленного блока библиотеки: только для чтения. Правится он в самом блоке,
  * и правка приходит во все черновики сразу (D011) — поэтому здесь ни полей, ни кнопок,
@@ -42,7 +44,7 @@ export function LinkedItemRow({
         {ordinal}
       </div>
       <div className="text-[length:var(--fs-lead)]">
-        {item.title[locale] ?? Object.values(item.title)[0] ?? ""}
+        {pickEditorText(item.title, locale)}
       </div>
       <div className="flex items-center gap-[var(--space-4)]">
         <span className="bg-surface-2 inline-flex h-[20px] items-center rounded-[var(--r-mark)] border border-[var(--line-strong)] px-[var(--space-4)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] whitespace-nowrap text-[var(--ink-2)] uppercase">
