@@ -33,7 +33,9 @@ async function createChecklist(
   const title = `Чек-лист ${label()}`;
   await page.goto(`${CHECKLISTS_PATH}/new`);
   const form = page.getByTestId("new-checklist-form");
-  await form.getByRole("textbox").fill(title);
+  // Поле названия — своим опознавателем, а не «единственным полем ввода формы»:
+  // с T185 рядом стоят два поля времени («своё окно»), и роль `textbox` у них та же.
+  await form.getByTestId("new-checklist-title").fill(title);
   await form.locator("#new-checklist-station").selectOption(station.stationId);
   await page.getByTestId("create-checklist").click();
   await expect(page.getByTestId("editor-screen")).toBeVisible();
