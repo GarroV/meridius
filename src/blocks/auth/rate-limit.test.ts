@@ -1,143 +1,188 @@
-import { afterEach, describe, expect, test } from "vitest";
+// Правило отказа и проводка счёта проверяются без базы: здесь важно не то, как строки
+// лежат в PostgreSQL (это проверяет `attempt-store.test.ts`), а то, какой приговор
+// выносится по записанному окну и кому неудача засчитывается.
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
+import type { FailureWindow } from "./attempt-store";
 import {
   LOGIN_LIMITS,
   checkLoginAllowed,
-  createLoginThrottle,
-  forgetAllLoginFailures,
   forgetLoginFailures,
   registerLoginFailure,
+  verdictFor,
 } from "./rate-limit";
 
+const store = vi.hoisted(() => ({
+  readFailureWindows: vi.fn(),
+  countFailure: vi.fn(),
+  forgetFailures: vi.fn(),
+  sweepExpiredFailures: vi.fn(),
+  forgetAllFailures: vi.fn(),
+}));
+
+vi.mock("./attempt-store", () => store);
+
 const CLIENT = "203.0.113.7";
-const OTHER = "198.51.100.3";
 const START = new Date("2026-09-06T10:00:00Z");
 const SECOND = 1000;
+const SMALL = { maxFailures: 3, windowSeconds: 60 };
 
 function later(seconds: number): Date {
   return new Date(START.getTime() + seconds * SECOND);
 }
 
-const SMALL = { maxFailures: 3, windowSeconds: 60, maxTrackedClients: 4 };
+function window(failures: number, startedAt = START): FailureWindow {
+  return { startedAt, failures };
+}
 
-afterEach(() => {
-  forgetAllLoginFailures();
+/** Что хранилище отдаст на следующий вопрос: окно клиента и окно общего счёта. */
+function stored(
+  ofClient: FailureWindow | undefined,
+  ofEveryone: FailureWindow | undefined,
+): void {
+  store.readFailureWindows.mockResolvedValue([ofClient, ofEveryone]);
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  store.readFailureWindows.mockResolvedValue([undefined, undefined]);
+  store.countFailure.mockResolvedValue(undefined);
+  store.forgetFailures.mockResolvedValue(undefined);
+  store.sweepExpiredFailures.mockResolvedValue(undefined);
 });
 
-describe("createLoginThrottle", () => {
-  test("до предела попытки проходят", () => {
-    const throttle = createLoginThrottle(SMALL);
-
-    for (let attempt = 0; attempt < SMALL.maxFailures; attempt++) {
-      expect(throttle.check(CLIENT, START).allowed).toBe(true);
-      throttle.registerFailure(CLIENT, START);
-    }
-
-    expect(throttle.check(CLIENT, START).allowed).toBe(false);
+describe("приговор по окну", () => {
+  test("окна нет — попытка проходит", () => {
+    expect(verdictFor(undefined, START, SMALL)).toEqual({
+      allowed: true,
+      retryAfterSeconds: 0,
+    });
   });
 
-  test("отказ говорит, через сколько можно повторить", () => {
-    const throttle = createLoginThrottle(SMALL);
-    for (let attempt = 0; attempt < SMALL.maxFailures; attempt++) {
-      throttle.registerFailure(CLIENT, START);
-    }
+  test("до предела попытки проходят", () => {
+    expect(
+      verdictFor(window(SMALL.maxFailures - 1), START, SMALL).allowed,
+    ).toBe(true);
+  });
 
-    const verdict = throttle.check(CLIENT, later(20));
+  test("на пределе отказывает и говорит, через сколько можно повторить", () => {
+    const verdict = verdictFor(window(SMALL.maxFailures), later(20), SMALL);
 
     expect(verdict.allowed).toBe(false);
     // Окно отсчитывается от первой неудачи: 60 секунд минус прошедшие 20.
     expect(verdict.retryAfterSeconds).toBe(40);
   });
 
-  test("когда окно кончилось, попытки снова проходят", () => {
-    const throttle = createLoginThrottle(SMALL);
-    for (let attempt = 0; attempt < SMALL.maxFailures; attempt++) {
-      throttle.registerFailure(CLIENT, START);
-    }
+  test("кончившееся окно снова пускает", () => {
+    expect(
+      verdictFor(window(SMALL.maxFailures), later(SMALL.windowSeconds), SMALL)
+        .allowed,
+    ).toBe(true);
+  });
 
-    expect(throttle.check(CLIENT, later(SMALL.windowSeconds)).allowed).toBe(
-      true,
+  test("окно не продлевается новыми неудачами: срок считается от первой", () => {
+    const verdict = verdictFor(
+      window(SMALL.maxFailures + 10),
+      later(59),
+      SMALL,
     );
-  });
 
-  test("удачный вход обнуляет счётчик того, кто вошёл", () => {
-    const throttle = createLoginThrottle(SMALL);
-    for (let attempt = 0; attempt < SMALL.maxFailures; attempt++) {
-      throttle.registerFailure(CLIENT, START);
-    }
-
-    throttle.clear(CLIENT);
-
-    expect(throttle.check(CLIENT, START).allowed).toBe(true);
-  });
-
-  test("счётчики разных клиентов не смешиваются", () => {
-    const throttle = createLoginThrottle(SMALL);
-    for (let attempt = 0; attempt < SMALL.maxFailures; attempt++) {
-      throttle.registerFailure(CLIENT, START);
-    }
-
-    expect(throttle.check(OTHER, START).allowed).toBe(true);
-  });
-
-  test("хранилище не растёт без предела: адрес в заголовке подделывается", () => {
-    const throttle = createLoginThrottle(SMALL);
-
-    for (let index = 0; index < SMALL.maxTrackedClients * 3; index++) {
-      throttle.registerFailure(`192.0.2.${String(index)}`, START);
-    }
-
-    expect(throttle.size()).toBe(SMALL.maxTrackedClients);
-  });
-
-  test("вытесняется самая старая запись, а не свежая", () => {
-    const throttle = createLoginThrottle(SMALL);
-    throttle.registerFailure("самый-старый", START);
-
-    for (let index = 0; index < SMALL.maxTrackedClients; index++) {
-      throttle.registerFailure(`192.0.2.${String(index)}`, later(1));
-    }
-
-    expect(throttle.check("самый-старый", later(1)).allowed).toBe(true);
-    expect(throttle.size()).toBe(SMALL.maxTrackedClients);
+    expect(verdict.retryAfterSeconds).toBe(1);
   });
 });
 
-describe("общий предел поверх клиентского", () => {
-  test("перебор с новых адресов упирается в общий предел", () => {
-    // Заголовок с адресом подделывается, поэтому один только клиентский счётчик
-    // обходится сменой адреса на каждую попытку. Общий потолок этого не позволяет.
-    for (let index = 0; index < LOGIN_LIMITS.everyone.maxFailures; index++) {
-      const invented = `192.0.2.${String(index)}`;
-      expect(checkLoginAllowed(invented, START).allowed).toBe(true);
-      registerLoginFailure(invented, START);
-    }
+describe("кого спрашивают на попытке входа", () => {
+  test("клиентский предел запирает этого клиента", async () => {
+    stored(window(LOGIN_LIMITS.perClient.maxFailures), undefined);
 
-    expect(checkLoginAllowed("203.0.113.250", START).allowed).toBe(false);
+    await expect(checkLoginAllowed(CLIENT, START)).resolves.toEqual({
+      allowed: false,
+      retryAfterSeconds: LOGIN_LIMITS.perClient.windowSeconds,
+    });
   });
 
-  test("клиентский предел срабатывает раньше общего", () => {
-    for (let index = 0; index < LOGIN_LIMITS.perClient.maxFailures; index++) {
-      registerLoginFailure(CLIENT, START);
-    }
+  test("общий потолок запирает и того, кто сам не ошибался", async () => {
+    stored(undefined, window(LOGIN_LIMITS.everyone.maxFailures));
 
-    const verdict = checkLoginAllowed(CLIENT, START);
+    await expect(checkLoginAllowed(CLIENT, START)).resolves.toMatchObject({
+      allowed: false,
+    });
+  });
 
-    expect(verdict.allowed).toBe(false);
-    expect(verdict.retryAfterSeconds).toBe(
-      LOGIN_LIMITS.perClient.windowSeconds,
+  test("отказ называет больший из двух сроков", async () => {
+    stored(
+      window(LOGIN_LIMITS.perClient.maxFailures, later(-60)),
+      window(LOGIN_LIMITS.everyone.maxFailures),
     );
-    // Соседу перебор одного клиента вход не закрывает.
-    expect(checkLoginAllowed(OTHER, START).allowed).toBe(true);
+
+    const verdict = await checkLoginAllowed(CLIENT, START);
+
+    // Общий счёт начался позже, значит и кончится позже — ждать столько.
+    expect(verdict.retryAfterSeconds).toBe(LOGIN_LIMITS.everyone.windowSeconds);
   });
 
-  test("удачный вход снимает и клиентский, и общий счётчик", () => {
-    for (let index = 0; index < LOGIN_LIMITS.perClient.maxFailures; index++) {
-      registerLoginFailure(CLIENT, START);
+  test("пока оба счёта под пределом, попытка проходит", async () => {
+    stored(
+      window(LOGIN_LIMITS.perClient.maxFailures - 1),
+      window(LOGIN_LIMITS.everyone.maxFailures - 1),
+    );
+
+    await expect(checkLoginAllowed(CLIENT, START)).resolves.toMatchObject({
+      allowed: true,
+    });
+  });
+
+  test("спрашиваются ровно две области: клиент и все", async () => {
+    await checkLoginAllowed(CLIENT, START);
+
+    const asked = store.readFailureWindows.mock.calls[0]?.[0] as [
+      string,
+      string,
+    ][];
+    expect(asked).toHaveLength(2);
+    expect(new Set(asked.map(([scope]) => scope)).size).toBe(2);
+    // Клиентский счёт спрашивается по ключу клиента, общий — нет: он адресов не
+    // различает, иначе подделанный заголовок обходил бы и его.
+    expect(asked.filter(([, key]) => key === CLIENT)).toHaveLength(1);
+  });
+});
+
+describe("неудача", () => {
+  test("считается и клиенту, и всем сразу", async () => {
+    await registerLoginFailure(CLIENT, START);
+
+    expect(store.countFailure).toHaveBeenCalledTimes(2);
+    const keys = store.countFailure.mock.calls.map((call) => call[1] as string);
+    expect(keys).toContain(CLIENT);
+    expect(new Set(keys).size).toBe(2);
+  });
+
+  test("границей устаревания идёт начало окна, а не момент попытки", async () => {
+    await registerLoginFailure(CLIENT, START);
+
+    for (const call of store.countFailure.mock.calls) {
+      expect(call[3]).toEqual(later(-LOGIN_LIMITS.perClient.windowSeconds));
     }
+  });
 
-    forgetLoginFailures(CLIENT);
+  test("заодно сметает кончившиеся окна: хранилище не растёт", async () => {
+    await registerLoginFailure(CLIENT, START);
 
-    expect(checkLoginAllowed(CLIENT, START).allowed).toBe(true);
+    expect(store.sweepExpiredFailures).toHaveBeenCalledWith(
+      later(-LOGIN_LIMITS.everyone.windowSeconds),
+    );
+  });
+});
+
+describe("удачный вход", () => {
+  test("снимает и клиентский счёт, и общий", async () => {
+    await forgetLoginFailures(CLIENT);
+
+    expect(store.forgetFailures).toHaveBeenCalledTimes(2);
+    const keys = store.forgetFailures.mock.calls.map(
+      (call) => call[1] as string,
+    );
+    expect(keys).toContain(CLIENT);
+    expect(new Set(keys).size).toBe(2);
   });
 });

@@ -44,6 +44,7 @@ export {
   checklists,
   checks,
   countries,
+  loginFailures,
   stations,
   storeShiftModes,
   stores,
