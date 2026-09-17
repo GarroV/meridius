@@ -466,7 +466,13 @@ export function FillForm({
                       data-item-id={item.id}
                       className="text-[length:var(--fs-meta)] text-[var(--ink-3)]"
                     >
-                      {rangeLabel(item, itemsById.get(item.id), entry, failed, t)}
+                      {rangeLabel(
+                        item,
+                        itemsById.get(item.id),
+                        entry,
+                        failed,
+                        t,
+                      )}
                     </span>
                   </div>
                 ) : null}

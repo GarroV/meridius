@@ -28,6 +28,11 @@ async function answerBool(page: Page, itemId: string): Promise<void> {
     .tap();
 }
 
+/** Значение атрибута `lang` из сырого html: сценарий читает документ, а не вкладку. */
+function langOf(pattern: RegExp, html: string): string | null {
+  return pattern.exec(html)?.[1] ?? null;
+}
+
 interface Violation {
   readonly directive: string;
   readonly blocked: string;
@@ -434,7 +439,12 @@ test.describe("время отправки принадлежит кухне, а
 });
 
 test.describe("числовой пункт называет свои границы", () => {
-  test.use({ viewport: PHONE, hasTouch: true, isMobile: true, locale: "en-GB" });
+  test.use({
+    viewport: PHONE,
+    hasTouch: true,
+    isMobile: true,
+    locale: "en-GB",
+  });
 
   test("границы видны у поля ДО набора значения, а не только после провала", async ({
     page,
@@ -468,10 +478,6 @@ test.describe("язык документа на отказе по коду", () 
    * гидратации, и в живой вкладке проверка была бы зелёной поверх кривого документа.
    * Синтезатор речи и браузерный перевод читают то, что пришло по проводу.
    */
-  function langOf(pattern: RegExp, html: string): string | null {
-    return pattern.exec(html)?.[1] ?? null;
-  }
-
   test("без Accept-Language документ объявляет тот же язык, на котором говорит", async ({
     baseURL,
   }) => {
