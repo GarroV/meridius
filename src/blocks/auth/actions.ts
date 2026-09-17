@@ -4,11 +4,7 @@ import { cookies, headers } from "next/headers";
 
 import { adminPasswordHash, sessionSecret } from "./config";
 import { verifyPassword } from "./password";
-import {
-  checkLoginAllowed,
-  forgetLoginFailures,
-  registerLoginFailure,
-} from "./rate-limit";
+import { forgetLoginAttempts, reserveLoginAttempt } from "./rate-limit";
 import {
   SESSION_COOKIE_NAME,
   SESSION_MAX_AGE_SECONDS,
@@ -62,9 +58,10 @@ export async function signIn(password: string): Promise<SignInResult> {
   const client = await clientKey();
   const now = new Date();
 
-  // Счёт попыток проверяется до scrypt: перебирающий не должен получать даже той работы,
+  // Место в счёте занимается до scrypt, и занимается оно САМОЙ попыткой, а не её
+  // исходом: перебирающий не должен получать ни лишних попыток, ни даже той работы,
   // которую сервер тратит на проверку пароля.
-  const verdict = await checkLoginAllowed(client, now);
+  const verdict = await reserveLoginAttempt(client, now);
   if (!verdict.allowed) {
     return {
       status: "throttled",
@@ -74,11 +71,11 @@ export async function signIn(password: string): Promise<SignInResult> {
 
   const matches = await verifyPassword(password, adminPasswordHash());
   if (!matches) {
-    await registerLoginFailure(client, now);
+    // Считать промах отдельно нечего: попытка уже сосчитана до проверки пароля.
     return { status: "rejected" };
   }
 
-  await forgetLoginFailures(client);
+  await forgetLoginAttempts(client);
 
   const store = await cookies();
   store.set(SESSION_COOKIE_NAME, createSessionToken(secret, new Date()), {

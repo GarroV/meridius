@@ -57,6 +57,9 @@ async function cheapHash(): Promise<string> {
   });
 }
 
+/** Сколько попыток отправляется разом. Больше, чем весь запас клиента. */
+const BURST = 40;
+
 const CLIENT_HEADER = "x-forwarded-for";
 
 // Счёт неудач живёт в общей базе прогона, поэтому ключ клиента у каждой проверки свой:
@@ -225,6 +228,28 @@ describe("ограничение частоты попыток", () => {
     await signIn("не тот пароль");
 
     await expect(signIn(PASSWORD)).resolves.toEqual({ status: "ok" });
+  });
+
+  test("залп одновременных попыток не обходит предел", async () => {
+    // Разбор T217: решение «пускать» принималось отдельно от записи попытки, поэтому
+    // запросы, пришедшие разом, читали одно и то же «ещё не отказ» и проходили все.
+    // Предел «5 на клиента» снимался одновременностью, а пароль кабинета — единственная
+    // граница продукта (ролей нет, D014).
+    for (
+      let attempt = 0;
+      attempt < LOGIN_LIMITS.perClient.maxFailures - 1;
+      attempt++
+    ) {
+      await signIn("не тот пароль");
+    }
+
+    // Запас клиента исчерпан до последней попытки: пройти обязана ровно одна из залпа.
+    const burst = await Promise.all(
+      Array.from({ length: BURST }, () => signIn("не тот пароль")),
+    );
+
+    const passed = burst.filter((result) => result.status !== "throttled");
+    expect(passed).toHaveLength(1);
   });
 
   test("в списке адресов берётся первый — тот, что ближе к клиенту", async () => {

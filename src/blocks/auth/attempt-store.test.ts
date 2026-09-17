@@ -1,140 +1,173 @@
-// Хранилище счёта попыток проверяется на настоящей базе: весь его смысл — SQL,
-// который считает неудачи одним запросом и не даёт двум попыткам посчитаться как одна.
+// Хранилище счёта попыток проверяется на настоящей базе: весь его смысл — SQL, который
+// занимает место в счёте одним запросом и не даёт двум попыткам занять одно место.
 //
 // Ключи здесь у каждой проверки свои (как коды станций в тестах блока `data`): счёт
-// живёт в общей базе прогона, и соседний файл не должен видеть чужие неудачи.
+// живёт в общей базе прогона, и соседний файл не должен видеть чужие попытки.
+//
+// Время отсчитывается от настоящего «сейчас», а не от записанной в тесте даты, и это
+// не украшение: уборка кончившихся окон ходит по ВРЕМЕНИ, а не по ключам, поэтому
+// соседний файл прогона сметает всё старше пятнадцати минут. Проверка с датой из
+// прошлого зеленела в одиночку и падала в общем прогоне (найдено на этом самом файле).
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
-import { getDb, loginFailures } from "@/blocks/data";
+import { getDb, loginAttempts } from "@/blocks/data";
 
 import {
-  countFailure,
-  forgetFailures,
-  readFailureWindows,
-  sweepExpiredFailures,
+  ATTEMPTS_CEILING,
+  countAttempt,
+  fingerprintOf,
+  forgetAttempts,
+  sweepExpiredAttempts,
 } from "./attempt-store";
+import type { AttemptKey } from "./attempt-store";
 
 const SCOPE = "проверка";
-// Время отсчитывается от настоящего «сейчас», а не от записанной в тесте даты, и это
-// не украшение: уборка кончившихся окон ходит по ВРЕМЕНИ, а не по ключам, поэтому
-// соседний файл прогона, засчитывая свою неудачу, сметает всё старше пятнадцати минут.
-// Проверка с датой из прошлого зеленела в одиночку и падала в общем прогоне (найдено
-// на этом самом файле).
 const NOW = new Date();
 const MINUTE = 60 * 1000;
+/** Столько попыток отправляется разом: больше, чем любой предел входа. */
+const BURST = 40;
 
 function later(minutes: number): Date {
   return new Date(NOW.getTime() + minutes * MINUTE);
 }
 
-/** Своя строка на каждую проверку. */
-function key(): string {
-  return `203.0.113.7-${randomUUID()}`;
+/** Свой ключ на каждую проверку. */
+function key(scope = SCOPE): AttemptKey {
+  return [scope, randomUUID()];
 }
 
-async function windowOf(client: string) {
-  const [window] = await readFailureWindows([[SCOPE, client]]);
-  return window;
+/** Строка этого ключа прямо из таблицы, мимо самого хранилища. */
+async function rowOf(attemptKey: AttemptKey) {
+  const [row] = await getDb()
+    .select()
+    .from(loginAttempts)
+    .where(eq(loginAttempts.attemptKey, fingerprintOf(attemptKey)));
+  return row;
 }
 
-describe("счёт неудач", () => {
-  test("неизвестный ключ окна не имеет", async () => {
-    expect(await windowOf(key())).toBeUndefined();
+describe("занятие места в счёте", () => {
+  test("первая попытка получает первый номер и открывает окно", async () => {
+    const count = await countAttempt(key(), NOW, later(-15));
+
+    expect(count).toEqual({ startedAt: NOW, attempts: 1 });
   });
 
-  test("неудачи копятся, а окно остаётся тем, что открыла первая", async () => {
+  test("следующая попытка получает следующий номер, окно не сдвигается", async () => {
     const client = key();
 
-    await countFailure(SCOPE, client, NOW, later(-15));
-    await countFailure(SCOPE, client, later(5), later(-10));
+    await countAttempt(client, NOW, later(-15));
+    const second = await countAttempt(client, later(5), later(-10));
 
-    expect(await windowOf(client)).toEqual({ startedAt: NOW, failures: 2 });
+    expect(second).toEqual({ startedAt: NOW, attempts: 2 });
   });
 
-  test("неудача после кончившегося окна открывает новое", async () => {
+  test("попытка после кончившегося окна открывает новое", async () => {
     const client = key();
-    await countFailure(SCOPE, client, NOW, later(-15));
+    await countAttempt(client, NOW, later(-15));
 
     // Граница устаревания дошла до начала окна: прежний счёт не продолжается.
-    await countFailure(SCOPE, client, later(15), NOW);
+    const afterWindow = await countAttempt(client, later(15), NOW);
 
-    expect(await windowOf(client)).toEqual({
-      startedAt: later(15),
-      failures: 1,
-    });
+    expect(afterWindow).toEqual({ startedAt: later(15), attempts: 1 });
   });
 
+  test("одновременные попытки получают разные номера", async () => {
+    // Это и есть T217: приговор выносится по занятому месту, поэтому залп не может
+    // получить одно и то же «ещё не отказ» на всех.
+    const client = key();
+
+    const burst = await Promise.all(
+      Array.from({ length: BURST }, () => countAttempt(client, NOW, later(-15))),
+    );
+
+    const numbers = burst.map((count) => count.attempts).sort((a, b) => a - b);
+    expect(numbers).toEqual(
+      Array.from({ length: BURST }, (_, index) => index + 1),
+    );
+  });
+
+  test("счёт не растёт выше потолка", async () => {
+    const client = key();
+    await countAttempt(client, NOW, later(-15));
+    // Дойти до потолка настоящими попытками нельзя, поэтому строка подводится к нему
+    // прямо в базе: проверяется ровно то, что дальше число не растёт.
+    await getDb()
+      .update(loginAttempts)
+      .set({ attempts: ATTEMPTS_CEILING })
+      .where(eq(loginAttempts.attemptKey, fingerprintOf(client)));
+
+    const next = await countAttempt(client, later(1), later(-14));
+
+    expect(next.attempts).toBe(ATTEMPTS_CEILING);
+  });
+});
+
+describe("снятие и уборка", () => {
   test("счёт снимается по ключу и соседей не трогает", async () => {
     const client = key();
     const neighbour = key();
-    await countFailure(SCOPE, client, NOW, later(-15));
-    await countFailure(SCOPE, neighbour, NOW, later(-15));
+    await countAttempt(client, NOW, later(-15));
+    await countAttempt(neighbour, NOW, later(-15));
 
-    await forgetFailures(SCOPE, client);
+    await forgetAttempts(client);
 
-    expect(await windowOf(client)).toBeUndefined();
-    expect(await windowOf(neighbour)).toEqual({ startedAt: NOW, failures: 1 });
+    expect(await rowOf(client)).toBeUndefined();
+    expect((await rowOf(neighbour))?.attempts).toBe(1);
   });
 
-  test("область счёта входит в ключ: у клиента и у общего счёта строки разные", async () => {
-    const client = key();
+  test("область счёта входит в ключ: клиентский и общий счёт не смешиваются", async () => {
+    const shared = randomUUID();
 
-    await countFailure("клиент", client, NOW, later(-15));
-    await countFailure("все", client, NOW, later(-15));
-    await forgetFailures("клиент", client);
+    await countAttempt(["клиент", shared], NOW, later(-15));
+    const ofEveryone = await countAttempt(["все", shared], NOW, later(-15));
 
-    const [ofClient, ofEveryone] = await readFailureWindows([
-      ["клиент", client],
-      ["все", client],
-    ]);
-    expect(ofClient).toBeUndefined();
-    expect(ofEveryone).toEqual({ startedAt: NOW, failures: 1 });
+    expect(ofEveryone.attempts).toBe(1);
   });
 
   test("кончившиеся окна сметаются, живые остаются", async () => {
     const old = key();
     const fresh = key();
-    await countFailure(SCOPE, old, later(-30), later(-45));
-    await countFailure(SCOPE, fresh, NOW, later(-15));
+    await countAttempt(old, later(-30), later(-45));
+    await countAttempt(fresh, NOW, later(-15));
 
     // Граница уборки берётся заведомо старше живых окон соседей по прогону: уборка
     // ходит по времени и чужие строки снесла бы вместе со своими.
-    await sweepExpiredFailures(later(-20));
+    await sweepExpiredAttempts(later(-20));
 
-    expect(await windowOf(old)).toBeUndefined();
-    expect(await windowOf(fresh)).toBeDefined();
+    expect(await rowOf(old)).toBeUndefined();
+    expect(await rowOf(fresh)).toBeDefined();
   });
 });
 
 describe("что попадает в базу", () => {
-  test("вместо ключа клиента хранится его отпечаток", async () => {
+  test("вместо ключа хранится его отпечаток", async () => {
     const client = key();
 
-    await countFailure(SCOPE, client, NOW, later(-15));
+    await countAttempt(client, NOW, later(-15));
 
-    // Адрес клиента приходит подделываемым заголовком и человеку принадлежит:
-    // в базе продукта его быть не должно (D001).
-    const rows = await getDb()
-      .select({ attemptKey: loginFailures.attemptKey })
-      .from(loginFailures);
-    const stored = rows.map((row) => row.attemptKey);
-    expect(stored).not.toContain(client);
+    // Ключ клиента приходит подделываемым заголовком и человеку принадлежит: в базе
+    // продукта его быть не должно (D001).
+    const stored = (
+      await getDb()
+        .select({ attemptKey: loginAttempts.attemptKey })
+        .from(loginAttempts)
+    ).map((row) => row.attemptKey);
+    expect(stored).not.toContain(client[1]);
+    expect(stored).toContain(fingerprintOf(client));
     expect(stored.every((value) => /^[\da-f]{64}$/.test(value))).toBe(true);
   });
 
-  test("отпечаток у одного и того же ключа один и тот же", async () => {
-    const client = key();
+  test("отпечаток у пары «область — ключ» свой", () => {
+    const value = randomUUID();
 
-    await countFailure(SCOPE, client, NOW, later(-15));
-    await countFailure(SCOPE, client, later(1), later(-14));
-
-    const print = await getDb()
-      .select({ failures: loginFailures.failures })
-      .from(loginFailures)
-      .where(eq(loginFailures.failures, 2));
-    expect(print.length).toBeGreaterThan(0);
+    expect(fingerprintOf(["клиент", value])).not.toBe(
+      fingerprintOf(["все", value]),
+    );
+    expect(fingerprintOf(["клиент", value])).toBe(
+      fingerprintOf(["клиент", value]),
+    );
   });
 });

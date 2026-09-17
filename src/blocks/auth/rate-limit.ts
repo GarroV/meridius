@@ -1,28 +1,38 @@
 /**
- * Ограничение частоты неудачных попыток входа (T066, T212).
+ * Ограничение частоты попыток входа (T066, T212, T217).
  *
  * Пароль один на всю сеть, кабинет смотрит в интернет, и до T066 перебор упирался только
- * в стоимость scrypt. Теперь считаются неудачи: пять с одного адреса за 15 минут и общий
+ * в стоимость scrypt. Теперь попыток отмерено: пять с одного адреса за 15 минут и общий
  * потолок в 50 на всех.
  *
- * Счёт живёт в базе (`attempt-store.ts`), а не в памяти процесса. Это не украшение:
- * пока он лежал в памяти, отказ «Повторите через 15 минут» снимался перезапуском
- * процесса — то есть ограничитель держался на том, что процесс не перезапускали,
- * а перезапускается он сам (выкладка, падение, `restart: unless-stopped`).
+ * Два правила держат этот модуль, и оба взяты не из вкуса, а из найденных дыр.
+ *
+ * Первое: счёт живёт в базе (`attempt-store.ts`), а не в памяти процесса (T212). Пока он
+ * лежал в памяти, отказ «Повторите через 15 минут» снимался перезапуском — то есть
+ * ограничитель держался на том, что процесс не перезапускали, а перезапускается он сам
+ * (выкладка, падение, `restart: unless-stopped`).
+ *
+ * Второе: попытка ЗАНИМАЕТ место в счёте раньше, чем проверяется пароль, и приговор
+ * выносится по занятому месту (T217). Прежде решение принималось отдельным читающим
+ * запросом, а попытка записывалась после проверки пароля: читающий запрос ничего не
+ * занимает, поэтому запросы, пришедшие разом, читали одинаковое «ещё не отказ» и
+ * доходили до пароля все до одного — предел снимался одновременностью. Отсюда следствие,
+ * которое надо знать: считаются попытки, в том числе отклонённые, а не одни промахи.
+ * Удачный вход снимает счёт целиком, поэтому человеку с паролем это ничего не стоит.
  *
  * Отказ базы здесь — отказ во входе, а не проход мимо счёта: впустить, не сумев
  * посчитать, значит снять ограничитель ровно в тот момент, когда по продукту стучат.
  * Кабинет без базы всё равно пуст, поэтому цена такого отказа — экран ошибки, а не
  * открытая настежь форма.
  */
+import { createHash } from "node:crypto";
+
 import {
-  countFailure,
-  forgetAllFailures,
-  forgetFailures,
-  readFailureWindows,
-  sweepExpiredFailures,
+  countAttempt,
+  forgetAttempts,
+  sweepExpiredAttempts,
 } from "./attempt-store";
-import type { FailureWindow } from "./attempt-store";
+import type { AttemptCount, AttemptKey } from "./attempt-store";
 
 /** Приговор попытке: пускать ли и, если нет, через сколько секунд повторять. */
 export interface ThrottleVerdict {
@@ -30,9 +40,9 @@ export interface ThrottleVerdict {
   readonly retryAfterSeconds: number;
 }
 
-/** Предел одной области счёта: сколько неудач в окне допускается. */
+/** Предел одной области счёта: сколько попыток в окне допускается. */
 export interface ThrottleLimit {
-  readonly maxFailures: number;
+  readonly maxAttempts: number;
   readonly windowSeconds: number;
 }
 
@@ -40,25 +50,25 @@ const ALLOWED: ThrottleVerdict = { allowed: true, retryAfterSeconds: 0 };
 const MILLISECONDS = 1000;
 
 /**
- * Приговор по записанному окну. Вся арифметика отказа — здесь, отдельно от хранилища:
- * так правило «окно отсчитывается от первой неудачи» проверяется само по себе.
+ * Приговор по занятому месту. Вся арифметика отказа — здесь, отдельно от хранилища:
+ * так правило «окно отсчитывается от первой попытки» проверяется само по себе.
  *
- * Окно фиксированное: отсчёт идёт от первой неудачи, а не от последней. Так отказ
- * гарантированно кончается в названный срок — иначе попытки перебирающего продлевали бы
+ * Окно фиксированное: отсчёт идёт от первой попытки, а не от последней. Так отказ
+ * гарантированно кончается в названный срок — иначе залп перебирающего продлевал бы
  * блокировку администратору бесконечно.
+ *
+ * Место считается вместе с текущей попыткой, поэтому предел сравнивается нестрого:
+ * пятая попытка при пределе в пять ещё проходит, шестая — уже нет.
  */
 export function verdictFor(
-  window: FailureWindow | undefined,
+  count: AttemptCount,
   now: Date,
   limit: ThrottleLimit,
 ): ThrottleVerdict {
-  if (window === undefined) return ALLOWED;
-
-  const endsAt =
-    window.startedAt.getTime() + limit.windowSeconds * MILLISECONDS;
+  const endsAt = count.startedAt.getTime() + limit.windowSeconds * MILLISECONDS;
   const at = now.getTime();
   if (at >= endsAt) return ALLOWED;
-  if (window.failures < limit.maxFailures) return ALLOWED;
+  if (count.attempts <= limit.maxAttempts) return ALLOWED;
 
   return {
     allowed: false,
@@ -72,26 +82,47 @@ export function verdictFor(
  * а заголовок подделывается, и без общего счёта перебор шёл бы с нового адреса каждый раз.
  * Общий предел заметно выше клиентского, чтобы чужие промахи не запирали администратора
  * при первой же случайной опечатке соседа.
- *
- * Общий потолок заодно держит размер таблицы: строка появляется только на попытке,
- * которую он впустил, а после него не впускается ни одна.
  */
 export const LOGIN_LIMITS = {
-  perClient: { maxFailures: 5, windowSeconds: 15 * 60 },
-  everyone: { maxFailures: 50, windowSeconds: 15 * 60 },
+  perClient: { maxAttempts: 5, windowSeconds: 15 * 60 },
+  everyone: { maxAttempts: 50, windowSeconds: 15 * 60 },
 } as const;
+
+/**
+ * Сколько корзин у клиентского счёта.
+ *
+ * Клиент опознаётся не адресом, а корзиной — остатком от хэша адреса. Причина
+ * та же, по которой у прежнего счёта в памяти стоял потолок числа клиентов: адрес
+ * приходит подделываемым заголовком, и строка на каждый увиденный адрес означала бы
+ * рост хранилища ровно настолько, насколько перебирающему хватит терпения. Корзин
+ * ровно столько, сколько здесь написано, поэтому больше строк в таблице не появится
+ * НИКОГДА — это свойство самого ключа, а не уборки, которая может не успеть.
+ *
+ * Чем это платится: два разных адреса могут попасть в одну корзину и делить пятёрку
+ * попыток. При десяти тысячах корзин и горстке администраторов это событие
+ * пренебрежимо, а цена ошибки несимметрична — лишний отказ человек переживёт, лишняя
+ * попытка перебора достаётся тому, кто подбирает единственный пароль продукта.
+ *
+ * Прежний способ — вытеснять самые старые строки сверх потолка — отвергнут: под
+ * перебором он вытеснял бы как раз запертых, то есть снимал бы блокировки ровно тогда,
+ * когда они нужны.
+ */
+const CLIENT_BUCKETS = 10_000;
 
 /** Области счёта. Входят в отпечаток ключа, поэтому клиент не сядет на общую строку. */
 const CLIENT_SCOPE = "клиент";
 const EVERYONE_SCOPE = "все";
 /** У общего счёта ключ один на всех: он адресов не различает — в этом и смысл. */
-const EVERYONE_KEY = "";
+const EVERYONE: AttemptKey = [EVERYONE_SCOPE, ""];
 
-function scopes(client: string): readonly (readonly [string, string])[] {
-  return [
-    [CLIENT_SCOPE, client],
-    [EVERYONE_SCOPE, EVERYONE_KEY],
-  ];
+/** Корзина адреса. Хэш, а не остаток от самого адреса: адреса идут не подряд. */
+export function bucketOf(client: string): string {
+  const digest = createHash("sha256").update(client).digest();
+  return String(digest.readUInt32BE(0) % CLIENT_BUCKETS);
+}
+
+function clientKey(client: string): AttemptKey {
+  return [CLIENT_SCOPE, bucketOf(client)];
 }
 
 /** Самое длинное окно: до него строка ещё может понадобиться, после — уже нет. */
@@ -106,63 +137,67 @@ function expiryEdge(now: Date, windowSeconds: number): Date {
   return new Date(now.getTime() - windowSeconds * MILLISECONDS);
 }
 
-/** Пускать ли эту попытку. Отказ называет больший из двух сроков ожидания. */
-export async function checkLoginAllowed(
-  client: string,
-  now: Date,
-): Promise<ThrottleVerdict> {
-  const [clientWindow, everyoneWindow] = await readFailureWindows(
-    scopes(client),
-  );
+/**
+ * Уборка кончившихся окон идёт не чаще раза в минуту на процесс.
+ *
+ * Отметка о последней уборке — единственное, что здесь осталось в памяти, и осталось
+ * сознательно: уборка — хозяйство, а не защита. Потерять её при перезапуске значит
+ * подмести лишний раз, а не пустить лишнюю попытку. Без ограничителя частоты уборка
+ * шла бы на каждый запрос залпа, то есть работала бы на того, от кого защищаемся.
+ */
+const SWEEP_EVERY_SECONDS = 60;
+let sweptAt: number | undefined;
 
-  const refused = [
-    verdictFor(clientWindow, now, LOGIN_LIMITS.perClient),
-    verdictFor(everyoneWindow, now, LOGIN_LIMITS.everyone),
-  ].filter((verdict) => !verdict.allowed);
-  if (refused.length === 0) return ALLOWED;
-
-  return {
-    allowed: false,
-    retryAfterSeconds: Math.max(
-      ...refused.map((verdict) => verdict.retryAfterSeconds),
-    ),
-  };
-}
-
-/** Неверный пароль: считается и клиенту, и всем сразу. */
-export async function registerLoginFailure(
-  client: string,
-  now: Date,
-): Promise<void> {
-  await sweepExpiredFailures(expiryEdge(now, longestWindowSeconds()));
-  await Promise.all([
-    countFailure(
-      CLIENT_SCOPE,
-      client,
-      now,
-      expiryEdge(now, LOGIN_LIMITS.perClient.windowSeconds),
-    ),
-    countFailure(
-      EVERYONE_SCOPE,
-      EVERYONE_KEY,
-      now,
-      expiryEdge(now, LOGIN_LIMITS.everyone.windowSeconds),
-    ),
-  ]);
+async function sweepOccasionally(now: Date): Promise<void> {
+  const at = now.getTime();
+  if (
+    sweptAt !== undefined &&
+    Math.abs(at - sweptAt) < SWEEP_EVERY_SECONDS * MILLISECONDS
+  ) {
+    return;
+  }
+  sweptAt = at;
+  await sweepExpiredAttempts(expiryEdge(now, longestWindowSeconds()));
 }
 
 /**
- * Удачный вход снимает оба счётчика: тот, кто знает пароль, — не перебор, и запирать
- * его из-за чужих промахов незачем.
+ * Занять место под попытку входа и сказать, пускать ли её.
+ *
+ * Зовётся ДО проверки пароля и ровно один раз на попытку: место занимается, даже если
+ * пароль потом окажется верным. Тому, кто знает пароль, это ничего не стоит — удачный
+ * вход снимает счёт (`forgetLoginAttempts`).
  */
-export async function forgetLoginFailures(client: string): Promise<void> {
-  await Promise.all([
-    forgetFailures(CLIENT_SCOPE, client),
-    forgetFailures(EVERYONE_SCOPE, EVERYONE_KEY),
-  ]);
+export async function reserveLoginAttempt(
+  client: string,
+  now: Date,
+): Promise<ThrottleVerdict> {
+  await sweepOccasionally(now);
+
+  const ofClient = await countAttempt(
+    clientKey(client),
+    now,
+    expiryEdge(now, LOGIN_LIMITS.perClient.windowSeconds),
+  );
+  const forClient = verdictFor(ofClient, now, LOGIN_LIMITS.perClient);
+  // Клиент уже за своим пределом — общий счёт не трогаем. Иначе один стучащийся запирал
+  // бы кабинет всем подряд, просто отправляя побольше запросов со своего адреса.
+  if (!forClient.allowed) return forClient;
+
+  const ofEveryone = await countAttempt(
+    EVERYONE,
+    now,
+    expiryEdge(now, LOGIN_LIMITS.everyone.windowSeconds),
+  );
+  return verdictFor(ofEveryone, now, LOGIN_LIMITS.everyone);
 }
 
-/** Полный сброс. Нужен тестам, которые делят одну базу. */
-export async function forgetAllLoginFailures(): Promise<void> {
-  await forgetAllFailures();
+/**
+ * Удачный вход снимает оба счёта: тот, кто знает пароль, — не перебор, и запирать
+ * его из-за чужих промахов незачем.
+ */
+export async function forgetLoginAttempts(client: string): Promise<void> {
+  await Promise.all([
+    forgetAttempts(clientKey(client)),
+    forgetAttempts(EVERYONE),
+  ]);
 }
