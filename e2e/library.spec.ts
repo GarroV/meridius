@@ -8,8 +8,10 @@
 // что разметка верна для придуманных данных, а не то, что подсчёт использования работает.
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { Pool } from "pg";
 
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
+import { e2eDatabaseUrl } from "./database";
 
 const LIBRARY_PATH = "/admin/library";
 const CHECKLISTS_PATH = "/admin/checklists";
@@ -151,6 +153,43 @@ async function insertBlockByTitle(
     .click();
 }
 
+/**
+ * Блок с расписанием, заведённый прямо в базе.
+ *
+ * Через экран такого блока не собрать, и это не обход проверки, а сама механика: чип
+ * блока показывает регулярность и не настраивает её — часы отрезка считаются от окна
+ * чек-листа, а у блока окна нет и не заводится (D097). Данные с расписанием приезжают
+ * импортом и прежними редакциями, и относительная подпись обязана их показать.
+ */
+async function seedBlockWithSchedule(
+  title: string,
+  itemTitle: string,
+  schedule: readonly { from: string; to: string; everyMinutes: number }[],
+): Promise<string> {
+  const pool = new Pool({ connectionString: e2eDatabaseUrl() });
+  try {
+    const { rows } = await pool.query<{ id: string }>(
+      "insert into blocks (title, items) values ($1, $2) returning id",
+      [
+        JSON.stringify({ ru: title, en: title }),
+        JSON.stringify([
+          {
+            id: crypto.randomUUID(),
+            title: { ru: itemTitle, en: itemTitle },
+            type: "bool",
+            schedule,
+          },
+        ]),
+      ],
+    );
+    const id = rows[0]?.id;
+    expect(id, "Блок с расписанием не завёлся").toBeDefined();
+    return id ?? "";
+  } finally {
+    await pool.end();
+  }
+}
+
 test.describe("библиотека переиспользуемых блоков", () => {
   // Эталон и тексты сценария русские, поэтому и браузер русский.
   test.use({ locale: "ru-RU" });
@@ -168,6 +207,51 @@ test.describe("библиотека переиспользуемых блоко�
     await page.reload();
     await expect(page.getByTestId("block-title")).toHaveValue(title);
     await expect(page.getByTestId("item-title").first()).toHaveValue(itemTitle);
+
+    // Чип регулярности стоит в строке пункта блока так же, как в чек-листе (D096):
+    // у только что заведённого пункта расписания нет, и чип обязан сказать это словом,
+    // а не отсутствовать. Раньше на этом экране чипа не было вовсе (T198).
+    const chip = page.getByTestId("item-schedule-chip");
+    await expect(chip).toHaveCount(1);
+    await expect(chip).toHaveAttribute("data-kind", "none");
+    await expect(chip).toHaveText("Разово");
+  });
+
+  test("чип блока называет отрезок относительным, без часов суток", async ({
+    page,
+  }) => {
+    const title = `Блок с расписанием ${label()}`;
+    const blockId = await seedBlockWithSchedule(
+      title,
+      "Проверить температуру",
+      // Два отрезка с одним шагом: без часов суток это ОДНО утверждение «каждые
+      // 2 часа», и показать его дважды значило бы показать различие, которого нет.
+      [
+        { from: "07:00", to: "11:00", everyMinutes: 120 },
+        { from: "14:00", to: "18:00", everyMinutes: 120 },
+      ],
+    );
+
+    await signIn(page);
+    await page.goto(`${LIBRARY_PATH}?block=${blockId}`);
+
+    const editor = page.locator(
+      `[data-testid="block-editor"][data-block-id="${blockId}"]`,
+    );
+    const chip = editor.getByTestId("item-schedule-chip");
+    await expect(chip).toHaveCount(1);
+    await expect(chip).toHaveAttribute("data-kind", "every");
+    await expect(chip).toHaveText("каждые 2 часа");
+
+    // Главное утверждение сценария: часы окна на экране блока не показываются ни в
+    // каком виде. Они принадлежат чек-листу, который блок подключает, и блок, живущий
+    // сразу в нескольких чек-листах, назвал бы здесь часы одного из них наугад.
+    await expect(chip).not.toContainText("07:00");
+    await expect(chip).not.toContainText("14:00");
+
+    // Чип показывает, а не открывает: нажимать нечего, и снаружи это должно быть видно.
+    await expect(chip).toHaveJSProperty("tagName", "SPAN");
+    await expect(chip).toHaveAttribute("data-relative", "true");
   });
 
   test("блок, не вставленный никуда, помечен явно", async ({ page }) => {
