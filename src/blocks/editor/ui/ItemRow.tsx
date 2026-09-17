@@ -81,8 +81,32 @@ export function itemInputId(itemId: string): string {
   return `item-title-${itemId}`;
 }
 
+/**
+ * Раскладка строки: номер, название, управление.
+ *
+ * Строка живёт в двух видах, и это две починки (T211 дефект #87, T222 дефект #99).
+ *
+ * **До 1280 px — две колонки:** номер и название сверху, управление своей строкой во
+ * всю ширину. Рядом с названием оно не помещается ни при каком поле — один
+ * переключатель уровня занимает 257 px, а на окне 1024 px всей строке достаётся 444 px
+ * вместе с номером. Пока управление стояло третьей колонкой на любой ширине, документ
+ * выходил 848 px при окне 375: страница уезжала вбок вместе с кнопкой «Опубликовать».
+ *
+ * **От 1280 px — три колонки, как в эталоне**, и у названия есть пол в 320 px.
+ * Прежний `1fr` означает `minmax(auto,1fr)`, а у поля ввода собственная минимальная
+ * ширина почти нулевая: управление забирало сколько просило, и название сжималось до
+ * 112 px на окне 1440, когда в строке сходились род «число» с границами, чип
+ * регулярности и уровень. Пол именно 320, а не 200: на 200 px сверка с эталоном
+ * поймала на снимке то, что проверка шириной пропустила — название обрезано на
+ * полуслове («Температура камеры быстр»).
+ *
+ * `minmax(0,auto)` у колонки управления — разрешение быть уже своего содержимого.
+ * Без нижней границы `auto` требовал ширину всех кнопок в одну строку, и не влезшее
+ * уезжало за край страницы. С нулевым минимумом управление переносится (`flex-wrap`
+ * ниже): строка становится выше, а не шире экрана.
+ */
 const ROW_CLASS =
-  "grid grid-cols-[28px_1fr_auto] items-center gap-[var(--space-5)] px-[var(--space-6)] py-[var(--space-4)]";
+  "grid grid-cols-[28px_minmax(0,1fr)] items-center gap-[var(--space-5)] px-[var(--space-6)] py-[var(--space-4)] xl:grid-cols-[28px_minmax(320px,1fr)_minmax(0,auto)]";
 /** Линия под строкой. У табличного пункта она уезжает под панель колонок: панель —
     продолжение той же строки, а не соседняя. */
 const ROW_LINE_CLASS = "border-b border-[var(--line)]";
@@ -186,7 +210,10 @@ export function ItemRow({
           onPaste={onPaste}
         />
 
-        <div className="flex items-center gap-[var(--space-4)]">
+        {/* Управление переносится, а не сжимает название: у чипа регулярности и
+          переключателя уровня свои неделимые ширины, и в одну строку они влезают
+          не всегда. Ниже складки колонка своя, во всю ширину строки. */}
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-[var(--space-4)] max-xl:col-span-2 max-xl:justify-start">
           <select
             data-testid="item-type"
             className={`${SELECT_CLASS} pr-[var(--space-8)]`}
@@ -290,7 +317,7 @@ export function ItemRow({
             type="button"
             data-testid="item-remove"
             aria-label={t("remove")}
-            className="text-err flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] hover:border-[var(--err-line)] hover:bg-[var(--err-soft)]"
+            className="text-err flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] hover:border-[var(--err-line)] hover:bg-[var(--err-soft)] max-xl:ml-auto"
             onClick={onRemove}
           >
             ×

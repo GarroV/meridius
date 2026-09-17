@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent } from "react";
 
+import { ADMIN_CONTENT_CLASS } from "@/blocks/core/ui/admin-frame";
 import { useLive } from "@/blocks/core/ui/use-live";
 import type { Item, Section } from "@/blocks/data";
 
@@ -197,7 +198,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
 
   return (
     <div className="flex min-w-0 flex-col">
-      <header className="bg-surface flex items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)]">
+      <header className="bg-surface flex flex-wrap items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)] max-md:gap-[var(--space-5)] max-md:px-[var(--space-7)]">
         <div className="flex min-w-0 flex-col gap-[var(--space-1)]">
           <div className="text-[length:var(--fs-meta)] text-[var(--ink-3)]">
             {props.crumbs}
@@ -207,7 +208,9 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
           </h1>
         </div>
 
-        <div className="ml-auto flex items-center gap-[var(--space-4)]">
+        {/* Действия переносятся на свою строку целиком, а не поодиночке: ниже складки
+            они шире половины экрана, и вперемешку с заголовком читались бы как его часть. */}
+        <div className="ml-auto flex flex-wrap items-center gap-[var(--space-4)] max-md:ml-0 max-md:w-full">
           <EditorStatus
             versions={props.versions}
             saveState={saveState}
@@ -257,8 +260,11 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
         </div>
       </header>
 
-      <div className="flex flex-col gap-[var(--space-8)] p-[var(--space-9)]">
-        <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:1fr_268px]">
+      <div className={ADMIN_CONTENT_CLASS}>
+        {/* Боковая колонка (версии и библиотека) уходит под содержимое до 1024 px, а
+            не до складки 768: замер показал, что рядом с ней строка пункта не влезает и
+            на 800 px — документ выходил 921 px при окне 800. */}
+        <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:1fr_268px] max-lg:[grid-template-columns:1fr]">
           <div>
             <PropertiesCard
               title={title}
@@ -368,7 +374,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
             <div
               data-testid="editor-footer"
               data-item-total={total}
-              className="mt-[var(--space-8)] flex items-center gap-[var(--space-5)]"
+              className="mt-[var(--space-8)] flex flex-wrap items-center gap-[var(--space-5)]"
             >
               <button
                 type="button"
@@ -397,7 +403,9 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               >
                 {t("section.insertBlock")}
               </button>
-              <span className="ml-auto flex flex-wrap items-center gap-[var(--space-6)] text-[length:var(--fs-meta)] text-[var(--ink-3)]">
+              {/* Подсказки клавиш ниже складки скрыты: клавиатуры там нет, а место они
+                отнимают у кнопок, которые на телефоне и так встают в две строки. */}
+              <span className="ml-auto flex flex-wrap items-center gap-[var(--space-6)] text-[length:var(--fs-meta)] text-[var(--ink-3)] max-md:hidden">
                 <span>
                   <kbd className={KBD_CLASS}>Enter</kbd> {t("keys.enter")}
                 </span>
@@ -414,7 +422,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
             </div>
           </div>
 
-          <aside className="sticky top-[var(--space-9)] flex w-[268px] flex-col gap-[var(--space-6)] self-start">
+          <aside className="sticky top-[var(--space-9)] flex w-[268px] flex-col gap-[var(--space-6)] self-start max-lg:static max-lg:w-full">
             <VersionsPanel versions={props.versions} />
             <LibraryPanel
               library={props.library}
