@@ -19,6 +19,26 @@ import type {
 
 const CARD_CLASS =
   "bg-surface rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
+
+/**
+ * Сетка ответов прокручивается ВНУТРИ СЕБЯ, а не тащит вбок всю страницу (D092:
+ * «таблицы и сетки остаются со своей прокруткой»). На телефоне боковое меню кабинета
+ * съедает 208 из 375 px, карточке остаётся 117, а строке ответа нужно втрое больше —
+ * без прокрутки страница уезжала целиком вместе с меню, шапкой и полосой фактов
+ * (замер на 375 px: страница 1299 px при окне 375, карточка 1066 при ширине 117).
+ *
+ * Шапка карточки в прокрутку НЕ входит: заголовок «Ответы» остаётся на месте, когда
+ * строки уехали вправо.
+ *
+ * Откуда 440 px. Это самая узкая ширина, на которой строка ещё ничего не режет:
+ * квадратик 24 + самая длинная нерасторопная метка продукта («в этом режиме не
+ * запрашивали», 218 px замером) + значение 90 + время 40 + три зазора по 12 и поля
+ * строки 32. Меньше — и метка вылезет за свою колонку; проверку на это держит
+ * сквозной сценарий (`e2e/submission-phone.spec.ts`), поэтому подросший словарь
+ * покажет себя красным, а не молча обрезанной меткой.
+ */
+const SCROLLER_CLASS = "overflow-x-auto";
+const ROWS_CLASS = "min-w-[440px]";
 const HEAD_CLASS =
   "flex items-center gap-[var(--space-6)] rounded-t-[var(--r-block)] border-b border-[var(--line)] bg-[var(--surface-3)] px-[var(--space-7)] py-[var(--space-6)]";
 const TITLE_CLASS =
@@ -48,8 +68,12 @@ const MARK_FAIL_CLASS = `${MARK_BASE_CLASS} border-[var(--err)] bg-[var(--err)]`
 
 const TITLE_ROW_CLASS = "flex flex-wrap items-center gap-[var(--space-3)]";
 const HINT_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
+// Значение НЕ запрещает перенос (эталон `.answer__val` его тоже не запрещает):
+// текстовый ответ бывает в две строки прозы, и `whitespace-nowrap` растягивал под него
+// колонку на всю длину фразы — замер на 375 px давал карточке 1066 px при ширине 117
+// (T202). `anywhere` добавлен для чужих языков, где слово длиннее колонки.
 const VALUE_CLASS =
-  "font-[family-name:var(--font-num)] text-[length:var(--fs-num)] whitespace-nowrap";
+  "font-[family-name:var(--font-num)] text-[length:var(--fs-num)] [overflow-wrap:anywhere]";
 const TIME_CLASS =
   "font-[family-name:var(--font-num)] text-[length:var(--fs-num)] text-[var(--ink-3)] whitespace-nowrap";
 
@@ -312,17 +336,19 @@ export async function AnswersCard({
       <div className={HEAD_CLASS}>
         <h2 className={TITLE_CLASS}>{t("answers")}</h2>
       </div>
-      <div>
-        {model.sections.map((section, sectionIndex) => (
-          <SectionBlock
-            key={section.id}
-            section={section}
-            isLastSection={sectionIndex === lastSectionIndex}
-            format={format}
-            t={t}
-            timeZone={model.timeZone}
-          />
-        ))}
+      <div className={SCROLLER_CLASS} data-testid="answers-scroller">
+        <div className={ROWS_CLASS}>
+          {model.sections.map((section, sectionIndex) => (
+            <SectionBlock
+              key={section.id}
+              section={section}
+              isLastSection={sectionIndex === lastSectionIndex}
+              format={format}
+              t={t}
+              timeZone={model.timeZone}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

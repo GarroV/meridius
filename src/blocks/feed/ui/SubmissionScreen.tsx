@@ -96,7 +96,9 @@ export async function SubmissionScreen({
       })}
       topbarAction={
         <TopbarActions>
-          <OutcomeTag outcome={model.outcome} />
+          {/* Полосе на телефоне остаётся 103 px: метка обязана переноситься, иначе
+              она уезжает за край окна вместе со страницей (T203). */}
+          <OutcomeTag outcome={model.outcome} flexible />
           <Link href={model.checklistHref} className={BTN_CLASS}>
             {checklistLinkText(model, t)}
           </Link>
