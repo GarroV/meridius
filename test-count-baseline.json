@@ -1,0 +1,10 @@
+{
+  "vitest": {
+    "executed": 1564,
+    "allowedSkips": []
+  },
+  "playwright": {
+    "executed": 213,
+    "allowedSkips": []
+  }
+}

@@ -6,6 +6,13 @@ set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 mkdir -p reports
 
+# Отчёты прошлого прогона сносятся ДО прогона. Раннер, который не стартовал, иначе
+# оставляет вчерашний отчёт, и планки читают его как сегодняшний: зелёный гейт по
+# проверкам, которых сегодня не выполнялось, — ровно тот дефект, ради которого планка
+# и заведена (D101). Нет отчёта — провал, и он виден.
+rm -f reports/vitest.junit.xml reports/playwright.junit.xml \
+  reports/coverage/coverage-summary.json
+
 FAILED=()
 run() {
   local name="$1"; shift
@@ -26,13 +33,21 @@ run "формат"           npx --no-install prettier --check .
 # Типы генерируются раньше линта: линт с типами опирается на определения маршрутов от next typegen.
 run "типы"             bash -c 'npx --no-install next typegen && npx --no-install tsc --noEmit'
 run "линт с типами"    npx --no-install eslint .
-run "тесты"            npx --no-install vitest run --coverage --reporter=junit --outputFile=reports/vitest.junit.xml
+# Тесты зовутся ТЕМИ ЖЕ командами, что у человека: `npm test` и `npm run e2e` (T226).
+# Раньше здесь стоял свой `vitest run --coverage --reporter=junit …`, а в package.json —
+# голый `vitest run`: две цели прогона с разными наборами. Та, что короче, зеленела чаще,
+# потому что проверяла меньше — не писала ни покрытия, ни машинного отчёта. Список флагов
+# теперь один, в package.json, и разъехаться ему негде.
+run "тесты"            npm run test
 # Порог покрытия относительный (T180): сравнение с прошлой принятой приёмкой, а не с
 # числом из принципов. Идёт сразу после тестов — раньше их отчёта ещё нет.
 run "порог покрытия"   node scripts/coverage-gate.mjs
 run "мёртвый код"      npx --no-install knip
 run "границы модулей"  npx --no-install depcruise src
-run "сквозные сценарии" npx --no-install playwright test
+run "сквозные сценарии" npm run e2e
+# Планка числа выполненных проверок (T225): код возврата одинаков и при двухстах
+# выполненных проверках, и при нуле. Идёт последней — раньше отчётов обоих раннеров нет.
+run "планка числа проверок" node scripts/test-count-gate.mjs
 
 if [ ${#FAILED[@]} -gt 0 ]; then
   printf '\n\033[31mПРОВАЛ (%d): %s\033[0m\n' "${#FAILED[@]}" "${FAILED[*]}"
