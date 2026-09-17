@@ -399,15 +399,35 @@ export const alarms = pgTable(
  * подделываемым заголовком, и хранить его продукт не должен (D001 — людей продукт не
  * опознаёт вовсе). Форма отпечатка проверяется в самой базе (миграция 0010).
  */
-export const loginAttempts = pgTable("login_attempts", {
-  attemptKey: text("attempt_key").primaryKey(),
-  // Начало окна: отсчёт от первой попытки, поэтому отказ кончается в названный срок,
-  // и залп попыток отказ не продлевает.
-  windowStartedAt: timestamp("window_started_at", {
-    withTimezone: true,
-  }).notNull(),
-  attempts: integer("attempts").notNull(),
-});
+export const loginAttempts = pgTable(
+  "login_attempts",
+  {
+    attemptKey: text("attempt_key").primaryKey(),
+    // Начало окна: отсчёт от первой попытки, поэтому отказ кончается в названный срок,
+    // и залп попыток отказ не продлевает.
+    windowStartedAt: timestamp("window_started_at", {
+      withTimezone: true,
+    }).notNull(),
+    attempts: integer("attempts").notNull(),
+  },
+  () => [
+    // Оба ограничения стоят в базе с миграции 0010 (имена — от 0011, после переименования
+    // счёта промахов в счёт попыток). Объявлены они здесь потому, что схема — источник
+    // генерации миграций: пока их тут не было, сгенерированная миграция создавала таблицу
+    // без них и снимала последний рубеж молча (T221).
+    //
+    // Форма ключа: ровно шестьдесят четыре шестнадцатеричных знака, то есть sha256 и
+    // ничего кроме. Забытое хэширование в коде не должно означать, что база примет
+    // подделываемый заголовком адрес клиента как есть.
+    check(
+      "login_attempts_attempt_key_shape",
+      sql`attempt_key ~ '^[0-9a-f]{64}$'`,
+    ),
+    // Строка заводится первой попыткой и снимается удачным входом, поэтому ноль или
+    // отрицательное значение здесь означает не «никто не пробовал», а сбой счёта.
+    check("login_attempts_attempts_positive", sql`attempts > 0`),
+  ],
+);
 
 export type Country = typeof countries.$inferSelect;
 export type Store = typeof stores.$inferSelect;
