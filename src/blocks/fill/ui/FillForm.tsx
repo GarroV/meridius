@@ -1,9 +1,10 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 
+import { asLocale } from "@/blocks/core/locale";
 import { StateScreen } from "@/blocks/core/ui/StateScreen";
 import type { Item, TableRow } from "@/blocks/data";
 
@@ -22,6 +23,7 @@ import type { RoundOutcome } from "../rounds";
 import type { ShiftModeOutcome } from "../shift-mode";
 import type { SubmitOutcome } from "../submit";
 import { filledRows } from "../table-journal";
+import { formatStationTime } from "../station-time";
 import { AlarmsPanel } from "./AlarmsPanel";
 import { RoundsPanel } from "./RoundsPanel";
 import type { ShiftState } from "./ShiftModeBar";
@@ -101,6 +103,12 @@ export interface FillFormProps {
   readonly ticket: string;
   readonly stationName: string;
   readonly storeName: string;
+  /**
+   * Часовой пояс пиццерии: время отправки принадлежит кухне, а не телефону.
+   * Телефон сотрудника может ехать из другой страны — и тогда «отправлено в 23:52»
+   * назвало бы час, которого на этой кухне не было.
+   */
+  readonly timeZone: string;
   /** Режим сегодняшней смены и то, ставил ли его кто-нибудь (D055). */
   readonly shift: ShiftState;
   /** Серверное действие смены режима: тот же адрес `/s/<код>`. */
@@ -157,18 +165,27 @@ function formatDuration(durationMs: number): string {
 }
 
 /**
- * Подпись под числовым полем: «в диапазоне» / «вне диапазона». Пункт без границ
- * молчит — писать «в диапазоне» там, где диапазона нет, значит выдумывать оценку.
+ * Подпись у числового поля: сперва сами границы («2…6»), затем — когда значение
+ * набрано — попадание в них. Границы стоят ЗДЕСЬ, а не в подсказке под названием:
+ * знать допустимое надо в минуту набора, а не после того, как продукт назвал
+ * значение провалом и потребовал комментарий (эталон `fill.html`, «°C · within
+ * range»). Пункт без границ молчит: писать «в диапазоне» там, где диапазона нет,
+ * значит выдумывать оценку.
  */
 function rangeLabel(
+  view: FillItemView,
   item: Item | undefined,
   entry: DraftAnswer | undefined,
   failed: boolean,
   t: Translate,
 ): string {
-  if (item === undefined) return "";
-  if (rangeVerdict(item, numberOf(entry)) === "unbounded") return "";
-  return failed ? t("outsideRange") : t("withinRange");
+  const verdict =
+    item === undefined || rangeVerdict(item, numberOf(entry)) === "unbounded"
+      ? ""
+      : failed
+        ? t("outsideRange")
+        : t("withinRange");
+  return [view.range ?? "", verdict].filter((part) => part !== "").join(" · ");
 }
 
 function ItemBody({
@@ -219,6 +236,7 @@ export function FillForm({
   ticket,
   stationName,
   storeName,
+  timeZone,
   shift,
   choose,
   submit,
@@ -229,6 +247,10 @@ export function FillForm({
   dropAlarm,
 }: FillFormProps): ReactElement {
   const t = useTranslations("fill");
+  // Язык экрана, а не язык телефона: его посчитала цепочка `pickFillLocales` и
+  // отдал провайдер серверной части. Формат часа при этом всё равно круглосуточный —
+  // см. `formatStationTime`.
+  const locale = asLocale(useLocale());
   const [draft, setDraft] = useState<FillDraft>(emptyDraft);
   const [phase, setPhase] = useState<Phase>({ kind: "filling" });
   // Пункты для счёта: те же правила провала, что у ленты управляющего (`isFailed`).
@@ -308,10 +330,7 @@ export function FillForm({
     const meta = [
       t("sent.where", { station: stationName, store: storeName }),
       t("sent.meta", {
-        time: new Date(outcome.submittedAt).toLocaleTimeString(undefined, {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        time: formatStationTime(outcome.submittedAt, timeZone, locale),
         duration: formatDuration(outcome.durationMs),
       }),
     ];
@@ -442,8 +461,18 @@ export function FillForm({
                         });
                       }}
                     />
-                    <span className="text-[length:var(--fs-meta)] text-[var(--ink-3)]">
-                      {rangeLabel(itemsById.get(item.id), entry, failed, t)}
+                    <span
+                      data-testid="fill-number-range"
+                      data-item-id={item.id}
+                      className="text-[length:var(--fs-meta)] text-[var(--ink-3)]"
+                    >
+                      {rangeLabel(
+                        item,
+                        itemsById.get(item.id),
+                        entry,
+                        failed,
+                        t,
+                      )}
                     </span>
                   </div>
                 ) : null}

@@ -10,7 +10,7 @@ import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
 
 import { listAlarms } from "../alarms";
-import { pickFillLocales } from "../locale";
+import { fillDocumentLocale, pickFillLocales } from "../locale";
 import { CHECKLIST_PARAM } from "../params";
 import {
   checkScanAllowed,
@@ -41,10 +41,13 @@ import { submitFillAction } from "./submit-action";
 
 const MESSAGES: Record<Locale, typeof en> = { en, ru };
 
-/** Язык, на котором говорит отказ, когда о станции ещё ничего не известно. */
+/**
+ * Язык, на котором говорит отказ, когда о станции ещё ничего не известно. Тот же
+ * `fillDocumentLocale`, что кладёт язык в заголовок для корневой разметки: один
+ * ответ на один вопрос, иначе документ и его содержимое снова разъедутся (T232).
+ */
 async function refusalLocale(): Promise<Locale> {
-  const acceptLanguage = (await headers()).get("accept-language");
-  return pickFillLocales(acceptLanguage, null)[0] ?? "ru";
+  return fillDocumentLocale((await headers()).get("accept-language"));
 }
 
 function translatorFor(locale: Locale) {
@@ -221,6 +224,7 @@ export async function FillScreen({
           ticket={issueFillTicket({ code, versionId: target.version.id }, now)}
           stationName={target.stationName}
           storeName={target.storeName}
+          timeZone={target.timeZone}
           shift={{ mode: target.mode, chosen: target.modeChosen }}
           choose={chooseShiftModeAction}
           submit={submitFillAction}

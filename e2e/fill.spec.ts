@@ -28,6 +28,11 @@ async function answerBool(page: Page, itemId: string): Promise<void> {
     .tap();
 }
 
+/** Значение атрибута `lang` из сырого html: сценарий читает документ, а не вкладку. */
+function langOf(pattern: RegExp, html: string): string | null {
+  return pattern.exec(html)?.[1] ?? null;
+}
+
 interface Violation {
   readonly directive: string;
   readonly blocked: string;
@@ -368,5 +373,138 @@ test.describe("язык экрана заполнения", () => {
     // Прежний селектор стал неоднозначным и падал на strict mode, хотя проверял то же.
     await expect(page.locator('body > [lang="ru"]')).toBeVisible();
     await context.close();
+  });
+});
+
+test.describe("время отправки принадлежит кухне, а не телефону", () => {
+  // Пояса взяты заведомо далёкие друг от друга и от пояса машины прогона: между
+  // Токио и Нью-Йорком 13-14 часов, поэтому час на экране расходится всегда, а не
+  // только в удачную минуту прогона. Телефон вдобавок на en-US — там часы
+  // двенадцатичасовые, и одного совпадения цифр было бы мало.
+  const STORE_TZ = "Asia/Tokyo";
+  const PHONE_TZ = "America/New_York";
+
+  test("телефон в чужом поясе и с 12-часовыми часами — на экране время пиццерии", async ({
+    browser,
+  }) => {
+    // Arrange
+    const stand = await seedFillStand("пояс", {
+      timezone: STORE_TZ,
+      countryLocale: "en",
+    });
+    const context = await browser.newContext({
+      viewport: PHONE,
+      hasTouch: true,
+      isMobile: true,
+      locale: "en-US",
+      timezoneId: PHONE_TZ,
+    });
+    const page = await context.newPage();
+    await page.goto(`/s/${stand.code}`);
+
+    // Act
+    await answerBool(page, "i-oven");
+    await page.getByTestId("fill-number").fill("172");
+    await answerBool(page, "i-sauce");
+    await page.getByTestId("fill-text").fill("evening shift");
+    await page.getByTestId("fill-submit").tap();
+    await expect(page.getByTestId("fill-sent")).toBeVisible();
+
+    // Assert: время на экране — то, что записано в базе, в поясе пиццерии и
+    // круглыми сутками. Ожидаемое считается от записи, а не от часов прогона.
+    const stored = await lastSubmission(stand.stationId);
+    expect(stored).not.toBeNull();
+    const at = stored?.submittedAt ?? new Date();
+    const kitchenTime = new Intl.DateTimeFormat("en", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+      timeZone: STORE_TZ,
+    }).format(at);
+    const phoneTime = new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: PHONE_TZ,
+    }).format(at);
+    // Сторож самой проверки: если бы часы совпали, она прошла бы и на старом коде.
+    expect(phoneTime).not.toBe(kitchenTime);
+
+    await expect(page.getByTestId("fill-sent")).toContainText(
+      `Sent at ${kitchenTime}`,
+    );
+    await expect(page.getByTestId("fill-sent")).not.toContainText(phoneTime);
+
+    await context.close();
+  });
+});
+
+test.describe("числовой пункт называет свои границы", () => {
+  test.use({
+    viewport: PHONE,
+    hasTouch: true,
+    isMobile: true,
+    locale: "en-GB",
+  });
+
+  test("границы видны у поля ДО набора значения, а не только после провала", async ({
+    page,
+  }) => {
+    // Arrange: пункт «температура фритюра» с границами 160…180.
+    const stand = await seedFillStand("границы");
+    await page.goto(stickerPath(stand.code));
+
+    // Assert: поле ещё пустое, а допустимое уже названо. До T233 здесь было пусто,
+    // и сотрудник узнавал о диапазоне только когда продукт потребовал комментарий.
+    const label = page.locator(
+      '[data-testid="fill-number-range"][data-item-id="i-fry"]',
+    );
+    await expect(label).toHaveText("160…180");
+
+    // Act: значение вне границ — рядом с ними появляется вердикт, границы остаются.
+    await page.getByTestId("fill-number").fill("200");
+    await expect(label).toHaveText("160…180 · out of range");
+
+    await page.getByTestId("fill-number").fill("172");
+    await expect(label).toHaveText("160…180 · within range");
+  });
+});
+
+test.describe("язык документа на отказе по коду", () => {
+  /**
+   * Запрос идёт СЫРЫМ `fetch`, а не браузером, и по двум причинам сразу.
+   * Первая: браузер Playwright всегда шлёт `Accept-Language`, а расхождение живёт
+   * именно на запросе БЕЗ него — так ходит встроенный браузер сканера QR, с которого
+   * на этот экран и попадают. Вторая: `HtmlLangSync` чинит `<html lang>` после
+   * гидратации, и в живой вкладке проверка была бы зелёной поверх кривого документа.
+   * Синтезатор речи и браузерный перевод читают то, что пришло по проводу.
+   */
+  test("без Accept-Language документ объявляет тот же язык, на котором говорит", async ({
+    baseURL,
+  }) => {
+    // Act
+    const response = await fetch(`${baseURL ?? ""}/s/zzzzzzzzzz`);
+    const html = await response.text();
+
+    // Assert
+    const documentLang = langOf(/<html[^>]*\slang="([a-z-]+)"/, html);
+    const contentLang = langOf(/<div lang="([a-z-]+)"/, html);
+    expect(contentLang).not.toBeNull();
+    expect(documentLang).toBe(contentLang);
+    // И это именно русский — последнее звено цепочки экрана заполнения, а не язык
+    // продукта: иначе проверка прошла бы, если оба съехали бы в английский.
+    expect(documentLang).toBe("ru");
+    expect(html).toContain("Этот код не работает");
+  });
+
+  test("с Accept-Language язык остаётся языком телефона", async ({
+    baseURL,
+  }) => {
+    const response = await fetch(`${baseURL ?? ""}/s/zzzzzzzzzz`, {
+      headers: { "accept-language": "en-GB,en;q=0.9" },
+    });
+    const html = await response.text();
+
+    expect(langOf(/<html[^>]*\slang="([a-z-]+)"/, html)).toBe("en");
+    expect(langOf(/<div lang="([a-z-]+)"/, html)).toBe("en");
   });
 });

@@ -23,6 +23,12 @@ export interface FillStandOptions {
   readonly windowEnd?: string;
   /** Язык страны: по нему проверяется откат языка, когда телефон говорит на третьем. */
   readonly countryLocale?: "ru" | "en";
+  /**
+   * Часовой пояс пиццерии. По умолчанию UTC — сценариям, которые о времени не
+   * спрашивают, так проще. Сценарию про время кухни нужен пояс, заведомо не равный
+   * поясу машины прогона и поясу браузера.
+   */
+  readonly timezone?: string;
   /** Свои секции вместо эталонных: нужны сценарию обходов с расписанием пункта. */
   readonly sections?: unknown;
 }
@@ -122,8 +128,8 @@ export async function seedFillStand(
     const store = firstId(
       (
         await pool.query<{ id: string }>(
-          "insert into stores (country_id, name, timezone) values ($1, $2, 'UTC') returning id",
-          [country, storeName],
+          "insert into stores (country_id, name, timezone) values ($1, $2, $3) returning id",
+          [country, storeName, options.timezone ?? "UTC"],
         )
       ).rows,
       "stores",
@@ -183,6 +189,8 @@ export interface StoredSubmission {
   readonly stationId: string;
   readonly answers: { itemId: string; value: unknown; comment?: string }[];
   readonly snapshotItemIds: string[];
+  /** Время сервера, как оно легло в базу: по нему считается ожидаемое время на экране. */
+  readonly submittedAt: Date;
 }
 
 /** Что легло в базу: сценарий обязан доказать запись, а не поверить экрану «отправлено». */
@@ -195,8 +203,9 @@ export async function lastSubmission(
       station_id: string;
       answers: StoredSubmission["answers"];
       snapshot: { items: { id: string }[] }[];
+      submitted_at: Date;
     }>(
-      `select version_id, station_id, answers, snapshot from submissions
+      `select version_id, station_id, answers, snapshot, submitted_at from submissions
        where station_id = $1 order by submitted_at desc, id desc limit 1`,
       [stationId],
     );
@@ -209,6 +218,7 @@ export async function lastSubmission(
       snapshotItemIds: row.snapshot.flatMap((section) =>
         section.items.map((item) => item.id),
       ),
+      submittedAt: row.submitted_at,
     };
   });
 }
