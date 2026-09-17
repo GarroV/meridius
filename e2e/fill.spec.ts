@@ -432,3 +432,29 @@ test.describe("время отправки принадлежит кухне, а
     await context.close();
   });
 });
+
+test.describe("числовой пункт называет свои границы", () => {
+  test.use({ viewport: PHONE, hasTouch: true, isMobile: true, locale: "en-GB" });
+
+  test("границы видны у поля ДО набора значения, а не только после провала", async ({
+    page,
+  }) => {
+    // Arrange: пункт «температура фритюра» с границами 160…180.
+    const stand = await seedFillStand("границы");
+    await page.goto(stickerPath(stand.code));
+
+    // Assert: поле ещё пустое, а допустимое уже названо. До T233 здесь было пусто,
+    // и сотрудник узнавал о диапазоне только когда продукт потребовал комментарий.
+    const label = page.locator(
+      '[data-testid="fill-number-range"][data-item-id="i-fry"]',
+    );
+    await expect(label).toHaveText("160…180");
+
+    // Act: значение вне границ — рядом с ними появляется вердикт, границы остаются.
+    await page.getByTestId("fill-number").fill("200");
+    await expect(label).toHaveText("160…180 · out of range");
+
+    await page.getByTestId("fill-number").fill("172");
+    await expect(label).toHaveText("160…180 · within range");
+  });
+});

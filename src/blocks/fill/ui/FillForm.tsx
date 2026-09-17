@@ -165,18 +165,27 @@ function formatDuration(durationMs: number): string {
 }
 
 /**
- * Подпись под числовым полем: «в диапазоне» / «вне диапазона». Пункт без границ
- * молчит — писать «в диапазоне» там, где диапазона нет, значит выдумывать оценку.
+ * Подпись у числового поля: сперва сами границы («2…6»), затем — когда значение
+ * набрано — попадание в них. Границы стоят ЗДЕСЬ, а не в подсказке под названием:
+ * знать допустимое надо в минуту набора, а не после того, как продукт назвал
+ * значение провалом и потребовал комментарий (эталон `fill.html`, «°C · within
+ * range»). Пункт без границ молчит: писать «в диапазоне» там, где диапазона нет,
+ * значит выдумывать оценку.
  */
 function rangeLabel(
+  view: FillItemView,
   item: Item | undefined,
   entry: DraftAnswer | undefined,
   failed: boolean,
   t: Translate,
 ): string {
-  if (item === undefined) return "";
-  if (rangeVerdict(item, numberOf(entry)) === "unbounded") return "";
-  return failed ? t("outsideRange") : t("withinRange");
+  const verdict =
+    item === undefined || rangeVerdict(item, numberOf(entry)) === "unbounded"
+      ? ""
+      : failed
+        ? t("outsideRange")
+        : t("withinRange");
+  return [view.range ?? "", verdict].filter((part) => part !== "").join(" · ");
 }
 
 function ItemBody({
@@ -452,8 +461,12 @@ export function FillForm({
                         });
                       }}
                     />
-                    <span className="text-[length:var(--fs-meta)] text-[var(--ink-3)]">
-                      {rangeLabel(itemsById.get(item.id), entry, failed, t)}
+                    <span
+                      data-testid="fill-number-range"
+                      data-item-id={item.id}
+                      className="text-[length:var(--fs-meta)] text-[var(--ink-3)]"
+                    >
+                      {rangeLabel(item, itemsById.get(item.id), entry, failed, t)}
                     </span>
                   </div>
                 ) : null}

@@ -151,6 +151,7 @@ describe("buildFillView: where", () => {
 });
 
 describe("buildFillView: диапазон числового пункта", () => {
+  // Границы живут в `range` — у самого поля, а не в подсказке под названием (T233).
   test("обе границы заданы — подпись из labels.range", () => {
     const input = baseInput({
       sections: [
@@ -163,7 +164,8 @@ describe("buildFillView: диапазон числового пункта", () =
 
     const view = buildFillView(input);
 
-    expect(view.sections[0]?.items[0]?.hint).toBe("диапазон 2-6");
+    expect(view.sections[0]?.items[0]?.range).toBe("диапазон 2-6");
+    expect(view.sections[0]?.items[0]?.hint).toBeNull();
   });
 
   test("только нижняя граница — подпись из labels.rangeFrom", () => {
@@ -178,7 +180,7 @@ describe("buildFillView: диапазон числового пункта", () =
 
     const view = buildFillView(input);
 
-    expect(view.sections[0]?.items[0]?.hint).toBe("от 2");
+    expect(view.sections[0]?.items[0]?.range).toBe("от 2");
   });
 
   test("только верхняя граница — подпись из labels.rangeTo", () => {
@@ -193,10 +195,10 @@ describe("buildFillView: диапазон числового пункта", () =
 
     const view = buildFillView(input);
 
-    expect(view.sections[0]?.items[0]?.hint).toBe("до 6");
+    expect(view.sections[0]?.items[0]?.range).toBe("до 6");
   });
 
-  test("ни одной границы — подписи диапазона нет, hint остаётся null", () => {
+  test("ни одной границы — подписи диапазона нет вовсе", () => {
     const input = baseInput({
       sections: [
         section({ id: "s1", items: [item({ id: "i1", type: "number" })] }),
@@ -205,6 +207,7 @@ describe("buildFillView: диапазон числового пункта", () =
 
     const view = buildFillView(input);
 
+    expect(view.sections[0]?.items[0]?.range).toBeNull();
     expect(view.sections[0]?.items[0]?.hint).toBeNull();
   });
 
@@ -280,9 +283,10 @@ describe("buildFillView: подсказка пункта", () => {
 
     const view = buildFillView(input);
 
-    expect(view.sections[0]?.items[0]?.hint).toBe(
-      "Термометр в центре · диапазон 2-6",
-    );
+    // Подсказка методиста и границы — две разные строки в двух разных местах
+    // экрана: одна под названием пункта, вторая у поля ввода.
+    expect(view.sections[0]?.items[0]?.hint).toBe("Термометр в центре");
+    expect(view.sections[0]?.items[0]?.range).toBe("диапазон 2-6");
   });
 
   test("пустой текст подсказки на всех языках считается отсутствием подсказки", () => {
@@ -305,7 +309,8 @@ describe("buildFillView: подсказка пункта", () => {
 
     const view = buildFillView(input);
 
-    expect(view.sections[0]?.items[0]?.hint).toBe("диапазон 2-6");
+    expect(view.sections[0]?.items[0]?.hint).toBeNull();
+    expect(view.sections[0]?.items[0]?.range).toBe("диапазон 2-6");
   });
 });
 

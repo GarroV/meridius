@@ -77,22 +77,17 @@ function rangeHint(item: Item, labels: FillViewLabels): string {
 }
 
 /**
- * Подсказка методиста и диапазон одной строкой. Обе части необязательны и
- * складываются в этом порядке; ни одной — `null`, а не пустая строка (пустой
- * строкой разметка отрисовала бы пустой блок подсказки под пунктом).
+ * Подсказка методиста под названием пункта; `null` — её нет (пустой строкой
+ * разметка отрисовала бы пустой блок подсказки).
+ *
+ * Границы числового пункта сюда БОЛЬШЕ не подмешиваются: они уехали к самому полю
+ * (`range`), туда, где в них есть нужда — в минуту набора значения. Показывать их и
+ * там и тут значило бы назвать один факт дважды на одном экране.
  */
-function buildHint(
-  item: Item,
-  locales: readonly Locale[],
-  labels: FillViewLabels,
-): string | null {
+function buildHint(item: Item, locales: readonly Locale[]): string | null {
   const ownHint =
     item.hint === undefined ? "" : pickFillText(item.hint, locales);
-  const hint = joinNonEmpty(
-    [ownHint, rangeHint(item, labels)],
-    TEXT_PART_SEPARATOR,
-  );
-  return hint === "" ? null : hint;
+  return ownHint === "" ? null : ownHint;
 }
 
 /**
@@ -128,7 +123,8 @@ function buildItemView(
     // exactOptionalPropertyTypes требует не выставлять ключ, а не выставлять его в undefined.
     ...(item.min === undefined ? {} : { min: item.min }),
     ...(item.max === undefined ? {} : { max: item.max }),
-    hint: buildHint(item, locales, labels),
+    hint: buildHint(item, locales),
+    range: rangeHint(item, labels) || null,
     ...(item.type === "table"
       ? { columns: buildColumnViews(item, locales) }
       : {}),

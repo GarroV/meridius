@@ -269,6 +269,7 @@ describe("модель экрана обратно в пункты для счё
             type: "bool",
             severity: "critical",
             hint: null,
+            range: null,
           },
           {
             id: "n",
@@ -278,6 +279,7 @@ describe("модель экрана обратно в пункты для счё
             min: 2,
             max: 4,
             hint: "2…4",
+            range: null,
           },
         ],
       },
