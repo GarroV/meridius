@@ -28,6 +28,7 @@ import { itemInputId, ItemRow } from "@/blocks/editor/ui/ItemRow";
 import type { LibraryActionState } from "../action-state";
 import { INITIAL_LIBRARY_STATE } from "../action-state";
 import { submitSaveBlock } from "../actions";
+import { ItemScheduleChip } from "./ItemScheduleChip";
 
 export interface BlockEditorProps {
   readonly blockId: string;
@@ -200,6 +201,9 @@ export function BlockEditor(props: BlockEditorProps) {
               item={item}
               ordinal={index + 1}
               locale={locale}
+              // Чип показывает регулярность и не открывается: окно, от которого
+              // считаются часы отрезка, принадлежит чек-листу, а не блоку (D097).
+              scheduleView={<ItemScheduleChip item={item} />}
               onTitle={(text) => {
                 setSections(setItemTitle(sections, item.id, locale, text));
               }}

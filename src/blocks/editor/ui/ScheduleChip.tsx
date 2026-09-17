@@ -34,11 +34,16 @@ import { stepLabel } from "./step-label";
 
 type Translate = ReturnType<typeof useTranslations>;
 
-const CHIP_CLASS =
-  "flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border px-[var(--space-4)] text-[length:var(--fs-dense)] whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]";
-const CHIP_OFF_CLASS =
+// Вид чипа вынесен в экспорт и БЕЗ `cursor-pointer`: ту же строку пункта рисует правка
+// блока библиотеки, и там чип показывает регулярность, но не открывается (D097, T198).
+// Одно место на оба экрана — потому что «блок в админке выглядит так же, как блок в
+// чек-листе» (D096) перестаёт быть правдой в тот же день, когда вид скопирован.
+// Указатель мыши добавляет тот, у кого чип нажимается.
+export const CHIP_CLASS =
+  "flex h-[var(--control-h-sm)] items-center rounded-[var(--r-control)] border px-[var(--space-4)] text-[length:var(--fs-dense)] whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--accent)]";
+export const CHIP_OFF_CLASS =
   "bg-surface border-[var(--line-control)] text-[var(--ink-3)] hover:border-[var(--line-control-2)] hover:text-[var(--ink-2)]";
-const CHIP_ON_CLASS =
+export const CHIP_ON_CLASS =
   "border-[var(--accent-line)] bg-[var(--accent-soft)] text-[var(--accent)] font-medium";
 // Окно собрано по единственному задокументированному образцу модалки дизайн-системы
 // (`design/reference/components.css`: `.overlay` + `.dialog`) — двухполосному: шапка на
@@ -244,7 +249,7 @@ export function ScheduleChip({
         aria-haspopup="dialog"
         aria-expanded={open}
         title={t("open")}
-        className={`${CHIP_CLASS} ${chipSummary(item).kind === "none" ? CHIP_OFF_CLASS : CHIP_ON_CLASS}`}
+        className={`${CHIP_CLASS} cursor-pointer ${chipSummary(item).kind === "none" ? CHIP_OFF_CLASS : CHIP_ON_CLASS}`}
         onClick={openDialog}
       >
         {chipLabel(item, t)}

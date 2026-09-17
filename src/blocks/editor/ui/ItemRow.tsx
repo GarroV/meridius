@@ -1,5 +1,10 @@
 import { useTranslations } from "next-intl";
-import type { ChangeEvent, ClipboardEvent, KeyboardEvent } from "react";
+import type {
+  ChangeEvent,
+  ClipboardEvent,
+  KeyboardEvent,
+  ReactNode,
+} from "react";
 
 import type { ChecklistWindow, Item, ItemType, Severity } from "@/blocks/data";
 // `severityOf` берётся напрямую из модуля уровней, а НЕ из входа `@/blocks/data`:
@@ -38,6 +43,19 @@ export interface ItemRowProps {
     readonly onApply: (setting: ScheduleSetting) => void;
     readonly onApplyToSection: (setting: ScheduleSetting) => void;
   };
+  /**
+   * Готовый вид регулярности вместо управления ею: место в строке то же, нажатия нет.
+   *
+   * Им пользуется правка блока библиотеки. Задать расписание там нечем — часы отрезка
+   * считаются от окна чек-листа, а у блока окна нет и не заводится (D097), — но
+   * ПОКАЗАТЬ регулярность блок обязан: в админке он выглядит так же, как тот же блок
+   * внутри чек-листа (D096). Узлом, а не признаком `readOnly`, потому что относительная
+   * подпись («каждые 2 часа», без часов суток) — забота библиотеки: редактор про неё
+   * знать не должен и импортировать блок `library` не имеет права.
+   *
+   * Работает, только когда управления нет: `schedule` сильнее.
+   */
+  readonly scheduleView?: ReactNode;
   /**
    * Колонки табличного пункта — целиком или никак, тем же приёмом, что расписание:
    * половина управления, приехавшая без второй половины, — это тип ответа, который
@@ -120,6 +138,7 @@ export function ItemRow({
   ordinal,
   locale,
   schedule,
+  scheduleView,
   columns,
   onTitle,
   onPatch,
@@ -214,7 +233,9 @@ export function ItemRow({
 
           {/* Регулярность стоит между «чем отвечают» и «насколько важно»: сперва род
             ответа, потом как часто его дают, и только потом вес пункта. */}
-          {schedule === undefined || item.type === "table" ? null : (
+          {/* Табличный пункт расписания не имеет ни в каком виде: `parseItem`
+            отвергает его, и чип обещал бы настройку, которой не бывает. */}
+          {item.type === "table" ? null : schedule !== undefined ? (
             <ScheduleChip
               item={item}
               window={schedule.window}
@@ -222,6 +243,8 @@ export function ItemRow({
               onApply={schedule.onApply}
               onApplyToSection={schedule.onApplyToSection}
             />
+          ) : (
+            scheduleView
           )}
 
           <span

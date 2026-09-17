@@ -174,7 +174,15 @@ export async function LibraryScreen({
   const editorMessages = messages["editor"] as AbstractIntlMessages;
   const clientMessages = {
     library: messages["library"] as AbstractIntlMessages,
-    editor: { item: editorMessages["item"] } as AbstractIntlMessages,
+    // Раздел `schedule` целиком, а не три ключа чипа: подпись собирает общий
+    // `stepLabel`, и какие именно ключи ему нужны — его дело. Выбранные поимённо, они
+    // разъехались бы с ним молча: ненайденный ключ next-intl печатает прямо в разметку
+    // («editor.schedule.stepHours» вместо «каждые 2 часа»), и ровно так этот экран
+    // выглядел до T198 — поймано сквозным сценарием, не сборкой и не типами.
+    editor: {
+      item: editorMessages["item"],
+      schedule: editorMessages["schedule"],
+    } as AbstractIntlMessages,
   };
 
   return (
