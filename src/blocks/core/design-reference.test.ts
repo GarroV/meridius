@@ -6,8 +6,11 @@ import { describe, expect, it } from "vitest";
 import {
   disabledCursors,
   disabledOpacities,
+  carriesColor,
+  declarationsUnder,
   isColorValue,
   lightOnlyColorTokens,
+  themeTokens,
   outlineColorTokens,
   parseTokens,
   referenceDisabledCursor,
@@ -449,5 +452,75 @@ describe("сторожа тёмной темы", () => {
     }
 
     expect(caught).toEqual([]);
+  });
+});
+
+/** Кусок эталона в миниатюре: две темы, печать и токен без цвета. */
+const TWO_THEMES = `
+:root { --canvas: #EDEFF2; --gutter: 18px; --sh-xs: 0 1px 2px rgba(20,26,34,.08); }
+:root:not([data-theme]) { --canvas: #000000; }
+[data-theme="dark"] { --canvas: #12161C; --sh-xs: 0 1px 2px rgba(0,0,0,.5); }
+@media print { [data-theme="dark"] { color-scheme: light; } }
+`;
+
+describe("declarationsUnder", () => {
+  it("читает объявления своего блока", () => {
+    expect(
+      declarationsUnder(TWO_THEMES, '[data-theme="dark"]').get("--canvas"),
+    ).toBe("#12161C");
+  });
+
+  // `:root:not([data-theme])` — другой селектор, и его значение не должно
+  // выдаваться за значение `:root`.
+  it("не считает своим блок с более длинным селектором", () => {
+    expect(declarationsUnder(TWO_THEMES, ":root").get("--canvas")).toBe(
+      "#EDEFF2",
+    );
+  });
+
+  it("блока с таким селектором нет — и объявлений нет", () => {
+    expect(declarationsUnder(TWO_THEMES, ".nothing").size).toBe(0);
+  });
+});
+
+describe("carriesColor", () => {
+  // Тень записана длинной строкой, и цвет в ней стоит не первым: на тёмном фоне
+  // светлая тень видна не меньше светлой заливки.
+  it("цвет внутри тени считается цветом", () => {
+    expect(carriesColor("0 1px 2px rgba(20,26,34,.08)")).toBe(true);
+  });
+
+  it("значение из одних токенов цвета не несёт", () => {
+    expect(carriesColor("2px solid var(--accent)")).toBe(false);
+    expect(carriesColor("18px")).toBe(false);
+  });
+});
+
+describe("themeTokens", () => {
+  it("тёмная тема перебивает светлую", () => {
+    expect(themeTokens(TWO_THEMES, "dark").get("--canvas")).toBe("#12161C");
+    expect(themeTokens(TWO_THEMES, "light").get("--canvas")).toBe("#EDEFF2");
+  });
+
+  // Размеров и отступов у тёмной темы нет вовсе — светлое значение для них и есть
+  // значение. Иначе проверка живого экрана осталась бы без половины эталона.
+  it("непереопределённое остаётся из светлой", () => {
+    expect(themeTokens(TWO_THEMES, "dark").get("--gutter")).toBe("18px");
+  });
+});
+
+describe("lightOnlyColorTokens", () => {
+  it("токен без тёмного значения назван", () => {
+    expect(
+      lightOnlyColorTokens(
+        ':root { --a: #FFFFFF; } [data-theme="dark"] { --b: #000000; }',
+      ),
+    ).toEqual(["--a"]);
+  });
+
+  // Размер темы не касается: требовать для него тёмного дубля значило бы краснеть
+  // там, где дефекта нет.
+  it("нецветной токен тёмного дубля не требует", () => {
+    expect(lightOnlyColorTokens(":root { --gutter: 18px; }")).toEqual([]);
   });
 });
