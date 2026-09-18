@@ -202,3 +202,104 @@ export function referenceNumberField(
   );
   return look;
 }
+
+/**
+ * Тема в эталоне устроена переопределением: светлые значения объявлены на `:root`,
+ * тёмные — на `[data-theme="dark"]`, а компоненты об этом не знают и просто читают
+ * `var(--…)`. Отсюда молчаливый класс дефектов: токен, у которого тёмного значения
+ * нет, в тёмной теме останется светлым. На экране это выглядит не поломкой, а
+ * «просто светлое пятно», и ни один тест разметки такого не увидит — цвет ЕСТЬ,
+ * просто чужой темы. Ровно тот же довод, что у сторожа ролей токенов выше.
+ */
+
+/** Та же запись, что у `DECLARATION`, но со своим состоянием глобального поиска. */
+const DECLARATION_PAIR = /(--[\w-]+)\s*:\s*([^;]+);/g;
+
+/**
+ * Объявления токенов внутри правил с этим селектором — все такие правила разом.
+ *
+ * Разбирается скобками, а не одним выражением: селектор `[data-theme="dark"]` стоит
+ * в файле дважды (сам блок темы и её отмена на печати), и выражение с «до первой
+ * закрывающей» читало бы то один, то другой в зависимости от порядка строк.
+ */
+export function declarationsUnder(
+  css: string,
+  selector: string,
+): ReadonlyMap<string, TokenValue> {
+  const found = new Map<string, TokenValue>();
+  let from = 0;
+
+  for (;;) {
+    const start = css.indexOf(selector, from);
+    if (start < 0) break;
+    from = start + selector.length;
+    // Селектор должен кончаться здесь, а не быть началом более длинного
+    // (`:root` против `:root:not(…)`): между ним и `{` бывают только пробелы.
+    const open = /^\s*\{/.exec(css.slice(from));
+    if (open === null) continue;
+
+    const bodyStart = from + open[0].length;
+    let depth = 1;
+    let index = bodyStart;
+    while (index < css.length && depth > 0) {
+      if (css[index] === "{") depth += 1;
+      else if (css[index] === "}") depth -= 1;
+      index += 1;
+    }
+    for (const [, name, value] of css
+      .slice(bodyStart, index - 1)
+      .matchAll(DECLARATION_PAIR)) {
+      if (name !== undefined && value !== undefined)
+        found.set(name, value.trim());
+    }
+    from = index;
+  }
+
+  return found;
+}
+
+/** Литеральные цвета: то, что на тёмном фоне останется светлым, если не переопределить. */
+const COLOR_LITERAL = /#[\da-fA-F]{3,8}\b|(?:rgba?|hsla?)\(/;
+
+/**
+ * Значение несёт литеральный цвет — то есть обязано иметь тёмный дубль.
+ *
+ * Проверяется вхождение, а не начало строки: тень и кольцо фокуса записаны
+ * `0 1px 2px rgba(…)`, цвет в них стоит не первым, а на тёмном фоне светлая тень
+ * видна не меньше светлой заливки. Значение, собранное из `var(--…)`, сюда не
+ * попадает намеренно: оно следует за темой через свои токены.
+ */
+export function carriesColor(value: TokenValue): boolean {
+  return COLOR_LITERAL.test(value);
+}
+
+/**
+ * Токены, у которых светлое значение есть, а тёмного нет. Экран, который сошлётся на
+ * такой токен, в тёмной теме возьмёт светлый цвет.
+ */
+export function lightOnlyColorTokens(css: string): readonly string[] {
+  const dark = declarationsUnder(css, '[data-theme="dark"]');
+  return [...declarationsUnder(css, ":root")]
+    .filter(([name, value]) => !dark.has(name) && carriesColor(value))
+    .map(([name]) => name);
+}
+
+/**
+ * Значения токенов в выбранной теме: светлые с `:root`, тёмные — они же, поверх
+ * которых легли переопределения `[data-theme="dark"]`.
+ *
+ * Нужно тем проверкам, которые сравнивают цвет на живом экране с эталоном. Писать
+ * такой цвет числом в тесте нельзя: переписанное число расходится с эталоном молча,
+ * и проверка начинает подтверждать саму себя (тот же довод, что у
+ * `referenceDisabledOpacity`).
+ */
+export function themeTokens(
+  css: string,
+  theme: "light" | "dark",
+): ReadonlyMap<string, TokenValue> {
+  const light = declarationsUnder(css, ":root");
+  if (theme === "light") return light;
+  // Тёмная тема переопределяет не всё — ни размеров, ни отступов у неё нет.
+  // Светлое значение для них и есть значение, поэтому база берётся с `:root`.
+  return new Map([...light, ...declarationsUnder(css, '[data-theme="dark"]')]);
+}
