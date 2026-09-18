@@ -229,6 +229,125 @@ describe("buildFillView: диапазон числового пункта", () =
   });
 });
 
+describe("buildFillView: единица измерения числового пункта", () => {
+  // Единицу задаёт методист свободным текстом, перечня зашитых единиц нет (D110).
+  test("единица есть — она попадает в модель на языке цепочки", () => {
+    // Arrange: «кг» и «kg» — одна единица на двух языках продукта.
+    const input = baseInput({
+      locales: ["en", "ru"],
+      sections: [
+        section({
+          id: "s1",
+          items: [
+            item({
+              id: "i1",
+              type: "number",
+              min: 2,
+              max: 6,
+              unit: { ru: "кг", en: "kg" },
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const view = buildFillView(input);
+
+    // Assert: границы и единица — разные поля модели, склеивает их экран.
+    expect(view.sections[0]?.items[0]?.unit).toBe("kg");
+    expect(view.sections[0]?.items[0]?.range).toBe("диапазон 2-6");
+  });
+
+  test("единица без границ остаётся: измеряют и то, у чего нет нормы", () => {
+    const input = baseInput({
+      sections: [
+        section({
+          id: "s1",
+          items: [item({ id: "i1", type: "number", unit: { ru: "шт" } })],
+        }),
+      ],
+    });
+
+    const view = buildFillView(input);
+
+    expect(view.sections[0]?.items[0]?.unit).toBe("шт");
+    expect(view.sections[0]?.items[0]?.range).toBeNull();
+  });
+
+  test("единицы нет — в модели null, а не пустая строка", () => {
+    // Arrange: обычный числовой пункт, каким он был до появления единиц.
+    const input = baseInput({
+      sections: [
+        section({
+          id: "s1",
+          items: [item({ id: "i1", type: "number", min: 2, max: 6 })],
+        }),
+      ],
+    });
+
+    const view = buildFillView(input);
+
+    // Assert: пустая строка дала бы экрану повод нарисовать разделитель в никуда.
+    expect(view.sections[0]?.items[0]?.unit).toBeNull();
+  });
+
+  test("единица, заведённая пустой строкой, читается как отсутствующая", () => {
+    const input = baseInput({
+      sections: [
+        section({
+          id: "s1",
+          items: [item({ id: "i1", type: "number", unit: { ru: "", en: "" } })],
+        }),
+      ],
+    });
+
+    const view = buildFillView(input);
+
+    expect(view.sections[0]?.items[0]?.unit).toBeNull();
+  });
+
+  test("единица у нечислового пункта на экран не выходит", () => {
+    // Arrange: поле формально возможно у любого пункта — измеряет оно только число.
+    const input = baseInput({
+      sections: [
+        section({
+          id: "s1",
+          items: [item({ id: "i1", type: "bool", unit: { ru: "°C" } })],
+        }),
+      ],
+    });
+
+    const view = buildFillView(input);
+
+    expect(view.sections[0]?.items[0]?.unit).toBeNull();
+  });
+
+  test("единица не подмешивается в подсказку под названием", () => {
+    // Arrange: слот подсказки принадлежит методисту (T233), и единица туда не лезет.
+    const input = baseInput({
+      sections: [
+        section({
+          id: "s1",
+          items: [
+            item({
+              id: "i1",
+              type: "number",
+              min: 2,
+              max: 6,
+              unit: { ru: "°C" },
+              hint: { ru: "Мерить в центре камеры" },
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const view = buildFillView(input);
+
+    expect(view.sections[0]?.items[0]?.hint).toBe("Мерить в центре камеры");
+  });
+});
+
 describe("buildFillView: подсказка пункта", () => {
   test("hint === null, когда нет ни своей подсказки, ни диапазона", () => {
     const input = baseInput({
