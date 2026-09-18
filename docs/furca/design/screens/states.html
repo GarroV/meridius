@@ -46,12 +46,20 @@
       </div>
     </div>
 
+    <!-- Названы ОБЕ причины, и порядок не случаен: первой та, что лечится перенабором,
+         второй та, ради которой идут к управляющему (T182). Продукт не вправе утверждать
+         «наклейку заменили» там, где такого кода никогда не было: он этого не знает, а
+         сотрудник по такому утверждению уйдёт за новой наклейкой вместо того, чтобы
+         перенабрать. Различать неизвестный код и перевыпущенный продукт не может и не
+         должен: в данных они неразличимы (перевыпуск переписывает код станции), а разный
+         ответ на них подсказывал бы перебору (D021). -->
     <div class="box">
-      <div class="cap">Ссылка недействительна</div>
+      <div class="cap">Код не работает: опечатка или отозванная наклейка</div>
       <div class="fill">
         <div class="center">
-          <div class="big">This code no longer works</div>
-          <div class="muted">The sticker has been replaced. Ask your manager for the new one — the old code was revoked.</div>
+          <div class="big">This code does not work</div>
+          <div class="muted">Typed the code by hand? Check it and try again — a single typo is enough to lead nowhere.</div>
+          <div class="notice notice--warn" style="text-align:left">Scanned the sticker? Then it has been replaced and the old code was revoked. Ask your manager for a new one.</div>
         </div>
       </div>
     </div>
