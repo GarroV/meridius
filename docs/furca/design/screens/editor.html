@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="../app.css">
 <style>
   .editor-item {
-    display: grid; grid-template-columns: 28px 1fr auto; gap: var(--space-5);
+    display: grid; grid-template-columns: 28px minmax(320px, 1fr) minmax(0, auto); gap: var(--space-5);
     align-items: center; padding: var(--space-4) var(--space-6);
     border-bottom: 1px solid var(--line);
   }
@@ -23,13 +23,30 @@
   .editor-item--crit:hover { background: var(--origin-carried-hover); }
   .editor-item__range { display: flex; align-items: center; gap: var(--space-3); color: var(--ink-3); font-size: var(--fs-meta); }
   .editor-item__range .input { width: 62px; height: var(--control-h-sm); text-align: center; font: var(--num); }
-  .toggle { display: inline-flex; align-items: center; gap: var(--space-3); cursor: pointer; white-space: nowrap; }
-  .toggle__track { width: 30px; height: 17px; border-radius: 9px; background: var(--seg-track); position: relative; transition: background var(--t-state) var(--ease); }
-  .toggle__track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--surface); box-shadow: var(--sh-xs); transition: transform var(--t-state) var(--ease); }
-  .toggle--on .toggle__track { background: var(--warn-mark); }
-  .toggle--on .toggle__track::after { transform: translateX(13px); }
-  .toggle__label { font-size: var(--fs-micro); letter-spacing: var(--tracking-micro); text-transform: uppercase; color: var(--ink-3); font-weight: var(--w-semibold); }
-  .toggle--on .toggle__label { color: var(--warn-ink); }
+  /* Уровень пункта — три положения (D056: критичный, важный, обычный), а не тумблер
+     «критичный да/нет». Выбранное положение сидит на var(--surface) и отличается от
+     соседей цветом подписи и обводкой: белая подпись на var(--warn-mark) давала контраст
+     2,3:1 против порога 4,5, и axe поймал это на сквозном прогоне. Прежний тумблер порог
+     проходил только потому, что цветной была дорожка БЕЗ текста. */
+  .seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--seg-track); white-space: nowrap; }
+  .seg__opt { display: inline-flex; align-items: center; height: 19px; padding: 0 var(--space-4); border-radius: var(--r-mark); font-size: var(--fs-micro); font-weight: var(--w-semibold); letter-spacing: var(--tracking-micro); color: var(--ink-3); cursor: pointer; }
+  .seg__opt--on { background: var(--surface); color: var(--ink-2); box-shadow: var(--sh-xs); }
+  .seg__opt--on.seg__opt--major { color: var(--ink); box-shadow: var(--sh-xs), 0 0 0 1px var(--line-strong); }
+  .seg__opt--on.seg__opt--crit { color: var(--warn-ink); box-shadow: var(--sh-xs), 0 0 0 1px var(--warn-mark); }
+
+  /* Чип регулярности. Погашенный — обычный пункт, отмечается раз за заполнение;
+     зажжённый — периодический, он уходит из формы заполнения и отмечается на обходах.
+     Нажатие открывает окно настройки (см. блок «Своё окно» ниже). */
+  .chip { display: inline-flex; align-items: center; height: var(--control-h-sm); padding: 0 var(--space-4); border: 1px solid var(--line-control); border-radius: var(--r-control); background: var(--surface); color: var(--ink-3); font-size: var(--fs-dense); white-space: nowrap; cursor: pointer; }
+  .chip--on { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); font-weight: var(--w-medium); }
+  /* Узкий экран: кабинет на телефоне обязан быть пригодным для правки (D092), поэтому
+     строка пункта перестраивается в две — номер с текстом сверху, контролы под ними, —
+     а не ужимается до нечитаемого. Порог тот же, что у продукта (xl). */
+  @media (max-width: 1279px) {
+    .editor-item { grid-template-columns: 28px minmax(0, 1fr); row-gap: var(--space-4); }
+    .editor-item__ctl { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+  }
+
   .sec { border: 1px solid var(--line-strong); border-radius: var(--r-block); background: var(--surface); box-shadow: var(--sh-xs); }
   .sec + .sec { margin-top: var(--space-7); }
   .sec__head { display: flex; align-items: center; gap: var(--space-5); padding: var(--space-5) var(--space-6); background: var(--surface-3); border-bottom: 1px solid var(--line-strong); border-radius: var(--r-block) var(--r-block) 0 0; }
@@ -118,7 +135,7 @@
               <input class="input input--flush" value="Включить печь и вытяжку">
               <div class="editor-item__ctl">
                 <select class="select"><option>Да / Нет</option><option>Число</option><option>Текст</option></select>
-                <span class="toggle"><span class="toggle__track"></span><span class="toggle__label">Критичный</span></span>
+                <span class="seg"><span class="seg__opt">Обычный</span><span class="seg__opt seg__opt--on seg__opt--major">Важный</span><span class="seg__opt">Критичный</span></span><span class="chip">Один раз</span>
                 <button class="btn btn--ghost btn--sm btn--danger">×</button>
               </div>
             </div>
@@ -129,7 +146,7 @@
               <div class="editor-item__ctl">
                 <select class="select"><option selected>Число</option><option>Да / Нет</option><option>Текст</option></select>
                 <span class="editor-item__range">от <input class="input" value="160"> до <input class="input" value="180"> °C</span>
-                <span class="toggle toggle--on"><span class="toggle__track"></span><span class="toggle__label">Критичный</span></span>
+                <span class="seg"><span class="seg__opt">Обычный</span><span class="seg__opt">Важный</span><span class="seg__opt seg__opt--on seg__opt--crit">Критичный</span></span><span class="chip chip--on">06:00–22:00, каждые 2 ч</span>
                 <button class="btn btn--ghost btn--sm btn--danger">×</button>
               </div>
             </div>
@@ -139,7 +156,7 @@
               <input class="input input--flush" value="Проверить чистоту рабочих поверхностей">
               <div class="editor-item__ctl">
                 <select class="select"><option>Да / Нет</option><option>Число</option><option>Текст</option></select>
-                <span class="toggle"><span class="toggle__track"></span><span class="toggle__label">Критичный</span></span>
+                <span class="seg"><span class="seg__opt seg__opt--on">Обычный</span><span class="seg__opt">Важный</span><span class="seg__opt">Критичный</span></span><span class="chip">Один раз</span>
                 <button class="btn btn--ghost btn--sm btn--danger">×</button>
               </div>
             </div>
@@ -149,7 +166,7 @@
               <input class="input input--flush" value="" placeholder="Текст пункта — Enter создаст следующий" autofocus>
               <div class="editor-item__ctl">
                 <select class="select"><option>Да / Нет</option><option>Число</option><option>Текст</option></select>
-                <span class="toggle"><span class="toggle__track"></span><span class="toggle__label">Критичный</span></span>
+                <span class="seg"><span class="seg__opt seg__opt--on">Обычный</span><span class="seg__opt">Важный</span><span class="seg__opt">Критичный</span></span><span class="chip">Один раз</span>
                 <button class="btn btn--ghost btn--sm btn--danger">×</button>
               </div>
             </div>
