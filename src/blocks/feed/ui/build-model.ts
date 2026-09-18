@@ -344,7 +344,6 @@ function toSectionViews(
         max: item.max ?? null,
         failed: isFailed(item, answer),
         answer: toAnswerView(item, answer?.value, locale),
-        answeredAt: answer === undefined ? null : new Date(answer.at),
         comment: answer?.comment ?? null,
       };
     }),

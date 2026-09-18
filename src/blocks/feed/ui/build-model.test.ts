@@ -486,9 +486,6 @@ describe("buildSubmissionModel", () => {
     expect(temperature?.comment).toBe(
       "Порвано уплотнение двери, вызвал техника",
     );
-    expect(temperature?.answeredAt).toStrictEqual(
-      new Date("2026-09-05T09:13:00Z"),
-    );
     expect(temperature?.min).toBe(2);
     expect(temperature?.max).toBe(4);
 
@@ -517,7 +514,6 @@ describe("buildSubmissionModel", () => {
     const untouched = card?.sections[1]?.items[0];
 
     expect(untouched?.answer).toStrictEqual({ kind: "none" });
-    expect(untouched?.answeredAt).toBeNull();
     expect(untouched?.failed).toBe(false);
     expect(card?.outcome).toStrictEqual({ kind: "unanswered", count: 2 });
   });

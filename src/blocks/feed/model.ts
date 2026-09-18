@@ -163,7 +163,13 @@ export interface SubmissionItemView {
   readonly max: number | null;
   readonly failed: boolean;
   readonly answer: AnswerView;
-  readonly answeredAt: Date | null;
+  /**
+   * Времени отметки у пункта в модели НЕТ (D112): сотрудник отмечает несколько
+   * пунктов за один подход, и время отдельной отметки — это момент подхода, а не
+   * выполнения. Показывать его управляющему нельзя, а других читателей у поля не
+   * было. В базе (`answers[].at`) отметка по-прежнему пишется и остаётся зажатой в
+   * границы заполнения (`fill/validation.ts`) — речь только об экране.
+   */
   readonly comment: string | null;
 }
 
