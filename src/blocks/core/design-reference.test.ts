@@ -357,6 +357,17 @@ describe("сторож геройского вида числового поля
  * с `app.css`). Копия дословная, и без сторожа расходится молча: правку внесли в
  * источник, в копию — забыли, и методист сверяет окно с чужим правилом.
  */
+/**
+ * Тело правила `selector { ... }` — первое совпадение, с пробелами приведёнными к
+ * одному виду. Приведение обязано быть: перенос строки и лишний пробел браузер не
+ * различает, и без него сторож падал бы на форматировании, а не на значении.
+ */
+function ruleBody(css: string, selector: string): string | undefined {
+  const escaped = selector.replace(/[.]/g, "\\.");
+  const found = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(css);
+  return found?.[1]?.trim().replace(/\s+/g, " ");
+}
+
 describe("сторож копии .dialog из components.css в editor.html", () => {
   const EDITOR_SCREEN = path.resolve(
     ROOT,
@@ -372,17 +383,6 @@ describe("сторож копии .dialog из components.css в editor.html", (
     ".dialog__esc",
     ".dialog__spacer",
   ] as const;
-
-  /**
-   * Тело правила `selector { ... }` — первое совпадение, с пробелами приведёнными к
-   * одному виду. Приведение обязано быть: перенос строки и лишний пробел браузер не
-   * различает, и без него сторож падал бы на форматировании, а не на значении.
-   */
-  function ruleBody(css: string, selector: string): string | undefined {
-    const escaped = selector.replace(/[.]/g, "\\.");
-    const found = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(css);
-    return found?.[1]?.trim().replace(/\s+/g, " ");
-  }
 
   it("каждое скопированное правило совпадает с components.css дословно", () => {
     const source = readFileSync(COMPONENTS, "utf8");
