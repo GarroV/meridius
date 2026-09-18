@@ -77,6 +77,20 @@ function rangeHint(item: Item, labels: FillViewLabels): string {
 }
 
 /**
+ * Единица измерения числового пункта на языке цепочки; `null` — единицы нет.
+ * Пустая строка тоже читается как «нет»: разделитель перед пустотой — это дырка
+ * на экране, а не сведения (D110).
+ *
+ * У нечислового пункта единицы не бывает, даже если поле в данных заполнено: без
+ * числа она ничего не измеряет, а на экране заняла бы место рядом с «да/нет».
+ */
+function unitLabel(item: Item, locales: readonly Locale[]): string | null {
+  if (item.type !== "number" || item.unit === undefined) return null;
+  const text = pickFillText(item.unit, locales);
+  return text === "" ? null : text;
+}
+
+/**
  * Подсказка методиста под названием пункта; `null` — её нет (пустой строкой
  * разметка отрисовала бы пустой блок подсказки).
  *
@@ -125,6 +139,7 @@ function buildItemView(
     ...(item.max === undefined ? {} : { max: item.max }),
     hint: buildHint(item, locales),
     range: rangeHint(item, labels) || null,
+    unit: unitLabel(item, locales),
     ...(item.type === "table"
       ? { columns: buildColumnViews(item, locales) }
       : {}),

@@ -270,6 +270,7 @@ describe("модель экрана обратно в пункты для счё
             severity: "critical",
             hint: null,
             range: null,
+            unit: null,
           },
           {
             id: "n",
@@ -280,6 +281,7 @@ describe("модель экрана обратно в пункты для счё
             max: 4,
             hint: "2…4",
             range: null,
+            unit: null,
           },
         ],
       },
