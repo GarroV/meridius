@@ -256,3 +256,30 @@ describe("сторож ссылок на токены", () => {
     expect([...dangling]).toEqual([]);
   });
 });
+
+describe("сторож колец фокуса", () => {
+  // Дефект, ради которого сторож заведён, сначала случился: у поля пароля на экране
+  // входа стояло мягкое кольцо (тень + смена цвета рамки), а браузерная обводка не
+  // гасилась — и человек видел два кольца сразу, разной формы и толщины. Нашла это
+  // сверка экрана глазами; ни один тест покраснеть не мог, потому что оба кольца
+  // «есть» и каждое по отдельности правильное. У остальных полей продукта
+  // `focus:outline-none` стояло, то есть это был недосмотр в одном файле, а не
+  // выбор — такие и возвращаются молча при следующей правке.
+  const SOFT_RING = "focus:shadow-[0_0_0_3px_var(--focus-soft)]";
+
+  it("поле с мягким кольцом гасит браузерную обводку", () => {
+    const doubled: string[] = [];
+
+    for (const file of sourceFiles(path.join(ROOT, "blocks"))) {
+      const text = readFileSync(file, "utf8");
+      for (const [, attrs] of text.matchAll(/className="([^"]*)"/g)) {
+        if (attrs === undefined) continue;
+        if (!attrs.includes(SOFT_RING)) continue;
+        if (attrs.includes("focus:outline-none")) continue;
+        doubled.push(path.relative(ROOT, file));
+      }
+    }
+
+    expect(doubled).toEqual([]);
+  });
+});

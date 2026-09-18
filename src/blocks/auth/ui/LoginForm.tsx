@@ -42,7 +42,7 @@ export function LoginForm({ labels }: { readonly labels: LoginLabels }) {
           required
           aria-invalid={state.failed}
           aria-describedby={state.failed ? ERROR_ID : undefined}
-          className="bg-surface text-ink h-[var(--control-h)] w-full rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-lead)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)]"
+          className="bg-surface text-ink h-[var(--control-h)] w-full rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-lead)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none"
         />
       </div>
 
