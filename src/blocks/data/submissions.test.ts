@@ -9,6 +9,7 @@ import { afterAll, describe, expect, test } from "vitest";
 import { getSubmission, listSubmissions, saveSubmission } from "./submissions";
 import { checklistVersions, checklists, submissions } from "./schema";
 import { closeTestDb, getTestDb } from "./testing/db";
+import { PG_UNIQUE_VIOLATION, dbErrorCode } from "./testing/errors";
 import {
   checklistStationId,
   createChecklist,
@@ -391,6 +392,30 @@ describe("saveSubmission", () => {
       }),
     ).rejects.toThrow(/версия/i);
   });
+
+  test("вторая запись того же заполнения — та же версия, то же начало — отвергается базой", async () => {
+    // Одно заполнение — одна запись (T219). Проверка на повтор в коде не видит
+    // запись, которая ещё не зафиксирована, поэтому держит правило сама база.
+    const { versionId } = await readyVersion("одна-запись");
+    const startedAt = Date.parse("2026-09-18T08:00:00.000Z");
+    const filling = {
+      mode: "normal" as const,
+      versionId,
+      answers: [],
+      startedAt,
+    };
+    await saveSubmission(filling);
+
+    const again = await dbErrorCode(saveSubmission(filling));
+    const nextFilling = await dbErrorCode(
+      saveSubmission({ ...filling, startedAt: startedAt + 1 }),
+    );
+
+    expect(again).toBe(PG_UNIQUE_VIOLATION);
+    // Правило — на пару, а не на версию: следующее заполнение того же чек-листа
+    // обязано ложиться, иначе станция заполнила бы его один раз за всю жизнь.
+    expect(nextFilling).toBeUndefined();
+  });
 });
 
 describe("getSubmission", () => {
@@ -534,12 +559,14 @@ describe("listSubmissions — фильтры", () => {
     const inserted = await db
       .insert(submissions)
       .values(
-        Array.from({ length: 500 }, () => ({
+        // Начало у каждого своё: пятьсот записей — это пятьсот разных заполнений,
+        // одно заполнение дважды база не примет (T219).
+        Array.from({ length: 500 }, (_, index) => ({
           versionId,
           stationId: station.stationId,
           snapshot: [] as Section[],
           answers: [] as Answer[],
-          startedAt: submittedAt,
+          startedAt: new Date(submittedAt.getTime() - index - 1),
           submittedAt,
         })),
       )
@@ -565,12 +592,14 @@ describe("listSubmissions — фильтры", () => {
   test("ограничивает выдачу лимитом и обрезает значение выше 500 до 500", async () => {
     const { station, versionId } = await readyVersion("limit");
     const total = 505;
-    const rows = Array.from({ length: total }, () => ({
+    const now = Date.now();
+    // Разные заполнения — разное начало: одно заполнение дважды база не примет (T219).
+    const rows = Array.from({ length: total }, (_, index) => ({
       versionId,
       stationId: station.stationId,
       snapshot: [] as Section[],
       answers: [] as Answer[],
-      startedAt: new Date(),
+      startedAt: new Date(now - index),
     }));
     await db.insert(submissions).values(rows);
 

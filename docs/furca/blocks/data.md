@@ -30,6 +30,7 @@ listSubmissions(filter: { countryId?; storeId?; stationId?; from?; to? }): Promi
 getSubmission(id: string): Promise<SubmissionDetail | null>
 ```
 Частичный уникальный индекс: одна опубликованная версия на чек-лист. Все отметки времени сервера — `now()` базы, не клиентские.
+Одно заполнение — одна запись (миграция 0012, T219): вторую запись с той же парой «версия + начало» `saveSubmission` не сохранит — база отказывает нарушением уникальности `submissions_one_per_filling_idx`. Повторы, легшие до правила, остаются в истории с пометкой `submissions.duplicate` и из-под правила выведены.
 
 ## Зависимости
 

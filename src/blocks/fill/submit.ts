@@ -7,11 +7,10 @@ import {
   countFailedCritical,
   getShiftMode,
   getSubmission,
-  saveSubmission,
 } from "@/blocks/data";
 
 import { checkSubmitAllowed } from "./rate-limit";
-import { findRepeatedSubmission } from "./repeat";
+import { findRepeatedSubmission, saveOnce } from "./repeat";
 import { findStationVersion } from "./station";
 import { readFillTicket } from "./ticket";
 import type { FillRefusal } from "./validation";
@@ -87,6 +86,8 @@ export async function submitFilling(
   // Этот пропуск уже записан — значит, это повтор: двойное нажатие мимо экрана
   // или «отправить ещё раз» после того, как первый ответ потерялся по дороге.
   // Возвращается прежняя квитанция: работа принята, второй записи в ленте нет.
+  // Это быстрый путь; повтор, пришедший одновременно с первой записью, поиск не
+  // видит, и его ловит уже сама запись (`saveOnce`, правило базы T219).
   const repeated = await findRepeatedSubmission(version.versionId, startedAt);
   if (repeated !== null) return await receipt(repeated);
 
@@ -94,7 +95,7 @@ export async function submitFilling(
   // при каком режиме его собирали, и подделать эту запись отправкой нельзя (D055).
   const shift = await getShiftMode(version.storeId, now);
 
-  const submissionId = await saveSubmission({
+  const submissionId = await saveOnce({
     versionId: version.versionId,
     answers: [...clampAnswerTimes(checked.value, startedAt, now)],
     startedAt,
