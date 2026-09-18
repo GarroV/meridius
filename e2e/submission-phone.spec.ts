@@ -16,12 +16,8 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { Pool } from "pg";
 
-import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { e2eDatabaseUrl } from "./database";
-
-// Телефон: боковое меню кабинета съедает 208 из 375 px, и всё, что не умеет сужаться
-// или прокручиваться внутри себя, тащит вбок всю страницу — вместе с меню и шапкой.
-const PHONE = { width: 375, height: 800 } as const;
+import { PHONE, seedKitchenChecklist, signIn } from "./feed-fixtures";
 
 /**
  * Секции карточки: самое широкое, что в ней бывает.
@@ -82,36 +78,12 @@ async function seed(): Promise<Seeded> {
   const pool = new Pool({ connectionString: e2eDatabaseUrl() });
 
   try {
-    const country = await pool.query<{ id: string }>(
-      "insert into countries (name, locale) values ($1, 'ru') returning id",
-      [`Страна ${label}`],
-    );
-    const store = await pool.query<{ id: string }>(
-      "insert into stores (country_id, name, timezone) values ($1, $2, 'UTC') returning id",
-      [country.rows[0]?.id, `Пиццерия ${label} на проспекте Абая`],
-    );
-    const station = await pool.query<{ id: string }>(
-      "insert into stations (store_id, name, code) values ($1, $2, $3) returning id",
-      [store.rows[0]?.id, `Кухня ${label}`, `sp${label}`.slice(0, 10)],
-    );
-    const stationId = station.rows[0]?.id;
-
-    const checklist = await pool.query<{ id: string }>(
-      `insert into checklists (station_id, title, window_start, window_end)
-       values ($1, $2, '00:00', '23:59') returning id`,
-      [
-        stationId,
-        JSON.stringify({
-          ru: `Открытие кухни ${label}`,
-          en: `Kitchen opening ${label}`,
-        }),
-      ],
-    );
-    const version = await pool.query<{ id: string }>(
-      `insert into checklist_versions
-         (checklist_id, version_number, status, station_id, sections, published_at)
-       values ($1, 1, 'published', $2, $3, now()) returning id`,
-      [checklist.rows[0]?.id, stationId, JSON.stringify(SECTIONS)],
+    const kitchen = await seedKitchenChecklist(
+      pool,
+      label,
+      `sp${label}`.slice(0, 10),
+      SECTIONS,
+      " на проспекте Абая",
     );
 
     // Сокращённая смена: обычный пункт в ней не спрашивают, и в карточке он получает
@@ -121,8 +93,8 @@ async function seed(): Promise<Seeded> {
       `insert into submissions (version_id, station_id, mode, snapshot, answers, started_at)
        values ($1, $2, 'reduced', $3, $4, now() - interval '204 seconds') returning id`,
       [
-        version.rows[0]?.id,
-        stationId,
+        kitchen.versionId,
+        kitchen.stationId,
         JSON.stringify(SECTIONS),
         JSON.stringify([
           {
@@ -143,13 +115,6 @@ async function seed(): Promise<Seeded> {
   } finally {
     await pool.end();
   }
-}
-
-async function signIn(page: Page): Promise<void> {
-  await page.goto("/admin/login");
-  await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
-  await page.getByTestId("login-submit").click();
-  await expect(page.getByTestId("admin-home")).toBeVisible();
 }
 
 interface Size {

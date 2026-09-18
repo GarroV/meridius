@@ -11,13 +11,18 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { Pool } from "pg";
 
-import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { e2eDatabaseUrl } from "./database";
+import {
+  assertNoClippedText,
+  assertNoDanglingBorder,
+  assertRowsFillWidth,
+  FACT_COUNT,
+  factCells,
+  factRows,
+} from "./feed-facts";
+import { PHONE, seedKitchenChecklist, signIn } from "./feed-fixtures";
 
 const FEED_PATH = "/admin/feed";
-// Телефон: на этой ширине боковое меню кабинета съедает 208 px, и всё, что не умеет
-// сужаться, раздвигает не себя, а всю страницу.
-const PHONE = { width: 375, height: 800 };
 
 /** Пункты первой версии — те, которые сотрудник и видел. */
 const V1_SECTIONS = [
@@ -108,51 +113,22 @@ async function seed(): Promise<Seeded> {
   const pool = new Pool({ connectionString: e2eDatabaseUrl() });
 
   try {
-    const country = await pool.query<{ id: string }>(
-      "insert into countries (name, locale) values ($1, 'ru') returning id",
-      [`Страна ${label}`],
+    const kitchen = await seedKitchenChecklist(
+      pool,
+      label,
+      `f${label}k`,
+      V1_SECTIONS,
     );
-    const store = await pool.query<{ id: string }>(
-      "insert into stores (country_id, name, timezone) values ($1, $2, 'UTC') returning id",
-      [country.rows[0]?.id, `Пиццерия ${label}`],
-    );
-    const storeId = store.rows[0]?.id;
 
-    const kitchen = await pool.query<{ id: string }>(
-      "insert into stations (store_id, name, code) values ($1, $2, $3) returning id",
-      [storeId, `Кухня ${label}`, `f${label}k`],
-    );
     const cash = await pool.query<{ id: string }>(
       "insert into stations (store_id, name, code) values ($1, $2, $3) returning id",
-      [storeId, `Касса ${label}`, `f${label}c`],
+      [kitchen.storeId, `Касса ${label}`, `f${label}c`],
     );
     await pool.query(
       "insert into stations (store_id, name, code) values ($1, $2, $3)",
-      [storeId, `Склад ${label}`, `f${label}s`],
+      [kitchen.storeId, `Склад ${label}`, `f${label}s`],
     );
-    const kitchenId = kitchen.rows[0]?.id;
     const cashId = cash.rows[0]?.id;
-
-    const checklist = await pool.query<{ id: string }>(
-      `insert into checklists (station_id, title, window_start, window_end)
-       values ($1, $2, '00:00', '23:59') returning id`,
-      [
-        kitchenId,
-        JSON.stringify({
-          ru: `Открытие кухни ${label}`,
-          en: `Kitchen opening ${label}`,
-        }),
-      ],
-    );
-    const checklistId = checklist.rows[0]?.id ?? "";
-
-    const version = await pool.query<{ id: string }>(
-      `insert into checklist_versions
-         (checklist_id, version_number, status, station_id, sections, published_at)
-       values ($1, 1, 'published', $2, $3, now()) returning id`,
-      [checklistId, kitchenId, JSON.stringify(V1_SECTIONS)],
-    );
-    const versionId = version.rows[0]?.id ?? "";
 
     // Заполнение с проваленным критичным пунктом и комментарием — то, ради чего
     // управляющий и открывает ленту.
@@ -160,8 +136,8 @@ async function seed(): Promise<Seeded> {
       `insert into submissions (version_id, station_id, snapshot, answers, started_at)
        values ($1, $2, $3, $4, now() - interval '204 seconds') returning id`,
       [
-        versionId,
-        kitchenId,
+        kitchen.versionId,
+        kitchen.stationId,
         JSON.stringify(V1_SECTIONS),
         JSON.stringify([
           answer("item-oven", true),
@@ -175,8 +151,8 @@ async function seed(): Promise<Seeded> {
       `insert into submissions (version_id, station_id, snapshot, answers, started_at)
        values ($1, $2, $3, $4, now() - interval '72 seconds') returning id`,
       [
-        versionId,
-        kitchenId,
+        kitchen.versionId,
+        kitchen.stationId,
         JSON.stringify(V1_SECTIONS),
         JSON.stringify([
           answer("item-oven", true),
@@ -230,12 +206,12 @@ async function seed(): Promise<Seeded> {
 
     return {
       label,
-      storeName: `Пиццерия ${label}`,
+      storeName: kitchen.storeName,
       kitchenName: `Кухня ${label}`,
       cashName: `Касса ${label}`,
       idleName: `Склад ${label}`,
-      checklistId,
-      versionId,
+      checklistId: kitchen.checklistId,
+      versionId: kitchen.versionId,
       failedSubmissionId: failedId,
       cleanSubmissionId: cleanId,
     };
@@ -332,145 +308,6 @@ async function pick(
     "Фильтры приехавшей страницы так и не ожили: переход не доехал, и следующий " +
       "выбор ушёл бы в разметку без обработчика — молча и без перехода.",
   ).toHaveCount(FILTER_SELECT_COUNT);
-}
-
-async function signIn(page: Page): Promise<void> {
-  await page.goto("/admin/login");
-  await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
-  await page.getByTestId("login-submit").click();
-  await expect(page.getByTestId("admin-home")).toBeVisible();
-}
-
-/** Ячеек в полосе фактов карточки пять: четыре с эталона и режим смены (D055). */
-const FACT_COUNT = 5;
-
-/** Ячейка полосы фактов: где стоит и есть ли у неё левая граница. */
-interface FactCell {
-  readonly top: number;
-  readonly left: number;
-  readonly right: number;
-  readonly borderLeft: number;
-  /** Насколько содержимое ячейки шире самой ячейки: 0 — влезло целиком. */
-  readonly overflow: number;
-  readonly text: string;
-}
-
-/** Ряд полосы фактов: края ряда и сколько ячеек в него легло. */
-interface FactRow {
-  readonly top: number;
-  readonly left: number;
-  readonly right: number;
-  readonly count: number;
-}
-
-/**
- * Ячейки полосы фактов, снятые из НАСТОЯЩЕЙ раскладки браузера, а не из классов
- * разметки: класс меняют, не починив вид, и чинят вид, не тронув класс, — про экран
- * говорит только геометрия. Левая граница снимается вместе с коробкой: именно она
- * и оставалась висеть в пустоте, когда ячейка переносилась в новый ряд.
- */
-async function factCells(page: Page): Promise<readonly FactCell[]> {
-  return page.evaluate(() =>
-    [...document.querySelectorAll('[data-testid="submission-fact"]')].map(
-      (cell) => {
-        const box = cell.getBoundingClientRect();
-        return {
-          top: Math.round(box.top),
-          left: Math.round(box.left),
-          right: Math.round(box.right),
-          borderLeft: Number.parseFloat(
-            globalThis.getComputedStyle(cell).borderLeftWidth,
-          ),
-          overflow: Math.max(
-            0,
-            ...[...cell.children].map(
-              (line) => line.scrollWidth - line.clientWidth,
-            ),
-          ),
-          text: cell.textContent.replaceAll(/\s+/gu, " ").trim(),
-        };
-      },
-    ),
-  );
-}
-
-/** Ячейки, сгруппированные в ряды по верхней кромке. */
-function factRows(cells: readonly FactCell[]): readonly FactRow[] {
-  const rows = new Map<number, FactRow>();
-
-  for (const cell of cells) {
-    const known = rows.get(cell.top);
-    rows.set(
-      cell.top,
-      known === undefined
-        ? { top: cell.top, left: cell.left, right: cell.right, count: 1 }
-        : {
-            top: cell.top,
-            left: Math.min(known.left, cell.left),
-            right: Math.max(known.right, cell.right),
-            count: known.count + 1,
-          },
-    );
-  }
-
-  return [...rows.values()].sort((a, b) => a.top - b.top);
-}
-
-/**
- * Каждый ряд полосы доходит до обоих краёв карточки. Это и есть проверяемое свойство
- * раскладки: ячейка, стоящая в ряду одна шириной в долю ряда, обрывает его правый край —
- * ровно так выглядел дефект T171.
- */
-function assertRowsFillWidth(rows: readonly FactRow[]): void {
-  const left = Math.min(...rows.map((row) => row.left));
-  const right = Math.max(...rows.map((row) => row.right));
-
-  for (const row of rows) {
-    expect(
-      row.left,
-      "Ряд полосы фактов начинается не от края карточки.",
-    ).toBeLessThanOrEqual(left + 1);
-    expect(
-      row.right,
-      "Ряд полосы фактов обрывается, не дойдя до края карточки: ячейка стоит в нём " +
-        "одна, шириной в долю ряда, — это и есть дефект T171.",
-    ).toBeGreaterThanOrEqual(right - 1);
-  }
-}
-
-/**
- * Вторая половина того же дефекта: ячейка, открывающая ряд, не несёт левой границы.
- * Разделитель между соседями — это линия МЕЖДУ ними; в начале ряда он упирается в
- * пустоту и читается как обрезанная таблица. Геометрией это не ловится: ряд при этом
- * может быть полным.
- */
-function assertNoDanglingBorder(cells: readonly FactCell[]): void {
-  const leftEdge = Math.min(...cells.map((cell) => cell.left));
-
-  for (const cell of cells.filter((cell) => cell.left <= leftEdge + 1)) {
-    expect(
-      cell.borderLeft,
-      "У ячейки, открывающей ряд полосы фактов, есть левая граница: разделять ей " +
-        "нечего, и она висит в пустоте (дефект T171).",
-    ).toBe(0);
-  }
-}
-
-/**
- * Третья половина того же дефекта, найденная сверкой с эталоном: ячейка укладывается в
- * ряд, а её подпись в ячейку — нет. Карточка обрезает переполнение (`overflow-hidden`
- * ради скруглённых углов), поэтому обрезка НЕ видна ни в ширине страницы, ни в
- * геометрии рядов: «отправлено» просто становится «отправл». Проверяется прямо:
- * содержимое ячейки не шире самой ячейки.
- */
-function assertNoClippedText(cells: readonly FactCell[]): void {
-  for (const cell of cells) {
-    expect(
-      cell.overflow,
-      `Подпись факта не влезает в свою ячейку и обрезается: «${cell.text}». ` +
-        "Полоса выглядит целой, а слова в ней потеряны.",
-    ).toBe(0);
-  }
 }
 
 /** Поясá двух пиццерий сценария о подписи периода: разные и оба не совпадают с машиной. */
