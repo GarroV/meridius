@@ -91,8 +91,11 @@ function driverError(
   error: unknown,
 ): { code: string; constraint: unknown } | undefined {
   let current: unknown = error;
-  for (let depth = 0; depth < MAX_CAUSE_DEPTH; depth += 1) {
-    if (typeof current !== "object" || current === null) return undefined;
+  for (
+    let depth = 0;
+    depth < MAX_CAUSE_DEPTH && typeof current === "object" && current !== null;
+    depth += 1
+  ) {
     const { code, constraint, cause } = current as {
       code?: unknown;
       constraint?: unknown;
