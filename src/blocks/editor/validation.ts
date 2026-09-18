@@ -331,6 +331,12 @@ function parseItem(input: unknown): Item | null {
   }
 
   const hint = parseLocalizedText(input["hint"] ?? {});
+  // Единица измерения (D110): свободный текст на языках продукта, тот же разбор,
+  // что у названия и подсказки — чужие языки отбрасываются, пустое значение не
+  // хранится ни у одного языка. Смысл есть только у `type: "number"`, но здесь это
+  // не проверяется: снятие у нечислового пункта — дело экрана (`updateItem`), а не
+  // разбора, тем же приёмом, что у границ диапазона.
+  const unit = parseLocalizedText(input["unit"] ?? {});
   const isTable = item.type === "table";
   const schedule = parseSchedule(input["schedule"]);
   // Табличный пункт обходом не бывает: журнал заводят строками за смену, а у обхода
@@ -350,6 +356,7 @@ function parseItem(input: unknown): Item | null {
     ...(min === undefined ? {} : { min }),
     ...(max === undefined ? {} : { max }),
     ...(isEmptyText(hint) ? {} : { hint }),
+    ...(isEmptyText(unit) ? {} : { unit }),
     ...(schedule === undefined ? {} : { schedule }),
     ...(remind === undefined ? {} : { remindEveryMinutes: remind }),
     ...(columns === undefined ? {} : { columns }),

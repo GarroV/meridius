@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { useRef, useState } from "react";
 import type {
   ChangeEvent,
   ClipboardEvent,
@@ -116,6 +117,10 @@ const SELECT_CLASS =
   "text-ink bg-surface h-[var(--control-h-sm)] w-auto rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-4)] text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:outline-none";
 const BOUND_CLASS =
   "text-ink bg-surface h-[var(--control-h-sm)] w-[62px] rounded-[var(--r-control)] border border-[var(--line-control)] text-center font-[family-name:var(--font-num)] text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:outline-none";
+// Свободный текст (D110), поэтому без `--font-num`: единица — «°C», «кг», «шт», не
+// цифры. Шире границы диапазона — там 2-3 знака, тут короткое слово.
+const UNIT_CLASS =
+  "text-ink bg-surface h-[var(--control-h-sm)] w-[72px] rounded-[var(--r-control)] border border-[var(--line-control)] text-center text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:outline-none";
 
 const ITEM_TYPES: readonly ItemType[] = ["bool", "number", "text"];
 const ITEM_TYPES_WITH_TABLE: readonly ItemType[] = [...ITEM_TYPES, "table"];
@@ -157,6 +162,62 @@ function parseBound(raw: string): number | undefined {
   return Number.isFinite(value) ? value : undefined;
 }
 
+/**
+ * Набор границы ещё не закончен: минус без цифры, точка без цифры после неё — не
+ * число, но и не отказ от границы.
+ */
+function isBoundInProgress(raw: string): boolean {
+  const trimmed = raw.trim();
+  return trimmed !== "" && !Number.isFinite(Number(trimmed));
+}
+
+/**
+ * Черновой текст границы диапазона. Поле остаётся управляемым, но у него свой
+ * черновик, отдельный от отправленного наружу числа, — иначе минус, набранный
+ * посимвольно, пропадает молча.
+ *
+ * Найдено при вводе морозильника: набирая «-22» по знаку — так набирает и
+ * клавиатура, и так печатает живой человек, — поле стирало сам минус. Причина не
+ * в разборе: `<input>` в React управляемый, и после каждого события React
+ * переносит в DOM ровно тот `value`, что стоит в пропе, — синхронно, внутри
+ * обработки того же события, даже если обработчик состояние не менял. Пропуск
+ * `onPatch` на промежуточном значении испробован первым и не сработал: проп
+ * `value` оставался пустым, и React возвращал в поле пустую строку в тот же миг,
+ * что подтвердил живой прогон в браузере (набор «-» на пустом поле откатывался
+ * назад к пустому, даже когда `onChange` ничего не отправлял). Поэтому у поля есть
+ * СВОЙ черновик, из которого оно читает значение всегда, а наружу, через
+ * `onCommit`, уходит только когда строка — уже число или пусто.
+ *
+ * Внешняя правка (сброс границ сменой типа, вставка списка) обязана быть видна:
+ * черновик пересинхронизируется, когда `committed` поменялся НЕ из-за нашего же
+ * `onCommit`, — это отличают сравнением с тем, что сами в последний раз отправили
+ * (`lastCommitted`). Правка состояния прямо в теле функции — приём, документированный
+ * React для «подстройки состояния по входным данным», а не побочный эффект: следующий
+ * рендер увидит `lastCommitted.current === committed` и не повторит её.
+ */
+function useBoundDraft(
+  committed: number | undefined,
+  onCommit: (value: number | undefined) => void,
+): [string, (raw: string) => void] {
+  const [raw, setRaw] = useState(() => boundValue(committed));
+  const lastCommitted = useRef(committed);
+  if (lastCommitted.current !== committed) {
+    lastCommitted.current = committed;
+    setRaw(boundValue(committed));
+  }
+
+  return [
+    raw,
+    (nextRaw: string) => {
+      setRaw(nextRaw);
+      if (isBoundInProgress(nextRaw)) return;
+      const parsed = parseBound(nextRaw);
+      lastCommitted.current = parsed;
+      onCommit(parsed);
+    },
+  ];
+}
+
 export function ItemRow({
   item,
   ordinal,
@@ -172,6 +233,14 @@ export function ItemRow({
 }: ItemRowProps) {
   const t = useTranslations("editor.item");
   const severity = severityOf(item);
+  // Хуки — до любого условного JSX и в одном порядке на каждый рендер (правила
+  // React): черновик границ живёт здесь, а не внутри `item.type === "number" ? ... `.
+  const [minRaw, setMinRaw] = useBoundDraft(item.min, (min) => {
+    onPatch({ min });
+  });
+  const [maxRaw, setMaxRaw] = useBoundDraft(item.max, (max) => {
+    onPatch({ max });
+  });
   // Род «таблица» предлагается только там, где колонки есть чем задать; уже
   // заведённый табличный пункт показывает свой род всегда, иначе список родов
   // молча показывал бы не тот, что стоит у пункта.
@@ -239,9 +308,9 @@ export function ItemRow({
                 className={BOUND_CLASS}
                 inputMode="decimal"
                 aria-label={t("min")}
-                value={boundValue(item.min)}
+                value={minRaw}
                 onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  onPatch({ min: parseBound(event.target.value) });
+                  setMinRaw(event.target.value);
                 }}
               />
               {t("to")}
@@ -250,9 +319,26 @@ export function ItemRow({
                 className={BOUND_CLASS}
                 inputMode="decimal"
                 aria-label={t("max")}
-                value={boundValue(item.max)}
+                value={maxRaw}
                 onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  onPatch({ max: parseBound(event.target.value) });
+                  setMaxRaw(event.target.value);
+                }}
+              />
+              {/* Единица измерения (D110): свободный текст методиста, а не список,
+                зашитый в код, — набор зависит от станции, а не от разработчика.
+                Пустое значение законно и означает «без единицы». Через `onPatch`,
+                как границы: отдельного прохода через `onTitle` не нужно, а строка
+                правится тем же приёмом, что уже есть у этого пункта. */}
+              <input
+                data-testid="item-unit"
+                className={UNIT_CLASS}
+                aria-label={t("unit")}
+                placeholder={t("unitPlaceholder")}
+                value={pickEditorText(item.unit, locale)}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                  onPatch({
+                    unit: { ...item.unit, [locale]: event.target.value },
+                  });
                 }}
               />
             </span>

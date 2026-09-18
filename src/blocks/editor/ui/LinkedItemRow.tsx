@@ -29,7 +29,7 @@ export function LinkedItemRow({
 
   const typeText =
     item.type === "number"
-      ? `${t("typeNumber")}${range(item)}`
+      ? `${t("typeNumber")}${range(item, locale)}`
       : item.type === "text"
         ? t("typeText")
         : t("typeBool");
@@ -66,8 +66,19 @@ export function LinkedItemRow({
   );
 }
 
-/** Диапазон числового пункта в метке: показывается та граница, которая задана. */
-function range(item: Item): string {
-  if (item.min === undefined && item.max === undefined) return "";
-  return ` · ${item.min === undefined ? "" : String(item.min)}…${item.max === undefined ? "" : String(item.max)}`;
+/**
+ * Диапазон числового пункта в метке: показывается та граница, которая задана, и
+ * единица измерения рядом с ней (D110) — тот же порядок и разделитель, что на
+ * экране заполнения (`fill/ui/FillForm.tsx#rangeLabel`), только без вердикта
+ * попадания в границы, которому здесь взяться неоткуда — блоку `library` неизвестна
+ * ни одна настоящая отметка. Единица без единой границы тоже законна и показывается.
+ */
+function range(item: Item, locale: string): string {
+  const bounds =
+    item.min === undefined && item.max === undefined
+      ? ""
+      : `${item.min === undefined ? "" : String(item.min)}…${item.max === undefined ? "" : String(item.max)}`;
+  const unit = pickEditorText(item.unit, locale);
+  const measure = [bounds, unit].filter((part) => part !== "").join(" ");
+  return measure === "" ? "" : ` · ${measure}`;
 }

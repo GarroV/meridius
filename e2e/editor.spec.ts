@@ -333,6 +333,8 @@ test.describe("редактор чек-листа", () => {
     await page.getByTestId("item-type").first().selectOption("number");
     await page.getByTestId("item-min").first().fill("160");
     await page.getByTestId("item-max").first().fill("180");
+    // Единица измерения (D110): свободный текст методиста, не список из кода.
+    await page.getByTestId("item-unit").first().fill("°C");
     // Переключатель уровня: три положения вместо тумблера критичности (D056).
     await page.getByTestId("item-severity-critical").first().click();
 
@@ -347,10 +349,56 @@ test.describe("редактор чек-листа", () => {
     await expect(page.getByTestId("item-type").first()).toHaveValue("number");
     await expect(page.getByTestId("item-min").first()).toHaveValue("160");
     await expect(page.getByTestId("item-max").first()).toHaveValue("180");
+    await expect(page.getByTestId("item-unit").first()).toHaveValue("°C");
     await expect(page.getByTestId("editor-item").first()).toHaveAttribute(
       "data-severity",
       "critical",
     );
+
+    // Предпросмотр показывает методисту то же, что увидит сотрудник: границы и
+    // единица рядом, одной строкой (D110), а не заведённая единица, потерянная
+    // где-то между сохранением и показом.
+    await page.getByRole("link", { name: "Предпросмотр" }).click();
+    await expect(page.getByTestId("preview-screen")).toBeVisible();
+    await expect(page.getByTestId("preview-item").first()).toContainText(
+      "160…180 °C",
+    );
+  });
+
+  // Найдено при живой проверке T241, не багом из тикета: `.fill()` во всех сценариях
+  // выше подставляет значение целиком и эту дыру не задевает — нужна настоящая
+  // клавиатура. React возвращал управляемому полю прежнее значение синхронно в том же
+  // цикле события, ДАЖЕ когда обработчик набора не звал `setState`: минус, набранный
+  // первым нажатием, разбирался как «не число», отправлялся наружу как `undefined`,
+  // и поле переставало быть тем полем, в которое печатали, — сотрудник физически не
+  // мог завести отрицательную границу («от -22 до -10», ровно пример из решения D110)
+  // иначе как вставкой из буфера.
+  test("отрицательная граница набирается посимвольно и не теряет минус", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await createChecklist(page, `Отрицательная граница ${label()}`);
+
+    await page.getByTestId("item-title").first().click();
+    await page.keyboard.type("Морозильник");
+    await page.getByTestId("item-type").first().selectOption("number");
+
+    const min = page.getByTestId("item-min").first();
+    await min.click();
+    await page.keyboard.type("-22");
+    await expect(min).toHaveValue("-22");
+
+    const max = page.getByTestId("item-max").first();
+    await max.click();
+    await page.keyboard.type("-10");
+    await expect(max).toHaveValue("-10");
+
+    await saveDraft(page);
+
+    // Главное: минус уехал на сервер и вернулся оттуда, а не только держался на экране.
+    await page.reload();
+    await expect(page.getByTestId("item-min").first()).toHaveValue("-22");
+    await expect(page.getByTestId("item-max").first()).toHaveValue("-10");
   });
 
   test("табличный пункт: колонки заводятся по месту и переживают сохранение", async ({
