@@ -63,6 +63,31 @@
   .lib-item:last-child { border-bottom: none; }
   .lib-item__use { color: var(--ink-3); font-size: var(--fs-micro); }
   .lib-item .btn { margin-left: auto; }
+
+  /* Окно настройки регулярности пункта (T185/T196, ScheduleChip.tsx). Продукт строит
+     его по образцу `.overlay` + `.dialog*` дизайн-системы (`design/reference/components.css`,
+     строки 549-560), но этот эталон не подключает `components.css` целиком: 13 его
+     селекторов пересекаются с `app.css`, и подключение поменяло бы вид всех экранов
+     сразу — решение D116. Поэтому только использованные правила скопированы сюда
+     ДОСЛОВНО, символ в символ с источником; за расхождение отвечает сторож
+     `src/blocks/core/design-reference.test.ts`. Ничего внутри следующего блока не
+     трогать без сверки с components.css.
+     ═══ дословная копия components.css, строки 549-560 — начало ═══ */
+  .overlay { position: fixed; inset: 0; z-index: 80; background: var(--overlay); display: grid; place-items: center; }
+  .dialog { width: 470px; background: var(--surface); border-radius: var(--r-block); box-shadow: var(--sh-modal); overflow: hidden; }
+  .dialog__head { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-6) var(--space-7); background: var(--surface-3); border-bottom: 1px solid var(--line); }
+  .dialog__title { font-size: var(--fs-title); font-weight: var(--w-semibold); }
+  .dialog__body { padding: var(--space-6) var(--space-7); }
+  .dialog__foot { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-5) var(--space-7); background: var(--surface-2); border-top: 1px solid var(--line); }
+  .dialog__esc { font-size: var(--fs-meta); color: var(--ink-3); }
+  .dialog__spacer { flex: 1; }
+  /* ═══ дословная копия components.css — конец ═══ */
+
+  /* Строка одного отрезка обхода внутри окна: from/to/step/убрать — своя композиция,
+     не часть копии выше. */
+  .sched-row { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+  .sched-row .input { width: 104px; height: var(--control-h-sm); flex: none; }
+  .sched-row .select { width: auto; height: var(--control-h-sm); flex: none; }
 </style>
 </head>
 <body>
@@ -245,6 +270,72 @@
           </div>
         </aside>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Окно настройки регулярности пункта (T185/T196) — открывается нажатием чипа
+     регулярности в строке пункта (ScheduleChip.tsx). Показано открытым для пункта
+     «Замерить температуру фритюра» (секция 1, пункт 2): у него уже стоит чип
+     «06:00–22:00, каждые 2 ч», и окно ниже — то же самое расписание одним отрезком.
+     Тексты окна взяты из src/messages/ru.json (editor.schedule) — на языке
+     остальной разметки этого экрана. Состояние «пункт без расписания» (schedule-none) и плашка отказа
+     (broken/overlap) в композиции не показаны: это два других состояния того же
+     окна, а не часть его открытого-валидного вида, который рисует этот экран. -->
+<div class="overlay">
+  <div class="dialog" role="dialog" aria-modal="true" aria-label="Регулярность пункта">
+    <div class="dialog__head">
+      <span class="dialog__title">Регулярность пункта</span>
+    </div>
+
+    <div class="dialog__body stack" style="gap: var(--space-6)">
+      <div class="meta">Периодический пункт не попадает в форму заполнения: его отмечают обходом по расписанию.</div>
+
+      <div class="stack" style="gap: var(--space-5)">
+        <span class="field__label">Отрезки обхода</span>
+
+        <div class="sched-row">
+          <span class="meta">от</span>
+          <input class="input" type="time" value="06:00">
+          <span class="meta">до</span>
+          <input class="input" type="time" value="22:00">
+          <span class="meta">шаг</span>
+          <select class="select">
+            <option>каждые 30 минут</option>
+            <option>каждый час</option>
+            <option selected>каждые 2 часа</option>
+            <option>каждые 3 часа</option>
+            <option>каждые 4 часа</option>
+          </select>
+          <button class="btn btn--ghost btn--sm btn--danger spacer">Убрать</button>
+        </div>
+
+        <div class="inline">
+          <button class="btn">Добавить отрезок</button>
+        </div>
+      </div>
+
+      <div class="stack" style="gap: var(--space-4)">
+        <span class="field__label">Напоминать при просрочке</span>
+        <select class="select" style="width: fit-content">
+          <option selected>Не напоминать</option>
+          <option>Каждые 10 минут</option>
+          <option>Каждые 20 минут</option>
+          <option>Каждые 60 минут</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- flex-wrap сверху копии: у продукта то же самое (DIALOG_FOOT_CLASS = базовый
+         `.dialog__foot` + `flex-wrap`) — этому подвалу нужно больше места, чем
+         подтверждающему диалогу, с которого списан эталон. Правило `.dialog__foot`
+         выше остаётся дословной копией; перенос строк — надстройка, не правка копии. -->
+    <div class="dialog__foot" style="flex-wrap: wrap">
+      <span class="dialog__esc">Esc — закрыть</span>
+      <div class="dialog__spacer"></div>
+      <button class="btn btn--ghost btn--sm">Отмена</button>
+      <button class="btn">Применить ко всей секции</button>
+      <button class="btn btn--primary">Готово</button>
     </div>
   </div>
 </div>
