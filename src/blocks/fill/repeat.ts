@@ -31,7 +31,16 @@ const PG_UNIQUE_VIOLATION = "23505";
 /** Глубже Drizzle ошибку драйвера не заворачивает; предел — от петли в `cause`. */
 const MAX_CAUSE_DEPTH = 5;
 
-/** Заполнение, уже записанное по этому пропуску, — или `null`, если его нет. */
+/**
+ * Заполнение, уже записанное по этому пропуску, — или `null`, если его нет.
+ *
+ * Помеченные повторы прошлого из-под правила выведены (`duplicate`, миграция 0012),
+ * и здесь они тоже пропускаются: у исторической пары запрос без этого условия мог
+ * вернуть любую из строк — порядок без `ORDER BY` база не обещает и меняет вместе с
+ * планом, — то есть квитанцию на повтор вместо записи, которую миграция признала
+ * канонической. Для записей после 0012 условие ничего не меняет: непомеченная строка
+ * на пару ровно одна, за этим следит сам индекс.
+ */
 export async function findRepeatedSubmission(
   versionId: string,
   startedAt: number,
@@ -43,6 +52,7 @@ export async function findRepeatedSubmission(
       and(
         eq(submissions.versionId, versionId),
         eq(submissions.startedAt, new Date(startedAt)),
+        eq(submissions.duplicate, false),
       ),
     )
     .limit(1);
