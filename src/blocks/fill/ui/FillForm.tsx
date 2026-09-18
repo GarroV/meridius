@@ -76,7 +76,7 @@ const INPUT_CLASS = `${FIELD_CLASS} text-[length:var(--fs-lead)]`;
  * строка не прыгает, когда поле уступает место записанному показанию.
  */
 const NUMBER_LOOK_CLASS =
-  "font-num h-[48px] max-w-[120px] text-center text-[length:var(--fs-num-hero)] leading-none font-medium text-ink";
+  "font-num h-[48px] w-full max-w-[120px] text-center text-[length:var(--fs-num-hero)] leading-none font-medium text-ink";
 const FOOT_CLASS =
   "sticky bottom-0 mt-auto border-t border-[var(--line-strong)] bg-surface px-[var(--space-7)] pt-[var(--space-6)] pb-[var(--space-8)]";
 const BUTTON_CLASS =
@@ -465,7 +465,7 @@ export function FillForm({
                       <span
                         data-testid="fill-number-value"
                         data-item-id={item.id}
-                        className={`${NUMBER_LOOK_CLASS} flex flex-none items-center justify-center`}
+                        className={`${NUMBER_LOOK_CLASS} flex items-center justify-center`}
                       >
                         {numberText(entry)}
                       </span>

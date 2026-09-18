@@ -292,6 +292,42 @@ describe("referenceNumberField", () => {
       referenceNumberField(".item__num .input { height: 48px; }", tokens),
     ).toBeUndefined();
   });
+
+  it("запись шрифта не разбирается — сказать нечего", () => {
+    expect(
+      referenceNumberField(
+        ".item__num .input { font: inherit; height: 48px; }",
+        tokens,
+      ),
+    ).toBeUndefined();
+  });
+
+  // Объявления нет — сторож обязан отдать пустое значение, а не выдумать эталонное:
+  // выдуманное сравнится с браузером и подтвердит само себя.
+  it("объявления в правиле нет — значение пустое", () => {
+    expect(
+      referenceNumberField(
+        ".item__num .input { font: var(--w-medium) var(--fs-num-hero)/1 var(--font-num); }",
+        tokens,
+      ),
+    ).toEqual({
+      fontSize: "22px",
+      lineHeight: "22px",
+      fontWeight: "500",
+      textAlign: "",
+      height: "",
+      maxWidth: "",
+    });
+  });
+
+  it("токен неизвестен — ссылка остаётся как есть", () => {
+    expect(
+      referenceNumberField(
+        ".item__num .input { font: 500 22px/1 mono; max-width: var(--nema-takogo); }",
+        tokens,
+      )?.maxWidth,
+    ).toBe("var(--nema-takogo)");
+  });
 });
 
 describe("сторож геройского вида числового поля", () => {

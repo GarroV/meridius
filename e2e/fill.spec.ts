@@ -623,12 +623,22 @@ test.describe("числовое поле: вид класса и провал", 
     await page.goto(stickerPath(stand.code));
 
     // Act: значение вне границ — пункт провален.
+    const fieldBox = await page.getByTestId("fill-number").boundingBox();
     await page.getByTestId("fill-number").fill("9");
 
     // Assert: поля ввода больше нет, значение и вердикт видны, комментарий открыт.
     await expect(page.getByTestId("fill-comment")).toBeVisible();
     await expect(page.getByTestId("fill-number")).toHaveCount(0);
     await expect(page.getByTestId("fill-number-value")).toHaveText("9");
+    // Показание занимает ТО ЖЕ место, что занимало поле: иначе строка прыгает, а
+    // сверка проверяющим читает значение как выровненное по левому краю.
+    expect(
+      await page.getByTestId("fill-number-value").boundingBox(),
+    ).toMatchObject({
+      width: fieldBox?.width,
+      height: fieldBox?.height,
+      x: fieldBox?.x,
+    });
     await expect(page.getByTestId("fill-number-range")).toHaveText(
       "2…4 · out of range",
     );

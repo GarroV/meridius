@@ -127,8 +127,27 @@ export interface NumberFieldLook {
 const NUMBER_FIELD_RULE = /\.item__num\s+\.input\s*\{([^}]*)\}/;
 /** `font: <вес> <кегль>/<интерлиньяж> <семейство>` — сокращённая запись эталона. */
 const FONT_SHORTHAND = /font:\s*([^;]+);/;
-const DECLARATION_IN_RULE = (name: string): RegExp =>
+/** `500 22px/1 'IBM Plex Mono', …` — вес, кегль, интерлиньяж; семейство сторожу не нужно. */
+const FONT_PARTS = /^(\d+)\s+([\w.]+)\s*\/\s*([\w.]+)\s/;
+const declarationIn = (name: string): RegExp =>
   new RegExp(`(?:^|;)\\s*${name}:\\s*([^;]+)`);
+
+/**
+ * Первая группа совпадения или `undefined`.
+ *
+ * Группа читается колбэком замены, а не индексом: по типам `match[1]` —
+ * `string | undefined`, и запасное значение к нему было бы веткой, в которую не
+ * попадает ни один вход. Ветка, которую нельзя проверить, — не защита, а дыра
+ * в покрытии (тот же довод, что у `parseTokens` выше).
+ */
+function group(pattern: RegExp, text: string): string | undefined {
+  let found: string | undefined;
+  text.replace(pattern, (_whole: string, captured: string) => {
+    found = captured;
+    return "";
+  });
+  return found;
+}
 
 /** Разворачивает `var(--имя)` значением токена; без токена значение остаётся как есть. */
 function resolve(
@@ -142,6 +161,16 @@ function resolve(
     });
 }
 
+/** Значение объявления внутри правила; объявления нет — пустая строка. */
+function declaration(
+  body: string,
+  name: string,
+  tokens: ReadonlyMap<string, TokenValue>,
+): string {
+  const value = group(declarationIn(name), body);
+  return value === undefined ? "" : resolve(value, tokens);
+}
+
 /**
  * Читает вид числового поля из эталона. Правила нет — читать нечего, и сторож обязан
  * сказать об этом словами, а не тихо сравнить с `undefined`.
@@ -150,32 +179,26 @@ export function referenceNumberField(
   css: string,
   tokens: ReadonlyMap<string, TokenValue>,
 ): NumberFieldLook | undefined {
-  const rule = NUMBER_FIELD_RULE.exec(css);
-  if (rule === null) return undefined;
-  const body = rule[1] ?? "";
+  const body = group(NUMBER_FIELD_RULE, css);
+  if (body === undefined) return undefined;
+  const font = group(FONT_SHORTHAND, body);
+  if (font === undefined) return undefined;
 
-  const font = FONT_SHORTHAND.exec(body);
-  if (font === null) return undefined;
-  // `500 22px/1 'IBM Plex Mono', …` — вес, кегль, интерлиньяж; семейство сторожу не нужно.
-  const parts = /^(\d+)\s+([\w.]+)\s*\/\s*([\w.]+)\s/.exec(
-    resolve(font[1] ?? "", tokens),
+  let look: NumberFieldLook | undefined;
+  resolve(font, tokens).replace(
+    FONT_PARTS,
+    (_whole: string, weight: string, size: string, ratio: string) => {
+      look = {
+        fontSize: size,
+        // Интерлиньяж эталона записан долей кегля (`/1`), браузер отдаёт его пикселями.
+        lineHeight: `${String(Number.parseFloat(size) * Number(ratio))}px`,
+        fontWeight: weight,
+        textAlign: declaration(body, "text-align", tokens),
+        height: declaration(body, "height", tokens),
+        maxWidth: declaration(body, "max-width", tokens),
+      };
+      return "";
+    },
   );
-  if (parts === null) return undefined;
-  const fontSize = parts[2] ?? "";
-  const ratio = parts[3] ?? "";
-
-  const declaration = (name: string): string => {
-    const found = DECLARATION_IN_RULE(name).exec(body);
-    return found === null ? "" : resolve(found[1] ?? "", tokens);
-  };
-
-  return {
-    fontSize,
-    // Интерлиньяж эталона записан долей кегля (`/1`), браузер отдаёт его пикселями.
-    lineHeight: `${String(Number.parseFloat(fontSize) * Number(ratio))}px`,
-    fontWeight: parts[1] ?? "",
-    textAlign: declaration("text-align"),
-    height: declaration("height"),
-    maxWidth: declaration("max-width"),
-  };
+  return look;
 }
