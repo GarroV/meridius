@@ -47,6 +47,11 @@ test.describe("неизвестный адрес кабинета", () => {
       "This page could not be found",
     );
     await expect(page.getByText("Такого раздела нет")).toBeVisible();
+    // Шапка говорит своё слово, а не повторяет крошку (T251): «Кабинет» дважды подряд
+    // читался как сбой вёрстки.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Страница не найдена",
+    );
     // Из тупика есть выход — ссылка обратно в кабинет.
     await page.getByTestId("admin-not-found-home").click();
     await expect(page.getByTestId("admin-home")).toBeVisible();
@@ -60,6 +65,9 @@ test.describe("неизвестный адрес кабинета", () => {
     await page.goto("/admin/no-such-section");
 
     await expect(page.getByText("No such section")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Page not found",
+    );
     await context.close();
   });
 });

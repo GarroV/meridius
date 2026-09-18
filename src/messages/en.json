@@ -37,8 +37,10 @@
     "notFound": {
       "title": "No such section",
       "text": "There is no such address in the workspace: it may have a typo, or the section has been removed.",
-      "action": "Back to the workspace"
+      "action": "Back to the workspace",
+      "topbar": "Page not found"
     },
+    "failureTopbar": "Error",
     "signedIn": "You are signed in. Choose a section.",
     "signOut": "Sign out",
     "sections": {
