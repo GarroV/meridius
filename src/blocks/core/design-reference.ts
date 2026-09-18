@@ -104,3 +104,101 @@ export function disabledCursors(source: string): readonly string[] {
   });
   return names;
 }
+
+/**
+ * «Геройский» вид числового поля, каким его задаёт эталон (`app.css`, `.item__num
+ * .input`). Эталон вешает этот вид на КЛАСС — то есть на числовое поле как таковое,
+ * а не на поле со значением. Отличить пустое поле от заполненного нечем, и это не
+ * случайность: заполненное и незаполненное поле на кухне ищут одним и тем же взглядом.
+ *
+ * Значения читаются из эталона и разворачиваются по токенам, а не переписываются
+ * числами: переписанное число расходится с эталоном молча, и сверка начинает
+ * подтверждать саму себя.
+ */
+export interface NumberFieldLook {
+  readonly fontSize: string;
+  readonly lineHeight: string;
+  readonly textAlign: string;
+  readonly fontWeight: string;
+  readonly height: string;
+  readonly maxWidth: string;
+}
+
+const NUMBER_FIELD_RULE = /\.item__num\s+\.input\s*\{([^}]*)\}/;
+/** `font: <вес> <кегль>/<интерлиньяж> <семейство>` — сокращённая запись эталона. */
+const FONT_SHORTHAND = /font:\s*([^;]+);/;
+/** `500 22px/1 'IBM Plex Mono', …` — вес, кегль, интерлиньяж; семейство сторожу не нужно. */
+const FONT_PARTS = /^(\d+)\s+([\w.]+)\s*\/\s*([\w.]+)\s/;
+const declarationIn = (name: string): RegExp =>
+  new RegExp(`(?:^|;)\\s*${name}:\\s*([^;]+)`);
+
+/**
+ * Первая группа совпадения или `undefined`.
+ *
+ * Группа читается колбэком замены, а не индексом: по типам `match[1]` —
+ * `string | undefined`, и запасное значение к нему было бы веткой, в которую не
+ * попадает ни один вход. Ветка, которую нельзя проверить, — не защита, а дыра
+ * в покрытии (тот же довод, что у `parseTokens` выше).
+ */
+function group(pattern: RegExp, text: string): string | undefined {
+  let found: string | undefined;
+  text.replace(pattern, (_whole: string, captured: string) => {
+    found = captured;
+    return "";
+  });
+  return found;
+}
+
+/** Разворачивает `var(--имя)` значением токена; без токена значение остаётся как есть. */
+function resolve(
+  value: string,
+  tokens: ReadonlyMap<string, TokenValue>,
+): string {
+  return value
+    .trim()
+    .replace(/var\((--[\w-]+)\)/g, (whole: string, name: string) => {
+      return tokens.get(name) ?? whole;
+    });
+}
+
+/** Значение объявления внутри правила; объявления нет — пустая строка. */
+function declaration(
+  body: string,
+  name: string,
+  tokens: ReadonlyMap<string, TokenValue>,
+): string {
+  const value = group(declarationIn(name), body);
+  return value === undefined ? "" : resolve(value, tokens);
+}
+
+/**
+ * Читает вид числового поля из эталона. Правила нет — читать нечего, и сторож обязан
+ * сказать об этом словами, а не тихо сравнить с `undefined`.
+ */
+export function referenceNumberField(
+  css: string,
+  tokens: ReadonlyMap<string, TokenValue>,
+): NumberFieldLook | undefined {
+  const body = group(NUMBER_FIELD_RULE, css);
+  if (body === undefined) return undefined;
+  const font = group(FONT_SHORTHAND, body);
+  if (font === undefined) return undefined;
+
+  let look: NumberFieldLook | undefined;
+  resolve(font, tokens).replace(
+    FONT_PARTS,
+    (_whole: string, weight: string, size: string, ratio: string) => {
+      look = {
+        fontSize: size,
+        // Интерлиньяж эталона записан долей кегля (`/1`), браузер отдаёт его пикселями.
+        lineHeight: `${String(Number.parseFloat(size) * Number(ratio))}px`,
+        fontWeight: weight,
+        textAlign: declaration(body, "text-align", tokens),
+        height: declaration(body, "height", tokens),
+        maxWidth: declaration(body, "max-width", tokens),
+      };
+      return "";
+    },
+  );
+  return look;
+}

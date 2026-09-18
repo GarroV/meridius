@@ -1,5 +1,13 @@
-import { expect, test, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+import {
+  parseTokens,
+  referenceNumberField,
+  type NumberFieldLook,
+} from "../src/blocks/core/design-reference";
 import { stationScanUrl } from "../src/blocks/qr/scan-url";
 import {
   lastSubmission,
@@ -21,6 +29,62 @@ const TAP_MIN = 44;
 function stickerPath(code: string): string {
   return new URL(stationScanUrl(E2E_PUBLIC_BASE_URL, code)).pathname;
 }
+
+/** Эталон: слой экранов и токены. Ожидаемое читается из них, а не переписывается числами. */
+const DESIGN = path.resolve(import.meta.dirname, "../docs/furca/design");
+
+/** Каким эталон задаёт вид числового поля. Эталон нечитаем — это провал, а не пропуск. */
+function referenceNumberLook(): NumberFieldLook {
+  const look = referenceNumberField(
+    readFileSync(path.join(DESIGN, "app.css"), "utf8"),
+    parseTokens(
+      readFileSync(path.join(DESIGN, "reference/tokens.css"), "utf8"),
+    ),
+  );
+  if (look === undefined) {
+    throw new Error(
+      "В эталоне не нашлось правила `.item__num .input` — сверять не с чем",
+    );
+  }
+  return look;
+}
+
+/** Вид поля, каким его ПОСЧИТАЛ браузер: строка классов о победителе каскада молчит. */
+async function lookOf(field: Locator): Promise<NumberFieldLook> {
+  return await field.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return {
+      fontSize: style.fontSize,
+      lineHeight: style.lineHeight,
+      fontWeight: style.fontWeight,
+      textAlign: style.textAlign,
+      height: style.height,
+      maxWidth: style.maxWidth,
+    };
+  });
+}
+
+/** Критичный числовой пункт эталона: холодильная камера, +2…+4. */
+const COLD_ROOM_SECTIONS = [
+  {
+    id: "s-fridge",
+    title: { ru: "Холодильники", en: "Refrigerators" },
+    source: "own",
+    items: [
+      {
+        id: "i-cold",
+        title: {
+          ru: "Температура холодильной камеры",
+          en: "Cold room temperature",
+        },
+        type: "number",
+        critical: true,
+        min: 2,
+        max: 4,
+      },
+    ],
+  },
+] as const;
 
 async function answerBool(page: Page, itemId: string): Promise<void> {
   await page
@@ -506,5 +570,77 @@ test.describe("язык документа на отказе по коду", () 
 
     expect(langOf(/<html[^>]*\slang="([a-z-]+)"/, html)).toBe("en");
     expect(langOf(/<div lang="([a-z-]+)"/, html)).toBe("en");
+  });
+});
+
+test.describe("числовое поле: вид класса и провал", () => {
+  test.use({
+    viewport: PHONE,
+    hasTouch: true,
+    isMobile: true,
+    locale: "en-GB",
+  });
+
+  /**
+   * Эталон вешает «геройский» вид на КЛАСС числового поля (`app.css`, `.item__num
+   * .input`), а не на поле со значением: пустое и заполненное поле на кухне ищут
+   * одним и тем же взглядом. Сторож читает ожидаемое из самого эталона и смотрит на
+   * ПОСЧИТАННЫЙ браузером стиль, а не на строку классов: кегль здесь задаётся дважды
+   * (общий вид поля и геройский), и кто из них победит, решает порядок в собранном
+   * CSS — в разметке это не видно.
+   */
+  test("пустое числовое поле нарисовано ровно как заполненное и ровно как в эталоне", async ({
+    page,
+  }) => {
+    // Arrange
+    const expected = referenceNumberLook();
+    const stand = await seedFillStand("геройское поле");
+    await page.goto(stickerPath(stand.code));
+    const field = page.getByTestId("fill-number");
+    await expect(field).toHaveValue("");
+
+    // Act + Assert: поле ещё пустое — вид уже геройский.
+    expect(await lookOf(field)).toEqual(expected);
+
+    // Act: значение набрано — вид не изменился ни одним свойством.
+    await field.fill("172");
+    expect(await lookOf(field)).toEqual(expected);
+  });
+
+  /**
+   * Провалившийся числовой пункт эталон показывает БЕЗ поля ввода: замер уже сделан,
+   * на экране остаются значение и объяснение (`fill.html`, состояние «Критичный пункт
+   * не выполнен»). Поле рядом с блоком комментария предлагает переписать показание
+   * вместо того, чтобы его объяснить.
+   */
+  test("провал числового пункта убирает поле ввода, оставляя значение и комментарий", async ({
+    page,
+  }) => {
+    // Arrange: критичный числовой пункт с границами — как «Cold room temperature» эталона.
+    const stand = await seedFillStand("провал числового", {
+      sections: COLD_ROOM_SECTIONS,
+    });
+    await page.goto(stickerPath(stand.code));
+
+    // Act: значение вне границ — пункт провален.
+    const fieldBox = await page.getByTestId("fill-number").boundingBox();
+    await page.getByTestId("fill-number").fill("9");
+
+    // Assert: поля ввода больше нет, значение и вердикт видны, комментарий открыт.
+    await expect(page.getByTestId("fill-comment")).toBeVisible();
+    await expect(page.getByTestId("fill-number")).toHaveCount(0);
+    await expect(page.getByTestId("fill-number-value")).toHaveText("9");
+    // Показание занимает ТО ЖЕ место, что занимало поле: иначе строка прыгает, а
+    // сверка проверяющим читает значение как выровненное по левому краю.
+    expect(
+      await page.getByTestId("fill-number-value").boundingBox(),
+    ).toMatchObject({
+      width: fieldBox?.width,
+      height: fieldBox?.height,
+      x: fieldBox?.x,
+    });
+    await expect(page.getByTestId("fill-number-range")).toHaveText(
+      "2…4 · out of range",
+    );
   });
 });
