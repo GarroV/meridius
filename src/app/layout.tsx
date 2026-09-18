@@ -6,8 +6,15 @@ import { getLocale } from "next-intl/server";
 import type { ReactNode } from "react";
 
 import { asLocale, type Locale } from "@/blocks/core/locale";
+import {
+  resolvedTheme,
+  THEME_ATTRIBUTE,
+  THEME_BOOTSTRAP_SCRIPT,
+  themeFromCookieHeader,
+} from "@/blocks/core/theme";
 import { HtmlLangSync } from "@/blocks/core/ui/HtmlLangSync";
 import { FILL_DOCUMENT_LOCALE_HEADER } from "@/blocks/fill/locale";
+import { nonceFromPolicy } from "@/security-headers";
 import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
 
@@ -60,15 +67,42 @@ export default async function RootLayout({
   // (русский), и два умолчания на один запрос давали документ, объявленный английским
   // поверх русского текста. Значение приходит заголовком, поэтому проверяется списком
   // языков продукта, а не принимается на веру.
-  const declared = (await headers()).get(FILL_DOCUMENT_LOCALE_HEADER);
+  const requestHeaders = await headers();
+  const declared = requestHeaders.get(FILL_DOCUMENT_LOCALE_HEADER);
   const locale =
     declared === null ? asLocale(await getLocale()) : asLocale(declared);
+
+  // Тема (T236, D106). Явный выбор человека приезжает кукой и попадает в разметку
+  // ЗДЕСЬ — то есть страница отдаётся уже тёмной, без мигания и без участия скриптов.
+  // Выбора нет — атрибута нет, и тему называет системная настройка: её читает скрипт
+  // ниже, потому что сервер о ней не знает.
+  const theme = resolvedTheme(
+    themeFromCookieHeader(requestHeaders.get("cookie")),
+  );
+  // Публичный маршрут заполнения идёт под строгой политикой с одноразовым ключом
+  // (`src/proxy.ts`): без ключа браузер отбил бы скрипт молча, и кухонный телефон
+  // остался бы светлым в ночную смену. На остальных маршрутах ключа нет и не нужно.
+  const nonce = nonceFromPolicy(requestHeaders.get("content-security-policy"));
+
   return (
     <html
       lang={locale}
       className={`${golosText.variable} ${plexMono.variable}`}
+      {...(theme === undefined ? {} : { [THEME_ATTRIBUTE]: theme })}
+      // Скрипт ниже дописывает `data-theme` до гидратации — для React это
+      // расхождение с тем, что он отрисовал, и без этой пометки он печатал бы
+      // предупреждение на каждой странице продукта.
+      suppressHydrationWarning
     >
       <body className="bg-canvas text-ink font-ui">
+        {/*
+          Первым в теле и синхронно: скрипт обязан выставить тему до того, как браузер
+          нарисует первый кадр. Иначе кухонный телефон в три часа ночи мигает белым.
+        */}
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }}
+        />
         <NextIntlClientProvider
           locale={locale}
           messages={{ failure: MESSAGES[locale].failure }}

@@ -89,3 +89,23 @@ export function securityHeaders(options: PolicyOptions): SecurityHeader[] {
     },
   ];
 }
+
+/**
+ * Одноразовый ключ из политики, какой её получила разметка.
+ *
+ * Зачем читать обратно то, что сами и написали. На публичном маршруте заполнения
+ * политика строгая (`script-src 'nonce-…' 'strict-dynamic'`), а разметке нужно
+ * поставить свой инлайновый скрипт — тот, что довключает тёмную тему до первой
+ * отрисовки. Ключ выдаётся на запрос и живёт только в его заголовках; `src/proxy.ts`
+ * кладёт политику и в заголовки ЗАПРОСА, поэтому разметка достаёт ключ оттуда.
+ *
+ * Ключа нет — значит, маршрут идёт под общей политикой из `next.config.ts`, где
+ * инлайновые скрипты разрешены `'unsafe-inline'`, и атрибут не нужен вовсе.
+ */
+export function nonceFromPolicy(
+  policy: string | null | undefined,
+): string | undefined {
+  if (policy === null || policy === undefined) return undefined;
+  const found = /script-src [^;]*'nonce-([^']+)'/.exec(policy);
+  return found === null ? undefined : found[1];
+}

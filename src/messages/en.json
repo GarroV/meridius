@@ -27,6 +27,12 @@
   },
   "admin": {
     "home": "Admin",
+    "theme": {
+      "label": "Theme",
+      "system": "Auto",
+      "light": "Light",
+      "dark": "Dark"
+    },
     "crumbs": "Workspace",
     "notFound": {
       "title": "No such section",
