@@ -1,4 +1,4 @@
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import type {
@@ -11,7 +11,15 @@ import type {
 /**
  * Карточка «Ответы» (эталон `.sec-cap`/`.answer` в submission.html): секции и пункты
  * ровно в том виде, в котором их видел сотрудник (D002) — заголовок и диапазон из
- * СНИМКА чек-листа, ответ и время из заполнения.
+ * СНИМКА чек-листа, ответ из заполнения.
+ *
+ * Поштучного времени у пункта здесь НЕТ и быть не должно (D112). Сотрудник подходит к
+ * чек-листу раз в час-два и отмечает несколько пунктов сразу, поэтому время отдельной
+ * отметки означает момент, когда человек ПОДОШЁЛ, а не когда работа сделана; колонкой
+ * «время отметки» оно выдавалось управляющему за факт, которым не является. Время
+ * осталось там, где оба конца назначил сервер: общая длительность и время отправки в
+ * полосе фактов (`SubmissionFacts`). Сторож — сквозной сценарий «карточка не
+ * показывает поштучное время пункта» в `e2e/feed.spec.ts`.
  *
  * Разметка не решает, что провалено и что выполнено: это уже решила модель
  * (`item.failed`, `item.answer.kind`) — здесь только цвет и текст по готовым флагам.
@@ -30,15 +38,17 @@ const CARD_CLASS =
  * Шапка карточки в прокрутку НЕ входит: заголовок «Ответы» остаётся на месте, когда
  * строки уехали вправо.
  *
- * Откуда 440 px. Это самая узкая ширина, на которой строка ещё ничего не режет:
+ * Откуда 388 px. Это самая узкая ширина, на которой строка ещё ничего не режет:
  * квадратик 24 + самая длинная нерасторопная метка продукта («в этом режиме не
- * запрашивали», 218 px замером) + значение 90 + время 40 + три зазора по 12 и поля
- * строки 32. Меньше — и метка вылезет за свою колонку; проверку на это держит
- * сквозной сценарий (`e2e/submission-phone.spec.ts`), поэтому подросший словарь
- * покажет себя красным, а не молча обрезанной меткой.
+ * запрашивали», 218 px замером) + значение 90 + два зазора по 12 и поля строки 32.
+ * Было 440, пока справа стояла колонка времени (40 px и третий зазор); с её уходом
+ * (D112) строке столько не нужно, и лишняя ширина на телефоне превращалась бы в
+ * прокрутку по пустому месту. Меньше — и метка вылезет за свою колонку; проверку на
+ * это держит сквозной сценарий (`e2e/submission-phone.spec.ts`), поэтому подросший
+ * словарь покажет себя красным, а не молча обрезанной меткой.
  */
 const SCROLLER_CLASS = "overflow-x-auto";
-const ROWS_CLASS = "min-w-[440px]";
+const ROWS_CLASS = "min-w-[388px]";
 const HEAD_CLASS =
   "flex items-center gap-[var(--space-6)] rounded-t-[var(--r-block)] border-b border-[var(--line)] bg-[var(--surface-3)] px-[var(--space-7)] py-[var(--space-6)]";
 const TITLE_CLASS =
@@ -57,7 +67,7 @@ const SKIPPED_TAG_CLASS = `${TAG_BASE_CLASS} bg-surface-2 border-[var(--line-str
 
 const ROW_CLASS =
   "grid items-center gap-[var(--space-6)] px-[var(--space-7)] py-[var(--space-5)]";
-const ROW_GRID_STYLE = { gridTemplateColumns: "24px 1fr auto auto" } as const;
+const ROW_GRID_STYLE = { gridTemplateColumns: "24px 1fr auto" } as const;
 const ROW_BORDER_CLASS = "border-b border-[var(--line)]";
 
 const MARK_BASE_CLASS =
@@ -74,8 +84,6 @@ const HINT_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 // (T202). `anywhere` добавлен для чужих языков, где слово длиннее колонки.
 const VALUE_CLASS =
   "font-[family-name:var(--font-num)] text-[length:var(--fs-num)] [overflow-wrap:anywhere]";
-const TIME_CLASS =
-  "font-[family-name:var(--font-num)] text-[length:var(--fs-num)] text-[var(--ink-3)] whitespace-nowrap";
 
 const COMMENT_CLASS =
   "mt-[var(--space-4)] rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-6)] py-[var(--space-5)] text-[length:var(--fs-dense)]";
@@ -97,7 +105,6 @@ const TABLE_TH_CLASS =
 const TABLE_TD_CLASS =
   "border-b border-[var(--line)] px-[var(--space-4)] py-[var(--space-3)] align-middle font-[family-name:var(--font-num)] text-[length:var(--fs-num)] whitespace-nowrap";
 
-type Formatter = Awaited<ReturnType<typeof getFormatter>>;
 type Translate = Awaited<ReturnType<typeof getTranslations>>;
 
 /**
@@ -218,15 +225,11 @@ function AnswerTable({
 function AnswerRow({
   item,
   isLast,
-  format,
   t,
-  timeZone,
 }: {
   readonly item: SubmissionItemView;
   readonly isLast: boolean;
-  readonly format: Formatter;
   readonly t: Translate;
-  readonly timeZone: string;
 }): ReactElement {
   const note = noteText(item, t);
   const color = valueColor(item);
@@ -263,16 +266,6 @@ function AnswerRow({
       >
         {filledTable === null ? valueText(item.answer, t) : null}
       </span>
-      <span className={TIME_CLASS}>
-        {item.answeredAt === null
-          ? "—"
-          : format.dateTime(item.answeredAt, {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-              timeZone,
-            })}
-      </span>
       {filledTable === null ? null : <AnswerTable answer={filledTable} />}
       {item.comment === null ? null : (
         <div
@@ -290,15 +283,11 @@ function AnswerRow({
 function SectionBlock({
   section,
   isLastSection,
-  format,
   t,
-  timeZone,
 }: {
   readonly section: SubmissionSectionView;
   readonly isLastSection: boolean;
-  readonly format: Formatter;
   readonly t: Translate;
-  readonly timeZone: string;
 }): ReactElement {
   return (
     <div>
@@ -313,9 +302,7 @@ function SectionBlock({
           key={item.itemId}
           item={item}
           isLast={isLastSection && itemIndex === section.items.length - 1}
-          format={format}
           t={t}
-          timeZone={timeZone}
         />
       ))}
     </div>
@@ -328,7 +315,6 @@ export async function AnswersCard({
   readonly model: SubmissionModel;
 }): Promise<ReactElement> {
   const t = await getTranslations("feed.card");
-  const format = await getFormatter();
   const lastSectionIndex = model.sections.length - 1;
 
   return (
@@ -343,9 +329,7 @@ export async function AnswersCard({
               key={section.id}
               section={section}
               isLastSection={sectionIndex === lastSectionIndex}
-              format={format}
               t={t}
-              timeZone={model.timeZone}
             />
           ))}
         </div>
