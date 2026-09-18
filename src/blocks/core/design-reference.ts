@@ -202,3 +202,84 @@ export function referenceNumberField(
   );
   return look;
 }
+
+/**
+ * Тема в эталоне устроена переопределением: светлые значения объявлены на `:root`,
+ * тёмные — на `[data-theme="dark"]`, а компоненты об этом не знают и просто читают
+ * `var(--…)`. Отсюда молчаливый класс дефектов: токен, у которого тёмного значения
+ * нет, в тёмной теме останется светлым. На экране это выглядит не поломкой, а
+ * «просто светлое пятно», и ни один тест разметки такого не увидит — цвет ЕСТЬ,
+ * просто чужой темы. Ровно тот же довод, что у сторожа ролей токенов выше.
+ */
+
+/** Имена токенов, объявленных в правилах с этим селектором (все такие правила разом). */
+export function tokensUnder(
+  css: string,
+  selector: string,
+): ReadonlySet<string> {
+  const names = new Set<string>();
+  let from = 0;
+
+  for (;;) {
+    const start = css.indexOf(selector, from);
+    if (start < 0) break;
+    from = start + selector.length;
+    // Селектор должен кончаться здесь, а не быть началом более длинного
+    // (`:root` против `:root:not(…)`): между ним и `{` бывают только пробелы.
+    const rest = css.slice(from);
+    const open = /^\s*\{/.exec(rest);
+    if (open === null) continue;
+
+    const bodyStart = from + open[0].length;
+    let depth = 1;
+    let index = bodyStart;
+    while (index < css.length && depth > 0) {
+      if (css[index] === "{") depth += 1;
+      else if (css[index] === "}") depth -= 1;
+      index += 1;
+    }
+    for (const [, name] of css
+      .slice(bodyStart, index - 1)
+      .matchAll(/(--[\w-]+)\s*:/g)) {
+      if (name !== undefined) names.add(name);
+    }
+    from = index;
+  }
+
+  return names;
+}
+
+/** Литеральные цвета: то, что на тёмном фоне останется светлым, если не переопределить. */
+const COLOR_LITERAL = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(/;
+
+/**
+ * Значение несёт литеральный цвет — то есть обязано иметь тёмный дубль.
+ *
+ * Проверяется вхождение, а не начало строки: тень и кольцо фокуса записаны
+ * `0 1px 2px rgba(…)`, цвет в них стоит не первым, а на тёмном фоне светлая тень
+ * видна не меньше светлой заливки. Значение, собранное из `var(--…)`, сюда не
+ * попадает намеренно: оно следует за темой через свои токены.
+ */
+export function carriesColor(value: TokenValue): boolean {
+  return COLOR_LITERAL.test(value);
+}
+
+/**
+ * Токены, у которых светлое значение есть, а тёмного нет. Экран, который сошлётся на
+ * такой токен, в тёмной теме возьмёт светлый цвет.
+ */
+export function lightOnlyColorTokens(css: string): readonly string[] {
+  const dark = tokensUnder(css, '[data-theme="dark"]');
+  const names: string[] = [];
+  for (const [, name, value] of css.matchAll(DECLARATION_PAIR)) {
+    if (name === undefined || value === undefined) continue;
+    if (dark.has(name)) continue;
+    if (!carriesColor(value)) continue;
+    if (!tokensUnder(css, ":root").has(name)) continue;
+    if (!names.includes(name)) names.push(name);
+  }
+  return names;
+}
+
+/** Та же запись, что у `DECLARATION`, но без общего состояния глобального поиска. */
+const DECLARATION_PAIR = /(--[\w-]+)\s*:\s*([^;]+);/g;
