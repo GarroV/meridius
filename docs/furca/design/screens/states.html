@@ -114,7 +114,7 @@
           <div class="big">The page did not open</div>
           <div class="notice notice--err" style="text-align:left">The product could not get its data, so the screen has nothing to show. The reason is written to the server log. Try again — if it keeps failing, pass the error code below to whoever runs the service.</div>
           <button class="btn btn--primary btn--fill" style="max-width:280px">Try again</button>
-          <div class="muted">Error code: 8f3c1ab2</div>
+          <div class="muted">Error code: 1078353152</div>
         </div>
       </div>
     </div>
@@ -178,12 +178,17 @@
          экрана находила расхождение заново на каждом заходе (Q022). -->
     <div class="wide">
       <div class="cap">Отказ раздела: данные не пришли</div>
+      <!-- Структура здесь та же, что у «Пусто» выше, и это сознательно (D107): отказ
+           раздела рисуется той же центрированной карточкой, а отличает его ЦВЕТ —
+           плашка `notice--err` вместо серого текста (T214). Шапки карточки с h2 у
+           этого вида нет: она принадлежит диалогам и формам, где под заголовком идёт
+           работа, а здесь работать не с чем — читают одну строку и жмут «Повторить». -->
       <div class="card">
-        <div class="card__head"><h2>Страница не открылась</h2></div>
-        <div class="card__body stack">
-          <div class="notice notice--err">Продукт не смог получить данные, показывать нечего. Причина записана в журнал сервера. Попробуйте ещё раз — если повторяется, передайте код ошибки тому, кто держит сервис.</div>
-          <div class="inline"><button class="btn btn--primary">Повторить</button></div>
-          <div class="muted">Код ошибки: 8f3c1ab2</div>
+        <div class="empty">
+          <div class="empty__title">Страница не открылась</div>
+          <div class="notice notice--err" style="text-align:left">Продукт не смог получить данные, показывать нечего. Причина записана в журнал сервера. Попробуйте ещё раз — если повторяется, передайте код ошибки тому, кто держит сервис.</div>
+          <button class="btn btn--primary">Повторить</button>
+          <div class="muted">Код ошибки: 1078353152</div>
         </div>
       </div>
     </div>
