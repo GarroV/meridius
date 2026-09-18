@@ -85,6 +85,13 @@
       "when": 1789150000000,
       "tag": "0011_login_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789200000000,
+      "tag": "0012_submission_repeat_guard",
+      "breakpoints": true
     }
   ]
 }

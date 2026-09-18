@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { Section } from "@/blocks/data";
@@ -8,6 +8,7 @@ import {
   getSubmission,
   listSubmissions,
   publishVersion,
+  submissions,
 } from "@/blocks/data";
 import {
   createChecklist,
@@ -16,8 +17,9 @@ import {
 } from "@/blocks/data/testing/fixtures";
 
 import { FILL_LIMITS, forgetAllFillHits } from "./rate-limit";
+import type { SubmitOutcome } from "./submit";
 import { submitFilling } from "./submit";
-import { issueFillTicket } from "./ticket";
+import { issueFillTicket, readFillTicket } from "./ticket";
 
 const NOW = new Date("2026-09-06T09:30:00Z");
 const STARTED_AT = NOW.getTime() - 3 * 60 * 1000;
@@ -93,6 +95,48 @@ function fullAnswers(sections: Section[]): unknown[] {
     { itemId: items[0]?.id, value: true, at: STARTED_AT },
     { itemId: items[1]?.id, value: 3, at: STARTED_AT },
   ];
+}
+
+const WAIT_FOR_WAITER_MS = 5_000;
+const WAIT_POLL_MS = 20;
+
+/**
+ * Ждёт, пока кто-то встанет в очередь за транзакцией `xid` — или пока отправка
+ * не закончится сама, ни за кем не встав.
+ *
+ * Очередь за чужой транзакцией и есть признак того, что база взяла гонку на себя:
+ * вставка той же пары «версия + начало» не может ни пройти, ни отказать, пока
+ * первая запись не зафиксирована или не отменена. Отправка, закончившаяся без
+ * очереди, означает, что правила в базе нет и вторая запись уже легла.
+ */
+async function waitForWaiterOrSettle(
+  xid: string,
+  isSettled: () => boolean,
+): Promise<void> {
+  const deadline = Date.now() + WAIT_FOR_WAITER_MS;
+  while (!isSettled()) {
+    const result = await getDb().execute<{ waiting: boolean }>(sql`
+      select exists (
+        select 1 from pg_locks
+        where locktype = 'transactionid'
+          and transactionid = ${xid}::xid
+          and not granted
+      ) as waiting`);
+    if (result.rows[0]?.waiting === true) return;
+    if (Date.now() > deadline) {
+      throw new Error(
+        "Вторая отправка не закончилась и не встала в очередь за первой записью: зависла где-то ещё",
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, WAIT_POLL_MS));
+  }
+}
+
+/** Начало заполнения, которое сервер прочтёт из этого пропуска. */
+function startedAtOf(ticket: string, code: string, versionId: string): Date {
+  const pass = readFillTicket(ticket, { code, versionId }, NOW);
+  if (!pass.ok) throw new Error(`Пропуск не читается: ${pass.reason}`);
+  return new Date(pass.value);
 }
 
 describe("отправка заполнения", () => {
@@ -368,6 +412,93 @@ describe("защита публичной точки записи", () => {
       limit: 10,
     });
     expect(rows.length).toBe(1);
+  });
+
+  it("отправка, пришедшая, пока первая ещё пишется, получает квитанцию первой, а не вторую запись", async () => {
+    // Повтор после подвисшего ответа или ретрай прокси приходит, пока первая
+    // запись ещё не зафиксирована. Проверка на повтор такую запись не видит и
+    // отвечает «не найдено» — до T219 второй запрос шёл сохранять свою, и в ленте
+    // управляющего одна работа стояла дважды. Окно между «записала» и
+    // «зафиксировала» здесь удержано открытой транзакцией, поэтому гонка
+    // воспроизводится каждый прогон, а не когда повезёт.
+    const target = await stand("подвисший ответ");
+    const ticket = ticketFor(target.code, target.versionId);
+    const body = {
+      code: target.code,
+      versionId: target.versionId,
+      ticket,
+      answers: fullAnswers(target.sections),
+    };
+
+    let second: Promise<SubmitOutcome> | undefined;
+    let isSecondSettled = false;
+    const firstId = await getDb().transaction(async (tx) => {
+      const [first] = await tx
+        .insert(submissions)
+        .values({
+          versionId: target.versionId,
+          stationId: target.stationId,
+          snapshot: target.sections,
+          answers: [],
+          startedAt: startedAtOf(ticket, target.code, target.versionId),
+        })
+        .returning({ id: submissions.id });
+      if (first === undefined) throw new Error("Первая запись не легла");
+      const xid = await tx.execute<{ xid: string }>(
+        sql`select pg_current_xact_id()::xid::text as xid`,
+      );
+
+      second = submitFilling(body, NOW).finally(() => {
+        isSecondSettled = true;
+      });
+      await waitForWaiterOrSettle(
+        xid.rows[0]?.xid ?? "",
+        () => isSecondSettled,
+      );
+      return first.id;
+    });
+
+    const outcome = await second;
+    const saved = await getSubmission(firstId);
+    // Проигравший гонку видит то же, что увидел бы при обычном повторе: работа
+    // принята, время — той записи, что легла в историю. Не страница ошибки и не
+    // «нет связи», после которого сотрудник нажал бы «отправить» ещё раз.
+    expect(outcome?.kind).toBe("saved");
+    if (outcome?.kind !== "saved") return;
+    expect(outcome.submittedAt).toBe(saved?.submittedAt.getTime());
+    const rows = await listSubmissions({
+      stationId: target.stationId,
+      limit: 10,
+    });
+    expect(rows.map((row) => row.id)).toStrictEqual([firstId]);
+  });
+
+  it("пачка одновременных отправок одного заполнения даёт одну запись и одну квитанцию на всех", async () => {
+    // Та же гонка без удержания окна: запросы идут разом через общий пул, как
+    // пришли бы двойное касание и ретрай прокси поверх него.
+    const target = await stand("пачка");
+    const body = {
+      code: target.code,
+      versionId: target.versionId,
+      ticket: ticketFor(target.code, target.versionId),
+      answers: fullAnswers(target.sections),
+    };
+
+    const outcomes = await Promise.all(
+      Array.from({ length: 6 }, () => submitFilling(body, NOW)),
+    );
+
+    const rows = await listSubmissions({
+      stationId: target.stationId,
+      limit: 10,
+    });
+    expect(rows.length).toBe(1);
+    const receipts = new Set(
+      outcomes.map((outcome) =>
+        outcome.kind === "saved" ? outcome.submittedAt : outcome.kind,
+      ),
+    );
+    expect([...receipts]).toStrictEqual([rows[0]?.submittedAt.getTime()]);
   });
 
   it("перебор кодов не отдаёт ничего, кроме отказа", async () => {

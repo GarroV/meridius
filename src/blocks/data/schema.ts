@@ -7,6 +7,7 @@
 //     (принцип 3: история заполнений неприкосновенна).
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   index,
@@ -219,9 +220,16 @@ export const submissions = pgTable(
     // числом из `store_shift_modes`: вечерняя перестановка режима не имеет права
     // переписать, в каком режиме заполняли утром (принцип 3, D002).
     mode: text("mode").$type<ShiftMode>().notNull().default("normal"),
-    // Начало — с устройства сотрудника (нужно для длительности), отправка — время сервера.
+    // Начало — из пропуска, выданного сервером вместе с экраном (T186), отправка —
+    // время сервера. Пара «версия + начало» опознаёт заполнение (индекс ниже).
     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
     submittedAt: serverTimestamp("submitted_at"),
+    // Повтор, записанный до того, как база стала их отвергать: вторая запись того же
+    // заполнения, оставшаяся от гонки одновременных отправок (миграция 0012, T219).
+    // Строка остаётся в истории как есть (принцип 3), пометка лишь выводит её из-под
+    // правила «одно заполнение — одна запись». Новая запись повтором не бывает: её
+    // повтор отвергает сам индекс.
+    duplicate: boolean("duplicate").notNull().default(false),
   },
   (table) => [
     index("submissions_submitted_at_idx").on(table.submittedAt),
@@ -234,6 +242,13 @@ export const submissions = pgTable(
       table.submittedAt.desc(),
     ),
     index("submissions_version_idx").on(table.versionId),
+    // Одно заполнение — одна запись (T219). Проверка на повтор в коде не видит запись,
+    // которая ещё не зафиксирована, и две одновременные отправки обе слышали «не
+    // найдено»; правило, проверяемое в самой вставке, закрывает гонку. Частичный —
+    // потому что повторы, легшие до правила, в истории остаются (`duplicate`).
+    uniqueIndex("submissions_one_per_filling_idx")
+      .on(table.versionId, table.startedAt)
+      .where(sql`not duplicate`),
     check(
       "submissions_snapshot_size",
       jsonbSizeLimit("snapshot", SECTIONS_MAX_BYTES),
