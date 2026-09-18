@@ -102,15 +102,25 @@ function totalItems(sections: readonly Section[]): number {
   return sections.reduce((total, section) => total + section.items.length, 0);
 }
 
-/** Подсказка о границах числового пункта: обе, если есть обе, иначе — какая есть. */
-function rangeHint(item: Item, t: Translate): string | null {
+/**
+ * Подсказка о границах числового пункта: обе, если есть обе, иначе — какая есть, и
+ * единица измерения рядом (D110) — тот же порядок и разделитель, что на экране
+ * заполнения (`fill/ui/FillForm.tsx#rangeLabel`): методист обязан видеть то же, что
+ * увидит сотрудник. Единица без единой границы тоже законна и показывается одна.
+ */
+function rangeHint(item: Item, locale: string, t: Translate): string | null {
   if (item.type !== "number") return null;
-  if (item.min !== undefined && item.max !== undefined) {
-    return t("preview.range", { min: item.min, max: item.max });
-  }
-  if (item.min !== undefined) return String(item.min);
-  if (item.max !== undefined) return String(item.max);
-  return null;
+  const bounds =
+    item.min !== undefined && item.max !== undefined
+      ? t("preview.range", { min: item.min, max: item.max })
+      : item.min !== undefined
+        ? String(item.min)
+        : item.max !== undefined
+          ? String(item.max)
+          : "";
+  const unit = pickEditorText(item.unit, locale);
+  const measure = [bounds, unit].filter((part) => part !== "").join(" ");
+  return measure === "" ? null : measure;
 }
 
 /**
@@ -143,7 +153,7 @@ function ItemRow({
   readonly t: Translate;
   readonly isFirst: boolean;
 }): ReactElement {
-  const range = rangeHint(item, t);
+  const range = rangeHint(item, locale, t);
   const table = tableHint(item, locale, t);
   const severity = severityOf(item);
 

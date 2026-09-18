@@ -207,6 +207,65 @@ describe("parseSections", () => {
     expect(sections[0]?.items[0]).not.toHaveProperty("max");
   });
 
+  test("единица измерения числового пункта — свободный текст на языках продукта (D110)", () => {
+    const sections = parseSections([
+      goodSection({
+        items: [
+          {
+            id: "item-1",
+            title: { ru: "Морозильник" },
+            type: "number",
+            severity: "critical",
+            min: "-22",
+            max: "-10",
+            unit: { ru: "°C", en: "°C" },
+          },
+        ],
+      }),
+    ]);
+
+    expect(sections[0]?.items[0]?.unit).toStrictEqual({ ru: "°C", en: "°C" });
+  });
+
+  test("пустая единица измерения не сохраняется — это «без единицы», а не пустая строка", () => {
+    const sections = parseSections([
+      goodSection({
+        items: [
+          {
+            id: "item-1",
+            title: { ru: "Морозильник" },
+            type: "number",
+            severity: "normal",
+            unit: { ru: "" },
+          },
+        ],
+      }),
+    ]);
+
+    expect(sections[0]?.items[0]).not.toHaveProperty("unit");
+  });
+
+  test("единица измерения не привязана типом на разборе — снятие делает экран, а не разбор", () => {
+    // Тот же приём, что у границ диапазона: сервер единицу не отвергает, а `updateItem`
+    // снимает её у нечислового пункта при смене типа (D110). Разбор — не то место, где
+    // это решается, иначе черновик, который правил браузер, а не человек, отвергался бы.
+    const sections = parseSections([
+      goodSection({
+        items: [
+          {
+            id: "item-1",
+            title: { ru: "Проверить чистоту" },
+            type: "bool",
+            severity: "normal",
+            unit: { ru: "шт" },
+          },
+        ],
+      }),
+    ]);
+
+    expect(sections[0]?.items[0]?.unit).toStrictEqual({ ru: "шт" });
+  });
+
   test("нижняя граница выше верхней отвергается", () => {
     expect(() =>
       parseSections([
