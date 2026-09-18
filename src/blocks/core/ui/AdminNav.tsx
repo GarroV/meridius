@@ -117,8 +117,16 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
         выбирается руками, поэтому он стоит на каждом экране кабинета сразу. Ниже
         складки он остаётся, в отличие от строки «кто вошёл»: та справка, а это
         управление, и ночная смена начинается как раз с телефона.
+        Слова переводит меню, а не сам переключатель (T254): см. `ThemeToggle.tsx`.
       */}
-      <ThemeToggle />
+      <ThemeToggle
+        labels={{
+          label: t("theme.label"),
+          system: t("theme.system"),
+          light: t("theme.light"),
+          dark: t("theme.dark"),
+        }}
+      />
     </nav>
   );
 }
