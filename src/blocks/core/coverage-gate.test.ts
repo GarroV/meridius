@@ -19,7 +19,7 @@ describe("compareCoverage", () => {
 
     expect(verdict.ok).toBe(false);
     expect(verdict.drops).toEqual([
-      { measure: "functions", was: 91, now: 90.94 },
+      { measure: "functions", was: 91, now: 90.94, by: "percent" },
     ]);
   });
 
@@ -71,6 +71,70 @@ describe("compareCoverage", () => {
       "statements",
       "functions",
       "branches",
+    ]);
+  });
+});
+
+/**
+ * Сравнение по числу непокрытых (T244). Доля падала не только от усыхания
+ * проверок, но и от уборки: удаление покрытой ветви уменьшает знаменатель.
+ * Живой случай T220 — удалили колонку времени, 2106 покрытых ветвей из 2435 стали
+ * 2104 из 2433, новых непокрытых ноль, проверок больше, а гейт завернул волну.
+ */
+const withUncovered = (
+  pct: typeof base,
+  uncovered: Record<string, number>,
+) => ({
+  ...pct,
+  uncovered,
+});
+
+describe("compareCoverage по числу непокрытых", () => {
+  test("удаление покрытого кода не заворачивает прогон, хотя доля просела", () => {
+    const baseline = withUncovered(base, { branches: 329 });
+    const current = withUncovered(
+      { ...base, branches: 85.9 },
+      { branches: 329 },
+    );
+
+    const verdict = compareCoverage(baseline, current);
+
+    expect(verdict.ok).toBe(true);
+    expect(verdict.drops).toEqual([]);
+  });
+
+  test("непокрытых стало больше — прогон завёрнут, даже если доля выросла", () => {
+    const baseline = withUncovered(base, { branches: 329 });
+    const current = withUncovered({ ...base, branches: 99 }, { branches: 330 });
+
+    const verdict = compareCoverage(baseline, current);
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.drops).toEqual([
+      { measure: "branches", was: 86, now: 99, by: "uncovered" },
+    ]);
+  });
+
+  test("непокрытых стало меньше — это рост, по нему двигают базу", () => {
+    const baseline = withUncovered(base, { branches: 329 });
+    const current = withUncovered({ ...base }, { branches: 320 });
+
+    const verdict = compareCoverage(baseline, current);
+
+    expect(verdict.ok).toBe(true);
+    expect(verdict.gains).toEqual([
+      { measure: "branches", was: 86, now: 86, by: "uncovered" },
+    ]);
+  });
+
+  test("база без чисел непокрытых сравнивается по долям, как до T244", () => {
+    const current = { ...base, branches: 85.9, uncovered: { branches: 329 } };
+
+    const verdict = compareCoverage(base, current);
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.drops).toEqual([
+      { measure: "branches", was: 86, now: 85.9, by: "percent" },
     ]);
   });
 });

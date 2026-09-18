@@ -23,12 +23,28 @@ export const MEASURES = [
 
 type Measure = (typeof MEASURES)[number];
 
-export type Coverage = Readonly<Partial<Record<Measure, number>>>;
+export type Coverage = Readonly<Partial<Record<Measure, number>>> & {
+  /**
+   * Число НЕПОКРЫТЫХ единиц по мерам. Необязательное: базы, записанные до T244,
+   * его не содержат, и с ними сравнение идёт по долям, как раньше.
+   *
+   * Сравнивать долю оказалось неверно. Доля падает не только когда проверок стало
+   * меньше, но и когда покрытого кода стало меньше: удаление покрытой ветви
+   * уменьшает знаменатель, и порог краснеет на работе, которая ничего не ухудшила.
+   * Живой случай (T220): удалили колонку времени — 2106 покрытых ветвей из 2435
+   * стали 2104 из 2433, ни одной новой непокрытой, сквозных сценариев стало больше,
+   * а гейт завернул волну. Число непокрытых от удаления кода не растёт, поэтому
+   * усыхание проверок оно ловит по-прежнему, а уборку — нет.
+   */
+  readonly uncovered?: Readonly<Partial<Record<Measure, number>>>;
+};
 
 interface Change {
   readonly measure: Measure;
   readonly was: number;
   readonly now: number;
+  /** Чем мерили: числом непокрытых (новые базы) или долей (базы до T244). */
+  readonly by: "uncovered" | "percent";
 }
 
 export interface Verdict {
@@ -66,8 +82,23 @@ export function compareCoverage(
     }
     if (was === undefined) continue;
 
-    if (now < was) drops.push({ measure, was, now });
-    else if (now > was) gains.push({ measure, was, now });
+    const wasUncovered = baseline.uncovered?.[measure];
+    const nowUncovered = current.uncovered?.[measure];
+
+    // Обе стороны знают число непокрытых — меряем им: оно не зависит от того,
+    // сколько кода удалили. Знает только одна (база старого формата) — остаётся
+    // прежнее сравнение долей, иначе переход на новый формат тихо снял бы порог.
+    if (wasUncovered !== undefined && nowUncovered !== undefined) {
+      if (nowUncovered > wasUncovered) {
+        drops.push({ measure, was, now, by: "uncovered" });
+      } else if (nowUncovered < wasUncovered) {
+        gains.push({ measure, was, now, by: "uncovered" });
+      }
+      continue;
+    }
+
+    if (now < was) drops.push({ measure, was, now, by: "percent" });
+    else if (now > was) gains.push({ measure, was, now, by: "percent" });
   }
 
   return {

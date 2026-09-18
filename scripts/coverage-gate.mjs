@@ -39,10 +39,22 @@ if (!existsSync(REPORT)) {
 }
 
 const total = JSON.parse(readFileSync(REPORT, "utf8")).total ?? {};
+const present = MEASURES.filter(
+  (measure) => typeof total[measure]?.pct === "number",
+);
 const current = Object.fromEntries(
-  MEASURES.filter((measure) => typeof total[measure]?.pct === "number").map(
-    (measure) => [measure, total[measure].pct],
-  ),
+  present.map((measure) => [measure, total[measure].pct]),
+);
+// Число непокрытых — то, чем меряют с T244: оно не растёт от удаления кода,
+// а усыхание проверок ловит по-прежнему. Доля остаётся для человека в выводе.
+current.uncovered = Object.fromEntries(
+  present
+    .filter(
+      (measure) =>
+        typeof total[measure].total === "number" &&
+        typeof total[measure].covered === "number",
+    )
+    .map((measure) => [measure, total[measure].total - total[measure].covered]),
 );
 
 const percent = (value) => `${value.toFixed(2)}%`;
@@ -64,9 +76,31 @@ for (const measure of verdict.missing) {
   console.error(`НЕТ МЕРЫ В ОТЧЁТЕ: ${measure} — считать её было нечем.`);
 }
 for (const drop of verdict.drops) {
-  console.error(
-    `ПОКРЫТИЕ ПРОСЕЛО: ${drop.measure} ${percent(drop.was)} → ${percent(drop.now)}`,
+  const how =
+    drop.by === "uncovered"
+      ? `непокрытых стало больше: ${baseline.uncovered?.[drop.measure]} → ${current.uncovered?.[drop.measure]}`
+      : `доля просела: ${percent(drop.was)} → ${percent(drop.now)}`;
+  console.error(`ПОКРЫТИЕ ПРОСЕЛО: ${drop.measure} — ${how}`);
+}
+
+// База старого формата (до T244) знает только доли, поэтому уборку она по-прежнему
+// читает как просадку. Перевести её на числа непокрытых можно только руками и только
+// вместе с --update: молча снимать порог нельзя, а вечно краснеть на удалении кода
+// он не должен.
+if (!verdict.ok && update && baseline.uncovered === undefined) {
+  writeFileSync(BASELINE, `${JSON.stringify(current, null, 2)}\n`);
+  console.log(
+    "База переведена на числа непокрытых по ЭТОМУ прогону (T244).\n" +
+      "  Прежняя база знала только доли, и просадку доли от удаления покрытого кода\n" +
+      "  она отличить не могла. С этого прогона сравнивается число непокрытых:\n" +
+      MEASURES.filter((m) => current.uncovered?.[m] !== undefined)
+        .map(
+          (m) =>
+            `  ${m}: непокрытых ${current.uncovered[m]}, доля ${percent(current[m])}`,
+        )
+        .join("\n"),
   );
+  process.exit(0);
 }
 
 if (!verdict.ok) {
@@ -84,7 +118,7 @@ for (const gain of verdict.gains) {
   );
 }
 
-if (update && verdict.gains.length > 0) {
+if (update && (verdict.gains.length > 0 || baseline.uncovered === undefined)) {
   writeFileSync(BASELINE, `${JSON.stringify(current, null, 2)}\n`);
   console.log("База покрытия обновлена по этому прогону.");
 } else if (verdict.gains.length > 0) {
