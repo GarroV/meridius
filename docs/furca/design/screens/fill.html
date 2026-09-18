@@ -99,8 +99,18 @@
       <div class="item item--failed">
         <span class="item__box"></span>
         <span class="item__text">Cold room temperature <span class="item__crit">!</span>
-          <span class="item__hint">+2…+4 °C · recorded: +9</span>
+          <span class="item__hint">Critical — a comment is required if it fails</span>
         </span>
+      </div>
+      <!-- Провал числового пункта: поля ввода НЕТ, замер стоит текстом на том же
+           месте и тем же крупным видом, что набранное значение выше. Переписывать
+           его нечего — объяснять надо именно его, а поле рядом с блоком комментария
+           предлагало бы обратное. Границы и вердикт стоят подписью у самого замера,
+           а не в подсказке под названием: с T233 подсказка принадлежит методисту,
+           границы живут у поля, и назвать их дважды на одном экране нельзя. -->
+      <div class="item__num">
+        <span class="val">+9</span>
+        <span class="meta">+2…+4 °C · out of range</span>
       </div>
 
       <div class="item__fail">
