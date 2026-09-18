@@ -34,7 +34,7 @@ export const THEME_CHOICES: readonly ThemeChoice[] = [
 ];
 
 /** Год: выбор темы человек делает один раз, а не каждую смену. */
-export const THEME_COOKIE_MAX_AGE_SECONDS = 31_536_000;
+const THEME_COOKIE_MAX_AGE_SECONDS = 31_536_000;
 
 /**
  * Приводит пришедшее снаружи значение к выбору продукта.
