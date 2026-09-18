@@ -104,3 +104,78 @@ export function disabledCursors(source: string): readonly string[] {
   });
   return names;
 }
+
+/**
+ * «Геройский» вид числового поля, каким его задаёт эталон (`app.css`, `.item__num
+ * .input`). Эталон вешает этот вид на КЛАСС — то есть на числовое поле как таковое,
+ * а не на поле со значением. Отличить пустое поле от заполненного нечем, и это не
+ * случайность: заполненное и незаполненное поле на кухне ищут одним и тем же взглядом.
+ *
+ * Значения читаются из эталона и разворачиваются по токенам, а не переписываются
+ * числами: переписанное число расходится с эталоном молча, и сверка начинает
+ * подтверждать саму себя.
+ */
+export interface NumberFieldLook {
+  readonly fontSize: string;
+  readonly lineHeight: string;
+  readonly textAlign: string;
+  readonly fontWeight: string;
+  readonly height: string;
+  readonly maxWidth: string;
+}
+
+const NUMBER_FIELD_RULE = /\.item__num\s+\.input\s*\{([^}]*)\}/;
+/** `font: <вес> <кегль>/<интерлиньяж> <семейство>` — сокращённая запись эталона. */
+const FONT_SHORTHAND = /font:\s*([^;]+);/;
+const DECLARATION_IN_RULE = (name: string): RegExp =>
+  new RegExp(`(?:^|;)\\s*${name}:\\s*([^;]+)`);
+
+/** Разворачивает `var(--имя)` значением токена; без токена значение остаётся как есть. */
+function resolve(
+  value: string,
+  tokens: ReadonlyMap<string, TokenValue>,
+): string {
+  return value
+    .trim()
+    .replace(/var\((--[\w-]+)\)/g, (whole: string, name: string) => {
+      return tokens.get(name) ?? whole;
+    });
+}
+
+/**
+ * Читает вид числового поля из эталона. Правила нет — читать нечего, и сторож обязан
+ * сказать об этом словами, а не тихо сравнить с `undefined`.
+ */
+export function referenceNumberField(
+  css: string,
+  tokens: ReadonlyMap<string, TokenValue>,
+): NumberFieldLook | undefined {
+  const rule = NUMBER_FIELD_RULE.exec(css);
+  if (rule === null) return undefined;
+  const body = rule[1] ?? "";
+
+  const font = FONT_SHORTHAND.exec(body);
+  if (font === null) return undefined;
+  // `500 22px/1 'IBM Plex Mono', …` — вес, кегль, интерлиньяж; семейство сторожу не нужно.
+  const parts = /^(\d+)\s+([\w.]+)\s*\/\s*([\w.]+)\s/.exec(
+    resolve(font[1] ?? "", tokens),
+  );
+  if (parts === null) return undefined;
+  const fontSize = parts[2] ?? "";
+  const ratio = parts[3] ?? "";
+
+  const declaration = (name: string): string => {
+    const found = DECLARATION_IN_RULE(name).exec(body);
+    return found === null ? "" : resolve(found[1] ?? "", tokens);
+  };
+
+  return {
+    fontSize,
+    // Интерлиньяж эталона записан долей кегля (`/1`), браузер отдаёт его пикселями.
+    lineHeight: `${String(Number.parseFloat(fontSize) * Number(ratio))}px`,
+    fontWeight: parts[1] ?? "",
+    textAlign: declaration("text-align"),
+    height: declaration("height"),
+    maxWidth: declaration("max-width"),
+  };
+}

@@ -11,6 +11,7 @@ import {
   parseTokens,
   referenceDisabledCursor,
   referenceDisabledOpacity,
+  referenceNumberField,
 } from "./design-reference";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
@@ -19,6 +20,8 @@ const COMPONENTS = path.resolve(
   ROOT,
   "../docs/furca/design/reference/components.css",
 );
+/** Слой экранов эталона: там же, где `.item__num`, — вид числового поля. */
+const APP = path.resolve(ROOT, "../docs/furca/design/app.css");
 
 /**
  * Вёрстка продукта: файлы блоков без тестов. Тесты исключены не для удобства —
@@ -254,5 +257,59 @@ describe("сторож ссылок на токены", () => {
     }
 
     expect([...dangling]).toEqual([]);
+  });
+});
+
+describe("referenceNumberField", () => {
+  const tokens = parseTokens(
+    "--fs-num-hero: 22px; --w-medium: 500; --font-num: 'IBM Plex Mono';",
+  );
+
+  it("читает геройский вид числового поля из эталона", () => {
+    expect(
+      referenceNumberField(
+        ".item__num .input { font: var(--w-medium) var(--fs-num-hero)/1 var(--font-num); height: 48px; text-align: center; max-width: 120px; }",
+        tokens,
+      ),
+    ).toEqual({
+      fontSize: "22px",
+      lineHeight: "22px",
+      fontWeight: "500",
+      textAlign: "center",
+      height: "48px",
+      maxWidth: "120px",
+    });
+  });
+
+  it("правила нет — и сказать нечего", () => {
+    expect(
+      referenceNumberField(".input { color: red; }", tokens),
+    ).toBeUndefined();
+  });
+
+  it("сокращённой записи шрифта нет — сказать нечего", () => {
+    expect(
+      referenceNumberField(".item__num .input { height: 48px; }", tokens),
+    ).toBeUndefined();
+  });
+});
+
+describe("сторож геройского вида числового поля", () => {
+  // Эталон вешает вид на КЛАСС, а не на состояние: пустое числовое поле обязано
+  // читаться так же, как заполненное. Сторож держит сам эталон читаемым — без него
+  // сквозной сценарий сравнивал бы браузер с `undefined` и был бы вечно зелёным.
+  it("эталон задаёт вид числового поля, и он читается", () => {
+    const look = referenceNumberField(
+      readFileSync(APP, "utf8"),
+      parseTokens(readFileSync(TOKENS, "utf8")),
+    );
+
+    expect(look).toBeDefined();
+    expect(look?.textAlign).toBe("center");
+    expect(Number.parseFloat(look?.fontSize ?? "0")).toBeGreaterThan(
+      Number.parseFloat(
+        parseTokens(readFileSync(TOKENS, "utf8")).get("--fs-lead") ?? "0",
+      ),
+    );
   });
 });

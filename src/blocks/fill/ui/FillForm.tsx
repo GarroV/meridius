@@ -63,8 +63,20 @@ const TEXT_CLASS =
   "flex-1 text-[length:var(--fs-lead)] leading-[21px] break-words";
 const HINT_CLASS =
   "mt-[var(--space-2)] block text-[length:var(--fs-meta)] text-[var(--ink-3)]";
-const INPUT_CLASS =
-  "w-full rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface px-[var(--space-5)] text-[length:var(--fs-lead)] text-ink focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
+// Рамка поля без кегля: кегль задаёт тот, кто поле ставит. Две утилиты размера на одном
+// элементе спорят в собранном CSS, а не в строке классов, и кто победит — из разметки не
+// видно вовсе (поймано сторожем геройского вида, `e2e/fill.spec.ts`).
+const FIELD_CLASS =
+  "w-full rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface px-[var(--space-5)] text-ink focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
+const INPUT_CLASS = `${FIELD_CLASS} text-[length:var(--fs-lead)]`;
+/**
+ * Геройский вид числового значения — эталон `app.css`, `.item__num .input`. Вид висит
+ * на МЕСТЕ числа, а не на состоянии: пустое поле, набранное значение и показание
+ * провалившегося пункта читаются одним и тем же взглядом. Отсюда же берётся то, что
+ * строка не прыгает, когда поле уступает место записанному показанию.
+ */
+const NUMBER_LOOK_CLASS =
+  "font-num h-[48px] max-w-[120px] text-center text-[length:var(--fs-num-hero)] leading-none font-medium text-ink";
 const FOOT_CLASS =
   "sticky bottom-0 mt-auto border-t border-[var(--line-strong)] bg-surface px-[var(--space-7)] pt-[var(--space-6)] pb-[var(--space-8)]";
 const BUTTON_CLASS =
@@ -405,6 +417,9 @@ export function FillForm({
                 ? filledRows(rowsOf(entry)).length === 0
                 : entry?.value == null;
             const state = empty ? "unanswered" : failed ? "no" : "yes";
+            // Одно условие на блок комментария и на уступающее ему поле ввода: два
+            // условия про одно и то же разъезжаются, и экран показывает оба сразу.
+            const commentOpen = failed && item.severity !== "normal";
             const stateWord = t(`state.${state}`);
 
             return (
@@ -442,25 +457,39 @@ export function FillForm({
 
                 {item.type === "number" ? (
                   <div className="mx-[var(--space-7)] mb-[var(--space-6)] flex items-center gap-[var(--space-4)]">
-                    <input
-                      data-testid="fill-number"
-                      data-item-id={item.id}
-                      inputMode="decimal"
-                      aria-label={item.title}
-                      placeholder={t("numberPlaceholder")}
-                      className={`${INPUT_CLASS} font-num h-[48px] max-w-[120px] text-center text-[length:var(--fs-num-hero)] font-medium`}
-                      value={numberText(entry)}
-                      onChange={(event) => {
-                        const raw = event.target.value.replace(",", ".");
-                        const parsed = Number(raw);
-                        setEntry(item.id, {
-                          value:
-                            raw.trim() === "" || !Number.isFinite(parsed)
-                              ? null
-                              : parsed,
-                        });
-                      }}
-                    />
+                    {commentOpen ? (
+                      // Замер уже сделан, и объяснять надо его, а не переписывать: поле
+                      // рядом с блоком комментария предлагает ровно обратное (эталон
+                      // `fill.html`, состояние «Критичный пункт не выполнен» — там
+                      // показание стоит текстом, поля ввода нет).
+                      <span
+                        data-testid="fill-number-value"
+                        data-item-id={item.id}
+                        className={`${NUMBER_LOOK_CLASS} flex flex-none items-center justify-center`}
+                      >
+                        {numberText(entry)}
+                      </span>
+                    ) : (
+                      <input
+                        data-testid="fill-number"
+                        data-item-id={item.id}
+                        inputMode="decimal"
+                        aria-label={item.title}
+                        placeholder={t("numberPlaceholder")}
+                        className={`${FIELD_CLASS} ${NUMBER_LOOK_CLASS}`}
+                        value={numberText(entry)}
+                        onChange={(event) => {
+                          const raw = event.target.value.replace(",", ".");
+                          const parsed = Number(raw);
+                          setEntry(item.id, {
+                            value:
+                              raw.trim() === "" || !Number.isFinite(parsed)
+                                ? null
+                                : parsed,
+                          });
+                        }}
+                      />
+                    )}
                     <span
                       data-testid="fill-number-range"
                       data-item-id={item.id}
@@ -505,7 +534,7 @@ export function FillForm({
                   </div>
                 ) : null}
 
-                {failed && item.severity !== "normal" ? (
+                {commentOpen ? (
                   <div className="mx-[var(--space-7)] mb-[var(--space-6)] rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] p-[var(--space-6)]">
                     <label
                       htmlFor={`comment-${item.id}`}
