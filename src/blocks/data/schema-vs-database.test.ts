@@ -93,7 +93,14 @@ async function declaredChecks(): Promise<ChecksByTable> {
       }
       for (const one of config.checks) {
         await tx.execute(
-          sql`alter table ${sql.identifier(config.name)} add constraint ${sql.identifier(one.name)} check (${sql.raw(declaredText(one.name, one.value))})`,
+          // Схема названа явно: `alter table <имя>` без неё резолвится через search_path, а
+          // pg_temp стоит первым только по умолчанию. Разбор свежим взглядом воспроизвёл
+          // это фактом: при `search_path = public, pg_temp` (pg_temp упомянут и тем самым
+          // сдвинут) ALTER уходит мимо временной копии и вешает CHECK на НАСТОЯЩУЮ таблицу —
+          // молча, без единой ошибки. Сейчас search_path в проекте нигде не переопределяется,
+          // то есть дефект спящий; но защита не должна держаться на умолчании, которого сам
+          // тест не проверяет.
+          sql`alter table pg_temp.${sql.identifier(config.name)} add constraint ${sql.identifier(one.name)} check (${sql.raw(declaredText(one.name, one.value))})`,
         );
       }
     }
