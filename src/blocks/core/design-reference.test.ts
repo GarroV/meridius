@@ -201,3 +201,58 @@ describe("disabledCursors", () => {
     ).toEqual(["wait"]);
   });
 });
+
+/**
+ * Эталон приехал в проект вместе с визуальным языком другого продукта (D013), и
+ * вместе с ним приехал слой токенов, которому в meridius нет применения. Слой этот
+ * молчаливый: неиспользуемый токен ничего не ломает, поэтому живёт годами и врёт
+ * читателю — и человеку, и сверке экранов — о том, что у продукта есть такая роль.
+ * Обратная сторона так же молчалива: ссылка на токен, которого нет, в CSS просто
+ * отбрасывается, и свойство рисуется значением по умолчанию.
+ */
+function referenceFiles(dir: string): readonly string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return referenceFiles(full);
+    return entry.name.endsWith(".css") || entry.name.endsWith(".html")
+      ? [full]
+      : [];
+  });
+}
+
+describe("сторож ссылок на токены", () => {
+  const DESIGN = path.resolve(ROOT, "../docs/furca/design");
+  const consumers = [
+    ...referenceFiles(DESIGN).filter((file) => file !== TOKENS),
+    ...referenceFiles(ROOT),
+    ...sourceFiles(path.join(ROOT, "blocks")),
+    ...sourceFiles(path.join(ROOT, "app")),
+  ].map((file) => readFileSync(file, "utf8"));
+
+  // Токен объявляют не только в эталоне: витрина и глобальные стили продукта
+  // заводят собственные, локальные. Для ссылки важно лишь то, что объявление есть
+  // хоть где-то — иначе CSS молча отбросит свойство.
+  const declaredAnywhere = new Set([
+    ...parseTokens(readFileSync(TOKENS, "utf8")).keys(),
+    ...consumers.flatMap((text) =>
+      [
+        ...text.matchAll(/(--[\w-]+)\s*:/g),
+        // next/font заводит переменную из TypeScript, а не из CSS
+        ...text.matchAll(/variable:\s*"(--[\w-]+)"/g),
+      ].map((match) => match[1]),
+    ),
+  ]);
+
+  it("каждая ссылка на токен разрешается объявлением", () => {
+    const dangling = new Set<string>();
+
+    for (const text of [readFileSync(COMPONENTS, "utf8"), ...consumers]) {
+      for (const [, name] of text.matchAll(/var\(\s*(--[\w-]+)\s*\)/g)) {
+        if (name !== undefined && !declaredAnywhere.has(name))
+          dangling.add(name);
+      }
+    }
+
+    expect([...dangling]).toEqual([]);
+  });
+});

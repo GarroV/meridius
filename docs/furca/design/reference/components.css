@@ -107,7 +107,6 @@ a:hover { color: var(--accent-press); text-decoration: underline; }
 }
 .role--admin { color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); }
 .role--accountant { color: var(--reg-supp); background: var(--reg-supp-soft); border: 1px solid var(--reg-supp-line); }
-.role--ops { color: var(--reg-internal); background: var(--reg-internal-soft); border: 1px solid var(--reg-internal-line); }
 /* Временно выданный набор: пунктир и срок. */
 .role--temporary { color: var(--warn-ink); background: var(--warn-soft); border: 1px dashed var(--warn-line); }
 .role__until { font-family: var(--font-num); font-size: 9.5px; opacity: .75; margin-left: var(--space-2); }
@@ -368,16 +367,10 @@ a:hover { color: var(--accent-press); text-decoration: underline; }
 
 .table tbody tr:hover { background: var(--surface-2); }
 .table td.is-num { text-align: right; padding: 0 var(--space-4); height: var(--row); font-family: var(--font-num); font-size: var(--fs-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.table td.is-deduction { background: var(--surface-deduction); color: var(--ink-2); }
 
 /* Инвариант 5: подкраска строки — только происхождение, не величина числа. */
-.table tr.is-carried { background: var(--origin-carried); }
-.table tr.is-carried .table__name,
-.table tr.is-carried .table__total-col { background: var(--origin-carried); }
-.table tr.is-carried:hover { background: var(--origin-carried-hover); }
 
 .row-mark { width: 3px; height: 15px; border-radius: 1px; flex: 0 0 auto; background: transparent; }
-.row-mark--origin { background: var(--origin-mark); }
 .row-mark--frozen { background: var(--line-control-2); }
 
 .table tfoot th, .table tfoot td {
@@ -389,7 +382,6 @@ a:hover { color: var(--accent-press); text-decoration: underline; }
   font-weight: var(--w-semibold);
 }
 .table tfoot .table__name { z-index: 6; }
-.table tfoot .table__total-col { z-index: 7; background: var(--surface-total); font-size: 13.5px; font-weight: var(--w-bold); }
 
 /* Инвариант 6: действие в таблице набрано мельче сумм. */
 .table .btn--sm { height: 24px; font-size: var(--fs-meta); }
@@ -425,9 +417,7 @@ a:hover { color: var(--accent-press); text-decoration: underline; }
   border: 1px solid currentColor;
   white-space: nowrap;
 }
-.reg--official { color: var(--reg-official); }
 .reg--supplementary { color: var(--reg-supp); }
-.reg--internal { color: var(--reg-internal); }
 .reg--mixed { color: var(--ink-2); border-color: var(--line-control-2); }
 
 /* ── Статусы и версии ────────────────────────────────────────── */
@@ -442,7 +432,6 @@ a:hover { color: var(--accent-press); text-decoration: underline; }
 }
 .status__dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .status--draft { color: var(--st-draft); background: var(--surface-3); border: 1px solid var(--line-control); }
-.status--calculated { color: var(--st-calculated); background: var(--accent-soft); border: 1px solid var(--accent-line); }
 .status--approved { color: var(--st-approved); background: var(--ok-soft); border: 1px solid var(--ok-line); }
 .status--reopened { color: var(--st-reopened); background: var(--warn-soft); border: 1px solid var(--warn-line); }
 

@@ -56,35 +56,24 @@
   --down:            #A32B1E;
 
   /* ── Регистры учёта ──────────────────────────────────────── */
-  --reg-official:      #1F4E9C;
-  --reg-official-soft: #E8EEF8;
-  --reg-official-line: #C9D9F0;
   --reg-supp:          #6B4FA8;
   --reg-supp-soft:     #F1ECF9;
   --reg-supp-line:     #DCD0EE;
-  --reg-internal:      #2E6B6B;
-  --reg-internal-soft: #E7F1F1;
-  --reg-internal-line: #C6DDDD;
 
   /* ── Служебные поверхности компонентов ───────────────────── */
   --seg-track:            #E3E7EC;  /* дорожка переключателя среза */
   --surface-group:        #EDEFF2;  /* ярус группы колонок «Удержания» */
-  --surface-deduction:    #FAFAFB;  /* ячейки удержаний в ведомости */
-  --surface-total:        #E8EDF3;  /* ячейка главного итога */
   --surface-selected:     #F0F5FC;  /* выбранная строка инбокса */
-  --surface-download:     #FBFCFD;  /* кнопка выгрузки */
+  --surface-download:     #FBFCFD;  /* фон кнопки выгрузки, инвариант 2 */
   --origin-carried-hover: #FFF4DE;  /* наведение на строку с происхождением */
   --overlay:              rgba(10, 13, 17, .5);
 
   /* ── Состояния периода ───────────────────────────────────── */
   --st-draft:        #5C6672;
-  --st-calculated:   #1F4E9C;
   --st-approved:     #10704A;
   --st-reopened:     #B26B00;
 
   /* ── Происхождение строки. Значение числа не красим никогда ─ */
-  --origin-carried:  #FFF9EC;
-  --origin-mark:     #E0A03A;
 
   /* ── Типографика ─────────────────────────────────────────── */
   --font-ui:  'Golos Text', 'Segoe UI', system-ui, sans-serif;
@@ -116,7 +105,6 @@
   --space-5: 10px; --space-6: 12px; --space-7: 16px; --space-8: 20px;
   --space-9: 24px; --space-10: 32px;
 
-  --row-dense:   26px;   /* максимальная плотность */
   --row:         30px;   /* ведомость и табель по умолчанию */
   --row-loose:   34px;   /* списки, инбокс */
   --cell-pad-x:   8px;
@@ -142,7 +130,6 @@
 
   /* ── Движение ────────────────────────────────────────────── */
   --t-state:  90ms;
-  --t-pop:   140ms;
   --t-panel: 220ms;
   --ease: cubic-bezier(.2, .6, .2, 1);
 }
@@ -224,21 +211,13 @@
   --down:            #E8776A;
 
   /* ── Регистры учёта ──────────────────────────────────────── */
-  --reg-official:      #5E9BF5;
-  --reg-official-soft: #17263B;
-  --reg-official-line: #2B4162;
   --reg-supp:          #A98CE0;
   --reg-supp-soft:     #241D33;
   --reg-supp-line:     #3A2F52;
-  --reg-internal:      #5FB3B3;
-  --reg-internal-soft: #14282A;
-  --reg-internal-line: #2A4747;
 
   /* ── Служебные поверхности компонентов ───────────────────── */
   --seg-track:            #232B36;
   --surface-group:        #232B36;
-  --surface-deduction:    #1E242D;
-  --surface-total:        #253040;
   --surface-selected:     #1B2839;
   --surface-download:     #1E242D;
   --origin-carried-hover: #2E2717;
@@ -246,13 +225,10 @@
 
   /* ── Состояния периода ───────────────────────────────────── */
   --st-draft:        #9BA7B6;
-  --st-calculated:   #5E9BF5;
   --st-approved:     #4CB88A;
   --st-reopened:     #D9A040;
 
   /* ── Происхождение строки ────────────────────────────────── */
-  --origin-carried:  #241E12;
-  --origin-mark:     #C88B2A;
 
   /* ── Тени. На тёмном тень почти не видна — работает граница ─ */
   --sh-xs:    0 1px 2px rgba(0, 0, 0, .5);
