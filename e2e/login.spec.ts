@@ -210,3 +210,28 @@ test.describe("вход в админку", () => {
     await context.close();
   });
 });
+
+test.describe("кольцо фокуса на поле пароля", () => {
+  // Сторож смотрит ПОСЧИТАННЫЙ браузером стиль, а не строку классов, и это не
+  // придирка к способу. Первый сторож этого дефекта читал вёрстку — искал у поля
+  // с мягким кольцом утилиту `focus:outline-none` — и был зелёным, пока на экране
+  // по-прежнему рисовались два кольца: утилита в вёрстке стояла, но не действовала.
+  // Проигрывала она не по специфичности, а по слоям: токены эталона импортировались
+  // вне слоёв, а неслоёное правило по спецификации бьёт любое слоёное. Проверять
+  // поэтому надо то, что получилось у браузера.
+  test("кольцо одно: мягкое из эталона, без жёсткой обводки поверх", async ({
+    page,
+  }) => {
+    await page.goto(LOGIN_PATH);
+    const field = page.locator('input[type="password"]');
+    await field.focus();
+
+    const ring = await field.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { outline: style.outlineStyle, shadow: style.boxShadow };
+    });
+
+    expect(ring.outline).toBe("none");
+    expect(ring.shadow).not.toBe("none");
+  });
+});
