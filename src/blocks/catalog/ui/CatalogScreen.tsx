@@ -8,6 +8,7 @@ import { submitDeleteStation, submitDeleteStore } from "./actions";
 import { CatalogTree } from "./CatalogTree";
 import { DetailCards } from "./DetailCards";
 import type { CatalogModel, StationDetail, StoreDetail } from "./model";
+import { ReissueDialog } from "./ReissueDialog";
 
 /**
  * Экран справочника «Страны и пиццерии» (T018) — сборка каркаса, дерева и
@@ -158,6 +159,39 @@ function ConfirmCard({
   return null;
 }
 
+/**
+ * Окно подтверждения перевыпуска кода станции — только когда известно всё, что оно
+ * называет: сама станция (её имя стоит в заголовке) и место в дереве, куда вернёт
+ * «Отмена». Половины окна не бывает: без имени станции вопрос «перевыпустить код?»
+ * не отличает одну станцию от соседней.
+ */
+function ReissueConfirm({
+  model,
+}: {
+  readonly model: CatalogModel;
+}): ReactElement | null {
+  const { confirm, countryId, storeId, station, hrefs } = model;
+
+  if (
+    confirm !== "reissue" ||
+    station === null ||
+    countryId === null ||
+    storeId === null
+  ) {
+    return null;
+  }
+
+  return (
+    <ReissueDialog
+      stationId={station.id}
+      stationName={station.name}
+      countryId={countryId}
+      storeId={storeId}
+      cancelHref={hrefs.cancel}
+    />
+  );
+}
+
 export async function CatalogScreen({
   model,
 }: {
@@ -187,11 +221,15 @@ export async function CatalogScreen({
         </p>
       ) : null}
       <CatalogTree model={model} />
-      {model.confirm !== null ? (
+      {/* Подтверждение удаления заменяет карточку правки — оно и есть то, что показано
+          под деревом. Подтверждение перевыпуска ничего не заменяет: это окно поверх
+          экрана, и под ним остаётся ровно то, что было (T260). */}
+      {model.confirm === "store" || model.confirm === "station" ? (
         <ConfirmCard model={model} t={t} />
       ) : (
         <DetailCards model={model} />
       )}
+      <ReissueConfirm model={model} />
     </AdminShell>
   );
 }

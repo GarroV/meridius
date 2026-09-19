@@ -3,7 +3,7 @@
 import { describe, expect, test } from "vitest";
 
 import { CatalogError } from "../errors";
-import { afterDeleteStoreFailure, formField } from "./outcomes";
+import { afterDeleteStoreFailure, formField, reissueOutcome } from "./outcomes";
 
 const BASE = { countryId: "c", storeId: "s", focus: "store" } as const;
 
@@ -60,5 +60,41 @@ describe("отказ при удалении пиццерии", () => {
       expect(view.storeId).toBe(BASE.storeId);
       expect(view.focus).toBe(BASE.focus);
     }
+  });
+});
+
+describe("перевыпуск кода станции", () => {
+  const REQUEST = {
+    countryId: "11111111-1111-4111-8111-111111111111",
+    storeId: "22222222-2222-4222-8222-222222222222",
+    stationId: "33333333-3333-4333-8333-333333333333",
+  } as const;
+
+  test("без подтверждения перевыпуска не происходит — экран спрашивает", () => {
+    // Главное тут — НЕ адрес, а то, что второй ветки у неподтверждённого запроса нет:
+    // один промах мимо кнопки убивал все напечатанные наклейки станции сразу.
+    const outcome = reissueOutcome({ ...REQUEST, confirmed: false });
+
+    expect(outcome.kind).toBe("confirm");
+    if (outcome.kind !== "confirm") return;
+    expect(outcome.view.confirm).toBe("reissue");
+    expect(outcome.view.stationId).toBe(REQUEST.stationId);
+    expect(outcome.view.storeId).toBe(REQUEST.storeId);
+    expect(outcome.view.countryId).toBe(REQUEST.countryId);
+    expect(outcome.view.focus).toBe("station");
+  });
+
+  test("после подтверждения — перевыпуск и сразу печать новой наклейки", () => {
+    const outcome = reissueOutcome({ ...REQUEST, confirmed: true });
+
+    expect(outcome.kind).toBe("reissue");
+    if (outcome.kind !== "reissue") return;
+
+    // Адрес печати именно этой станции, а не листа пиццерии: методист пришёл менять
+    // одну наклейку, и искать её среди десятка чужих ему незачем.
+    const url = new URL(outcome.doneHref, "https://example.test");
+    expect(url.pathname).toBe("/admin/qr");
+    expect(url.searchParams.get("store")).toBe(REQUEST.storeId);
+    expect(url.searchParams.get("station")).toBe(REQUEST.stationId);
   });
 });
