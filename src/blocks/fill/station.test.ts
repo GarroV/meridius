@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   checklistVersions,
+  countries,
   getDb,
   publishVersion,
   stations,
@@ -17,6 +18,17 @@ import {
 } from "@/blocks/data/testing/fixtures";
 
 import { findStationVersion, loadFillTarget } from "./station";
+
+/** Язык страны пиццерии: по нему пишется отбивка «заполнять нечего» (D122). */
+async function setCountryLocale(
+  countryId: string,
+  locale: string,
+): Promise<void> {
+  await getDb()
+    .update(countries)
+    .set({ locale })
+    .where(eq(countries.id, countryId));
+}
 
 const MORNING = new Date("2026-09-06T09:00:00Z");
 const AFTERNOON = new Date("2026-09-06T15:00:00Z");
@@ -158,9 +170,9 @@ describe("режим смены решает, что попадёт на экр�
     await publishVersion(checklistId);
     await setShiftMode({ storeId: station.storeId, mode: "critical" }, MORNING);
 
-    expect(await loadFillTarget(station.stationCode, MORNING)).toStrictEqual({
-      kind: "no-checklist",
-    });
+    expect((await loadFillTarget(station.stationCode, MORNING)).kind).toBe(
+      "no-checklist",
+    );
   });
 
   it("режим соседней пиццерии на эту станцию не влияет", async () => {
@@ -267,9 +279,7 @@ describe("что отдаёт публичный маршрут по коду с
     // экрана — «сейчас заполнять нечего», а не «наклейка не действует».
     const { code } = await publishedStation();
 
-    expect(await loadFillTarget(code, AFTERNOON)).toStrictEqual({
-      kind: "no-checklist",
-    });
+    expect((await loadFillTarget(code, AFTERNOON)).kind).toBe("no-checklist");
   });
 });
 
@@ -411,5 +421,75 @@ describe("на станции открыто несколько чек-лист�
       "title",
       "window",
     ]);
+  });
+});
+
+/**
+ * D122: «отбивки и сервисные сообщения также должны быть на этом языке» — на языке,
+ * заведённом у пиццерии. Отбивку «сейчас заполнять нечего» видит человек с настоящей
+ * наклейкой на кухне настоящей пиццерии, поэтому её язык обязан доехать до экрана
+ * вместе с ответом. Без этого экран знал бы только телефон и написал бы её на нём.
+ */
+describe("отбивка «заполнять нечего» знает язык своей пиццерии", () => {
+  it("язык берётся из страны пиццерии, а не из константы", async () => {
+    // Arrange: настоящая станция, чей утренний чек-лист в 15:00 закрыт.
+    const station = await createStation();
+    const checklistId = await createChecklist({
+      stationId: station.stationId,
+      windowStart: "06:00:00",
+      windowEnd: "12:00:00",
+    });
+    await createDraft(checklistId, sampleSections("отбивка"));
+    await publishVersion(checklistId);
+
+    // Act + Assert: у страны заведён русский — отбивка приедет русской.
+    const russian = await loadFillTarget(station.stationCode, AFTERNOON);
+    expect(russian).toStrictEqual({
+      kind: "no-checklist",
+      countryLocale: "ru",
+    });
+
+    // Та же станция, у страны сменили язык: ответ обязан смениться вместе с данными.
+    await setCountryLocale(station.countryId, "en");
+    const english = await loadFillTarget(station.stationCode, AFTERNOON);
+    expect(english).toStrictEqual({
+      kind: "no-checklist",
+      countryLocale: "en",
+    });
+  });
+
+  it("режим смены, срезавший все пункты, отвечает тем же языком", async () => {
+    // Второй путь в ту же отбивку: чек-лист открыт, но в критичном режиме от станции
+    // сегодня не ждут ничего. Язык обязан доехать и здесь — иначе одна и та же надпись
+    // приходила бы на двух разных языках в зависимости от того, как она получилась.
+    const station = await createStation();
+    await setCountryLocale(station.countryId, "en");
+    const checklistId = await createChecklist({
+      stationId: station.stationId,
+      windowStart: "06:00:00",
+      windowEnd: "12:00:00",
+    });
+    await createDraft(checklistId, [
+      {
+        id: "s-soft",
+        title: { ru: "Мягкие", en: "Soft" },
+        source: "own",
+        items: [
+          {
+            id: "i-soft",
+            title: { ru: "Полить цветы", en: "Water the plants" },
+            type: "bool",
+            severity: "normal",
+          },
+        ],
+      },
+    ]);
+    await publishVersion(checklistId);
+    await setShiftMode({ storeId: station.storeId, mode: "critical" }, MORNING);
+
+    expect(await loadFillTarget(station.stationCode, MORNING)).toStrictEqual({
+      kind: "no-checklist",
+      countryLocale: "en",
+    });
   });
 });

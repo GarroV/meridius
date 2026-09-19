@@ -10,7 +10,11 @@ import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
 
 import { listAlarms } from "../alarms";
-import { fillDocumentLocale, pickFillLocales } from "../locale";
+import {
+  FILL_LAST_RESORT_LOCALE,
+  fillDocumentLocale,
+  pickFillLocales,
+} from "../locale";
 import { CHECKLIST_PARAM } from "../params";
 import {
   checkScanAllowed,
@@ -32,23 +36,23 @@ import { submitFillAction } from "./submit-action";
 /**
  * Публичный экран заполнения: всё, что видит человек, отсканировавший наклейку.
  *
- * Язык здесь СВОЙ, а не общий язык запроса. Общий (`src/i18n/request.ts`) отвечает
- * одинаково на «телефон просит английский» и «телефон просит язык, которого у нас нет»,
- * а этому экрану во втором случае нужен язык страны пиццерии (T038). Поэтому словарь
- * выбирается прямо здесь и отдаётся клиентской части провайдером — вместе с языком,
- * который посчитала цепочка, а не тем, что решил заголовок.
+ * Язык здесь СВОЙ, а не общий язык запроса. Общий (`src/i18n/request.ts`) знает только
+ * телефон, а язык этой поверхности принадлежит пиццерии (D122): и чек-лист, и отбивка
+ * «заполнять нечего» идут на том языке, который завела она. Поэтому словарь выбирается
+ * прямо здесь и отдаётся клиентской части провайдером — вместе с языком, который
+ * посчитала цепочка, а не тем, что решил заголовок.
+ *
+ * Телефон решает ровно в одном месте — там, где пиццерии нет вовсе: код не работает или
+ * предел частоты сработал раньше похода в базу.
  */
 
 const MESSAGES: Record<Locale, typeof en> = { en, ru };
 
 /**
- * Язык, на котором говорит отказ, когда о станции ещё ничего не известно. Тот же
- * `fillDocumentLocale`, что кладёт язык в заголовок для корневой разметки: один
- * ответ на один вопрос, иначе документ и его содержимое снова разъедутся (T232).
+ * Имя заголовка стоит один раз: язык запроса читается в одном месте и дальше ездит
+ * значением. Три копии строки и есть тот способ, которым одна из них однажды отстаёт.
  */
-async function refusalLocale(): Promise<Locale> {
-  return fillDocumentLocale((await headers()).get("accept-language"));
-}
+const ACCEPT_LANGUAGE = "accept-language";
 
 function translatorFor(locale: Locale) {
   return createTranslator({
@@ -70,6 +74,7 @@ export async function FillScreen({
   readonly checklistId?: string | undefined;
 }): Promise<ReactElement> {
   const requestHeaders = await headers();
+  const acceptLanguage = requestHeaders.get(ACCEPT_LANGUAGE);
   const client = identifyClient({
     forwardedFor: requestHeaders.get("x-forwarded-for"),
     // Адреса соединения среда выполнения не даёт: Next подставляет его в тот же
@@ -82,7 +87,9 @@ export async function FillScreen({
   // Предел на клиента применяется, только когда клиентов есть чем различать.
   // Один общий ключ превратил бы его в рубильник на всю сеть (см. `identifyClient`).
   if (client !== null && !checkScanAllowed(client, new Date()).allowed) {
-    const t = translatorFor(await refusalLocale());
+    // Пиццерии здесь ещё нет: предел нарочно срабатывает ДО похода в базу, иначе он
+    // не защищал бы её от перебора. Значит, язык остаётся за телефоном.
+    const t = translatorFor(fillDocumentLocale(acceptLanguage));
     return (
       <StateScreen
         testId="fill-too-often"
@@ -99,7 +106,14 @@ export async function FillScreen({
   const target: FillTarget = await loadFillTarget(code, now, checklistId);
 
   if (target.kind === "unknown-code" || target.kind === "no-checklist") {
-    const locale = await refusalLocale();
+    // «Заполнять нечего» — отбивка НАСТОЯЩЕЙ пиццерии: человек стоит на её кухне с её
+    // наклейкой, и язык этой надписи принадлежит ей, а не телефону (D122). «Код не
+    // работает» — другое дело: пиццерии за ним нет никакой, и язык брать неоткуда.
+    const locale =
+      target.kind === "no-checklist"
+        ? (pickFillLocales(acceptLanguage, target.countryLocale)[0] ??
+          fillDocumentLocale(acceptLanguage))
+        : fillDocumentLocale(acceptLanguage);
     const t = translatorFor(locale);
     // Ответ на неизвестный и на перевыпущенный код один и тот же: различать их
     // значило бы отвечать перебору по-разному (D021), да и в данных они неразличимы —
@@ -124,11 +138,10 @@ export async function FillScreen({
     );
   }
 
-  const locales = pickFillLocales(
-    requestHeaders.get("accept-language"),
-    target.countryLocale,
-  );
-  const locale = locales[0] ?? "ru";
+  const locales = pickFillLocales(acceptLanguage, target.countryLocale);
+  // Цепочка непустая по построению, но запасное звено здесь не буква: буква «ru»
+  // пережила бы смену правила молча — ровно так и разъехались два умолчания (#129).
+  const locale = locales[0] ?? FILL_LAST_RESORT_LOCALE;
   const t = translatorFor(locale);
 
   // Несколько чек-листов открыты в одну минуту — выбирает сотрудник, а не порядок
