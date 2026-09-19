@@ -3,7 +3,12 @@
 import { describe, expect, test } from "vitest";
 
 import { CatalogError } from "../errors";
-import { afterDeleteStoreFailure, formField, reissueOutcome } from "./outcomes";
+import {
+  afterDeleteStoreFailure,
+  formField,
+  hrefOf,
+  reissueOutcome,
+} from "./outcomes";
 
 const BASE = { countryId: "c", storeId: "s", focus: "store" } as const;
 
@@ -92,9 +97,33 @@ describe("перевыпуск кода станции", () => {
 
     // Адрес печати именно этой станции, а не листа пиццерии: методист пришёл менять
     // одну наклейку, и искать её среди десятка чужих ему незачем.
+    // Место в дереве на случай отказа приходит оттуда же: собирать его в самом
+    // действии значило бы держать половину решения там, где её нечем проверить.
+    expect(outcome.stationId).toBe(REQUEST.stationId);
+    expect(outcome.failView).toStrictEqual({
+      countryId: REQUEST.countryId,
+      storeId: REQUEST.storeId,
+      stationId: REQUEST.stationId,
+      focus: "station",
+    });
+
     const url = new URL(outcome.doneHref, "https://example.test");
     expect(url.pathname).toBe("/admin/qr");
     expect(url.searchParams.get("store")).toBe(REQUEST.storeId);
     expect(url.searchParams.get("station")).toBe(REQUEST.stationId);
+  });
+});
+
+describe("куда вести после действия", () => {
+  test("место в дереве превращается в адрес справочника", () => {
+    expect(hrefOf({ countryId: "c", focus: "country" })).toBe(
+      "/admin/catalog?country=c&focus=country",
+    );
+  });
+
+  test("готовый адрес уходит как есть — иначе печать подменилась бы справочником", () => {
+    expect(hrefOf("/admin/qr?store=s&station=st")).toBe(
+      "/admin/qr?store=s&station=st",
+    );
   });
 });

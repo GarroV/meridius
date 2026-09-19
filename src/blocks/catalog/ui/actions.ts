@@ -19,7 +19,12 @@ import {
   updateStation,
 } from "../stations";
 import { createStore, deleteStore, updateStore } from "../stores";
-import { afterDeleteStoreFailure, formField, reissueOutcome } from "./outcomes";
+import {
+  afterDeleteStoreFailure,
+  formField,
+  hrefOf,
+  reissueOutcome,
+} from "./outcomes";
 import { CATALOG_PATH, catalogHref, type CatalogView } from "./view";
 
 const NAME = "name";
@@ -38,38 +43,27 @@ const CONFIRMED = "confirmed";
  * чтобы экран показал текст. Чужие исключения не глотаются: молча съеденная ошибка
  * неотличима от успеха.
  */
-async function performTo<T>(
+async function perform<T>(
   action: () => Promise<T>,
-  onSuccess: (result: T) => string,
+  // Строкой — когда успех уводит с экрана вовсе: так делает один перевыпуск кода,
+  // он заканчивается печатью наклейки, а не справочником.
+  onSuccess: (result: T) => CatalogView | string,
   onFailure: (error: CatalogError) => CatalogView,
 ): Promise<void> {
   await requireAdmin();
 
-  let href: string;
+  // Отказ всегда возвращает в справочник: показать его больше негде.
+  let target: CatalogView | string;
   try {
-    href = onSuccess(await action());
+    target = onSuccess(await action());
   } catch (error) {
     if (!(error instanceof CatalogError)) throw error;
-    // Отказ всегда возвращает в справочник: показать его больше негде.
-    href = catalogHref(onFailure(error));
+    target = onFailure(error);
   }
 
   revalidatePath(CATALOG_PATH);
   // redirect бросает исключение — код ниже не выполняется, и это единственный выход.
-  redirect(href);
-}
-
-/** Тот же ход, когда успех тоже остаётся в справочнике, — а это все действия, кроме одного. */
-async function perform<T>(
-  action: () => Promise<T>,
-  onSuccess: (result: T) => CatalogView,
-  onFailure: (error: CatalogError) => CatalogView,
-): Promise<void> {
-  await performTo(
-    action,
-    (result) => catalogHref(onSuccess(result)),
-    onFailure,
-  );
+  redirect(hrefOf(target));
 }
 
 /** Куда вернуться, если действие не удалось: то же место дерева плюс код отказа. */
@@ -219,13 +213,10 @@ export async function submitDeleteStation(form: FormData): Promise<void> {
  * наклейки — решение и его причина в `reissueOutcome` (T260).
  */
 export async function submitReissueCode(form: FormData): Promise<void> {
-  const countryId = formField(form, COUNTRY_ID);
-  const storeId = formField(form, STORE_ID);
-  const stationId = formField(form, ID);
   const outcome = reissueOutcome({
-    countryId,
-    storeId,
-    stationId,
+    countryId: formField(form, COUNTRY_ID),
+    storeId: formField(form, STORE_ID),
+    stationId: formField(form, ID),
     confirmed: formField(form, CONFIRMED) === "1",
   });
 
@@ -234,10 +225,10 @@ export async function submitReissueCode(form: FormData): Promise<void> {
     redirect(catalogHref(outcome.view));
   }
 
-  await performTo(
-    () => reissueStationCode(stationId),
+  await perform(
+    () => reissueStationCode(outcome.stationId),
     () => outcome.doneHref,
-    backTo({ countryId, storeId, stationId, focus: "station" }),
+    backTo(outcome.failView),
   );
 }
 

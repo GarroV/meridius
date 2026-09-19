@@ -98,6 +98,10 @@ test.describe("перевыпуск кода станции", () => {
     await expect(dialog).toContainText(name);
     await expect(dialog).toContainText("Старая наклейка перестанет работать");
 
+    // Имя окна для экранного диктора — тот же заголовок. Видимый текст его не
+    // заменяет: без имени диктор объявит «диалог» и умолчит, о чём спрашивают.
+    await expect(dialog).toHaveAccessibleName(new RegExp(name));
+
     // Код в базе прежний — именно это и есть суть задачи.
     expect(await codeFromDatabase(page, treeUrl, name)).toBe(before.trim());
   });
