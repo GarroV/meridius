@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 
+import { formatDuration } from "@/blocks/core/duration";
 import { asLocale } from "@/blocks/core/locale";
 import { StateScreen } from "@/blocks/core/ui/StateScreen";
 import type { Item, TableRow } from "@/blocks/data";
@@ -89,7 +90,6 @@ const CHECK_MARK =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E\")";
 
 const MINUTE_SECONDS = 60;
-const SECONDS_IN_MS = 1000;
 
 /** Что делает отправка. `sending` блокирует кнопку, `offline` оставляет ответы на экране. */
 type Phase =
@@ -167,13 +167,6 @@ function numberText(entry: DraftAnswer | undefined): string {
 /** Строки журнала из черновика ответа; ещё не начатый журнал — пустой список. */
 function rowsOf(entry: DraftAnswer | undefined): readonly TableRow[] {
   return Array.isArray(entry?.value) ? entry.value : [];
-}
-
-function formatDuration(durationMs: number): string {
-  const total = Math.round(durationMs / SECONDS_IN_MS);
-  const minutes = Math.floor(total / MINUTE_SECONDS);
-  const seconds = total % MINUTE_SECONDS;
-  return `${String(minutes)}:${String(seconds).padStart(2, "0")}`;
 }
 
 /**

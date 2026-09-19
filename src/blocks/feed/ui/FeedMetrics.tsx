@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
-import { formatDuration } from "../format";
+import { formatDuration } from "../../core/duration";
 import type { FeedMetrics as FeedMetricsModel } from "../model";
 import type { FeedPeriod } from "../period";
 
