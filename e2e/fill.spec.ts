@@ -81,6 +81,35 @@ const COLD_ROOM_SECTIONS = [
         critical: true,
         min: 2,
         max: 4,
+        unit: { ru: "°C", en: "°C" },
+      },
+    ],
+  },
+] as const;
+
+/**
+ * Морозильник: числовой пункт с единицей измерения — тот самый «-22…-10 °C», ради
+ * которого единицу и заводили. Пункт НЕ критичный: провал не открывает комментарий,
+ * поле остаётся на месте, и единица проверяется на ветке ввода, а не показания.
+ * Единицу задаёт методист свободным текстом (D110) — зашитого перечня нет.
+ */
+const FREEZER_SECTIONS = [
+  {
+    id: "s-freezer",
+    title: { ru: "Морозильники", en: "Freezers" },
+    source: "own",
+    items: [
+      {
+        id: "i-freeze",
+        title: {
+          ru: "Температура морозильной камеры",
+          en: "Freezer temperature",
+        },
+        type: "number",
+        critical: false,
+        min: -22,
+        max: -10,
+        unit: { ru: "°C", en: "°C" },
       },
     ],
   },
@@ -531,6 +560,34 @@ test.describe("числовой пункт называет свои грани�
     await page.getByTestId("fill-number").fill("172");
     await expect(label).toHaveText("160…180 · within range");
   });
+
+  /**
+   * Сторож единицы измерения (D110). Краснеет, когда пункт с единицей отрисован без
+   * неё: подпись у поля обязана назвать «°C» рядом с границами — и до набора
+   * значения, и рядом с вердиктом. Проверка выше, на пункте БЕЗ единицы, держит
+   * вторую половину требования: без единицы экран остаётся прежним и разделителя в
+   * никуда не появляется.
+   */
+  test("единица измерения стоит у границ числового поля", async ({ page }) => {
+    // Arrange: морозильник с единицей «°C» и границами -22…-10.
+    const stand = await seedFillStand("единица", {
+      sections: FREEZER_SECTIONS,
+    });
+    await page.goto(stickerPath(stand.code));
+    const label = page.locator(
+      '[data-testid="fill-number-range"][data-item-id="i-freeze"]',
+    );
+
+    // Assert: поле ещё пустое, а в чём мерить — уже сказано.
+    await expect(label).toHaveText("-22…-10 °C");
+
+    // Act + Assert: вердикт встаёт ПОСЛЕ единицы, через тот же разделитель.
+    await page.getByTestId("fill-number").fill("-5");
+    await expect(label).toHaveText("-22…-10 °C · out of range");
+
+    await page.getByTestId("fill-number").fill("-15");
+    await expect(label).toHaveText("-22…-10 °C · within range");
+  });
 });
 
 test.describe("язык документа на отказе по коду", () => {
@@ -639,8 +696,10 @@ test.describe("числовое поле: вид класса и провал", 
       height: fieldBox?.height,
       x: fieldBox?.x,
     });
+    // Единица стоит у границ и на этой ветке тоже: поля нет, замер текстом, а
+    // читается всё так же — «2…4 °C · out of range» (D110, D117).
     await expect(page.getByTestId("fill-number-range")).toHaveText(
-      "2…4 · out of range",
+      "2…4 °C · out of range",
     );
   });
 });

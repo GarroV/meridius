@@ -229,6 +229,30 @@ describe("правка пункта", () => {
     expect(back[0]?.items[0]).not.toHaveProperty("max");
   });
 
+  test("смена типа на «да/нет» убирает и единицу измерения (D110)", () => {
+    // Тот же приём, что у границ: единица показывается и правится только рядом с
+    // числом, и оставить её у нечислового пункта значит увезти в базу невидимое
+    // значение, которое методист не видел и не мог снять.
+    const numeric = updateItem(sections(), "a", {
+      type: "number",
+      unit: { ru: "°C" },
+    });
+
+    const back = updateItem(numeric, "a", { type: "bool" });
+
+    expect(back[0]?.items[0]).not.toHaveProperty("unit");
+  });
+
+  test("смена типа с «да/нет» на «число» и обратно на «число» сохраняет единицу", () => {
+    const withUnit = updateItem(sections(), "a", {
+      type: "number",
+      unit: { ru: "кг" },
+    });
+    const back = updateItem(withUnit, "a", { type: "number" });
+
+    expect(back[0]?.items[0]?.unit).toStrictEqual({ ru: "кг" });
+  });
+
   test("удаление пункта не трогает соседей", () => {
     const after = removeItem(sections(), "b");
 
