@@ -22,7 +22,6 @@
 // фокуса внутрь окна, но ничего не держит.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import type { ReactElement } from "react";
 
@@ -56,23 +55,36 @@ const BTN_PRIMARY_CLASS =
 const BTN_GHOST_CLASS =
   "inline-flex h-[var(--control-h)] items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-ink";
 
+/**
+ * Тексты приходят уже переведёнными, а не берутся словарём здесь. Клиентскому словарю
+ * нужен свой `NextIntlClientProvider` с разделом справочника — то есть словарь раздела
+ * уехал бы в браузер ради четырёх строк. Та же идиома у кнопки перевыпуска соседнего
+ * блока (`qr/ui/StationsCard.tsx`: `reissueLabel` приходит пропом).
+ */
 export interface ReissueDialogProps {
   readonly stationId: string;
-  readonly stationName: string;
   readonly countryId: string;
   readonly storeId: string;
+  /** Заголовок с названием станции — он же имя окна для экранного диктора. */
+  readonly title: string;
+  /** Предупреждение о последствии: старая наклейка перестаёт работать сразу. */
+  readonly warning: string;
+  readonly confirmLabel: string;
+  readonly cancelLabel: string;
   /** Куда возвращает «Отмена» и Esc: то же место дерева без подтверждения. */
   readonly cancelHref: string;
 }
 
 export function ReissueDialog({
   stationId,
-  stationName,
   countryId,
   storeId,
+  title,
+  warning,
+  confirmLabel,
+  cancelLabel,
   cancelHref,
 }: ReissueDialogProps): ReactElement {
-  const t = useTranslations("catalog");
   const router = useRouter();
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -109,13 +121,13 @@ export function ReissueDialog({
       >
         <div className={DIALOG_HEAD_CLASS}>
           <h2 id={TITLE_ID} className={DIALOG_TITLE_CLASS}>
-            {t("confirm.reissueTitle", { name: stationName })}
+            {title}
           </h2>
         </div>
 
         <div className={DIALOG_BODY_CLASS}>
           <p data-testid="reissue-warning" className={NOTICE_WARN_CLASS}>
-            {t("confirm.reissueBody")}
+            {warning}
           </p>
           <div className={INLINE_CLASS}>
             <form action={submitReissueCode}>
@@ -128,7 +140,7 @@ export function ReissueDialog({
                 data-testid="reissue-confirm"
                 className={BTN_PRIMARY_CLASS}
               >
-                {t("actions.confirmReissue")}
+                {confirmLabel}
               </button>
             </form>
             <Link
@@ -136,7 +148,7 @@ export function ReissueDialog({
               data-testid="reissue-cancel"
               className={BTN_GHOST_CLASS}
             >
-              {t("actions.cancel")}
+              {cancelLabel}
             </Link>
           </div>
         </div>

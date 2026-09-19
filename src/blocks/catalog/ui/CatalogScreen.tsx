@@ -28,6 +28,9 @@ const FIELD_COUNTRY_ID = "countryId";
 const FIELD_STORE_ID = "storeId";
 const FIELD_CONFIRMED = "confirmed";
 
+// Повторяющийся ключ словаря — в константу (sonarjs/no-duplicate-string).
+const KEY_ACTION_CANCEL = "actions.cancel";
+
 const ERROR_NOTICE_CLASS =
   "text-err flex gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)]";
 // Ссылка, а не кнопка: переход внутри кабинета идёт роутером Next (D046, T088).
@@ -76,7 +79,7 @@ function ConfirmDeleteStore({
           </button>
         </form>
         <Link href={cancelHref} className={BTN_GHOST_CLASS}>
-          {t("actions.cancel")}
+          {t(KEY_ACTION_CANCEL)}
         </Link>
       </div>
     </div>
@@ -113,7 +116,7 @@ function ConfirmDeleteStation({
           </button>
         </form>
         <Link href={cancelHref} className={BTN_GHOST_CLASS}>
-          {t("actions.cancel")}
+          {t(KEY_ACTION_CANCEL)}
         </Link>
       </div>
     </div>
@@ -167,8 +170,10 @@ function ConfirmCard({
  */
 function ReissueConfirm({
   model,
+  t,
 }: {
   readonly model: CatalogModel;
+  readonly t: Translate;
 }): ReactElement | null {
   const { confirm, countryId, storeId, station, hrefs } = model;
 
@@ -184,9 +189,12 @@ function ReissueConfirm({
   return (
     <ReissueDialog
       stationId={station.id}
-      stationName={station.name}
       countryId={countryId}
       storeId={storeId}
+      title={t("confirm.reissueTitle", { name: station.name })}
+      warning={t("confirm.reissueBody")}
+      confirmLabel={t("actions.confirmReissue")}
+      cancelLabel={t(KEY_ACTION_CANCEL)}
       cancelHref={hrefs.cancel}
     />
   );
@@ -229,7 +237,7 @@ export async function CatalogScreen({
       ) : (
         <DetailCards model={model} />
       )}
-      <ReissueConfirm model={model} />
+      <ReissueConfirm model={model} t={t} />
     </AdminShell>
   );
 }
