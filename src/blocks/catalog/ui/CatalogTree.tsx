@@ -208,7 +208,9 @@ function StationRow({
           </span>
         )}
       </td>
-      <td className={TABLE_TD_NUM_CLASS}>{station.code}</td>
+      <td data-testid="station-code" className={TABLE_TD_NUM_CLASS}>
+        {station.code}
+      </td>
       <td className={TABLE_TD_ACTIONS_CLASS}>
         <Link
           href={station.qrHref}

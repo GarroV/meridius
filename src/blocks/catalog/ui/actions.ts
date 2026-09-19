@@ -19,7 +19,12 @@ import {
   updateStation,
 } from "../stations";
 import { createStore, deleteStore, updateStore } from "../stores";
-import { afterDeleteStoreFailure, formField } from "./outcomes";
+import {
+  afterDeleteStoreFailure,
+  formField,
+  hrefOf,
+  reissueOutcome,
+} from "./outcomes";
 import { CATALOG_PATH, catalogHref, type CatalogView } from "./view";
 
 const NAME = "name";
@@ -33,28 +38,32 @@ const ID = "id";
 const CONFIRMED = "confirmed";
 
 /**
- * Выполняет действие и уводит обратно на экран: успех — в нужное состояние дерева,
- * отказ справочника — туда же, но с кодом отказа в адресе, чтобы экран показал текст.
- * Чужие исключения не глотаются: молча съеденная ошибка неотличима от успеха.
+ * Выполняет действие и уводит человека дальше: успех — по адресу, который выбрало
+ * само действие, отказ справочника — назад в справочник с кодом отказа в адресе,
+ * чтобы экран показал текст. Чужие исключения не глотаются: молча съеденная ошибка
+ * неотличима от успеха.
  */
 async function perform<T>(
   action: () => Promise<T>,
-  onSuccess: (result: T) => CatalogView,
+  // Строкой — когда успех уводит с экрана вовсе: так делает один перевыпуск кода,
+  // он заканчивается печатью наклейки, а не справочником.
+  onSuccess: (result: T) => CatalogView | string,
   onFailure: (error: CatalogError) => CatalogView,
 ): Promise<void> {
   await requireAdmin();
 
-  let view: CatalogView;
+  // Отказ всегда возвращает в справочник: показать его больше негде.
+  let target: CatalogView | string;
   try {
-    view = onSuccess(await action());
+    target = onSuccess(await action());
   } catch (error) {
     if (!(error instanceof CatalogError)) throw error;
-    view = onFailure(error);
+    target = onFailure(error);
   }
 
   revalidatePath(CATALOG_PATH);
   // redirect бросает исключение — код ниже не выполняется, и это единственный выход.
-  redirect(catalogHref(view));
+  redirect(hrefOf(target));
 }
 
 /** Куда вернуться, если действие не удалось: то же место дерева плюс код отказа. */
@@ -197,14 +206,29 @@ export async function submitDeleteStation(form: FormData): Promise<void> {
   );
 }
 
+/**
+ * Перевыпуск кода станции. Как и удаление станции, без подтверждения не делается:
+ * неподтверждённый запрос уводит экран в состояние «спросить», и только со вторым
+ * нажатием код меняется. Дальше экран уходит не в справочник, а на печать новой
+ * наклейки — решение и его причина в `reissueOutcome` (T260).
+ */
 export async function submitReissueCode(form: FormData): Promise<void> {
-  const countryId = formField(form, COUNTRY_ID);
-  const storeId = formField(form, STORE_ID);
-  const stationId = formField(form, ID);
+  const outcome = reissueOutcome({
+    countryId: formField(form, COUNTRY_ID),
+    storeId: formField(form, STORE_ID),
+    stationId: formField(form, ID),
+    confirmed: formField(form, CONFIRMED) === "1",
+  });
+
+  if (outcome.kind === "confirm") {
+    await requireAdmin();
+    redirect(catalogHref(outcome.view));
+  }
+
   await perform(
-    () => reissueStationCode(stationId),
-    () => ({ countryId, storeId, stationId, focus: "station" }),
-    backTo({ countryId, storeId, stationId, focus: "station" }),
+    () => reissueStationCode(outcome.stationId),
+    () => outcome.doneHref,
+    backTo(outcome.failView),
   );
 }
 

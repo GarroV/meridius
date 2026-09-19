@@ -366,6 +366,23 @@ test.describe("доступность: админка", () => {
     expectAccessible(await runAxe(page));
   });
 
+  test("окно подтверждения перевыпуска кода без нарушений доступности", async ({
+    page,
+  }) => {
+    // Модальное окно — отдельное состояние разметки: на закрытом экране его в DOM
+    // нет вовсе, и проверка справочника выше про него ничего не говорит (T260).
+    const seed = await seedAdminScreens("перевыпуск");
+    await signIn(page);
+
+    await page.goto(
+      `/admin/catalog?country=${seed.countryId}&store=${seed.storeId}`,
+    );
+    await page.getByTestId("reissue-button").first().click();
+    await page.getByTestId("reissue-dialog").waitFor();
+
+    expectAccessible(await runAxe(page));
+  });
+
   test("список чек-листов без нарушений доступности", async ({ page }) => {
     await seedAdminScreens("список");
     await signIn(page);

@@ -8,6 +8,7 @@ import { submitDeleteStation, submitDeleteStore } from "./actions";
 import { CatalogTree } from "./CatalogTree";
 import { DetailCards } from "./DetailCards";
 import type { CatalogModel, StationDetail, StoreDetail } from "./model";
+import { ReissueDialog } from "./ReissueDialog";
 
 /**
  * Экран справочника «Страны и пиццерии» (T018) — сборка каркаса, дерева и
@@ -26,6 +27,9 @@ const FIELD_ID = "id";
 const FIELD_COUNTRY_ID = "countryId";
 const FIELD_STORE_ID = "storeId";
 const FIELD_CONFIRMED = "confirmed";
+
+// Повторяющийся ключ словаря — в константу (sonarjs/no-duplicate-string).
+const KEY_ACTION_CANCEL = "actions.cancel";
 
 const ERROR_NOTICE_CLASS =
   "text-err flex gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)]";
@@ -75,7 +79,7 @@ function ConfirmDeleteStore({
           </button>
         </form>
         <Link href={cancelHref} className={BTN_GHOST_CLASS}>
-          {t("actions.cancel")}
+          {t(KEY_ACTION_CANCEL)}
         </Link>
       </div>
     </div>
@@ -112,7 +116,7 @@ function ConfirmDeleteStation({
           </button>
         </form>
         <Link href={cancelHref} className={BTN_GHOST_CLASS}>
-          {t("actions.cancel")}
+          {t(KEY_ACTION_CANCEL)}
         </Link>
       </div>
     </div>
@@ -158,6 +162,44 @@ function ConfirmCard({
   return null;
 }
 
+/**
+ * Окно подтверждения перевыпуска кода станции — только когда известно всё, что оно
+ * называет: сама станция (её имя стоит в заголовке) и место в дереве, куда вернёт
+ * «Отмена». Половины окна не бывает: без имени станции вопрос «перевыпустить код?»
+ * не отличает одну станцию от соседней.
+ */
+function ReissueConfirm({
+  model,
+  t,
+}: {
+  readonly model: CatalogModel;
+  readonly t: Translate;
+}): ReactElement | null {
+  const { confirm, countryId, storeId, station, hrefs } = model;
+
+  if (
+    confirm !== "reissue" ||
+    station === null ||
+    countryId === null ||
+    storeId === null
+  ) {
+    return null;
+  }
+
+  return (
+    <ReissueDialog
+      stationId={station.id}
+      countryId={countryId}
+      storeId={storeId}
+      title={t("confirm.reissueTitle", { name: station.name })}
+      warning={t("confirm.reissueBody")}
+      confirmLabel={t("actions.confirmReissue")}
+      cancelLabel={t(KEY_ACTION_CANCEL)}
+      cancelHref={hrefs.cancel}
+    />
+  );
+}
+
 export async function CatalogScreen({
   model,
 }: {
@@ -187,11 +229,15 @@ export async function CatalogScreen({
         </p>
       ) : null}
       <CatalogTree model={model} />
-      {model.confirm !== null ? (
+      {/* Подтверждение удаления заменяет карточку правки — оно и есть то, что показано
+          под деревом. Подтверждение перевыпуска ничего не заменяет: это окно поверх
+          экрана, и под ним остаётся ровно то, что было (T260). */}
+      {model.confirm === "store" || model.confirm === "station" ? (
         <ConfirmCard model={model} t={t} />
       ) : (
         <DetailCards model={model} />
       )}
+      <ReissueConfirm model={model} t={t} />
     </AdminShell>
   );
 }

@@ -25,8 +25,12 @@ const FORM_KINDS = ["country", "store", "station"] as const;
 /** Какая форма создания раскрыта. Раскрытие — адрес, а не состояние компонента. */
 export type CatalogFormKind = (typeof FORM_KINDS)[number];
 
-const CONFIRM_KINDS = ["store", "station"] as const;
-/** Что подтверждают к удалению. Удаление без подтверждения невозможно по контракту. */
+const CONFIRM_KINDS = ["store", "station", "reissue"] as const;
+/**
+ * Что подтверждает экран. Удаление без подтверждения невозможно по контракту; с
+ * T260 то же верно для перевыпуска кода станции — он необратим ровно так же, как
+ * удаление: все напечатанные наклейки станции перестают работать в ту же секунду.
+ */
 export type CatalogConfirmKind = (typeof CONFIRM_KINDS)[number];
 
 const UUID_PATTERN =

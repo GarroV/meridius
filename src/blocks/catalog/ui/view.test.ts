@@ -112,6 +112,28 @@ describe("сборка адреса экрана", () => {
 
     expect(parsed).toStrictEqual({ ...view });
   });
+
+  test("подтверждение перевыпуска переживает круг через адрес (T260)", () => {
+    // Окно подтверждения приходит с сервера: оно живёт в адресе, и если разбор
+    // отбросит `confirm=reissue` как мусор, экран молча вернётся к прежнему
+    // поведению — перевыпуск одним нажатием, без вопроса.
+    const view = {
+      countryId: ID,
+      storeId: OTHER_ID,
+      stationId: ID,
+      focus: "station",
+      confirm: "reissue",
+    } as const;
+
+    const parsed = parseCatalogView(
+      Object.fromEntries(
+        new URL(catalogHref(view), "http://localhost").searchParams,
+      ),
+    );
+
+    expect(parsed.confirm).toBe("reissue");
+    expect(parsed.stationId).toBe(ID);
+  });
 });
 
 // Раздел QR — соседний блок, и справочник не имеет права его импортировать (границы
