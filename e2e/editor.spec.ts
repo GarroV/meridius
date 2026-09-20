@@ -830,7 +830,7 @@ test.describe("редактор чек-листа", () => {
     await page.keyboard.type("Проверить сроки годности");
 
     const chip = page.getByTestId("item-schedule-chip").first();
-    await expect(chip).toHaveText("Разово");
+    await expect(chip).toHaveText("Один раз");
 
     await openSchedule(page, 0);
     // Отрезков ещё нет: пункт обычный, пока методист не сказал обратного.
@@ -907,7 +907,7 @@ test.describe("редактор чек-листа", () => {
     await page.getByTestId("schedule-cancel").click();
 
     await expect(page.getByTestId("item-schedule-chip").first()).toHaveText(
-      "Разово",
+      "Один раз",
     );
 
     await openSchedule(page, 0);

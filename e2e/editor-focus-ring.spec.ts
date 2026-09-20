@@ -108,7 +108,7 @@ async function tabThroughFields(
       const node = document.activeElement;
       if (node === null) return null;
       const host = document.querySelector(selector);
-      if (host === null || !host.contains(node)) return null;
+      if (host?.contains(node) !== true) return null;
 
       const tag = node.tagName.toLowerCase();
       const type =
