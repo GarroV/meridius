@@ -16,17 +16,25 @@ import type { QrScreenModel } from "./model";
  * Картинка вставляется разметкой сервера (`dangerouslySetInnerHTML`), и это
  * безопасно ровно потому, что в ней нет ничего от пользователя: `stationQrSvg`
  * выдаёт только геометрию, без текста и без ссылок.
+ *
+ * ЯЗЫК — ПИЦЦЕРИИ, а не того, кто открыл экран (T273, D122). Экран открывают из
+ * кабинета один раз и оставляют висеть у станции: дальше его читает сотрудник на
+ * кухне, и подпись «К листу печати» вместе с подписью кода принадлежат ему. Ответ
+ * тот же, что у печатной наклейки, и от того же правила — иначе наклейка и планшет
+ * одной станции говорили бы на разных языках. Объявлен он атрибутом `lang` на корне
+ * содержимого, в отданном HTML.
  */
 export async function StationScreen({
   model,
 }: {
   readonly model: QrScreenModel;
 }): Promise<ReactElement> {
-  const t = await getTranslations("qr");
+  const t = await getTranslations({ locale: model.locale, namespace: "qr" });
 
   return (
     <div
       data-testid="station-screen"
+      lang={model.locale}
       className="bg-surface flex min-h-screen flex-col items-center justify-center gap-[var(--space-8)] p-[var(--space-9)]"
     >
       <LiveStationCode codeHref={model.codeHref} code={model.code} />

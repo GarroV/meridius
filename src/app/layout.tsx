@@ -11,7 +11,6 @@ import {
   THEME_BOOTSTRAP_SCRIPT,
   themeFromCookieHeader,
 } from "@/blocks/core/theme";
-import { HtmlLangSync } from "@/blocks/core/ui/HtmlLangSync";
 import { fillLanguage } from "@/blocks/fill/document";
 import { FILL_STATION_CODE_HEADER } from "@/blocks/fill/params";
 import { nonceFromPolicy } from "@/security-headers";
@@ -48,6 +47,17 @@ export default async function RootLayout({
   // Почему разметка спрашивает сама, а не ждёт страницу: она рендерится РАНЬШЕ страницы,
   // и дождаться её значило бы встать насмерть. Код станции ей называет посредник — из
   // адреса корневая разметка его не видит (T270).
+  //
+  // И это ЕДИНСТВЕННОЕ место, где решается язык документа. Рядом стоял запасной рубеж
+  // `core/ui/HtmlLangSync`: он после гидратации переписывал `<html lang>` языком первого
+  // объявленного куска содержимого. Снят (T272), потому что чинил не то и не тогда.
+  // Не то — кусок содержимого вправе объявлять СВОЙ язык, не меняя язык документа: так
+  // устроен печатный лист QR, остров языка пиццерии внутри кабинета методиста. Не тогда —
+  // правка приезжала после гидратации, то есть мимо всех, ради кого атрибут существует:
+  // мимо принтера, мимо диктора на первом кадре и мимо встроенного браузера сканера,
+  // который до гидратации может не дойти вовсе. Цена была не в одном `useEffect`, а в
+  // том, что отданный документ и живая вкладка отвечали по-разному, и зелёной
+  // оказывалась та проверка, которая смотрела позже: так дефект T270 и дожил до приёмки.
   const requestHeaders = await headers();
   const stationCode = requestHeaders.get(FILL_STATION_CODE_HEADER);
   const locale =
@@ -92,9 +102,6 @@ export default async function RootLayout({
         >
           {children}
         </NextIntlClientProvider>
-        {/* Язык документа догоняет язык содержимого: страница заполнения может говорить
-            на языке страны, а запрос — на другом (T179, см. сам компонент). */}
-        <HtmlLangSync requestLocale={locale} />
       </body>
     </html>
   );

@@ -1,6 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import type { Locale } from "@/blocks/core/locale";
+
 import type { QrStationView } from "./model";
 
 /**
@@ -11,6 +13,17 @@ import type { QrStationView } from "./model";
  * При печати `PRINT_CSS` прячет всё, кроме `[data-print-sheet]`, и растягивает
  * его на настоящий A4 — иначе на бумаге оказались бы меню и кнопки той же
  * страницы, а не только наклейки.
+ *
+ * ЯЗЫК ЗДЕСЬ НЕ ЯЗЫК МЕТОДИСТА (T273, D122). Всё, что попадает на бумагу, —
+ * поверхность пиццерии: лист печатают в кабинете, а читают его наклейки на кухне.
+ * Поэтому словарь берётся по языку пиццерии (`getTranslations({ locale })`), а не по
+ * языку запроса, и лист объявляет этот язык атрибутом `lang` на себе — в ОТДАННОМ
+ * HTML, без единой строки JavaScript. Атрибут не украшение: диктор читает подпись по
+ * правилам объявленного языка, а вокруг листа стоит кабинет на языке методиста, то
+ * есть документ и правда двуязычный, и умалчивать об этом нельзя.
+ *
+ * Остальной экран — карточка со счётчиком «A4 · 3 станции», таблица станций, окно
+ * перевыпуска — остаётся на языке методиста: это он читает, и на бумагу это не идёт.
  */
 
 const SHEET_CLASS =
@@ -55,18 +68,26 @@ const PRINT_CSS = `
 export interface PrintSheetProps {
   readonly stations: readonly QrStationView[];
   readonly storeName: string;
+  /** Язык пиццерии: его посчитал `build-model.ts`, здесь он только применяется. */
+  readonly locale: Locale;
 }
 
 export async function PrintSheet({
   stations,
   storeName,
+  locale,
 }: PrintSheetProps): Promise<ReactElement> {
-  const t = await getTranslations("qr");
+  const t = await getTranslations({ locale, namespace: "qr" });
 
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
-      <div data-print-sheet data-testid="qr-sheet" className={SHEET_CLASS}>
+      <div
+        data-print-sheet
+        data-testid="qr-sheet"
+        lang={locale}
+        className={SHEET_CLASS}
+      >
         {stations.length === 0 ? (
           <p className={EMPTY_CLASS}>{t("sheet.empty")}</p>
         ) : (

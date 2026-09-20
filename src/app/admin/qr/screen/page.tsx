@@ -22,12 +22,12 @@ export default async function QrStationScreenPage({
   const ref = parseStationRef(await searchParams);
   if (ref === null) notFound();
 
-  const origin = scanOrigin(await headers(), process.env);
-  const model = await buildScreenModel(
-    ref,
-    origin,
-    publicBasePath(process.env),
-  );
+  const requestHeaders = await headers();
+  const model = await buildScreenModel(ref, {
+    origin: scanOrigin(requestHeaders, process.env),
+    basePath: publicBasePath(process.env),
+    acceptLanguage: requestHeaders.get("accept-language"),
+  });
   if (model === null) notFound();
 
   return <StationScreen model={model} />;

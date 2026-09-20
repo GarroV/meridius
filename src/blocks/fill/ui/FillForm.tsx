@@ -260,7 +260,7 @@ export function FillForm({
   dropAlarm,
 }: FillFormProps): ReactElement {
   const t = useTranslations("fill");
-  // Язык экрана, а не язык телефона: его посчитала цепочка `pickFillLocales` и
+  // Язык экрана, а не язык телефона: его посчитала цепочка `storeLocales` и
   // отдал провайдер серверной части. Формат часа при этом всё равно круглосуточный —
   // см. `formatStationTime`.
   const locale = asLocale(useLocale());

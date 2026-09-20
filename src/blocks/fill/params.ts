@@ -60,7 +60,7 @@ export const FILL_STATION_CODE_HEADER = "x-fill-station-code";
  * пиццерию значило бы объявить язык страницы, которой нет. Не разобрали — `null`, и
  * тогда язык документа считается как у всего продукта, из `Accept-Language`. Расхождения
  * это не даёт: там, где пиццерии нет, цепочка заполнения и общий выбор языка продукта
- * отвечают одинаково (`pickFillLocales(…, null)[0]` и `pickLocale` — оба «язык телефона,
+ * отвечают одинаково (`storeLocale(…, null)` и `pickLocale` — оба «язык телефона,
  * если продукт на нём говорит, иначе язык продукта»).
  */
 export function stationCodeFromPath(pathname: string): string | null {

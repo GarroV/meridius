@@ -22,8 +22,14 @@ export default async function QrPage({
   await requireAdmin();
 
   const view = parseQrView(await searchParams);
-  const origin = scanOrigin(await headers(), process.env);
-  const model = await buildQrModel(view, origin, publicBasePath(process.env));
+  const requestHeaders = await headers();
+  const model = await buildQrModel(view, {
+    origin: scanOrigin(requestHeaders, process.env),
+    basePath: publicBasePath(process.env),
+    // Язык устройства методиста — не ответ о языке листа, а только последнее звено
+    // цепочки для случая «пиццерия не выбрана» (T273, `core/store-locale.ts`).
+    acceptLanguage: requestHeaders.get("accept-language"),
+  });
 
   return <QrSheetScreen model={model} />;
 }
