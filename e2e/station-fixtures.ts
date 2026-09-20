@@ -23,6 +23,17 @@ export interface SeededStore {
   stationNames: string[];
 }
 
+export interface SeedStoreOptions {
+  /**
+   * Язык страны пиццерии — он же язык её печатных материалов (D122).
+   *
+   * Умолчание `ru` оставлено прежним нарочно: на нём стоят все сценарии, написанные до
+   * того, как язык вообще стал вопросом, и менять его значило бы править их заодно.
+   * Явным его делает только тот сценарий, которому важно, ЧЕЙ язык победил.
+   */
+  readonly countryLocale?: "ru" | "en";
+}
+
 function code(): string {
   return Array.from(
     { length: 10 },
@@ -31,13 +42,15 @@ function code(): string {
   ).join("");
 }
 
-export async function seedStore(): Promise<SeededStore> {
+export async function seedStore(
+  options: SeedStoreOptions = {},
+): Promise<SeededStore> {
   const label = randomUUID().slice(0, 8);
   const pool = new Pool({ connectionString: e2eDatabaseUrl() });
   try {
     const country = await pool.query<{ id: string }>(
-      "insert into countries (name, locale) values ($1, 'ru') returning id",
-      [`Страна ${label}`],
+      "insert into countries (name, locale) values ($1, $2) returning id",
+      [`Страна ${label}`, options.countryLocale ?? "ru"],
     );
     const countryId = country.rows[0]?.id;
     const store = await pool.query<{ id: string }>(
