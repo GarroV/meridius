@@ -130,8 +130,11 @@ test.describe("перевыпуск кода станции", () => {
     expect(focusInside).toBe(true);
 
     // Tab не уводит из окна на первом же шаге: следующая остановка — его кнопка.
+    // Первой стоит «Отмена» — порядок подвала эталона, общий с окном регулярности
+    // редактора (T267). У опасного действия это не косметика: и под первым Tab, и
+    // под нажатием по памяти обязан оказаться отход, а не перевыпуск.
     await page.keyboard.press("Tab");
-    await expect(page.getByTestId("reissue-confirm")).toBeFocused();
+    await expect(page.getByTestId("reissue-cancel")).toBeFocused();
 
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("reissue-dialog")).toBeHidden();

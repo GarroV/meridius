@@ -125,6 +125,8 @@
       "deleteStoreTitle": "Delete pizzeria \"{name}\"?",
       "deleteStoreBody": "Stations will be deleted with it: {count}",
       "deleteStoreWarning": "If any station has submissions or check marks, deletion will be refused — history is untouchable. The shift mode is cleared together with the pizzeria.",
+      "deleteCountryTitle": "Delete country \"{name}\"?",
+      "deleteCountryBody": "Only an empty country can be deleted: if it still has pizzerias, the product will refuse. Its name and language will have to be entered again.",
       "deleteStationTitle": "Delete station \"{name}\"?",
       "deleteStationBody": "Its QR code will stop opening the checklist.",
       "reissueTitle": "Reissue the code of station \"{name}\"?",
