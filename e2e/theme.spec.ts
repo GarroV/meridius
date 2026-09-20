@@ -204,6 +204,48 @@ async function setThemeCookie(
 
 const SCHEMES = ["dark", "light"] as const;
 
+/**
+ * Тема в ОТДАННОМ документе — отдельный класс проверки, и он читает сырой ответ
+ * сервера (T271).
+ *
+ * Явный выбор человека приезжает кукой и попадает в разметку на сервере: страница
+ * обязана прийти уже в нужной теме, без мигания и без участия скриптов. Живая вкладка
+ * этого подтвердить не может: атрибут на `<html>` ставят ТРОЕ — корневая разметка,
+ * инлайновый скрипт по системной настройке и переключатель, — и в готовом DOM их
+ * результаты неразличимы. Проверка, читающая вкладку, осталась бы зелёной ровно в том
+ * случае, ради которого атрибут и ставит сервер: сервер забыл куку, скрипт дописал тему
+ * позже, человек увидел белую вспышку.
+ */
+test.describe("отданный документ приезжает уже в выбранной теме", () => {
+  for (const choice of SCHEMES) {
+    test(`кука «${choice}» приходит атрибутом прямо в разметке`, async ({
+      request,
+    }) => {
+      const response = await request.get("/admin/login", {
+        headers: { cookie: `${THEME_COOKIE_NAME}=${choice}` },
+      });
+
+      expect(response.status()).toBe(200);
+      const root = /<html[^>]*>/.exec(await response.text())?.[0] ?? "";
+      expect(root).toContain(`${THEME_ATTRIBUTE}="${choice}"`);
+    });
+  }
+
+  test("без куки атрибута в отданном документе нет вовсе", async ({
+    request,
+  }) => {
+    // Отсутствие атрибута — это и есть «решает системная настройка»: значение `light`
+    // сервер не пишет никогда (`theme.ts`), иначе тёмная система была бы перебита.
+    const response = await request.get("/admin/login");
+
+    expect(response.status()).toBe(200);
+    const root = /<html[^>]*>/.exec(await response.text())?.[0] ?? "";
+    expect(root).not.toContain(THEME_ATTRIBUTE);
+  });
+});
+
+// Ниже — проверки живой вкладки, а не документа: им нужен вычисленный стиль и
+// сработавший скрипт. Что обещает ОТДАННЫЙ документ, сказано выше (T271).
 test.describe("автоматика по системной настройке — на всех поверхностях продукта", () => {
   for (const scheme of SCHEMES) {
     test.describe(`системная настройка «${scheme}»`, () => {
@@ -283,7 +325,69 @@ test.describe("поверхность экрана — не только фон 
   });
 });
 
-test.describe("явный выбор перебивает автоматику", () => {
+/**
+ * Наведение на пункт бокового меню (T278). Эталон требует фон `--surface-3` и цвет
+ * `--ink` (`docs/furca/design/app.css`, `.nav__item:hover`; то же самое в
+ * `reference/components.css`, `.appnav__link:hover`).
+ *
+ * Проверяется ВЫЧИСЛЕННЫМ стилем, а не исходниками, и это не придирка: сторож
+ * `design-reference.test.ts` читает исходники и цвет, проигравший в каскаде, не видит
+ * вовсе. Глазами такое расхождение тоже не ловится — его находят только замером, и
+ * ровно так оно уже приезжало задачей о несуществующем дефекте.
+ *
+ * Оба экземпляра значений приходят из эталона, поэтому рядом стоит независимый
+ * инвариант: фон при наведении обязан ОТЛИЧАТЬСЯ от фона в покое. Он краснеет и тогда,
+ * когда эталон с продуктом разъедутся вместе.
+ */
+test.describe("наведение на пункт меню кабинета даёт фон и цвет эталона", () => {
+  test.use({ signedIn: true });
+
+  for (const choice of SCHEMES) {
+    test(`тема «${choice}», все разделы кабинета`, async ({
+      page,
+      context,
+    }) => {
+      await setThemeCookie(context, choice);
+
+      for (const screen of CABINET_SCREENS) {
+        await openScreen(page, screen);
+        // Пункт, на экране которого человек НЕ стоит: у активного пункта свой вид,
+        // и подменять им обычный значило бы проверять не то состояние.
+        const target = page.getByTestId(
+          screen.path === "/admin/feed" ? "nav-qr" : "nav-feed",
+        );
+        const where = `${screen.name}, тема «${choice}»`;
+
+        const rest = await target.evaluate(
+          (node) => getComputedStyle(node).backgroundColor,
+        );
+        await target.hover();
+
+        await expect
+          .poll(
+            () =>
+              target.evaluate((node) => getComputedStyle(node).backgroundColor),
+            { message: `фон пункта под курсором: ${where}` },
+          )
+          .toBe(tokenRgb(choice, "--surface-3"));
+        expect(
+          await target.evaluate((node) => getComputedStyle(node).color),
+          `цвет пункта под курсором: ${where}`,
+        ).toBe(tokenRgb(choice, "--ink"));
+        expect(
+          await target.evaluate(
+            (node) => getComputedStyle(node).backgroundColor,
+          ),
+          `фон под курсором не отличается от фона в покое: ${where}`,
+        ).not.toBe(rest);
+
+        await page.mouse.move(0, 0);
+      }
+    });
+  }
+});
+
+test.describe("явный выбор перебивает автоматику в живой вкладке", () => {
   test.use({ signedIn: true });
 
   test.describe("кука light сильнее тёмной системной настройки", () => {
