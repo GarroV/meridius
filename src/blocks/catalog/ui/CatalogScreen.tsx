@@ -6,13 +6,19 @@ import { AdminShell } from "@/blocks/core/ui/AdminShell";
 import { ConfirmDialog } from "@/blocks/core/ui/ConfirmDialog";
 
 import {
+  submitDeleteCountry,
   submitDeleteStation,
   submitDeleteStore,
   submitReissueCode,
 } from "./actions";
 import { CatalogTree } from "./CatalogTree";
 import { DetailCards } from "./DetailCards";
-import type { CatalogModel, StationDetail, StoreDetail } from "./model";
+import type {
+  CatalogModel,
+  CountryDetail,
+  StationDetail,
+  StoreDetail,
+} from "./model";
 
 /**
  * Экран справочника «Страны и пиццерии» (T018) — сборка каркаса, дерева и
@@ -32,8 +38,9 @@ const FIELD_COUNTRY_ID = "countryId";
 const FIELD_STORE_ID = "storeId";
 const FIELD_CONFIRMED = "confirmed";
 
-// Повторяющийся ключ словаря — в константу (sonarjs/no-duplicate-string).
+// Повторяющиеся ключи словаря — в константы (sonarjs/no-duplicate-string).
 const KEY_ACTION_CANCEL = "actions.cancel";
+const KEY_ACTION_CONFIRM_DELETE = "actions.confirmDelete";
 
 const ERROR_NOTICE_CLASS =
   "text-err flex gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)]";
@@ -79,7 +86,52 @@ function ConfirmDeleteStore({
           <input type="hidden" name={FIELD_COUNTRY_ID} value={countryId} />
           <input type="hidden" name={FIELD_CONFIRMED} value="1" />
           <button type="submit" className={BTN_DANGER_CLASS}>
-            {t("actions.confirmDelete")}
+            {t(KEY_ACTION_CONFIRM_DELETE)}
+          </button>
+        </form>
+        <Link href={cancelHref} className={BTN_GHOST_CLASS}>
+          {t(KEY_ACTION_CANCEL)}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Вопрос об удалении страны (T267). Карточка, а не окно, — как у станции и
+ * пиццерии: удаление запускается кнопкой в карточке под деревом, и вопрос
+ * появляется там же, куда человек в этот момент смотрит.
+ *
+ * Порядок кнопок — карточный, из эталона (`catalog.html`, `states.html`): действие,
+ * затем «Отмена». В ОКНАХ порядок обратный, и это не разнобой, а разные модули
+ * эталона: у окна есть подвал `.dialog__foot`, где первичная кнопка стоит последней
+ * (T267, вопрос владельцу Q029).
+ */
+function ConfirmDeleteCountry({
+  country,
+  cancelHref,
+  t,
+}: {
+  readonly country: CountryDetail;
+  readonly cancelHref: string;
+  readonly t: Translate;
+}): ReactElement {
+  return (
+    <div data-testid="confirm-card" className={CONFIRM_CARD_CLASS}>
+      <h2 className={CONFIRM_TITLE_CLASS}>
+        {t("confirm.deleteCountryTitle", { name: country.name })}
+      </h2>
+      <p className={CONFIRM_TEXT_CLASS}>{t("confirm.deleteCountryBody")}</p>
+      <div className={INLINE_CLASS}>
+        <form action={submitDeleteCountry}>
+          <input type="hidden" name={FIELD_ID} value={country.id} />
+          <input type="hidden" name={FIELD_CONFIRMED} value="1" />
+          <button
+            type="submit"
+            data-testid="confirm-delete-country"
+            className={BTN_DANGER_CLASS}
+          >
+            {t(KEY_ACTION_CONFIRM_DELETE)}
           </button>
         </form>
         <Link href={cancelHref} className={BTN_GHOST_CLASS}>
@@ -116,7 +168,7 @@ function ConfirmDeleteStation({
           <input type="hidden" name={FIELD_STORE_ID} value={storeId} />
           <input type="hidden" name={FIELD_CONFIRMED} value="1" />
           <button type="submit" className={BTN_DANGER_CLASS}>
-            {t("actions.confirmDelete")}
+            {t(KEY_ACTION_CONFIRM_DELETE)}
           </button>
         </form>
         <Link href={cancelHref} className={BTN_GHOST_CLASS}>
@@ -135,8 +187,13 @@ function ConfirmCard({
   readonly model: CatalogModel;
   readonly t: Translate;
 }): ReactElement | null {
-  const { confirm, countryId, storeId, store, station, hrefs } = model;
+  const { confirm, countryId, storeId, country, store, station, hrefs } = model;
 
+  if (confirm === "country" && country !== null) {
+    return (
+      <ConfirmDeleteCountry country={country} cancelHref={hrefs.cancel} t={t} />
+    );
+  }
   if (confirm === "store" && store !== null && countryId !== null) {
     return (
       <ConfirmDeleteStore
@@ -239,11 +296,16 @@ export async function CatalogScreen({
       <CatalogTree model={model} />
       {/* Подтверждение удаления заменяет карточку правки — оно и есть то, что показано
           под деревом. Подтверждение перевыпуска ничего не заменяет: это окно поверх
-          экрана, и под ним остаётся ровно то, что было (T260). */}
-      {model.confirm === "store" || model.confirm === "station" ? (
-        <ConfirmCard model={model} t={t} />
-      ) : (
+          экрана, и под ним остаётся ровно то, что было (T260).
+
+          Условие названо через исключение («всё, кроме перевыпуска»), а не
+          перечислением видов удаления: перечисление уже отстало однажды — вид
+          `country` завели в T267, а эта строка про него не знала, и карточка
+          вопроса не появлялась на экране, хотя действие её просило. */}
+      {model.confirm === null || model.confirm === "reissue" ? (
         <DetailCards model={model} />
+      ) : (
+        <ConfirmCard model={model} t={t} />
       )}
       <ReissueConfirm model={model} t={t} />
     </AdminShell>

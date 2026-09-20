@@ -54,13 +54,14 @@ describe("разбор адреса экрана", () => {
     const view = parseCatalogView({
       focus: "секретно",
       create: "country ",
-      confirm: "country",
+      confirm: "checklist",
       error: "нет такого кода",
     });
 
     expect(view.focus).toBeUndefined();
     expect(view.create).toBeUndefined();
-    // confirm бывает только для пиццерии и станции: страна удаляется лишь пустой.
+    // Подтверждать экран умеет только то, что перечислено в `CONFIRM_KINDS`
+    // (страна, пиццерия, станция, перевыпуск) — чужое слово отбрасывается.
     expect(view.confirm).toBeUndefined();
     expect(view.error).toBeUndefined();
   });

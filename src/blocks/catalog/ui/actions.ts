@@ -96,8 +96,26 @@ export async function submitUpdateCountry(form: FormData): Promise<void> {
   );
 }
 
+/**
+ * Удаление страны. Как у станции, подтверждение держит экран: неподтверждённый
+ * запрос ничего не удаляет, а уводит экран в состояние вопроса (T267).
+ *
+ * Почему вопрос нужен, хотя потерять нечего. Слой не даёт снести страну, в которой
+ * есть пиццерии (`countries.ts`: `countryNotEmpty`), то есть каскадом не умирает
+ * ничего, а цена промаха — завести название и язык заново. Дело не в цене, а в
+ * правиле экрана: станция спрашивает, пиццерия спрашивает, а страна сносилась с
+ * одного нажатия. Правило, которое срабатывает не всегда, человек перестаёт
+ * считать правилом — и это дороже одной перезаведённой страны.
+ */
 export async function submitDeleteCountry(form: FormData): Promise<void> {
   const countryId = formField(form, ID);
+  const confirmed = formField(form, CONFIRMED) === "1";
+
+  if (!confirmed) {
+    await requireAdmin();
+    redirect(catalogHref({ countryId, focus: "country", confirm: "country" }));
+  }
+
   await perform(
     () => deleteCountry(countryId),
     () => ({}),
