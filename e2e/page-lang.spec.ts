@@ -16,8 +16,16 @@ import { expect, test, type APIRequestContext } from "@playwright/test";
 
 import { seedFillStand, seedStationWithoutChecklist } from "./fill-fixtures";
 
-/** Языки устройства для матрицы: продукт обязан отвечать одинаково на любом из них. */
-const DEVICE_LANGUAGES = ["en-GB,en;q=0.9", "ru-RU,ru;q=0.9"] as const;
+/**
+ * Языки устройства для матрицы: продукт обязан отвечать одинаково на любом из них.
+ * Третий язык здесь не для полноты — на нём продукт не говорит вовсе, и именно он ловит
+ * случай «язык взяли с телефона» там, где его обязана задавать пиццерия (D122).
+ */
+const DEVICE_LANGUAGES = [
+  "en-GB,en;q=0.9",
+  "ru-RU,ru;q=0.9",
+  "de-DE,de;q=0.9",
+] as const;
 
 /**
  * Что документ обещает о себе и что объявляет его содержимое — из ОТДАННОГО HTML.
@@ -140,58 +148,46 @@ test.describe("отданный документ обещает то, что в 
   });
 });
 
-test.describe("чей язык у публичного экрана", () => {
-  test("телефон на английском, пиццерия на русском: экран русский, и документ тоже", async ({
-    browser,
-  }) => {
-    // Это и есть D122 в действии. До него побеждал телефон, и сотрудник в русской
-    // пиццерии читал английский экран только потому, что так настроен его телефон.
-    const stand = await seedFillStand("язык-пиццерии", { countryLocale: "ru" });
-    const context = await browser.newContext({ locale: "en-GB" });
-    const page = await context.newPage();
+test.describe("документ вне экрана заполнения объявляет язык запроса", () => {
+  // Кабинет и вход своего языка не объявляют: пиццерии там нет, и документ говорит
+  // языком запроса. Читается ОТДАННЫЙ html по той же причине, что и всё в этом файле:
+  // атрибут существует ради тех, кто до гидратации не доходит.
+  //
+  // Раньше то же самое утверждали три сценария живого браузера — здесь и в
+  // `locale.spec.ts`. Они читали `<html lang>` ПОСЛЕ гидратации, то есть не могли
+  // отличить верный ответ сервера от правки, приехавшей на клиенте: ровно так дефект
+  // T270 и дожил до приёмки волны 14 (T271).
+  for (const [deviceLanguage, expected] of [
+    ["ru-RU,ru;q=0.9", "ru"],
+    ["en-GB,en;q=0.9", "en"],
+    // Язык, на котором продукт не говорит: остаётся язык продукта, а не отказ.
+    ["fr-FR,fr;q=0.9", "en"],
+  ] as const) {
+    test(`телефон ${deviceLanguage}: документ объявляет ${expected}`, async ({
+      request,
+    }) => {
+      for (const path of ["/", "/admin/login"] as const) {
+        const declared = declaredIn(
+          await deliveredHtml(request, path, deviceLanguage),
+        );
 
-    await page.goto(`/s/${stand.code}`);
-
-    await expect(page.locator('body > [lang="ru"]')).toBeVisible();
-    await expect(page.locator("html")).toHaveAttribute("lang", "ru");
-    await context.close();
-  });
-
-  test("и в обратную сторону: русский телефон в английской пиццерии читает английский", async ({
-    browser,
-  }) => {
-    const stand = await seedFillStand("язык-англ", { countryLocale: "en" });
-    const context = await browser.newContext({ locale: "ru-RU" });
-    const page = await context.newPage();
-
-    await page.goto(`/s/${stand.code}`);
-
-    await expect(page.locator('body > [lang="en"]')).toBeVisible();
-    await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await context.close();
-  });
-
-  test("телефон на третьем языке ничего не меняет: решает пиццерия", async ({
-    browser,
-  }) => {
-    const stand = await seedFillStand("язык-документа", {
-      countryLocale: "ru",
+        expect(declared.document, `${path} при ${deviceLanguage}`).toBe(
+          expected,
+        );
+      }
     });
-    const context = await browser.newContext({ locale: "de-DE" });
-    const page = await context.newPage();
+  }
+});
 
-    await page.goto(`/s/${stand.code}`);
-
-    await expect(page.locator('body > [lang="ru"]')).toBeVisible();
-    await expect(page.locator("html")).toHaveAttribute("lang", "ru");
-    await context.close();
-  });
-
-  test("отбивка «заполнять нечего» — тоже язык пиццерии, а не телефона", async ({
+// Ниже — НЕ проверки документа, а проверки слов на экране: им нужен живой браузер, и
+// читают они то, что человек видит, а не то, что документ о себе обещает. Утверждения
+// про `<html lang>` из них убраны (T271) — их место в разборе отданного html выше.
+test.describe("какие слова видит человек на публичном экране", () => {
+  test("отбивка «заполнять нечего» — словами пиццерии, а не телефона", async ({
     browser,
   }) => {
     // Наклейка действующая, станция настоящая, просто сейчас ей заполнять нечего.
-    // Владелец назвал отбивки прямо, поэтому и эта надпись принадлежит пиццерии.
+    // Владелец назвал отбивки прямо (D122), поэтому и эта надпись принадлежит пиццерии.
     const station = await seedStationWithoutChecklist("отбивка", "ru");
     const context = await browser.newContext({ locale: "en-GB" });
     const page = await context.newPage();
@@ -202,13 +198,10 @@ test.describe("чей язык у публичного экрана", () => {
     await expect(page.getByTestId("fill-none")).toContainText(
       "Сейчас заполнять нечего",
     );
-    await expect(page.locator("html")).toHaveAttribute("lang", "ru");
     await context.close();
   });
-});
 
-test.describe("где пиццерии нет — язык продукта, а не второе умолчание", () => {
-  test("неизвестный код с телефона на третьем языке: отказ на языке продукта", async ({
+  test("неизвестный код с телефона на третьем языке: отказ словами продукта", async ({
     browser,
   }) => {
     // Вторая половина #129. Раньше здесь был русский, а чек-лист и вход на том же
@@ -224,33 +217,6 @@ test.describe("где пиццерии нет — язык продукта, а 
     await expect(page.getByTestId("fill-invalid")).toContainText(
       "This code does not work",
     );
-    await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await context.close();
-  });
-
-  test("тот же телефон на странице входа получает тот же язык", async ({
-    browser,
-  }) => {
-    // Смысл проверки — не язык входа сам по себе, а то, что он ОДИН с отказом выше:
-    // расхождение этих двух ответов и есть #129.
-    const context = await browser.newContext({ locale: "de-DE" });
-    const page = await context.newPage();
-
-    await page.goto("/admin/login");
-
-    await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await context.close();
-  });
-
-  test("экран кабинета своего языка не объявляет — документ говорит языком запроса", async ({
-    browser,
-  }) => {
-    const context = await browser.newContext({ locale: "ru-RU" });
-    const page = await context.newPage();
-
-    await page.goto("/");
-
-    await expect(page.locator("html")).toHaveAttribute("lang", "ru");
     await context.close();
   });
 });
