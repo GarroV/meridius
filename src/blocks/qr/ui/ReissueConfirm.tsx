@@ -38,10 +38,12 @@ export async function ReissueConfirm({
 }: ReissueConfirmProps): Promise<ReactElement | null> {
   if (station === null || store === null) return null;
 
-  // Подтверждающая кнопка обещает ровно то, что случится. В справочнике она обещает
-  // «перевыпустить И открыть печать», потому что уводит на лист; здесь лист уже
-  // открыт — после подтверждения на нём перерисуется новая наклейка, и обещать
-  // переход значило бы обещать несделанное.
+  // Подпись подтверждающей кнопки — ТА ЖЕ, что в справочнике, хотя лист печати здесь
+  // уже открыт. Сперва она была своя, короткая («Перевыпустить»): казалось, что
+  // обещать «и открыть печать» тому, кто уже на печати, — обещание несделанного.
+  // Сверка экрана показала обратное: одно окно с двумя разными кнопками читается
+  // как два разных действия, а эталон даёт ровно одну подпись. Обещание при этом
+  // верно и здесь — после подтверждения человек остаётся на листе с новой наклейкой.
   const t = await getTranslations("catalog");
 
   return (
@@ -51,7 +53,7 @@ export async function ReissueConfirm({
       fields={{ storeId: store.id, stationId: station.id }}
       title={t("confirm.reissueTitle", { name: station.name })}
       warning={t("confirm.reissueBody")}
-      confirmLabel={t("actions.reissue")}
+      confirmLabel={t("actions.confirmReissue")}
       cancelLabel={t("actions.cancel")}
       cancelHref={qrHref({ storeId: store.id, stationId: station.id })}
     />
