@@ -6,6 +6,8 @@
 // Вторая: скрипт импорта — `.mjs` вне графа блоков, и покрыть его проверками
 // нечем; чистая функция рядом с самой ссылкой покрывается обычным тестом.
 
+import { DEFAULT_LOCALE, LOCALES } from "@/blocks/core/locale";
+
 import { stationScanUrl } from "./scan-url";
 
 /** Имя станции в пакете: по локали, вторым языком английский. */
@@ -39,7 +41,14 @@ interface StationLinkInput {
  * увидел бы на экране другое название той же станции.
  */
 function stationName(name: LocalizedName, locale: string): string {
-  return name[locale] ?? name["en"] ?? name["ru"] ?? "";
+  // Порядок: язык страны, язык продукта, остальные языки продукта. Раньше он был написан
+  // буквами (`name["en"] ?? name["ru"]`) — то есть третий язык не стал бы даже запасным,
+  // и станция, названная только на нём, ушла бы на наклейку без имени (T268).
+  for (const tag of [locale, DEFAULT_LOCALE, ...LOCALES]) {
+    const value = name[tag];
+    if (value !== undefined) return value;
+  }
+  return "";
 }
 
 /**

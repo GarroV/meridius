@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement, ReactNode } from "react";
 
+import { LOCALES } from "@/blocks/core/locale";
+
 import {
   submitCreateCountry,
   submitCreateStation,
@@ -320,8 +322,11 @@ export async function CatalogTree({
             defaultValue="ru"
             className={SELECT_CLASS}
           >
-            <option value="ru">ru</option>
-            <option value="en">en</option>
+            {LOCALES.map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
           </select>
         </div>
       </CreateForm>

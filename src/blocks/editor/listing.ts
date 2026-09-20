@@ -5,11 +5,24 @@
 // `data` схему и `getDb()`, а не заказывает функции в чужом блоке (D024).
 import { asc, sql, type SQL } from "drizzle-orm";
 
+import { LOCALES } from "@/blocks/core/locale";
 import type { LocalizedText } from "@/blocks/data";
 import { countries, getDb, stations, stores } from "@/blocks/data";
 
 import type { ChecklistFilter } from "./filter";
 import { isUuid } from "./validation";
+
+/**
+ * По какому заголовку сортируется список чек-листов: первый заведённый язык продукта.
+ *
+ * Языки перечисляет `LOCALES`, а не буквы в запросе: пара `'ru', 'en'` стояла здесь до
+ * T268, и чек-лист, названный только на третьем языке, уезжал бы в конец списка как
+ * безымянный — молча, потому что заголовок у него есть. `sql.raw` тут безопасен:
+ * подставляются коды языков продукта из константы, а не что-либо из ввода.
+ */
+const TITLE_SORT_KEY = sql.raw(
+  `coalesce(${LOCALES.map((code) => `c.title->>'${code}'`).join(", ")})`,
+);
 
 /** Строка экрана «Чек-листы»: где чек-лист живёт, когда открывается и в каком он состоянии. */
 export interface ChecklistRow {
@@ -134,7 +147,7 @@ export async function listChecklists(
       left join countries co on co.id = sto.country_id
      where ${where}
      order by co.name nulls last, sto.name nulls last, st.name nulls last,
-              coalesce(c.title->>'ru', c.title->>'en') nulls last, c.created_at`);
+              ${TITLE_SORT_KEY} nulls last, c.created_at`);
 
   return rows.rows.map((row) => ({
     id: row.id,

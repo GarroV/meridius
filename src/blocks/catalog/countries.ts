@@ -3,7 +3,7 @@
 // справочник: снести страну вместе с её пиццериями одним махом нельзя).
 import { asc, count, eq } from "drizzle-orm";
 
-import type { Locale } from "@/blocks/core/locale";
+import { isLocale, LOCALES, type Locale } from "@/blocks/core/locale";
 import { countries, getDb, stores } from "@/blocks/data";
 
 import { CatalogError, asDeletionConflict, requireName } from "./errors";
@@ -33,16 +33,20 @@ function countryNotFound(id: string): CatalogError {
   return new CatalogError("notFound", `Страна не найдена: ${id}`);
 }
 
-function isSupportedLocale(value: string): value is Locale {
-  return value === "ru" || value === "en";
-}
-
-/** Язык страны допускает только ru/en — это и языки продукта (D009), и ограничение базы `countries_locale`. */
+/**
+ * Язык страны допускает только языки продукта (D009) — это же и ограничение базы
+ * `countries_locale`.
+ *
+ * Список спрашивается у core, а не пишется здесь заново: своя пара `value === "ru" ||
+ * value === "en"` стояла ровно до T268 и была из тех копий, о которых компилятор молчит.
+ * Третий язык в `LOCALES` доезжает сюда сам — и в отказ тоже, поэтому он перечисляет
+ * языки, а не называет два.
+ */
 function requireLocale(locale: string): Locale {
-  if (!isSupportedLocale(locale)) {
+  if (!isLocale(locale)) {
     throw new CatalogError(
       "localeNotSupported",
-      `Язык «${locale}» не поддержан продуктом: допустимы только ru и en`,
+      `Язык «${locale}» не поддержан продуктом: допустимы только ${LOCALES.join(", ")}`,
     );
   }
   return locale;
@@ -69,8 +73,8 @@ export async function listCountries(): Promise<CountryRow[]> {
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
-    // Безопасно: значение уже прошло через requireLocale при записи и ограничение
-    // базы countries_locale не пускает в столбец ничего, кроме ru/en.
+    // Безопасно: значение уже прошло через requireLocale при записи, и ограничение
+    // базы countries_locale не пускает в столбец ничего, кроме языков продукта.
     locale: row.locale as Locale,
     storeCount: row.storeCount,
   }));
