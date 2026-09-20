@@ -344,22 +344,6 @@ export function ItemRow({
             </span>
           ) : null}
 
-          {/* Регулярность стоит между «чем отвечают» и «насколько важно»: сперва род
-            ответа, потом как часто его дают, и только потом вес пункта. */}
-          {/* Табличный пункт расписания не имеет ни в каком виде: `parseItem`
-            отвергает его, и чип обещал бы настройку, которой не бывает. */}
-          {item.type === "table" ? null : schedule !== undefined ? (
-            <ScheduleChip
-              item={item}
-              window={schedule.window}
-              live={schedule.live}
-              onApply={schedule.onApply}
-              onApplyToSection={schedule.onApplyToSection}
-            />
-          ) : (
-            scheduleView
-          )}
-
           <span
             data-testid="item-severity"
             role="group"
@@ -398,6 +382,26 @@ export function ItemRow({
               </label>
             ))}
           </span>
+
+          {/* Порядок управления в строке взят у эталона (`design/screens/editor.html`,
+            `.editor-item__ctl`): тип → диапазон → важность → регулярность → «×».
+            Прежде чип стоял ПЕРЕД важностью — расхождение было молчаливым, а эталон
+            каноничен для того, что на экране (`spec.md`, «Граница со экранным эталоном»).
+            Довод прежнего порядка («сперва род ответа, потом как часто его дают, и
+            только потом вес пункта») предпочтением и остался: требованием он не был. */}
+          {/* Табличный пункт расписания не имеет ни в каком виде: `parseItem`
+            отвергает его, и чип обещал бы настройку, которой не бывает. */}
+          {item.type === "table" ? null : schedule !== undefined ? (
+            <ScheduleChip
+              item={item}
+              window={schedule.window}
+              live={schedule.live}
+              onApply={schedule.onApply}
+              onApplyToSection={schedule.onApplyToSection}
+            />
+          ) : (
+            scheduleView
+          )}
 
           <button
             type="button"

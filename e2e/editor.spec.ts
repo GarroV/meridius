@@ -379,8 +379,12 @@ test.describe("редактор чек-листа", () => {
     // где-то между сохранением и показом.
     await page.getByRole("link", { name: "Предпросмотр" }).click();
     await expect(page.getByTestId("preview-screen")).toBeVisible();
+    // Тире, а не многоточие: эталон (`design/screens/fill.html`) пишет обычный
+    // диапазон через тире («160–180 °C»), а многоточие бережёт для диапазона через
+    // ноль («+2…+4 °C»), где тире спорило бы со знаком. Проверка держит именно знак:
+    // на нём разошлись эталон и продукт, и ловится это только здесь (T197).
     await expect(page.getByTestId("preview-item").first()).toContainText(
-      "160…180 °C",
+      "160–180 °C",
     );
   });
 

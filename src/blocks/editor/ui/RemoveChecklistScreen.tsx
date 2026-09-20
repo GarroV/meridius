@@ -24,10 +24,16 @@ import { EditorInputError } from "../validation";
 
 const CARD_CLASS =
   "bg-surface flex max-w-2xl flex-col gap-[var(--space-6)] rounded-[var(--r-block)] border border-[var(--line-strong)] p-[var(--space-8)] shadow-[var(--sh-xs)]";
+// `.btn--danger` эталона: в ПОКОЕ только рамка и красная подпись, заливка `--err-soft`
+// приходит по наведению. Оба слоя эталона тут согласны (`app.css` .btn--danger:hover,
+// `reference/components.css` то же), а продукт держал заливку постоянно — то есть кнопка
+// выглядела нажатой всегда. Насыщенность самого действия этим не теряется: рядом нет
+// второй красной кнопки, а подпись и рамка остались красными.
 const BTN_DANGER_CLASS =
-  "inline-flex h-[var(--control-h)] items-center justify-center rounded-[var(--r-control)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-err hover:border-[var(--err)]";
+  "inline-flex h-[var(--control-h)] items-center justify-center rounded-[var(--r-control)] border border-[var(--err-line)] bg-transparent px-[var(--space-6)] text-[length:var(--fs-body)] font-semibold text-err hover:bg-[var(--err-soft)]";
+// `.btn--ghost` эталона: рамка ПРОЗРАЧНАЯ (оба слоя согласны), фон приходит по наведению.
 const BTN_GHOST_CLASS =
-  "inline-flex h-[var(--control-h)] items-center justify-center rounded-[var(--r-control)] border border-[var(--line-control)] bg-transparent px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-ink";
+  "inline-flex h-[var(--control-h)] items-center justify-center rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-ink";
 
 export async function RemoveChecklistScreen({
   id,
@@ -76,9 +82,17 @@ export async function RemoveChecklistScreen({
           </span>
         </div>
 
+        {/*
+          Последствия необратимого действия эталон говорит ПЛАШКОЙ, а не серым абзацем:
+          единственный его образец опасного действия (`design/screens/states.html`,
+          «Опасное действие: перевыпуск кода») ставит текст в `.notice.notice--warn`.
+          Тем же тоном продукт уже говорит о закрытом окне в редакторе, так что здесь
+          серый абзац был единственным местом, где предупреждение выглядело обычным
+          текстом.
+        */}
         <p
           data-testid="remove-checklist-explanation"
-          className="text-ink-2 m-0 text-[length:var(--fs-body)] leading-[var(--lh-body)]"
+          className="m-0 rounded-[var(--r-block)] border border-[var(--warn-line)] bg-[var(--warn-soft)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)] leading-[var(--lh-body)] text-[var(--warn-ink)]"
         >
           {explanation}
         </p>

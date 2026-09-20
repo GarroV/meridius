@@ -330,7 +330,7 @@
       "left": "{count, plural, one {# item left} other {# items left}}",
       "finish": "Finish",
       "critical": "Critical item",
-      "range": "{min}…{max}",
+      "range": "{min}–{max}",
       "empty": "The draft has no items yet",
       "major": "Major item",
       "rounds": "Checked on rounds",
