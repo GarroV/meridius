@@ -91,8 +91,15 @@ function visibleSections(sections: readonly Section[]): Section[] {
 /** Порядок переключателя режима: полная смена слева, критичная справа. */
 const MODES: readonly ShiftMode[] = ["normal", "reduced", "critical"];
 
+// `whitespace-nowrap` — не подгонка под длину русской подписи, а правило эталона:
+// переключатель среза держит его и в `components.css` (`.seg__item`), и на самом
+// экране редактора (`editor.html`, `.seg`). Без него «С ОГРАНИЧЕНИЯМИ» ломалась в две
+// строки, соседние «Обычная» и «Критичная» оставались в одну, и ровная линия
+// переключателя пропадала. Ширины при этом перестают быть равными: `flex-1` не
+// сжимает ребро ниже его содержимого (`min-width: auto`), и это тоже эталонное
+// поведение — `.seg__opt` там растёт под подпись, а не делит дорожку поровну.
 const MODE_BAR_CLASS =
-  "mx-auto mt-[var(--space-5)] flex max-w-[420px] gap-[2px] rounded-[var(--r-control)] bg-[var(--seg-track)] p-[2px]";
+  "mx-auto mt-[var(--space-5)] flex max-w-[420px] gap-[2px] rounded-[var(--r-control)] bg-[var(--seg-track)] p-[2px] whitespace-nowrap";
 const MODE_TAB_CLASS =
   "flex-1 rounded-[var(--r-mark)] px-[var(--space-4)] py-[var(--space-3)] text-center text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] uppercase";
 const MODE_TAB_ON_CLASS = "bg-surface text-[var(--ink)] shadow-[var(--sh-xs)]";

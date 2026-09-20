@@ -114,13 +114,13 @@ const ROW_LINE_CLASS = "border-b border-[var(--line)]";
 const TITLE_CLASS =
   "text-ink h-[var(--control-h)] w-full rounded-[var(--r-control)] border border-transparent bg-transparent pl-[var(--space-3)] text-[length:var(--fs-lead)] hover:border-[var(--line)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const SELECT_CLASS =
-  "text-ink bg-surface h-[var(--control-h-sm)] w-auto rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-4)] text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:outline-none";
+  "text-ink bg-surface h-[var(--control-h-sm)] w-auto rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-4)] text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const BOUND_CLASS =
-  "text-ink bg-surface h-[var(--control-h-sm)] w-[62px] rounded-[var(--r-control)] border border-[var(--line-control)] text-center font-[family-name:var(--font-num)] text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:outline-none";
+  "text-ink bg-surface h-[var(--control-h-sm)] w-[62px] rounded-[var(--r-control)] border border-[var(--line-control)] text-center font-[family-name:var(--font-num)] text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 // Свободный текст (D110), поэтому без `--font-num`: единица — «°C», «кг», «шт», не
 // цифры. Шире границы диапазона — там 2-3 знака, тут короткое слово.
 const UNIT_CLASS =
-  "text-ink bg-surface h-[var(--control-h-sm)] w-[72px] rounded-[var(--r-control)] border border-[var(--line-control)] text-center text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:outline-none";
+  "text-ink bg-surface h-[var(--control-h-sm)] w-[72px] rounded-[var(--r-control)] border border-[var(--line-control)] text-center text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 
 const ITEM_TYPES: readonly ItemType[] = ["bool", "number", "text"];
 const ITEM_TYPES_WITH_TABLE: readonly ItemType[] = [...ITEM_TYPES, "table"];

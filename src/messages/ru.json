@@ -268,7 +268,7 @@
       "hint": "Строки заводит сотрудник при заполнении"
     },
     "schedule": {
-      "chipOnce": "Разово",
+      "chipOnce": "Один раз",
       "chipSingle": "{from}–{to}, {step}",
       "chipMany": "{count, plural, one {# отрезок} few {# отрезка} many {# отрезков} other {# отрезка}}",
       "open": "Настроить регулярность пункта",
