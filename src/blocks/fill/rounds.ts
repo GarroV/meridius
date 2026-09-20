@@ -17,7 +17,8 @@ import {
 import type { AnswerValue, Item, Section } from "@/blocks/data";
 
 import { checkRoundAllowed } from "./rate-limit";
-import { findStationVersion, isPlausibleCode } from "./station";
+import { isPlausibleCode } from "./params";
+import { findStationVersion } from "./station";
 import type { FillRefusal, Parsed } from "./validation";
 import { FILL_INPUT_LIMITS, UUID_PATTERN } from "./validation";
 

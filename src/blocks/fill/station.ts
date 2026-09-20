@@ -24,25 +24,11 @@ import {
 } from "@/blocks/data";
 
 import type { FillChoiceOption } from "./model";
+import { isPlausibleCode } from "./params";
 import { formatWindow } from "./view";
-
-/**
- * Границы кода до похода в базу. Алфавит кода ведёт блок `catalog`, и повторять его
- * здесь нельзя — он может смениться. Это не проверка формата, а заслон от заведомого
- * мусора: 64 знака и только буквы с цифрами. Всё, что длиннее или с посторонними
- * знаками, до запроса не доходит.
- */
-const CODE_MAX_LENGTH = 64;
-const CODE_SHAPE = /^[\dA-Za-z-]+$/;
 
 const UUID_PATTERN =
   /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
-
-export function isPlausibleCode(code: string): boolean {
-  return (
-    code.length > 0 && code.length <= CODE_MAX_LENGTH && CODE_SHAPE.test(code)
-  );
-}
 
 /** Открытая версия станции и минимум вокруг неё: названия пиццерии и станции. */
 interface FillTargetReady {

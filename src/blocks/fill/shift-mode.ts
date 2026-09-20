@@ -11,7 +11,8 @@ import type { ShiftMode } from "@/blocks/data";
 import { isShiftMode, setShiftMode } from "@/blocks/data";
 
 import { checkShiftModeAllowed } from "./rate-limit";
-import { isPlausibleCode, storeIdForCode } from "./station";
+import { isPlausibleCode } from "./params";
+import { storeIdForCode } from "./station";
 
 /**
  * Верхняя граница на число людей в смене. Это не бизнес-правило, а заслон от

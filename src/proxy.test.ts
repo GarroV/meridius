@@ -135,9 +135,7 @@ function rewrittenRequestHeader(
   header: string,
 ): string | null {
   const rewritten = response.headers.get("x-middleware-override-headers");
-  if (rewritten === null || !rewritten.split(",").includes(header)) {
-    return null;
-  }
+  if (!rewritten?.split(",").includes(header)) return null;
   return response.headers.get(`x-middleware-request-${header}`);
 }
 

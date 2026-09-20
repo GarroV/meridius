@@ -141,28 +141,28 @@ describe("граница ошибки продукта", () => {
   });
 });
 
-describe("сколько в продукте корней документа", () => {
-  /**
-   * Файлы разметки под `src/app`, которые рисуют `<html>` сами.
-   *
-   * Обход рекурсивный и по всему дереву маршрутов нарочно: группа маршрутов —
-   * это просто папка в скобках, и новый корень появляется добавлением одного файла
-   * в любой её глубине.
-   */
-  function documentRoots(): string[] {
-    const appRoot = join(REPO_ROOT, "src/app");
-    return readdirSync(appRoot, { recursive: true })
-      .map(String)
-      .filter((entry) => entry.endsWith(".tsx"))
-      .filter((entry) =>
-        /<html[\s>]/.test(
-          withoutComments(readFileSync(join(appRoot, entry), "utf8")),
-        ),
-      )
-      .map((entry) => `src/app/${entry.split("\\").join("/")}`)
-      .sort();
-  }
+/**
+ * Файлы разметки под `src/app`, которые рисуют `<html>` сами.
+ *
+ * Обход рекурсивный и по всему дереву маршрутов нарочно: группа маршрутов —
+ * это просто папка в скобках, и новый корень появляется добавлением одного файла
+ * в любой её глубине.
+ */
+function documentRoots(): string[] {
+  const appRoot = join(REPO_ROOT, "src/app");
+  return readdirSync(appRoot, { recursive: true })
+    .map(String)
+    .filter((entry) => entry.endsWith(".tsx"))
+    .filter((entry) =>
+      /<html[\s>]/.test(
+        withoutComments(readFileSync(join(appRoot, entry), "utf8")),
+      ),
+    )
+    .map((entry) => `src/app/${entry.split("\\").join("/")}`)
+    .sort();
+}
 
+describe("сколько в продукте корней документа", () => {
   test("<html> рисуют ровно два файла — и это не придирка к числу", () => {
     // Next разрешает НЕСКОЛЬКО корневых разметок — через группы маршрутов (`app/(имя)/`),
     // и соблазн понятен: публичному экрану заполнения нужен свой язык документа (T270).
