@@ -53,35 +53,36 @@ export function EditorStatus({
   if (publishState.status === "published") {
     const closed = publishState.closedWindow;
     // Окно оказалось закрыто — версия создана, но сегодня её на станции никто не
-    // увидит. Это не отказ (красный), а предупреждение: плашка `.notice--warn`
-    // эталона. Говорится оно ЗДЕСЬ, у кнопки, а не только в подсказке справа,
-    // потому что подсказка посчитана при отрисовке страницы и к мгновению нажатия
-    // могла устареть; это состояние сервер считает в миг публикации (T275).
-    if (closed !== undefined) {
-      return (
-        <span
-          role="status"
-          data-testid="editor-published-closed-window"
-          className={WARN_CLASS}
-        >
-          {`${t("screen.published", { number: publishState.versionNumber ?? 0 })} ${t(
-            closed.tomorrow
-              ? "notice.windowClosedTomorrow"
-              : "notice.windowClosedToday",
-            {
-              start: closed.start,
-              end: closed.end,
-              now: closed.now,
-              opensAt: closed.opensAt,
-            },
-          )}`}
-        </span>
-      );
-    }
-
+    // увидит. Это не отказ (он красный), а предупреждение: плашка `.notice--warn`
+    // эталона. Сказано оно ЗДЕСЬ, у кнопки, а не только подсказкой справа, потому
+    // что подсказка посчитана при отрисовке страницы и к мгновению нажатия могла
+    // устареть; это состояние сервер считает в миг публикации (T275).
+    //
+    // Опознаватель `editor-published` остаётся на месте в ОБОИХ случаях: иначе
+    // сценарии, публикующие в обычное окно, краснели бы в зависимости от часа
+    // прогона — предупреждение появлялось бы вместо подтверждения.
     return (
-      <span data-testid="editor-published" className={META_CLASS}>
+      <span
+        data-testid="editor-published"
+        {...(closed === undefined ? {} : { role: "status" })}
+        className={closed === undefined ? META_CLASS : WARN_CLASS}
+      >
         {t("screen.published", { number: publishState.versionNumber ?? 0 })}
+        {closed === undefined ? null : (
+          <span data-testid="editor-closed-window">
+            {` · ${t(
+              closed.tomorrow
+                ? "notice.windowClosedTomorrow"
+                : "notice.windowClosedToday",
+              {
+                start: closed.start,
+                end: closed.end,
+                now: closed.now,
+                opensAt: closed.opensAt,
+              },
+            )}`}
+          </span>
+        )}
       </span>
     );
   }
