@@ -24,8 +24,8 @@ import { headers } from "next/headers";
 import { cache } from "react";
 
 import type { Locale } from "@/blocks/core/locale";
+import { storeLocales } from "@/blocks/core/store-locale";
 
-import { pickFillLocales } from "./locale";
 import {
   checkScanAllowed,
   identifyClient,
@@ -39,7 +39,7 @@ const ACCEPT_LANGUAGE = "accept-language";
 export interface FillLanguage {
   /**
    * Цепочка языков по убыванию предпочтения — для текстов самого чек-листа: методист мог
-   * завести пункт только на одном языке (см. `pickFillLocales`).
+   * завести пункт только на одном языке (см. `core/store-locale.ts`).
    */
   readonly locales: readonly Locale[];
   /** Язык интерфейса И язык документа: одно значение, поэтому разойтись им негде. */
@@ -110,7 +110,7 @@ export const fillLanguage = cache(
     // телефон, а за ним язык продукта. Так же считается и отказ по неизвестному коду:
     // за подобранным кодом пиццерии нет никакой, брать язык неоткуда.
     const countryLocale = tooOften ? null : await countryLocaleOrNone(code);
-    const locales = pickFillLocales(acceptLanguage, countryLocale);
+    const locales = storeLocales(acceptLanguage, countryLocale);
 
     // Первое звено цепочки — язык интерфейса, и оно есть всегда: тип цепочки это и
     // говорит, поэтому запасного варианта здесь нет. Он был бы веткой, в которую
