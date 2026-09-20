@@ -140,4 +140,4 @@ stationScanUrl(origin: string, code: string): string // ссылка накле�
 
 ## Статус
 
-todo
+done
