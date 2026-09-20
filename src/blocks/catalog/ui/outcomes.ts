@@ -1,6 +1,11 @@
 // Решения серверных действий, вынесенные из самих действий: файл действий помечен
 // `"use server"` и может экспортировать только асинхронные функции, то есть его логику
 // нечем проверить тестом. Здесь она обычная и проверяется.
+import {
+  decideReissue,
+  type ReissueDecision,
+} from "@/blocks/core/reissue-confirmation";
+
 import { CatalogError } from "../errors";
 import { catalogHref, qrStationsHref, type CatalogView } from "./view";
 
@@ -39,62 +44,36 @@ export interface ReissueRequest {
   readonly confirmed: boolean;
 }
 
-/**
- * Что делать с запросом: сперва спросить или уже перевыпускать и вести на печать.
- *
- * Обе ветки несут с собой ВСЁ, что понадобится действию, — адрес окна, станцию,
- * адрес печати и место в дереве на случай отказа. Собирать это в самом действии
- * значило бы держать половину решения в `"use server"`, где её нечем проверить.
- */
-export type ReissueOutcome =
-  | { readonly kind: "confirm"; readonly view: CatalogView }
-  | {
-      readonly kind: "reissue";
-      readonly stationId: string;
-      readonly doneHref: string;
-      /** Куда вернуть, если перевыпуск не удался: то же место дерева. */
-      readonly failView: CatalogView;
-    };
+/** Решение о перевыпуске в понятиях справочника: место в дереве вместо абстракции. */
+export type ReissueOutcome = ReissueDecision<CatalogView>;
 
 /**
  * Перевыпуск кода станции в два шага: подтверждение, потом сам перевыпуск (T260).
  *
- * Почему правило стоит здесь, а не в разметке. Перевыпуск необратим и бьёт не по
- * экрану, а по бумаге: все напечатанные наклейки станции перестают работать в ту же
- * секунду, а узнают об этом сотрудники у стойки. Одна кнопка `submit` без вопроса —
- * это один промах мышью до такого исхода (T260: `dmcsfrn672` → `b9c72yb6xd`). Правило
- * в разметке защищало бы только ту разметку, где о нём вспомнили; правило в решении
- * действия закрывает и прямую отправку формы мимо экрана.
+ * Сама развилка сюда не переписана — она общая на оба экрана продукта и живёт в
+ * `core/reissue-confirmation.ts` (T266: тот же перевыпуск запускается ещё и с листа
+ * печати). Здесь остаётся только то, что у справочника своё: откуда он задаёт вопрос
+ * и куда возвращается, — место в дереве с фокусом на станции.
  *
- * Тот же порядок, что у удаления станции (`submitDeleteStation`): неподтверждённый
- * запрос ничего не меняет, а уводит экран в состояние подтверждения.
- *
- * После подтверждения экран не возвращается в справочник, а открывает печать новой
- * наклейки: обещание кнопки — «перевыпустить И открыть печать», и без второго шага
- * методист уходит со старой наклейкой на станции и новым кодом в базе.
+ * Почему правило стоит в решении действия, а не в разметке кнопки, и почему успех
+ * уводит на печать наклейки — там же, в общем правиле.
  */
 export function reissueOutcome(request: ReissueRequest): ReissueOutcome {
   const { countryId, storeId, stationId, confirmed } = request;
-
-  if (!confirmed) {
-    return {
-      kind: "confirm",
-      view: {
-        countryId,
-        storeId,
-        stationId,
-        focus: "station",
-        confirm: "reissue",
-      },
-    };
-  }
-
-  return {
-    kind: "reissue",
+  const place: CatalogView = {
+    countryId,
+    storeId,
     stationId,
-    doneHref: qrStationsHref({ storeId, stationId }),
-    failView: { countryId, storeId, stationId, focus: "station" },
+    focus: "station",
   };
+
+  return decideReissue({
+    stationId,
+    confirmed,
+    ask: { ...place, confirm: "reissue" },
+    doneHref: qrStationsHref({ storeId, stationId }),
+    fail: place,
+  });
 }
 
 /**

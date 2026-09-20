@@ -3,12 +3,16 @@ import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
+import { ConfirmDialog } from "@/blocks/core/ui/ConfirmDialog";
 
-import { submitDeleteStation, submitDeleteStore } from "./actions";
+import {
+  submitDeleteStation,
+  submitDeleteStore,
+  submitReissueCode,
+} from "./actions";
 import { CatalogTree } from "./CatalogTree";
 import { DetailCards } from "./DetailCards";
 import type { CatalogModel, StationDetail, StoreDetail } from "./model";
-import { ReissueDialog } from "./ReissueDialog";
 
 /**
  * Экран справочника «Страны и пиццерии» (T018) — сборка каркаса, дерева и
@@ -187,10 +191,14 @@ function ReissueConfirm({
   }
 
   return (
-    <ReissueDialog
-      stationId={station.id}
-      countryId={countryId}
-      storeId={storeId}
+    <ConfirmDialog
+      name="reissue"
+      action={submitReissueCode}
+      fields={{
+        [FIELD_ID]: station.id,
+        [FIELD_COUNTRY_ID]: countryId,
+        [FIELD_STORE_ID]: storeId,
+      }}
       title={t("confirm.reissueTitle", { name: station.name })}
       warning={t("confirm.reissueBody")}
       confirmLabel={t("actions.confirmReissue")}
