@@ -88,18 +88,28 @@ function deviceLocale(
 export function pickFillLocales(
   acceptLanguage: string | null | undefined,
   countryLocale: string | null | undefined,
-): readonly Locale[] {
+): readonly [Locale, ...Locale[]] {
   const candidates: (Locale | null)[] = [
     isLocale(countryLocale) ? countryLocale : null,
     deviceLocale(acceptLanguage),
-    FILL_LAST_RESORT_LOCALE,
   ];
 
-  const chain: Locale[] = [];
+  const preferred: Locale[] = [];
   for (const candidate of candidates) {
-    if (candidate !== null && !chain.includes(candidate)) chain.push(candidate);
+    if (candidate !== null && !preferred.includes(candidate)) {
+      preferred.push(candidate);
+    }
   }
-  return chain;
+
+  // Последнее звено — язык продукта, и оно приписывается ЗДЕСЬ, а не стоит третьим
+  // кандидатом: так цепочка непустая ПО ТИПУ, а не по обещанию в комментарии. Разница
+  // не косметическая — зовущему иначе нужен запасной вариант на случай, которого не
+  // бывает, то есть ветка, которую нечем проверить. А непроверяемая ветка однажды
+  // оказывается неверной молча: ровно так в этом файле и жила буква «ru» (#129).
+  const [first, ...rest] = preferred;
+  if (first === undefined) return [FILL_LAST_RESORT_LOCALE];
+  if (preferred.includes(FILL_LAST_RESORT_LOCALE)) return [first, ...rest];
+  return [first, ...rest, FILL_LAST_RESORT_LOCALE];
 }
 
 /**

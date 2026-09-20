@@ -25,7 +25,7 @@ import { cache } from "react";
 
 import type { Locale } from "@/blocks/core/locale";
 
-import { FILL_LAST_RESORT_LOCALE, pickFillLocales } from "./locale";
+import { pickFillLocales } from "./locale";
 import {
   checkScanAllowed,
   identifyClient,
@@ -112,12 +112,9 @@ export const fillLanguage = cache(
     const countryLocale = tooOften ? null : await countryLocaleOrNone(code);
     const locales = pickFillLocales(acceptLanguage, countryLocale);
 
-    return {
-      locales,
-      // Цепочка непустая по построению, но запасное звено здесь не буква: буква «ru»
-      // пережила бы смену правила молча — ровно так и разъехались два умолчания (#129).
-      locale: locales[0] ?? FILL_LAST_RESORT_LOCALE,
-      tooOften,
-    };
+    // Первое звено цепочки — язык интерфейса, и оно есть всегда: тип цепочки это и
+    // говорит, поэтому запасного варианта здесь нет. Он был бы веткой, в которую
+    // никогда не заходят, — то есть непроверяемой.
+    return { locales, locale: locales[0], tooOften };
   },
 );
