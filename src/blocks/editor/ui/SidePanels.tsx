@@ -140,8 +140,20 @@ export function LibraryPanel({
 // Плашка эталона `.notice` и её предупреждающий вид `.notice--warn` (design/app.css):
 // один элемент в двух тонах, а не два разных элемента. Тем же приёмом — основа плюс
 // тон — плашка построена в `core/ui/StateScreen`.
+//
+// Направление `flex-col` — отступление от эталона, принятое осознанно (T277). У
+// эталонной `.notice` направление по умолчанию, то есть строка, но во ВСЕХ её
+// примерах ребёнок ровно один (`design/screens/editor.html:268`), поэтому ни
+// направление, ни зазор там не проявляются. T275 добавила второй ребёнок — строку
+// про окно времени, — и в строчном направлении привязка к станции и вердикт об окне
+// встали бы двумя колонками рядом. Для двухстрочного случая эталон ответа не даёт,
+// столбец — его единственное прочтение.
+//
+// Зазор, наоборот, приведён к эталонному `--space-5`: с появлением второй строки он
+// стал видимым, а `--space-4` был выбран молча и спорил с той же плашкой в
+// `PreviewScreen.tsx` того же блока.
 const NOTICE_BASE_CLASS =
-  "flex flex-col gap-[var(--space-4)] rounded-[var(--r-block)] border px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)]";
+  "flex flex-col gap-[var(--space-5)] rounded-[var(--r-block)] border px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)]";
 const NOTICE_PLAIN_CLASS = `${NOTICE_BASE_CLASS} bg-surface-2 border-[var(--line-strong)]`;
 const NOTICE_WARN_CLASS = `${NOTICE_BASE_CLASS} border-[var(--warn-line)] bg-[var(--warn-soft)] text-[var(--warn-ink)]`;
 
