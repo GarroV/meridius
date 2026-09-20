@@ -80,7 +80,10 @@ function paintedRing(ring: Ring): readonly Paint[] {
  * но она цвета самой кнопки. Прозрачная заливка (ссылка, пункт меню) сравнению не мешает:
  * сравнивать не с чем, и кольцо видно по определению.
  */
-async function expectVisibleRing(target: Locator, where: string): Promise<Ring> {
+async function expectVisibleRing(
+  target: Locator,
+  where: string,
+): Promise<Ring> {
   const ring = await ringOf(target);
   expect(
     ring.focusVisible,
@@ -120,7 +123,11 @@ async function referenceRing(page: Page): Promise<string> {
  * Табуляция до цели — ровно путь человека из задачи. Возвращает признак, а не молчит:
  * недостижимая цель обязана красить проверку в красный, а не оставлять её без замера.
  */
-async function tabTo(page: Page, target: Locator, limit = 60): Promise<boolean> {
+async function tabTo(
+  page: Page,
+  target: Locator,
+  limit = 60,
+): Promise<boolean> {
   await target.waitFor();
   for (let step = 0; step < limit; step += 1) {
     await page.keyboard.press("Tab");
@@ -162,7 +169,12 @@ test.describe("акцентная кнопка под фокусом получ�
   for (const theme of THEMES) {
     test(`тема «${theme}»`, async ({ page, context }) => {
       await context.addCookies([
-        { name: THEME_COOKIE_NAME, value: theme, domain: "localhost", path: "/" },
+        {
+          name: THEME_COOKIE_NAME,
+          value: theme,
+          domain: "localhost",
+          path: "/",
+        },
       ]);
       await signIn(page);
 
@@ -186,7 +198,9 @@ test.describe("акцентная кнопка под фокусом получ�
           reference,
           `эталон не дал --focus-ring: сверять было бы не с чем, ${where}`,
         ).not.toBe("none");
-        expect(ring.boxShadow, `кольцо не из эталона: ${where}`).toBe(reference);
+        expect(ring.boxShadow, `кольцо не из эталона: ${where}`).toBe(
+          reference,
+        );
       }
     });
   }
@@ -202,7 +216,12 @@ test.describe("остальные органы кольца не потерял�
   for (const theme of THEMES) {
     test(`тема «${theme}»`, async ({ page, context }) => {
       await context.addCookies([
-        { name: THEME_COOKIE_NAME, value: theme, domain: "localhost", path: "/" },
+        {
+          name: THEME_COOKIE_NAME,
+          value: theme,
+          domain: "localhost",
+          path: "/",
+        },
       ]);
 
       // Сначала — экран входа: до него человек ещё не вошёл, и гасить сессию не нужно.

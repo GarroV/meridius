@@ -251,9 +251,9 @@ describe("сторож крючка акцентной заливки", () => {
 
 describe("rawAccentFills", () => {
   it("находит заливку, написанную произвольным значением", () => {
-    expect(
-      rawAccentFills('className="bg-[var(--accent)] text-ink"'),
-    ).toEqual(["bg-[var(--accent)]"]);
+    expect(rawAccentFills('className="bg-[var(--accent)] text-ink"')).toEqual([
+      "bg-[var(--accent)]",
+    ]);
   });
 
   it("не путает с утилитой и с соседними токенами акцента", () => {
