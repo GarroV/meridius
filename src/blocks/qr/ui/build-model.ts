@@ -6,6 +6,8 @@ import {
   listStores,
   type StoreRow,
 } from "@/blocks/catalog";
+import type { Locale } from "@/blocks/core/locale";
+import { storeLocale } from "@/blocks/core/store-locale";
 
 import { stationQrSvg } from "../svg";
 import type {
@@ -27,6 +29,32 @@ import {
 interface FoundStore {
   readonly store: StoreRow;
   readonly countryName: string;
+  /** Язык страны пиццерии как он лежит в справочнике — сырьё для `storeLocale`. */
+  readonly countryLocale: Locale;
+}
+
+/**
+ * Что о запросе знает страница и не должен узнавать сам слой.
+ *
+ * Три факта едут вместе, потому что все три — про ОДИН запрос, и ни один из них слою
+ * не добыть: адрес площадки и базовый путь приходят из окружения (D045), язык
+ * устройства — из заголовка. Раньше они стояли позиционными аргументами, и третий
+ * добавился бы четвёртым — то есть зовущий передавал бы `""` ради того, чтобы
+ * добраться до языка.
+ */
+export interface QrRequest {
+  /** Адрес, который попадёт внутрь кода наклейки (`https://host`). */
+  readonly origin: string;
+  /** Базовый путь площадки: продукт бывает опубликован не на корне адреса (D045). */
+  readonly basePath?: string;
+  /**
+   * Заголовок `Accept-Language` запроса — язык УСТРОЙСТВА, а не ответ на вопрос о
+   * языке. Решает его `core/store-locale.ts`: у известной пиццерии язык её, и это
+   * звено не срабатывает вовсе. Оно нужно там, где пиццерии нет (выбор пиццерии) и
+   * на случай, если правило языка однажды поменяется, — тогда меняться будет одно
+   * место, а не это плюс наклейка.
+   */
+  readonly acceptLanguage?: string | null;
 }
 
 /**
@@ -41,7 +69,13 @@ async function findStore(storeId: string): Promise<FoundStore | null> {
   for (const country of await listCountries()) {
     const stores = await listStores(country.id);
     const store = stores.find((candidate) => candidate.id === storeId);
-    if (store !== undefined) return { store, countryName: country.name };
+    if (store !== undefined) {
+      return {
+        store,
+        countryName: country.name,
+        countryLocale: country.locale,
+      };
+    }
   }
   return null;
 }
@@ -106,9 +140,9 @@ async function stationViews(
  */
 export async function buildQrModel(
   view: QrView,
-  origin: string,
-  basePath = "",
+  request: QrRequest,
 ): Promise<QrModel> {
+  const { origin, basePath = "" } = request;
   const errorCode = view.error ?? null;
   const storeId = view.storeId;
 
@@ -131,6 +165,11 @@ export async function buildQrModel(
       name: found.store.name,
       countryName: found.countryName,
       timezone: found.store.timezone,
+      // Язык печатных материалов этой пиццерии. Спрашивается у общего правила, а не
+      // берётся полем страны: «поверхность пиццерии говорит языком своей страны» —
+      // это одно решение на продукт (D122), и своя его копия здесь разошлась бы с
+      // экраном заполнения молча, как уже расходились #133 и T268.
+      locale: storeLocale(request.acceptLanguage, found.countryLocale),
     },
     stations,
     // Станция чужой пиццерии выбором не становится: список уже сужен до своих.
@@ -147,9 +186,9 @@ export async function buildQrModel(
 /** Что показывает полноэкранный QR планшета. Неизвестная станция — `null`. */
 export async function buildScreenModel(
   ref: StationRef,
-  origin: string,
-  basePath = "",
+  request: QrRequest,
 ): Promise<QrScreenModel | null> {
+  const { origin, basePath = "" } = request;
   const found = await findStore(ref.storeId);
   if (found === null) return null;
 
@@ -161,6 +200,9 @@ export async function buildScreenModel(
   return {
     stationName: station.name,
     storeName: found.store.name,
+    // Тот же вопрос и тот же ответчик, что у печатного листа: планшет и наклейка
+    // одной станции обязаны говорить на одном языке.
+    locale: storeLocale(request.acceptLanguage, found.countryLocale),
     code: station.code,
     svg: stationQrSvg(station.code, origin, basePath),
     codeHref: qrCodeHref(ref),

@@ -84,7 +84,13 @@ export async function QrSheetScreen({
                 </span>
               </div>
               <div className={SHEET_BODY_CLASS}>
-                <PrintSheet stations={model.stations} storeName={store.name} />
+                {/* Лист говорит языком ПИЦЦЕРИИ, а карточка вокруг — языком
+                    методиста: на бумагу идёт только лист (T273). */}
+                <PrintSheet
+                  stations={model.stations}
+                  storeName={store.name}
+                  locale={store.locale}
+                />
               </div>
             </div>
           </div>

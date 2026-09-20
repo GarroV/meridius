@@ -66,7 +66,10 @@ describe("что показывает лист печати", () => {
   test("на каждую станцию пиццерии приходит своя наклейка со своим кодом", async () => {
     const data = await fixture();
 
-    const model = await buildQrModel({ storeId: data.storeId }, ORIGIN);
+    const model = await buildQrModel(
+      { storeId: data.storeId },
+      { origin: ORIGIN },
+    );
 
     expect(model.scanOrigin).toBe(ORIGIN);
     expect(model.store?.name).toBe(data.storeName);
@@ -86,7 +89,10 @@ describe("что показывает лист печати", () => {
   test("картинка наклейки — код именно этой станции, а не соседней", async () => {
     const data = await fixture();
 
-    const model = await buildQrModel({ storeId: data.storeId }, ORIGIN);
+    const model = await buildQrModel(
+      { storeId: data.storeId },
+      { origin: ORIGIN },
+    );
     const [first, second] = model.stations;
 
     expect(first?.svg).not.toBe(second?.svg);
@@ -96,10 +102,13 @@ describe("что показывает лист печати", () => {
     const data = await fixture();
     const last = data.stations.at(-1)?.id;
 
-    const auto = await buildQrModel({ storeId: data.storeId }, ORIGIN);
+    const auto = await buildQrModel(
+      { storeId: data.storeId },
+      { origin: ORIGIN },
+    );
     const picked = await buildQrModel(
       { storeId: data.storeId, stationId: last },
-      ORIGIN,
+      { origin: ORIGIN },
     );
 
     expect(auto.selected?.name).toBe(data.sortedNames[0]);
@@ -115,7 +124,7 @@ describe("что показывает лист печати", () => {
 
     const model = await buildQrModel(
       { storeId: data.storeId, stationId: alien.id },
-      ORIGIN,
+      { origin: ORIGIN },
     );
 
     expect(model.selected?.id).not.toBe(alien.id);
@@ -125,7 +134,7 @@ describe("что показывает лист печати", () => {
   test("без пиццерии в адресе экран предлагает выбрать её из списка", async () => {
     const data = await fixture();
 
-    const model = await buildQrModel({}, ORIGIN);
+    const model = await buildQrModel({}, { origin: ORIGIN });
 
     expect(model.store).toBeNull();
     expect(model.stations).toHaveLength(0);
@@ -137,14 +146,20 @@ describe("что показывает лист печати", () => {
   });
 
   test("выдуманная пиццерия в адресе не подставляет чужую", async () => {
-    const model = await buildQrModel({ storeId: randomUUID() }, ORIGIN);
+    const model = await buildQrModel(
+      { storeId: randomUUID() },
+      { origin: ORIGIN },
+    );
 
     expect(model.store).toBeNull();
     expect(model.stations).toHaveLength(0);
   });
 
   test("код отказа из адреса доходит до экрана", async () => {
-    const model = await buildQrModel({ error: "codeCollision" }, ORIGIN);
+    const model = await buildQrModel(
+      { error: "codeCollision" },
+      { origin: ORIGIN },
+    );
 
     expect(model.errorCode).toBe("codeCollision");
   });
@@ -156,7 +171,7 @@ describe("что показывает лист печати", () => {
 
     const model = await buildQrModel(
       { storeId: data.storeId, stationId: target, confirm: CONFIRM_REISSUE },
-      ORIGIN,
+      { origin: ORIGIN },
     );
 
     expect(
@@ -171,7 +186,7 @@ describe("что показывает лист печати", () => {
 
     const model = await buildQrModel(
       { storeId: data.storeId, stationId: target },
-      ORIGIN,
+      { origin: ORIGIN },
     );
 
     expect(model.confirming).toBeNull();
@@ -190,7 +205,7 @@ describe("что показывает лист печати", () => {
         stationId: alien.id,
         confirm: CONFIRM_REISSUE,
       },
-      ORIGIN,
+      { origin: ORIGIN },
     );
 
     expect(
@@ -215,7 +230,7 @@ describe("что показывает экран планшета", () => {
 
     const model = await buildScreenModel(
       { storeId: data.storeId, stationId: station.id },
-      ORIGIN,
+      { origin: ORIGIN },
     );
 
     expect(model?.storeName).toBe(data.storeName);
@@ -234,7 +249,7 @@ describe("что показывает экран планшета", () => {
 
     const model = await buildScreenModel(
       { storeId: data.storeId, stationId: alien.id },
-      ORIGIN,
+      { origin: ORIGIN },
     );
 
     expect(model).toBeNull();
