@@ -17,10 +17,9 @@
 // у нас нет». Здесь эти два случая надо различать: во втором телефон не сказал ничего,
 // и подставлять за него язык продукта нельзя — он встал бы перед языком пиццерии.
 // Поэтому здесь своя функция, отвечающая `null` на «ничего из нашего не просили»,
-// а список поддержанных языков и их тип по-прежнему берутся из core.
-import { DEFAULT_LOCALE, type Locale } from "@/blocks/core/locale";
-
-const SUPPORTED: readonly Locale[] = ["ru", "en"];
+// а сам вопрос «продукт говорит на этом языке?» задаётся core: здесь стоял свой список
+// языков, написанный буквами, и он молча не знал бы про третий язык (T268, issue #133).
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@/blocks/core/locale";
 
 /**
  * Последнее звено цепочки — язык продукта, а не второе умолчание рядом с ним.
@@ -42,10 +41,6 @@ const SUPPORTED: readonly Locale[] = ["ru", "en"];
 export const FILL_LAST_RESORT_LOCALE: Locale = DEFAULT_LOCALE;
 
 const DEFAULT_QUALITY = 1;
-
-function isSupported(tag: string | null | undefined): tag is Locale {
-  return typeof tag === "string" && SUPPORTED.includes(tag as Locale);
-}
 
 function parseQuality(parameter: string | undefined): number {
   if (parameter === undefined) return DEFAULT_QUALITY;
@@ -74,7 +69,7 @@ function deviceLocale(
     .sort((a, b) => b.quality - a.quality);
 
   for (const entry of ranked) {
-    if (isSupported(entry.language)) return entry.language;
+    if (isLocale(entry.language)) return entry.language;
   }
   return null;
 }
@@ -95,7 +90,7 @@ export function pickFillLocales(
   countryLocale: string | null | undefined,
 ): readonly Locale[] {
   const candidates: (Locale | null)[] = [
-    isSupported(countryLocale) ? countryLocale : null,
+    isLocale(countryLocale) ? countryLocale : null,
     deviceLocale(acceptLanguage),
     FILL_LAST_RESORT_LOCALE,
   ];

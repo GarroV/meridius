@@ -21,6 +21,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { LOCALES } from "@/blocks/core/locale";
+
 import type {
   Answer,
   AnswerValue,
@@ -73,7 +75,16 @@ export const countries = pgTable(
     locale: text("locale").notNull().default("en"),
     createdAt: serverTimestamp(CREATED_AT),
   },
-  () => [check("countries_locale", sql`locale in ('ru', 'en')`)],
+  // Список языков — из core, а не буквами: иначе третий язык добавлен в продукт,
+  // а база его молча отвергает (T268). Значения подставляются через `sql.raw`, потому
+  // что это имена в тексте ограничения, а не параметры запроса; подставляются они из
+  // константы продукта, а не из ввода.
+  () => [
+    check(
+      "countries_locale",
+      sql`locale in (${sql.raw(LOCALES.map((code) => `'${code}'`).join(", "))})`,
+    ),
+  ],
 );
 
 export const stores = pgTable(

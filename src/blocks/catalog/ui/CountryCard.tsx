@@ -1,5 +1,7 @@
 import type { ReactElement } from "react";
 
+import { LOCALES } from "@/blocks/core/locale";
+
 import { submitDeleteCountry, submitUpdateCountry } from "./actions";
 import {
   BTN_GHOST_DANGER_CLASS,
@@ -68,8 +70,11 @@ export function CountryCard({
               defaultValue={country.locale}
               className={SELECT_CLASS}
             >
-              <option value="ru">ru</option>
-              <option value="en">en</option>
+              {LOCALES.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
             </select>
           </div>
         </div>

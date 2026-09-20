@@ -14,7 +14,7 @@ import type {
   Severity,
 } from "@/blocks/data";
 import { assertValidSchedule, isSeverity, parseLocalTime } from "@/blocks/data";
-import type { Locale } from "@/blocks/core/locale";
+import { LOCALES } from "@/blocks/core/locale";
 
 import { isRemindOption, MAX_SEGMENTS, REMIND_OPTIONS } from "./schedule-field";
 import { MAX_COLUMNS } from "./table-field";
@@ -74,9 +74,9 @@ export const LIMITS = {
   columns: MAX_COLUMNS,
 } as const;
 
-// Языки контента продукта (D009). Третий добавляется словарём, а не кодом, поэтому
-// список короткий и лежит рядом с разбором: всё, что не отсюда, до базы не доезжает.
-const CONTENT_LOCALES: readonly Locale[] = ["ru", "en"];
+// Языки контента — это языки продукта (D009), и берутся они оттуда же, где объявлены:
+// свой список здесь был копией, которая про третий язык узнала бы последней (T268).
+// Всё, что не из этого списка, до базы по-прежнему не доезжает.
 
 const ITEM_TYPES: readonly ItemType[] = ["bool", "number", "text", "table"];
 
@@ -104,7 +104,7 @@ function parseLocalizedText(input: unknown): LocalizedText {
   if (!isRecord(input)) fail("badFormat", "Текст должен быть объектом языков");
 
   const text: LocalizedText = {};
-  for (const locale of CONTENT_LOCALES) {
+  for (const locale of LOCALES) {
     const value = input[locale];
     if (typeof value !== "string") continue;
     const trimmed = value.trim();
