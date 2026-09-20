@@ -61,6 +61,9 @@ function standShape(now: Date, items: readonly OverdueItemSpec[]) {
   const end = nowMinutes + WINDOW_AHEAD_MINUTES;
 
   return {
+    // Пиццерия русская НАРОЧНО: язык экрана задаёт она, а не телефон (D122), а эти
+    // сценарии читают русские надписи.
+    countryLocale: "ru" as const,
     windowStart: clock(start),
     windowEnd: clock(end),
     sections: [
@@ -91,6 +94,9 @@ function standShape(now: Date, items: readonly OverdueItemSpec[]) {
 
 test.describe("сигнал о просроченной проверке", () => {
   // Русская речь экрана: плашку и подсказку сценарии читают по-русски.
+  // Телефон русский И пиццерия русская: язык экрана задаёт пиццерия (D122), а эти
+  // сценарии читают русские надписи. Умолчание стенда — английская страна, как и
+  // весь остальной продукт (D083), поэтому русский тут назван явно у каждой станции.
   test.use({
     viewport: PHONE,
     hasTouch: true,

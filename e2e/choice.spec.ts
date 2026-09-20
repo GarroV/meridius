@@ -25,6 +25,9 @@ function stickerPath(code: string): string {
 test.describe("на станции открыто несколько чек-листов", () => {
   // Язык задан явно: браузер сценария по умолчанию просит английский, и тогда
   // проверялись бы не те строки, что видит смена.
+  // Телефон русский И пиццерия русская: язык экрана задаёт пиццерия (D122), а эти
+  // сценарии читают русские надписи. Умолчание стенда — английская страна, как и
+  // весь остальной продукт (D083), поэтому русский тут назван явно у каждой станции.
   test.use({
     viewport: PHONE,
     hasTouch: true,
@@ -35,7 +38,7 @@ test.describe("на станции открыто несколько чек-ли
   test("наклейка предлагает выбор, и выбранный чек-лист открывается", async ({
     page,
   }) => {
-    const stand = await seedFillStand("выбор");
+    const stand = await seedFillStand("выбор", { countryLocale: "ru" });
     await addChecklistToStation(stand.stationId, { title: SECOND_TITLE });
 
     await page.goto(stickerPath(stand.code));
@@ -70,9 +73,9 @@ test.describe("на станции открыто несколько чек-ли
   test("чужой чек-лист в адресе не подставляет свой: снова выбор", async ({
     page,
   }) => {
-    const mine = await seedFillStand("выбор-свой");
+    const mine = await seedFillStand("выбор-свой", { countryLocale: "ru" });
     await addChecklistToStation(mine.stationId, { title: SECOND_TITLE });
-    const alien = await seedFillStand("выбор-чужой");
+    const alien = await seedFillStand("выбор-чужой", { countryLocale: "ru" });
     const alienChecklist = await addChecklistToStation(alien.stationId, {
       title: { ru: "Чужой обход", en: "Alien round" },
     });
@@ -91,7 +94,7 @@ test.describe("на станции открыто несколько чек-ли
   test("один открытый чек-лист выбора не показывает: он открывается сразу", async ({
     page,
   }) => {
-    const stand = await seedFillStand("выбор-один");
+    const stand = await seedFillStand("выбор-один", { countryLocale: "ru" });
 
     await page.goto(stickerPath(stand.code));
 
