@@ -317,7 +317,10 @@
     },
     "notice": {
       "station": "The checklist is attached to station “{station}” of store “{store}”. Its QR code opens the version published at the moment of scanning.",
-      "noStation": "No station selected: until the checklist is attached to one, its QR code opens nothing."
+      "noStation": "No station selected: until the checklist is attached to one, its QR code opens nothing.",
+      "windowOpen": "Window {start}–{end}: it is {now} at the store and the window is open — the employee will see the published version right away.",
+      "windowClosedToday": "Window {start}–{end}: it is {now} at the store and the window is closed — the employee will see the published version today from {opensAt}.",
+      "windowClosedTomorrow": "Window {start}–{end}: it is {now} at the store and the window is closed — the employee will see the published version tomorrow from {opensAt}."
     },
     "preview": {
       "title": "Preview",

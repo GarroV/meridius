@@ -47,6 +47,25 @@ async function pageWidth(
   }));
 }
 
+/**
+ * Окно со сдвигом в часах от ТЕКУЩЕГО времени пиццерии — «идёт сейчас», «откроется
+ * позже». Фикстура `seedStation` заводит пиццерию в зоне UTC, поэтому местное время
+ * пиццерии здесь и есть UTC; считать его через `Intl` значило бы завести в проверке
+ * второй календарь. Через полночь границы сворачиваются сами — окно это умеет.
+ */
+function storeWindow(
+  fromHours: number,
+  toHours: number,
+): { from: string; to: string } {
+  const now = Date.now();
+  const at = (shiftHours: number): string => {
+    const moment = new Date(now + shiftHours * 60 * 60 * 1000);
+    const hours = String(moment.getUTCHours()).padStart(2, "0");
+    return `${hours}:${String(moment.getUTCMinutes()).padStart(2, "0")}`;
+  };
+  return { from: at(fromHours), to: at(toHours) };
+}
+
 function label(): string {
   return Math.random().toString(36).slice(2, 8);
 }
@@ -715,6 +734,57 @@ test.describe("редактор чек-листа", () => {
       "05:00",
     );
     await expect(page.getByTestId("checklist-window-to")).toHaveValue("23:00");
+  });
+
+  // Увидит ли сотрудник опубликованную версию — редактор обязан сказать это ДО того,
+  // как о промахе расскажет сотрудник (T275, issue #139). Часы берутся у ПИЦЦЕРИИ:
+  // фикстура заводит её в UTC (`seedStation`), поэтому окна ниже считаются от UTC и
+  // сценарий не зависит от часа прогона — иначе он мигал бы дважды в сутки.
+  test("редактор говорит, увидит ли сотрудник версию: окно против часов пиццерии", async ({
+    page,
+  }) => {
+    const station = await seedStation(label());
+    await signIn(page);
+
+    // Станция задаётся на заведении, а не выбором в списке редактора: подсказка
+    // говорит о том, к чему чек-лист ПРИВЯЗАН, то есть о сохранённом состоянии, —
+    // а выбор в списке до сохранения привязкой ещё не стал.
+    const open = storeWindow(-1, 1);
+    await page.goto(`${CHECKLISTS_PATH}/new`);
+    await page.getByTestId("new-checklist-title").fill(`Окно ${label()}`);
+    await page.locator('select[name="stationId"]').selectOption({
+      label: `${station.countryName} · ${station.storeName} · ${station.stationName}`,
+    });
+    // Окно ВОКРУГ текущего часа пиццерии: идёт прямо сейчас.
+    await page.getByTestId("new-checklist-window-from").fill(open.from);
+    await page.getByTestId("new-checklist-window-to").fill(open.to);
+    await page.getByTestId("create-checklist").click();
+
+    await expect(page.getByTestId("editor-screen")).toBeVisible();
+    await expect(page.getByTestId("window-notice")).toContainText(
+      "окно открыто",
+    );
+
+    // Окно ПОСЛЕ текущего часа: сегодня оно ещё откроется, но не сейчас — то есть
+    // опубликованного сотрудник в эту минуту не увидит, и подсказка обязана сменить
+    // тон, не дожидаясь нажатия.
+    const later = storeWindow(2, 3);
+    await page.getByTestId("checklist-window-from").fill(later.from);
+    await page.getByTestId("checklist-window-to").fill(later.to);
+    await expect(page.getByTestId("window-notice")).toContainText(
+      "окно закрыто",
+    );
+    await expect(page.getByTestId("window-notice")).toContainText(later.from);
+
+    // И то же самое — рядом с подтверждением публикации. Это не украшение первой
+    // подсказки: она посчитана при отрисовке страницы, а эта строка — на сервере в
+    // миг нажатия, то есть переживает долгое редактирование.
+    await page.getByTestId("item-title").first().fill("Холодильник закрыт");
+    await page.getByTestId("publish").click();
+    await expect(page.getByTestId("editor-published")).toContainText("1");
+    await expect(page.getByTestId("editor-closed-window")).toContainText(
+      later.from,
+    );
   });
 
   // Предпросмотр — показ, а не работающий экран заполнения: отвечает сотрудник, открыв

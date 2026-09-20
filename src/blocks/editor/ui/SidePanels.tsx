@@ -6,6 +6,9 @@ import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 import type { VersionSummary } from "../drafts";
 import type { LibraryEntry } from "../library-links";
 import { pickEditorText } from "../localized-text";
+import type { WindowValue } from "../window-field";
+import type { WindowVisibility } from "../window-visibility";
+import { windowVisibility } from "../window-visibility";
 
 const CARD_CLASS =
   "bg-surface rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
@@ -134,22 +137,77 @@ export function LibraryPanel({
   );
 }
 
-/** Подсказка о станции: куда именно уедет опубликованная версия. */
+// Плашка эталона `.notice` и её предупреждающий вид `.notice--warn` (design/app.css):
+// один элемент в двух тонах, а не два разных элемента. Тем же приёмом — основа плюс
+// тон — плашка построена в `core/ui/StateScreen`.
+const NOTICE_BASE_CLASS =
+  "flex flex-col gap-[var(--space-4)] rounded-[var(--r-block)] border px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)]";
+const NOTICE_PLAIN_CLASS = `${NOTICE_BASE_CLASS} bg-surface-2 border-[var(--line-strong)]`;
+const NOTICE_WARN_CLASS = `${NOTICE_BASE_CLASS} border-[var(--warn-line)] bg-[var(--warn-soft)] text-[var(--warn-ink)]`;
+
+/** Ключ словаря под вердикт: открыто, откроется сегодня, откроется завтра. */
+function windowMessageKey(verdict: WindowVisibility): string {
+  if (verdict.open) return "windowOpen";
+  return verdict.tomorrow ? "windowClosedTomorrow" : "windowClosedToday";
+}
+
+/**
+ * Подсказка о станции: куда уедет опубликованная версия — и увидит ли её сотрудник
+ * сегодня.
+ *
+ * Про окно здесь сказано потому, что окно — единственный механизм выбора того, что
+ * откроет QR станции (D004), а форма заведения подставляет первое окно списка. До T275
+ * редактор знал и окно, и часовой пояс пиццерии, но молчал: методист, опубликовавший
+ * утренний чек-лист в 11:30, узнавал о промахе от сотрудника — через смену.
+ *
+ * Время берётся у ПИЦЦЕРИИ (`station.localTime`, счёт PostgreSQL, D026), а не у
+ * браузера: методист может сидеть в другом поясе, и «сейчас» у него и у кухни разное.
+ * Часы принадлежат той станции, к которой чек-лист УЖЕ привязан: станция, только что
+ * выбранная в списке и ещё не сохранённая, привязкой не стала, и подсказка о ней
+ * молчит — как молчала о ней и до T275.
+ * Посчитано оно при отрисовке страницы и за долгое редактирование устаревает — эту
+ * дыру закрывает не эта подсказка, а состояние публикации (`closedWindow`), которое
+ * сервер считает в миг нажатия.
+ */
 export function StationNotice({
   station,
+  window,
 }: {
-  readonly station: { name: string; storeName: string } | null;
+  readonly station: {
+    name: string;
+    storeName: string;
+    localTime: string | null;
+  } | null;
+  readonly window: WindowValue;
 }) {
   const t = useTranslations("editor.notice");
+  const now = station?.localTime ?? null;
+  const verdict = now === null ? null : windowVisibility(window, now);
 
   return (
     <div
       data-testid="station-notice"
-      className="bg-surface-2 flex gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--line-strong)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)]"
+      className={
+        verdict !== null && !verdict.open
+          ? NOTICE_WARN_CLASS
+          : NOTICE_PLAIN_CLASS
+      }
     >
-      {station === null
-        ? t("noStation")
-        : t("station", { station: station.name, store: station.storeName })}
+      <div>
+        {station === null
+          ? t("noStation")
+          : t("station", { station: station.name, store: station.storeName })}
+      </div>
+      {verdict === null || now === null ? null : (
+        <div data-testid="window-notice">
+          {t(windowMessageKey(verdict), {
+            start: window.start,
+            end: window.end,
+            now,
+            opensAt: verdict.opensAt,
+          })}
+        </div>
+      )}
     </div>
   );
 }

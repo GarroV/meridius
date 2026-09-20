@@ -22,6 +22,7 @@ import { duplicateChecklist } from "./duplicate";
 import { publish } from "./publish";
 import { removeChecklist } from "./removal";
 import { CHECKLISTS_PATH, checklistPath } from "./routes";
+import { closedWindowNow } from "./station-clock";
 import { EditorInputError } from "./validation";
 
 /**
@@ -88,15 +89,22 @@ export async function submitPublish(
   try {
     const checklistId = formText(form, "checklistId");
     const sections = sectionsFrom(form);
-    await updateChecklist(checklistId, checklistInputFrom(form));
+    const input = checklistInputFrom(form);
+    await updateChecklist(checklistId, input);
     await saveDraft(checklistId, sections);
     const version = await publish(checklistId);
+    // Окно сверяется ПОСЛЕ публикации и по часам пиццерии (T275). Подсказка у станции
+    // посчитана при отрисовке страницы и к этому мгновению могла устареть — ровно так
+    // и выглядит случай, из которого задача родилась: экран открыт в 10:50, нажатие в
+    // 11:30, утреннее окно закрылось между ними, и методист об этом нигде не прочитал.
+    const closedWindow = await closedWindowNow(checklistId, input.window);
     revalidatePath(checklistPath(checklistId));
     return {
       status: "published",
       ...(version.versionNumber === null
         ? {}
         : { versionNumber: version.versionNumber }),
+      ...(closedWindow === null ? {} : { closedWindow }),
     };
   } catch (error) {
     return failure(error);
