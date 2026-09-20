@@ -13,6 +13,7 @@ import {
   themeTokens,
   outlineColorTokens,
   parseTokens,
+  rawAccentFills,
   referenceDisabledCursor,
   referenceDisabledOpacity,
   referenceNumberField,
@@ -226,6 +227,43 @@ function referenceFiles(dir: string): readonly string[] {
       : [];
   });
 }
+
+describe("сторож крючка акцентной заливки", () => {
+  // Кольцо фокуса на акцентной кнопке (T280) держится одним правилом, зацепленным за
+  // класс `bg-accent`. Проверка тут не про красоту записи: кнопка, залитая мимо утилиты,
+  // выпадает из правила и остаётся с кольцом цвета собственной заливки — то есть без
+  // видимого кольца вовсе. Сквозной сторож смотрит на три экрана, а выпасть может любой.
+  it("заливка акцентом написана утилитой, а не произвольным значением", () => {
+    const wrong: string[] = [];
+
+    for (const file of [
+      ...sourceFiles(path.join(ROOT, "blocks")),
+      ...sourceFiles(path.join(ROOT, "app")),
+    ]) {
+      for (const raw of rawAccentFills(readFileSync(file, "utf8"))) {
+        wrong.push(`${path.relative(ROOT, file)}: ${raw} вместо bg-accent`);
+      }
+    }
+
+    expect(wrong).toEqual([]);
+  });
+});
+
+describe("rawAccentFills", () => {
+  it("находит заливку, написанную произвольным значением", () => {
+    expect(rawAccentFills('className="bg-[var(--accent)] text-ink"')).toEqual([
+      "bg-[var(--accent)]",
+    ]);
+  });
+
+  it("не путает с утилитой и с соседними токенами акцента", () => {
+    expect(
+      rawAccentFills(
+        'className="bg-accent hover:bg-[var(--accent-hover)] border-[var(--accent)]"',
+      ),
+    ).toEqual([]);
+  });
+});
 
 describe("сторож ссылок на токены", () => {
   const DESIGN = path.resolve(ROOT, "../docs/furca/design");
