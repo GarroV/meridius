@@ -151,3 +151,71 @@ test.describe("ширина экрана редактора", () => {
     }
   });
 });
+
+// Переключатель режима смены в предпросмотре стоит одной ровной линией (T283).
+//
+// Дефект: подпись «С ОГРАНИЧЕНИЯМИ» длиннее соседних «Обычная» и «Критичная», вкладка
+// ломалась в две строки, а соседние оставались в одну — переключатель терял линию. Это
+// та же порода, что два дефекта выше: разметка одна, ломается вычисленная раскладка, и
+// в исходниках этого не видно. Возвращает его любая следующая подпись или третий язык,
+// поэтому проверка мерит ЧИСЛО СТРОК текста, а не смотрит на класс: строка меряется
+// прямоугольниками, которые браузер отдал под её текст.
+const MODE_TABS = 3;
+
+/** Сколько строк реально занял текст органа: по прямоугольникам его текстового узла. */
+async function textLines(page: Page, testId: string): Promise<number[]> {
+  return page.evaluate((id) => {
+    const bar = document.querySelector(`[data-testid="${id}"]`);
+    if (bar === null) return [];
+    return [...bar.children].map((tab) => {
+      const range = document.createRange();
+      range.selectNodeContents(tab);
+      return range.getClientRects().length;
+    });
+  }, testId);
+}
+
+test.describe("переключатель режима смены в предпросмотре", () => {
+  for (const [locale, title] of [
+    ["ru-RU", "русская локаль"],
+    ["en-US", "английская локаль"],
+  ] as const) {
+    test.describe(title, () => {
+      test.use({ locale });
+
+      test("все вкладки стоят в одну строку и помещаются в дорожку", async ({
+        page,
+      }) => {
+        await signIn(page);
+        await createChecklist(page, `Режимы ${label()}`);
+        await page.getByTestId("item-title").first().fill("Проверить печь");
+        const preview = `${page.url()}/preview`;
+
+        for (const size of [WIDE, PHONE]) {
+          await page.setViewportSize(size);
+          await page.goto(preview);
+          const bar = page.getByTestId("preview-mode-bar");
+          await expect(bar).toBeVisible();
+
+          const where = `${title}, ширина ${String(size.width)} px`;
+          const lines = await textLines(page, "preview-mode-bar");
+          expect(lines.length, `вкладок не три: ${where}`).toBe(MODE_TABS);
+          expect(lines, `вкладка переносится в две строки: ${where}`).toEqual(
+            Array.from({ length: MODE_TABS }, () => 1),
+          );
+
+          // Переносить нечему — значит дорожка обязана вместить подписи целиком, а не
+          // спрятать их в собственную прокрутку.
+          const fit = await bar.evaluate((node) => ({
+            scrollWidth: node.scrollWidth,
+            clientWidth: node.clientWidth,
+          }));
+          expect(
+            fit.scrollWidth,
+            `подписи не влезли в дорожку переключателя: ${where}, ${JSON.stringify(fit)}`,
+          ).toBeLessThanOrEqual(fit.clientWidth + 1);
+        }
+      });
+    });
+  }
+});
