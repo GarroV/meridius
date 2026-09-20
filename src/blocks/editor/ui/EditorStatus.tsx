@@ -7,6 +7,10 @@ const TAG_DRAFT =
   "inline-flex h-[20px] items-center rounded-[var(--r-mark)] border border-[var(--line-strong)] bg-[var(--surface-3)] px-[var(--space-4)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] whitespace-nowrap text-[var(--st-draft)] uppercase";
 const META_CLASS =
   "text-[length:var(--fs-meta)] whitespace-nowrap text-[var(--ink-3)]";
+// Предупреждение у кнопки: плашка `.notice--warn` эталона в размер полосы действий.
+// Не `text-err`: отказа не было, версия опубликована.
+const WARN_CLASS =
+  "max-w-[420px] rounded-[var(--r-control)] border border-[var(--warn-line)] bg-[var(--warn-soft)] px-[var(--space-5)] py-[var(--space-3)] text-[length:var(--fs-dense)] text-[var(--warn-ink)]";
 
 /**
  * Состояние чек-листа в верхней полосе: метка черновика, какая версия опубликована
@@ -47,6 +51,34 @@ export function EditorStatus({
   }
 
   if (publishState.status === "published") {
+    const closed = publishState.closedWindow;
+    // Окно оказалось закрыто — версия создана, но сегодня её на станции никто не
+    // увидит. Это не отказ (красный), а предупреждение: плашка `.notice--warn`
+    // эталона. Говорится оно ЗДЕСЬ, у кнопки, а не только в подсказке справа,
+    // потому что подсказка посчитана при отрисовке страницы и к мгновению нажатия
+    // могла устареть; это состояние сервер считает в миг публикации (T275).
+    if (closed !== undefined) {
+      return (
+        <span
+          role="status"
+          data-testid="editor-published-closed-window"
+          className={WARN_CLASS}
+        >
+          {`${t("screen.published", { number: publishState.versionNumber ?? 0 })} ${t(
+            closed.tomorrow
+              ? "notice.windowClosedTomorrow"
+              : "notice.windowClosedToday",
+            {
+              start: closed.start,
+              end: closed.end,
+              now: closed.now,
+              opensAt: closed.opensAt,
+            },
+          )}`}
+        </span>
+      );
+    }
+
     return (
       <span data-testid="editor-published" className={META_CLASS}>
         {t("screen.published", { number: publishState.versionNumber ?? 0 })}

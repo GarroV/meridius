@@ -27,6 +27,7 @@ import {
 
 import type { LibraryEntry } from "./library-links";
 import { listLibrary, resolveLinkedSections } from "./library-links";
+import { STATION_LOCAL_TIME } from "./station-clock";
 import {
   EditorInputError,
   isUuid,
@@ -52,6 +53,13 @@ export interface EditorStation {
   name: string;
   storeName: string;
   countryName: string;
+  /**
+   * Сколько сейчас на ТОЙ кухне, «11:30». Живёт рядом со станцией, а не отдельным
+   * полем состояния: без станции нет пиццерии, а без пиццерии нет и часов — и
+   * подсказка об окне обязана молчать, а не считать по часам методиста (T275).
+   * `null` — часовой пояс пиццерии прочитать не удалось.
+   */
+  localTime: string | null;
 }
 
 export interface VersionSummary {
@@ -246,6 +254,9 @@ export async function loadEditor(
       stationName: stations.name,
       storeName: stores.name,
       countryName: countries.name,
+      // Местное время пиццерии тем же заходом: отдельный запрос ради одной строки
+      // на каждое открытие редактора не нужен, а выражение общее с `station-clock`.
+      stationLocalTime: STATION_LOCAL_TIME,
     })
     .from(checklists)
     .leftJoin(stations, eq(checklists.stationId, stations.id))
@@ -285,6 +296,7 @@ export async function loadEditor(
             name: row.stationName ?? "",
             storeName: row.storeName ?? "",
             countryName: row.countryName ?? "",
+            localTime: row.stationLocalTime,
           },
     sections,
     // Число пунктов черновика берётся из развёрнутой разметки: в строке базы у вставленного

@@ -430,7 +430,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               locale={locale}
               onInsert={insertBlock}
             />
-            <StationNotice station={props.station} />
+            <StationNotice station={props.station} window={window} />
           </aside>
         </div>
       </div>

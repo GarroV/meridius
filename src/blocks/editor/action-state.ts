@@ -2,6 +2,7 @@
 // файл с "use server" имеет право экспортировать только асинхронные функции: значение
 // по умолчанию и типы там оказались бы ошибкой сборки.
 import type { EditorErrorCode } from "./validation";
+import type { ClosedWindow } from "./window-visibility";
 
 /** Что показать методисту после нажатия кнопки: тишину, подтверждение или отказ. */
 export interface EditorActionState {
@@ -12,6 +13,13 @@ export interface EditorActionState {
   limit?: number;
   /** Номер только что опубликованной версии. */
   versionNumber?: number;
+  /**
+   * Версия опубликована в ЗАКРЫТОЕ окно: сегодня её на станции уже никто не увидит
+   * (T275). Поле появляется только в этом случае и несёт время пиццерии на миг
+   * публикации — то, которое посчитал сервер, а не то, что страница знала при
+   * отрисовке. Отказом это не является: версия создана, методисту сказано правду.
+   */
+  closedWindow?: ClosedWindow;
 }
 
 export const INITIAL_EDITOR_STATE: EditorActionState = { status: "idle" };
