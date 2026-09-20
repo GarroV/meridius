@@ -79,7 +79,10 @@ interface FillTargetReady {
  *   от «код был, но отозван».
  * · `no-checklist` — станция есть, но сейчас ей заполнять нечего. Отдельное состояние
  *   потому, что сотруднику с настоящей наклейкой надо сказать правду: бежать к
- *   управляющему за новой наклейкой не нужно. Данных этот ответ не несёт никаких.
+ *   управляющему за новой наклейкой не нужно. Из данных несёт ровно одно — язык страны,
+ *   и только потому, что на этом языке отбивку и надо написать (D122: «отбивки и
+ *   сервисные сообщения также должны быть на этом языке»). Названия пиццерии и станции
+ *   не отдаются по-прежнему: язык — это одна из двух букв, а название — это адрес.
  */
 /**
  * Несколько чек-листов открыто одновременно — сотрудник выбирает.
@@ -100,10 +103,18 @@ export type FillTarget =
   | FillTargetReady
   | FillTargetChoice
   | { readonly kind: "unknown-code" }
-  | { readonly kind: "no-checklist" };
+  | { readonly kind: "no-checklist"; readonly countryLocale: string };
 
 const UNKNOWN_CODE = { kind: "unknown-code" } as const;
-const NO_CHECKLIST = { kind: "no-checklist" } as const;
+
+/**
+ * Отбивка «заполнять нечего» знает язык своей пиццерии. Её видит человек с настоящей
+ * наклейкой, стоящий на кухне этой самой пиццерии, — и по D122 язык этой поверхности
+ * принадлежит ей, а не телефону в кармане.
+ */
+function noChecklist(context: StationContext): FillTarget {
+  return { kind: "no-checklist", countryLocale: context.countryLocale };
+}
 
 interface StationContext {
   readonly storeId: string;
@@ -148,7 +159,7 @@ export async function loadFillTarget(
   if (context === null) return UNKNOWN_CODE;
 
   const open = await listPublishedVersionsForStation(code, at);
-  if (open.length === 0) return NO_CHECKLIST;
+  if (open.length === 0) return noChecklist(context);
 
   // Выбранный чек-лист берётся только из списка открытых на ЭТОЙ станции: чужой
   // идентификатор не подставляет свой молча, а возвращает к выбору — иначе сотрудник
@@ -186,7 +197,7 @@ export async function loadFillTarget(
   const sections = sectionsForMode(found.version.sections, mode);
   // В этом режиме от станции сегодня не ждут ничего: честнее сказать «заполнять
   // нечего», чем открыть чек-лист без пунктов с активной кнопкой отправки.
-  if (sections.length === 0) return NO_CHECKLIST;
+  if (sections.length === 0) return noChecklist(context);
 
   return {
     kind: "ok",

@@ -94,6 +94,9 @@ async function addAlarm(
 
 test.describe("будильники станции", () => {
   // Русская речь панели: подписи и отказы, которые проверяют сценарии, — по-русски.
+  // Телефон русский И пиццерия русская: язык экрана задаёт пиццерия (D122), а эти
+  // сценарии читают русские надписи. Умолчание стенда — английская страна, как и
+  // весь остальной продукт (D083), поэтому русский тут назван явно у каждой станции.
   test.use({
     viewport: PHONE,
     hasTouch: true,
@@ -104,7 +107,9 @@ test.describe("будильники станции", () => {
   test("заведение: время позже текущего и подпись дают строку в списке", async ({
     page,
   }) => {
-    const stand = await seedFillStand("будильник-завести");
+    const stand = await seedFillStand("будильник-завести", {
+      countryLocale: "ru",
+    });
     await page.goto(stickerPath(stand.code));
 
     const time = futureLocalTime(new Date(), 5);
@@ -121,7 +126,9 @@ test.describe("будильники станции", () => {
   test("прошедшее время отбивается вслух, строка не заводится", async ({
     page,
   }) => {
-    const stand = await seedFillStand("будильник-прошлое");
+    const stand = await seedFillStand("будильник-прошлое", {
+      countryLocale: "ru",
+    });
     await page.goto(stickerPath(stand.code));
 
     const time = pastLocalTime(new Date(), 5);
@@ -134,7 +141,9 @@ test.describe("будильники станции", () => {
   test("крестик снимает будильник: строк становится на одну меньше", async ({
     page,
   }) => {
-    const stand = await seedFillStand("будильник-снять");
+    const stand = await seedFillStand("будильник-снять", {
+      countryLocale: "ru",
+    });
     await page.goto(stickerPath(stand.code));
 
     const now = new Date();
@@ -159,7 +168,9 @@ test.describe("будильники станции", () => {
   test("будильник переживает перезагрузку планшета: звонит на свежем открытии экрана", async ({
     page,
   }) => {
-    const stand = await seedFillStand("будильник-перезагрузка");
+    const stand = await seedFillStand("будильник-перезагрузка", {
+      countryLocale: "ru",
+    });
     const label = "уже наступивший";
     const alarmId = await seedRungAlarm(stand.stationId, label);
 
@@ -181,7 +192,9 @@ test.describe("будильники станции", () => {
   test("оба поля названы видимой надписью, а не только для чтения с экрана", async ({
     page,
   }) => {
-    const stand = await seedFillStand("будильник-надписи");
+    const stand = await seedFillStand("будильник-надписи", {
+      countryLocale: "ru",
+    });
     await page.goto(stickerPath(stand.code));
 
     // D093, дословно «Давай вернем»: надписи над полями видны глазом. Проверяется
@@ -212,7 +225,9 @@ test.describe("будильники станции", () => {
   test("у полей есть пиктограммы, и в поле времени она не вторая", async ({
     page,
   }) => {
-    const stand = await seedFillStand("будильник-пиктограммы");
+    const stand = await seedFillStand("будильник-пиктограммы", {
+      countryLocale: "ru",
+    });
     await page.goto(stickerPath(stand.code));
 
     // D094, дословно «Сделай пиктограммы , потом посмотрим». Пиктограмма стоит в строке
@@ -234,8 +249,10 @@ test.describe("будильники станции", () => {
   test("на станции видны только её будильники: соседняя не подмешивается", async ({
     page,
   }) => {
-    const mine = await seedFillStand("будильник-своя");
-    const neighbour = await seedFillStand("будильник-соседняя");
+    const mine = await seedFillStand("будильник-своя", { countryLocale: "ru" });
+    const neighbour = await seedFillStand("будильник-соседняя", {
+      countryLocale: "ru",
+    });
     const label = "чужая записка";
 
     await page.goto(stickerPath(neighbour.code));

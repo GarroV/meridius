@@ -435,39 +435,10 @@ test.describe("публичный маршрут: отказы и защита",
   });
 });
 
-test.describe("язык экрана заполнения", () => {
-  test.use({ viewport: PHONE, hasTouch: true, isMobile: true });
-
-  test("телефон на английском — экран английский", async ({ browser }) => {
-    const stand = await seedFillStand("англ", { countryLocale: "ru" });
-    const context = await browser.newContext({ locale: "en-GB" });
-    const page = await context.newPage();
-
-    await page.goto(`/s/${stand.code}`);
-
-    await expect(page.getByText("Kitchen opening")).toBeVisible();
-    await context.close();
-  });
-
-  test("язык телефона не поддержан — берётся язык страны, а не язык продукта", async ({
-    browser,
-  }) => {
-    // Казахский телефон в казахстанской пиццерии: продукт по-казахски не говорит,
-    // и показать надо русский (язык страны), а не английский по умолчанию.
-    const stand = await seedFillStand("казах", { countryLocale: "ru" });
-    const context = await browser.newContext({ locale: "kk-KZ" });
-    const page = await context.newPage();
-
-    await page.goto(`/s/${stand.code}`);
-
-    await expect(page.getByText("Открытие кухни")).toBeVisible();
-    // Корень содержимого, а не любой элемент с lang: с T179 язык объявляют оба — и
-    // <html> (его подтягивает core/ui/HtmlLangSync к языку экрана), и сам экран.
-    // Прежний селектор стал неоднозначным и падал на strict mode, хотя проверял то же.
-    await expect(page.locator('body > [lang="ru"]')).toBeVisible();
-    await context.close();
-  });
-});
+// Чей язык у экрана заполнения — проверяет e2e/page-lang.spec.ts, и только он.
+// Здесь стоял второй такой блок: он закреплял прежнее правило («побеждает телефон»),
+// а после D122 его пришлось бы переписать слово в слово под то, что уже проверено
+// рядом. Две копии одной проверки расходятся молча, поэтому осталась одна.
 
 test.describe("время отправки принадлежит кухне, а не телефону", () => {
   // Пояса взяты заведомо далёкие друг от друга и от пояса машины прогона: между
@@ -611,10 +582,12 @@ test.describe("язык документа на отказе по коду", () 
     const contentLang = langOf(/<div lang="([a-z-]+)"/, html);
     expect(contentLang).not.toBeNull();
     expect(documentLang).toBe(contentLang);
-    // И это именно русский — последнее звено цепочки экрана заполнения, а не язык
-    // продукта: иначе проверка прошла бы, если оба съехали бы в английский.
-    expect(documentLang).toBe("ru");
-    expect(html).toContain("Этот код не работает");
+    // И это именно язык продукта: до #129 экран заполнения держал рядом своё
+    // умолчание (русский), и человек с телефоном на третьем языке получал отказ
+    // по-русски, а чек-лист и вход на том же телефоне — по-английски. Проверка
+    // называет язык явно: без этого она прошла бы и на двух съехавших вместе.
+    expect(documentLang).toBe("en");
+    expect(html).toContain("This code does not work");
   });
 
   test("с Accept-Language язык остаётся языком телефона", async ({

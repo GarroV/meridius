@@ -62,6 +62,9 @@ async function countChecks(stationId: string): Promise<number> {
 test.describe("обходы на станции", () => {
   // Язык задан явно: экран отдаёт его по заголовку телефона, а браузер сценария по
   // умолчанию просит английский — тогда проверялись бы не те строки, что видит смена.
+  // Телефон русский И пиццерия русская: язык экрана задаёт пиццерия (D122), а эти
+  // сценарии читают русские надписи. Умолчание стенда — английская страна, как и
+  // весь остальной продукт (D083), поэтому русский тут назван явно у каждой станции.
   test.use({
     viewport: PHONE,
     hasTouch: true,
@@ -72,7 +75,10 @@ test.describe("обходы на станции", () => {
   test("обход отмечается со станции и сразу виден в списке за смену", async ({
     page,
   }) => {
-    const stand = await seedFillStand("обходы", { sections: ROUND_SECTIONS });
+    const stand = await seedFillStand("обходы", {
+      sections: ROUND_SECTIONS,
+      countryLocale: "ru",
+    });
 
     await page.goto(stickerPath(stand.code));
 
@@ -118,6 +124,7 @@ test.describe("обходы на станции", () => {
   }) => {
     const stand = await seedFillStand("непорядок", {
       sections: ROUND_SECTIONS,
+      countryLocale: "ru",
     });
 
     await page.goto(stickerPath(stand.code));
@@ -145,9 +152,13 @@ test.describe("обходы на станции", () => {
   test("на станции видны только её обходы: соседняя не подмешивается", async ({
     page,
   }) => {
-    const mine = await seedFillStand("своя", { sections: ROUND_SECTIONS });
+    const mine = await seedFillStand("своя", {
+      sections: ROUND_SECTIONS,
+      countryLocale: "ru",
+    });
     const neighbour = await seedFillStand("соседняя", {
       sections: ROUND_SECTIONS,
+      countryLocale: "ru",
     });
 
     // Соседняя станция отметила свой обход.

@@ -21,7 +21,12 @@ export interface FillStandOptions {
   /** Окно чек-листа. По умолчанию — круглосуточное: сценарий не должен зависеть от часа прогона. */
   readonly windowStart?: string;
   readonly windowEnd?: string;
-  /** Язык страны: по нему проверяется откат языка, когда телефон говорит на третьем. */
+  /**
+   * Язык страны — он же язык экрана (D122): его задаёт пиццерия, а не телефон.
+   * По умолчанию английский, как и весь остальной продукт (D083), поэтому сценарий,
+   * которому язык безразличен, читает те же английские надписи, что и раньше.
+   * Сценарий про сам язык называет его явно.
+   */
   readonly countryLocale?: "ru" | "en";
   /**
    * Часовой пояс пиццерии. По умолчанию UTC — сценариям, которые о времени не
@@ -120,7 +125,7 @@ export async function seedFillStand(
       (
         await pool.query<{ id: string }>(
           "insert into countries (name, locale) values ($1, $2) returning id",
-          [`Страна ${label} ${suffix}`, options.countryLocale ?? "ru"],
+          [`Страна ${label} ${suffix}`, options.countryLocale ?? "en"],
         )
       ).rows,
       "countries",
@@ -290,5 +295,47 @@ export async function addChecklistToStation(
       "версия второго чек-листа",
     );
     return { checklistId, versionId };
+  });
+}
+
+/**
+ * Настоящая станция, которой сейчас заполнять нечего: страна, пиццерия, наклейка —
+ * и ни одного опубликованного чек-листа. Нужна сценарию про язык отбивки: она видна
+ * человеку с действующей наклейкой, и по D122 говорит языком пиццерии, а не телефона.
+ *
+ * Отдельный сеятель, а не узкое окно у `seedFillStand`: окно закрывается по часам
+ * прогона, и такой сценарий зеленел бы или краснел в зависимости от времени суток.
+ */
+export async function seedStationWithoutChecklist(
+  label: string,
+  countryLocale: "ru" | "en",
+): Promise<{ code: string }> {
+  const suffix = randomUUID().slice(0, 8);
+  const code = uniqueCode();
+
+  return await withPool(async (pool) => {
+    const country = firstId(
+      (
+        await pool.query<{ id: string }>(
+          "insert into countries (name, locale) values ($1, $2) returning id",
+          [`Страна ${label} ${suffix}`, countryLocale],
+        )
+      ).rows,
+      "countries",
+    );
+    const store = firstId(
+      (
+        await pool.query<{ id: string }>(
+          "insert into stores (country_id, name, timezone) values ($1, $2, $3) returning id",
+          [country, `Almaty, Abaya ${suffix}`, "UTC"],
+        )
+      ).rows,
+      "stores",
+    );
+    await pool.query(
+      "insert into stations (store_id, name, code) values ($1, $2, $3)",
+      [store, `Kitchen ${suffix}`, code],
+    );
+    return { code };
   });
 }
