@@ -1,12 +1,12 @@
 {
-  "lines": 91.81,
-  "statements": 90.41,
-  "functions": 93.1,
-  "branches": 87.29,
+  "lines": 92.16,
+  "statements": 90.76,
+  "functions": 93.22,
+  "branches": 87.47,
   "uncovered": {
-    "lines": 294,
-    "statements": 394,
-    "functions": 72,
-    "branches": 323
+    "lines": 283,
+    "statements": 382,
+    "functions": 71,
+    "branches": 321
   }
 }
