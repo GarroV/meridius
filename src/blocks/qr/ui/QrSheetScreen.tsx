@@ -6,6 +6,7 @@ import { AdminShell } from "@/blocks/core/ui/AdminShell";
 import type { QrModel } from "./model";
 import { PrintButton } from "./PrintButton";
 import { PrintSheet } from "./PrintSheet";
+import { ReissueConfirm } from "./ReissueConfirm";
 import { StationsCard } from "./StationsCard";
 import { StorePicker } from "./StorePicker";
 import { TabletPreview } from "./TabletPreview";
@@ -94,6 +95,11 @@ export async function QrSheetScreen({
           </div>
         </div>
       )}
+
+      {/* Окно подтверждения перевыпуска — поверх листа, а не под таблицей: человек
+          в этот момент смотрит на строку станции, и карточка внизу экрана осталась
+          бы незамеченной ровно в том случае, ради которого вопрос и задаётся. */}
+      <ReissueConfirm station={model.confirming} store={store} />
     </AdminShell>
   );
 }

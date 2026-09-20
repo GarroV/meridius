@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 
 import {
+  CONFIRM_REISSUE,
   QR_CODE_PATH,
   QR_PATH,
   QR_SCREEN_PATH,
@@ -87,5 +88,57 @@ describe("адрес раздела — один факт, а не собств�
     expect(qrStickerHref({ storeId: STORE, stationId: STATION })).toBe(
       `${QR_PATH}/sticker?store=${STORE}&station=${STATION}`,
     );
+  });
+});
+
+describe("вопрос о перевыпуске кода в адресе (T266)", () => {
+  it("confirm=reissue вместе со станцией разбирается в вопрос", () => {
+    expect(
+      parseQrView({ store: STORE, station: STATION, confirm: "reissue" }),
+    ).toEqual({
+      storeId: STORE,
+      stationId: STATION,
+      confirm: "reissue",
+    });
+  });
+
+  it("confirm=reissue без станции отбрасывается вместе с вопросом", () => {
+    expect(
+      parseQrView({ store: STORE, confirm: "reissue" }),
+      "Окно без названия станции спрашивало бы ни о чём — такой вопрос не задаётся.",
+    ).toEqual({ storeId: STORE });
+  });
+
+  it("confirm=reissue со станцией не-uuid отбрасывается вместе со станцией", () => {
+    expect(
+      parseQrView({ store: STORE, station: "42", confirm: "reissue" }),
+      "Станция не разобралась — вопрос про неё не должен был бы держаться в адресе.",
+    ).toEqual({ storeId: STORE });
+  });
+
+  it("чужое значение confirm игнорируется", () => {
+    expect(
+      parseQrView({ store: STORE, station: STATION, confirm: "delete" })
+        .confirm,
+    ).toBeUndefined();
+    expect(
+      parseQrView({ store: STORE, station: STATION, confirm: "1" }).confirm,
+    ).toBeUndefined();
+  });
+
+  it("qrHref несёт confirm последним параметром, а без него — не несёт вовсе", () => {
+    expect(
+      qrHref({
+        storeId: STORE,
+        stationId: STATION,
+        confirm: CONFIRM_REISSUE,
+      }),
+    ).toBe(`${QR_PATH}?store=${STORE}&station=${STATION}&confirm=reissue`);
+
+    expect(
+      qrHref({ storeId: STORE, stationId: STATION }),
+      "«Отмена» ведёт по этому же адресу без вопроса — попади сюда confirm по " +
+        "умолчанию, кнопка отмены заводила бы обратно в то же окно.",
+    ).toBe(`${QR_PATH}?store=${STORE}&station=${STATION}`);
   });
 });

@@ -15,6 +15,7 @@ import type {
   QrStoreOption,
 } from "./model";
 import {
+  CONFIRM_REISSUE,
   qrHref,
   qrScreenHref,
   qrCodeHref,
@@ -76,6 +77,7 @@ async function chooseStore(
     selected: null,
     stores: await listAllStores(),
     errorCode,
+    confirming: null,
   };
 }
 
@@ -135,6 +137,10 @@ export async function buildQrModel(
     selected: picked ?? stations[0] ?? null,
     stores: [],
     errorCode,
+    // Вопрос задан ровно про ту станцию, что названа в адресе, и только если она
+    // есть в ЭТОЙ пиццерии: подстановка первой станции здесь означала бы вопрос
+    // про одну, а перевыпуск — у другой.
+    confirming: view.confirm === CONFIRM_REISSUE ? (picked ?? null) : null,
   };
 }
 

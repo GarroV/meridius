@@ -9,6 +9,7 @@ import { createCountry, createStation, createStore } from "@/blocks/catalog";
 import { closeTestDb } from "@/blocks/data/testing/db";
 
 import { buildQrModel, buildScreenModel } from "./build-model";
+import { CONFIRM_REISSUE } from "./view";
 
 afterAll(closeTestDb);
 
@@ -146,6 +147,63 @@ describe("что показывает лист печати", () => {
     const model = await buildQrModel({ error: "codeCollision" }, ORIGIN);
 
     expect(model.errorCode).toBe("codeCollision");
+  });
+
+  test("confirming — станция из адреса, когда задан вопрос о перевыпуске (T266)", async () => {
+    const data = await fixture();
+    const target = data.stations[1]?.id;
+    if (target === undefined) throw new Error("станция не завелась");
+
+    const model = await buildQrModel(
+      { storeId: data.storeId, stationId: target, confirm: CONFIRM_REISSUE },
+      ORIGIN,
+    );
+
+    expect(
+      model.confirming?.id,
+      "Без этой станции окно подтверждения не знает, про что оно спрашивает.",
+    ).toBe(target);
+  });
+
+  test("confirming — null, когда вопроса в адресе нет", async () => {
+    const data = await fixture();
+    const target = data.stations[0]?.id;
+
+    const model = await buildQrModel(
+      { storeId: data.storeId, stationId: target },
+      ORIGIN,
+    );
+
+    expect(model.confirming).toBeNull();
+  });
+
+  test("confirming — null для чужой станции, а selected всё равно подставляет первую", async () => {
+    const data = await fixture();
+    const alien = await createStation({
+      storeId: data.otherStoreId,
+      name: `Чужая ${randomUUID().slice(0, 6)}`,
+    });
+
+    const model = await buildQrModel(
+      {
+        storeId: data.storeId,
+        stationId: alien.id,
+        confirm: CONFIRM_REISSUE,
+      },
+      ORIGIN,
+    );
+
+    expect(
+      model.confirming,
+      "Чужая станция не должна становиться вопросом на этом листе — иначе " +
+        "подтверждение спросило бы про станцию, которой здесь нет.",
+    ).toBeNull();
+    expect(
+      model.selected?.name,
+      "`selected` и `confirming` — разные поля: подстановка первой станции нужна " +
+        "карточке планшета, а в окне подтверждения она означала бы вопрос про одну " +
+        "станцию и перевыпуск кода у другой.",
+    ).toBe(data.sortedNames[0]);
   });
 });
 

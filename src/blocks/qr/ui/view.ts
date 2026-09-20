@@ -23,6 +23,15 @@ const QR_STICKER_PATH = `${QR_PATH}/sticker`;
 
 const STORE = "store";
 const STATION = "station";
+const CONFIRM = "confirm";
+
+/**
+ * Единственный вопрос этого экрана: перевыпустить ли код станции (T266). Как и
+ * остальное состояние экрана, он живёт в АДРЕСЕ, а не в памяти разметки, — иначе
+ * окно нельзя было бы открыть с сервера, и без JavaScript вопрос бы не задавался
+ * вовсе. Тот же признак и тем же словом стоит в справочнике (`?confirm=reissue`).
+ */
+export const CONFIRM_REISSUE = "reissue";
 
 /**
  * Отказы, которые вообще может показать этот экран: перевыпуск кода умеет отказать
@@ -47,6 +56,8 @@ export interface QrView {
   storeId?: string;
   stationId?: string;
   error?: QrErrorCode;
+  /** Открыт вопрос о перевыпуске кода станции из `stationId`. */
+  confirm?: typeof CONFIRM_REISSUE;
 }
 
 /**
@@ -89,6 +100,14 @@ export function parseQrView(params: SearchParams): QrView {
 
   if (isQrErrorCode(error)) view.error = error;
 
+  // Вопрос задаётся только про названную станцию: `?confirm=reissue` без неё — это
+  // окно с заголовком «перевыпустить код станции ?», то есть вопрос ни о чём.
+  if (
+    single(params[CONFIRM]) === CONFIRM_REISSUE &&
+    view.stationId !== undefined
+  )
+    view.confirm = CONFIRM_REISSUE;
+
   return view;
 }
 
@@ -118,6 +137,7 @@ export function qrHref(view: QrView): string {
     [STORE, view.storeId],
     [STATION, view.stationId],
     ["error", view.error],
+    [CONFIRM, view.confirm],
   ]);
 }
 
