@@ -88,18 +88,28 @@ function deviceLocale(
 export function pickFillLocales(
   acceptLanguage: string | null | undefined,
   countryLocale: string | null | undefined,
-): readonly Locale[] {
+): readonly [Locale, ...Locale[]] {
   const candidates: (Locale | null)[] = [
     isLocale(countryLocale) ? countryLocale : null,
     deviceLocale(acceptLanguage),
-    FILL_LAST_RESORT_LOCALE,
   ];
 
-  const chain: Locale[] = [];
+  const preferred: Locale[] = [];
   for (const candidate of candidates) {
-    if (candidate !== null && !chain.includes(candidate)) chain.push(candidate);
+    if (candidate !== null && !preferred.includes(candidate)) {
+      preferred.push(candidate);
+    }
   }
-  return chain;
+
+  // Последнее звено — язык продукта, и оно приписывается ЗДЕСЬ, а не стоит третьим
+  // кандидатом: так цепочка непустая ПО ТИПУ, а не по обещанию в комментарии. Разница
+  // не косметическая — зовущему иначе нужен запасной вариант на случай, которого не
+  // бывает, то есть ветка, которую нечем проверить. А непроверяемая ветка однажды
+  // оказывается неверной молча: ровно так в этом файле и жила буква «ru» (#129).
+  const [first, ...rest] = preferred;
+  if (first === undefined) return [FILL_LAST_RESORT_LOCALE];
+  if (preferred.includes(FILL_LAST_RESORT_LOCALE)) return [first, ...rest];
+  return [first, ...rest, FILL_LAST_RESORT_LOCALE];
 }
 
 /**
@@ -116,41 +126,4 @@ export function pickFillText(
     if (value !== undefined && value !== "") return value;
   }
   return Object.values(text).find((value) => value !== "") ?? "";
-}
-
-/**
- * Заголовок запроса, которым публичный маршрут называет язык СВОЕГО документа.
- *
- * Ставит его `src/proxy.ts` — он и так стоит на `/s/:path*` ради одноразового ключа, —
- * а читает корневая разметка. Так у документа и у содержимого одно умолчание на двоих,
- * а не два разных: `<html lang>` знал только язык запроса и на пустом `Accept-Language`
- * откатывался к языку продукта, пока экран на том же запросе говорил по-русски
- * (прежнее последнее звено цепочки заполнения). Расхождение видит не человек, а
- * синтезатор речи и браузерный перевод — они верят атрибуту, а не буквам.
- *
- * Разъезд на пустом заголовке закрыт с двух сторон: заголовок остался, а запасной язык
- * экрана стал языком продукта. Заголовок всё равно нужен — язык пиццерии знает только
- * база, а `proxy.ts` в неё не ходит и ходить не будет, поэтому на известной станции
- * документ и содержимое сводит `core/ui/HtmlLangSync` уже после гидратации.
- *
- * Почему не поправить это на самом экране: корневая разметка рендерится РАНЬШЕ страницы
- * и ждать её не может (см. `core/ui/HtmlLangSync`), а `HtmlLangSync` догоняет язык лишь
- * после гидратации — в отданном документе расхождение остаётся. Встроенный браузер
- * сканера QR, с которого на этот экран и попадают, заголовок часто не шлёт вовсе.
- *
- * Подделать заголовок может и клиент: маршрутов без `proxy.ts` продукт не запрещает.
- * Ценности в этом нет — подделавший меняет язык страницы, которую сам же и смотрит, —
- * а значение всё равно принимается только из списка языков продукта.
- */
-export const FILL_DOCUMENT_LOCALE_HEADER = "x-fill-document-locale";
-
-/**
- * Язык документа публичного экрана, когда о станции ещё ничего не известно: отказ по
- * коду, предел частоты, сам `<html lang>`. Пиццерии здесь нет, значит нет и её языка —
- * остаются телефон и запасной, то есть та же цепочка без первого звена.
- */
-export function fillDocumentLocale(
-  acceptLanguage: string | null | undefined,
-): Locale {
-  return pickFillLocales(acceptLanguage, null)[0] ?? FILL_LAST_RESORT_LOCALE;
 }

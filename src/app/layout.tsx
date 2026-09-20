@@ -12,7 +12,8 @@ import {
   themeFromCookieHeader,
 } from "@/blocks/core/theme";
 import { HtmlLangSync } from "@/blocks/core/ui/HtmlLangSync";
-import { FILL_DOCUMENT_LOCALE_HEADER } from "@/blocks/fill/locale";
+import { fillLanguage } from "@/blocks/fill/document";
+import { FILL_STATION_CODE_HEADER } from "@/blocks/fill/params";
 import { nonceFromPolicy } from "@/security-headers";
 import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
@@ -38,15 +39,21 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
-  // Язык документа. Обычный маршрут берёт язык запроса, публичный экран заполнения —
-  // тот, что назвал сам маршрут (`src/proxy.ts`): у него своё последнее звено цепочки
-  // (русский), и два умолчания на один запрос давали документ, объявленный английским
-  // поверх русского текста. Значение приходит заголовком, поэтому проверяется списком
-  // языков продукта, а не принимается на веру.
+  // Язык документа — то, что документ ОБЕЩАЕТ о своём содержимом. Обычный маршрут
+  // объявляет язык запроса: его же показывает и экран кабинета. У публичного экрана
+  // заполнения язык принадлежит пиццерии (D122), поэтому здесь берётся не заголовок с
+  // готовым ответом, а то же самое решение, по которому экран выбирает слова
+  // (`fill/document.ts`): одно вычисление на запрос, разойтись ему негде.
+  //
+  // Почему разметка спрашивает сама, а не ждёт страницу: она рендерится РАНЬШЕ страницы,
+  // и дождаться её значило бы встать насмерть. Код станции ей называет посредник — из
+  // адреса корневая разметка его не видит (T270).
   const requestHeaders = await headers();
-  const declared = requestHeaders.get(FILL_DOCUMENT_LOCALE_HEADER);
+  const stationCode = requestHeaders.get(FILL_STATION_CODE_HEADER);
   const locale =
-    declared === null ? asLocale(await getLocale()) : asLocale(declared);
+    stationCode === null
+      ? asLocale(await getLocale())
+      : (await fillLanguage(stationCode)).locale;
 
   // Тема (T236, D106). Явный выбор человека приезжает кукой и попадает в разметку
   // ЗДЕСЬ — то есть страница отдаётся уже тёмной, без мигания и без участия скриптов.

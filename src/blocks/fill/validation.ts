@@ -16,7 +16,7 @@ import {
   requiresCommentOnFailure,
 } from "@/blocks/data";
 
-import { isPlausibleCode } from "./station";
+import { isPlausibleCode } from "./params";
 import { parseTableRows } from "./table-journal";
 
 /**

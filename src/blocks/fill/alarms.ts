@@ -35,7 +35,7 @@ import {
 
 import { ALARM_LIMITS } from "./alarm-limits";
 import { checkAlarmAllowed } from "./rate-limit";
-import { isPlausibleCode } from "./station";
+import { isPlausibleCode } from "./params";
 import type { FillRefusal, Parsed } from "./validation";
 import { UUID_PATTERN } from "./validation";
 import { formatWindow } from "./view";

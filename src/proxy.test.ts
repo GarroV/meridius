@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { SESSION_COOKIE_NAME, createSessionToken } from "@/blocks/auth/session";
+import { FILL_STATION_CODE_HEADER } from "@/blocks/fill/params";
 
 import { config, proxy } from "./proxy";
 
@@ -117,5 +118,94 @@ describe("охрана перед рендером", () => {
     expect(() => proxy(requestTo("/admin", validCookie()))).toThrow(
       /SESSION_SECRET/,
     );
+  });
+});
+
+/**
+ * `NextResponse.next({ request: { headers } })` не подменяет сам объект запроса — тела
+ * запроса на этом шаге ещё нет ни у кого. Next кладёт переписанные заголовки запроса на
+ * ОТВЕТ, служебными заголовками: `x-middleware-override-headers` перечисляет имена того,
+ * что посредник переписал, а значение каждого лежит в `x-middleware-request-<имя>`
+ * (node_modules/next/dist/server/web/spec-extension/response.js, handleMiddlewareField —
+ * его же читает сам Next перед тем, как отдать запрос корневой разметке). Тест читает тем
+ * же путём.
+ */
+function rewrittenRequestHeader(
+  response: ReturnType<typeof proxy>,
+  header: string,
+): string | null {
+  const rewritten = response.headers.get("x-middleware-override-headers");
+  if (!rewritten?.split(",").includes(header)) return null;
+  return response.headers.get(`x-middleware-request-${header}`);
+}
+
+function requestWithHeader(path: string, header: string, value: string) {
+  const headers = new Headers();
+  headers.set(header, value);
+  return new NextRequest(new URL(path, ORIGIN), { headers });
+}
+
+describe("код станции для корневой разметки", () => {
+  /**
+   * Дефект T270 целиком: разметка рендерится раньше страницы и код станции берёт не из
+   * `params`, а из этого заголовка запроса. Не доедь код сюда — язык документа снова
+   * считался бы по языку телефона, а текст на экране остался бы на языке пиццерии.
+   */
+  test("код из адреса доезжает до разметки в переписанном заголовке запроса", () => {
+    const response = proxy(requestTo("/s/abcdefghjk"));
+
+    expect(rewrittenRequestHeader(response, FILL_STATION_CODE_HEADER)).toBe(
+      "abcdefghjk",
+    );
+  });
+
+  test("значение, присланное клиентом, затирается кодом из адреса", () => {
+    // Если бы посредник дописывал заголовок вместо того, чтобы его переставлять, любой
+    // открывший ссылку решал бы, на каком языке видеть чужой экран заполнения.
+    const response = proxy(
+      requestWithHeader("/s/abcdefghjk", FILL_STATION_CODE_HEADER, "podlog"),
+    );
+
+    expect(rewrittenRequestHeader(response, FILL_STATION_CODE_HEADER)).toBe(
+      "abcdefghjk",
+    );
+  });
+
+  test("на адресе без кода заголовок до разметки не доезжает вовсе", () => {
+    // `/s/abc/def` — не маршрут `s/[code]`. Заведомо чужое значение клиента обязано
+    // пропасть вместе с тем, что посредник само не назвал: иначе разметка получила бы
+    // код станции там, где странице заполнения взяться неоткуда.
+    for (const request of [
+      requestTo("/s/abc/def"),
+      requestWithHeader("/s/abc/def", FILL_STATION_CODE_HEADER, "podlog"),
+    ]) {
+      const response = proxy(request);
+      expect(
+        response.headers.get("x-middleware-override-headers"),
+      ).not.toContain(FILL_STATION_CODE_HEADER);
+      expect(
+        rewrittenRequestHeader(response, FILL_STATION_CODE_HEADER),
+      ).toBeNull();
+    }
+  });
+
+  test("на /admin посредник код станции не называет", () => {
+    // Ветка кабинета к `publicFillResponse` не заходит — у неё нет причин что-либо знать
+    // про пиццерию, и своего кода она не называет.
+    //
+    // ЧЕГО ЭТА ПРОВЕРКА НЕ УТВЕРЖДАЕТ: что заголовок не доедет до разметки вообще.
+    // Запросы вне ветки публичного маршрута идут с заголовками клиента как есть, то есть
+    // присланный клиентом заголовок до разметки доедет — и на адресах, которых в
+    // `matcher` нет, тоже. Нового этим не получают: тот же запрос в базу открыт обычным
+    // `GET /s/<код>`, а подделавший меняет язык страницы, которую сам же и смотрит.
+    // Разобрано в `blocks/fill/params.ts` над самим заголовком.
+    const response = proxy(
+      requestWithHeader("/admin/login", FILL_STATION_CODE_HEADER, "podlog"),
+    );
+
+    expect(response.headers.get("x-middleware-override-headers")).toBeNull();
+    expect(
+      rewrittenRequestHeader(response, FILL_STATION_CODE_HEADER),
+    ).toBeNull();
   });
 });
