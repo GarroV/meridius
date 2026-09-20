@@ -1,5 +1,4 @@
 import { NextIntlClientProvider, createTranslator } from "next-intl";
-import { headers } from "next/headers";
 import type { ReactElement } from "react";
 
 import type { Locale } from "@/blocks/core/locale";
@@ -10,17 +9,8 @@ import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
 
 import { listAlarms } from "../alarms";
-import {
-  FILL_LAST_RESORT_LOCALE,
-  fillDocumentLocale,
-  pickFillLocales,
-} from "../locale";
+import { fillLanguage } from "../document";
 import { CHECKLIST_PARAM } from "../params";
-import {
-  checkScanAllowed,
-  identifyClient,
-  trustedProxyHops,
-} from "../rate-limit";
 import { buildRoundsPanel } from "../rounds-view";
 import { loadFillTarget } from "../station";
 import type { FillTarget } from "../station";
@@ -38,21 +28,17 @@ import { submitFillAction } from "./submit-action";
  *
  * Язык здесь СВОЙ, а не общий язык запроса. Общий (`src/i18n/request.ts`) знает только
  * телефон, а язык этой поверхности принадлежит пиццерии (D122): и чек-лист, и отбивка
- * «заполнять нечего» идут на том языке, который завела она. Поэтому словарь выбирается
- * прямо здесь и отдаётся клиентской части провайдером — вместе с языком, который
- * посчитала цепочка, а не тем, что решил заголовок.
+ * «заполнять нечего» идут на том языке, который завела она. Телефон решает ровно в одном
+ * месте — там, где пиццерии нет вовсе: код не работает или предел частоты сработал
+ * раньше похода в базу.
  *
- * Телефон решает ровно в одном месте — там, где пиццерии нет вовсе: код не работает или
- * предел частоты сработал раньше похода в базу.
+ * Считается это НЕ здесь, а в `../document`, и не из вкусовщины: тот же ответ нужен
+ * корневой разметке для `<html lang>`, а два вычисления одного языка в двух местах и дали
+ * документ, объявленный языком телефона поверх текста на языке пиццерии (T270). Здесь
+ * ответ только берётся — вместе с вердиктом предела частоты, который считается там же.
  */
 
 const MESSAGES: Record<Locale, typeof en> = { en, ru };
-
-/**
- * Имя заголовка стоит один раз: язык запроса читается в одном месте и дальше ездит
- * значением. Три копии строки и есть тот способ, которым одна из них однажды отстаёт.
- */
-const ACCEPT_LANGUAGE = "accept-language";
 
 function translatorFor(locale: Locale) {
   return createTranslator({
@@ -73,23 +59,15 @@ export async function FillScreen({
    */
   readonly checklistId?: string | undefined;
 }): Promise<ReactElement> {
-  const requestHeaders = await headers();
-  const acceptLanguage = requestHeaders.get(ACCEPT_LANGUAGE);
-  const client = identifyClient({
-    forwardedFor: requestHeaders.get("x-forwarded-for"),
-    // Адреса соединения среда выполнения не даёт: Next подставляет его в тот же
-    // заголовок и только когда клиент своего не прислал — отличить одно от другого
-    // нечем. Появится источник адреса — он подставляется сюда, и предел оживает сам.
-    peerAddress: null,
-    trustedProxyHops: trustedProxyHops(process.env),
-  });
+  // Язык экрана и вердикт предела частоты — одно решение на запрос, общее с документом.
+  // Цепочка `locales` нужна текстам самого чек-листа: методист мог завести пункт только
+  // на одном языке, и тогда показывается тот, что есть, в том же порядке предпочтения.
+  const { locale, locales, tooOften } = await fillLanguage(code);
+  const t = translatorFor(locale);
 
-  // Предел на клиента применяется, только когда клиентов есть чем различать.
-  // Один общий ключ превратил бы его в рубильник на всю сеть (см. `identifyClient`).
-  if (client !== null && !checkScanAllowed(client, new Date()).allowed) {
-    // Пиццерии здесь ещё нет: предел нарочно срабатывает ДО похода в базу, иначе он
-    // не защищал бы её от перебора. Значит, язык остаётся за телефоном.
-    const t = translatorFor(fillDocumentLocale(acceptLanguage));
+  if (tooOften) {
+    // Пиццерии здесь нет: предел нарочно срабатывает ДО похода в базу, иначе он не
+    // защищал бы её от перебора. Значит, язык остался за телефоном — так его и посчитали.
     return (
       <StateScreen
         testId="fill-too-often"
@@ -106,15 +84,11 @@ export async function FillScreen({
   const target: FillTarget = await loadFillTarget(code, now, checklistId);
 
   if (target.kind === "unknown-code" || target.kind === "no-checklist") {
-    // «Заполнять нечего» — отбивка НАСТОЯЩЕЙ пиццерии: человек стоит на её кухне с её
-    // наклейкой, и язык этой надписи принадлежит ей, а не телефону (D122). «Код не
-    // работает» — другое дело: пиццерии за ним нет никакой, и язык брать неоткуда.
-    const locale =
-      target.kind === "no-checklist"
-        ? (pickFillLocales(acceptLanguage, target.countryLocale)[0] ??
-          fillDocumentLocale(acceptLanguage))
-        : fillDocumentLocale(acceptLanguage);
-    const t = translatorFor(locale);
+    // Язык обеих надписей уже посчитан выше, и посчитан по-разному сам собой:
+    // «заполнять нечего» — отбивка НАСТОЯЩЕЙ пиццерии, человек стоит на её кухне с её
+    // наклейкой, и надпись принадлежит ей (D122); «код не работает» — другое дело,
+    // пиццерии за подобранным кодом нет никакой, и язык остаётся за телефоном. Разницу
+    // даёт та же цепочка: у станции, которой нет, нет и языка страны.
     // Ответ на неизвестный и на перевыпущенный код один и тот же: различать их
     // значило бы отвечать перебору по-разному (D021), да и в данных они неразличимы —
     // перевыпуск переписывает код станции, прежней строки не остаётся.
@@ -137,12 +111,6 @@ export async function FillScreen({
       </div>
     );
   }
-
-  const locales = pickFillLocales(acceptLanguage, target.countryLocale);
-  // Цепочка непустая по построению, но запасное звено здесь не буква: буква «ru»
-  // пережила бы смену правила молча — ровно так и разъехались два умолчания (#129).
-  const locale = locales[0] ?? FILL_LAST_RESORT_LOCALE;
-  const t = translatorFor(locale);
 
   // Несколько чек-листов открыты в одну минуту — выбирает сотрудник, а не порядок
   // сортировки (#60). Ссылка, а не форма: переход обязан работать до того, как на

@@ -17,7 +17,11 @@ import {
   sampleSections,
 } from "@/blocks/data/testing/fixtures";
 
-import { findStationVersion, loadFillTarget } from "./station";
+import {
+  findStationVersion,
+  loadFillTarget,
+  stationCountryLocale,
+} from "./station";
 
 /** Язык страны пиццерии: по нему пишется отбивка «заполнять нечего» (D122). */
 async function setCountryLocale(
@@ -186,7 +190,7 @@ describe("режим смены решает, что попадёт на экр�
 });
 
 describe("что отдаёт публичный маршрут по коду станции", () => {
-  it("отдаёт опубликованную версию, название пиццерии и язык страны", async () => {
+  it("отдаёт опубликованную версию и названия пиццерии и станции", async () => {
     // Arrange
     const { code, versionId } = await publishedStation();
 
@@ -199,7 +203,23 @@ describe("что отдаёт публичный маршрут по коду с
     expect(target.version.id).toBe(versionId);
     expect(target.storeName).toMatch(/^Пиццерия /);
     expect(target.stationName).toMatch(/^Станция /);
-    expect(target.countryLocale).toBe("ru");
+  });
+
+  it("язык страны спрашивается отдельно — им объявляется и язык документа", async () => {
+    // Язык этой поверхности принадлежит пиццерии (D122), и решение о нём одно на запрос:
+    // его берут и экран, и `<html lang>` (T270). Поэтому язык больше не едет в ответе
+    // `loadFillTarget` — за ним ходят сюда.
+    const { code } = await publishedStation();
+
+    expect(await stationCountryLocale(code)).toBe("ru");
+  });
+
+  it("у станции, которой нет, нет и языка страны: подставлять за неё нечего", async () => {
+    // Здесь и держится отказ по неизвестному коду на языке ТЕЛЕФОНА: пиццерии за
+    // подобранным кодом нет никакой, и первое звено цепочки пустое.
+    expect(await stationCountryLocale("zzzzzzzzzz")).toBeNull();
+    // Заведомо не код до базы не доходит вовсе.
+    expect(await stationCountryLocale("не код")).toBeNull();
   });
 
   it("не отдаёт ничего сверх чек-листа: ни истории станции, ни других чек-листов", async () => {
@@ -222,7 +242,6 @@ describe("что отдаёт публичный маршрут по коду с
     const fields = Object.keys(target).sort();
     expect(fields).toStrictEqual([
       "checklist",
-      "countryLocale",
       "kind",
       // Режим смены и отфильтрованные им пункты — то, что экран и так показывает
       // человеку с наклейкой в руках; истории станции среди них нет (D021, D055).
@@ -430,8 +449,13 @@ describe("на станции открыто несколько чек-лист�
  * наклейкой на кухне настоящей пиццерии, поэтому её язык обязан доехать до экрана
  * вместе с ответом. Без этого экран знал бы только телефон и написал бы её на нём.
  */
+// Отбивка по-прежнему говорит на языке своей пиццерии (D122), но язык этой поверхности
+// решается один раз на запрос — и решение берут оба, и экран, и `<html lang>` (T270).
+// Поэтому здесь проверяются обе половины обещания там, где они теперь живут: сама
+// отбивка не несёт о пиццерии ничего, а её язык читается по тому же коду станции и
+// меняется вместе с данными, а не с константой.
 describe("отбивка «заполнять нечего» знает язык своей пиццерии", () => {
-  it("язык берётся из страны пиццерии, а не из константы", async () => {
+  it("язык читается из страны пиццерии, а не из константы", async () => {
     // Arrange: настоящая станция, чей утренний чек-лист в 15:00 закрыт.
     const station = await createStation();
     const checklistId = await createChecklist({
@@ -443,22 +467,20 @@ describe("отбивка «заполнять нечего» знает язык
     await publishVersion(checklistId);
 
     // Act + Assert: у страны заведён русский — отбивка приедет русской.
-    const russian = await loadFillTarget(station.stationCode, AFTERNOON);
-    expect(russian).toStrictEqual({
+    expect(await loadFillTarget(station.stationCode, AFTERNOON)).toStrictEqual({
       kind: "no-checklist",
-      countryLocale: "ru",
     });
+    expect(await stationCountryLocale(station.stationCode)).toBe("ru");
 
     // Та же станция, у страны сменили язык: ответ обязан смениться вместе с данными.
     await setCountryLocale(station.countryId, "en");
-    const english = await loadFillTarget(station.stationCode, AFTERNOON);
-    expect(english).toStrictEqual({
+    expect(await loadFillTarget(station.stationCode, AFTERNOON)).toStrictEqual({
       kind: "no-checklist",
-      countryLocale: "en",
     });
+    expect(await stationCountryLocale(station.stationCode)).toBe("en");
   });
 
-  it("режим смены, срезавший все пункты, отвечает тем же языком", async () => {
+  it("режим смены, срезавший все пункты, приводит в ту же отбивку", async () => {
     // Второй путь в ту же отбивку: чек-лист открыт, но в критичном режиме от станции
     // сегодня не ждут ничего. Язык обязан доехать и здесь — иначе одна и та же надпись
     // приходила бы на двух разных языках в зависимости от того, как она получилась.
@@ -489,7 +511,7 @@ describe("отбивка «заполнять нечего» знает язык
 
     expect(await loadFillTarget(station.stationCode, MORNING)).toStrictEqual({
       kind: "no-checklist",
-      countryLocale: "en",
     });
+    expect(await stationCountryLocale(station.stationCode)).toBe("en");
   });
 });

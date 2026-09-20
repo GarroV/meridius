@@ -4,6 +4,7 @@
 // Правило выбора версии по окну и часовому поясу при этом НЕ переписывается —
 // оно живёт в `getPublishedVersionForStation`, и здесь только вызывается.
 import { and, eq } from "drizzle-orm";
+import { cache } from "react";
 
 import type {
   Checklist,
@@ -43,7 +44,7 @@ export function isPlausibleCode(code: string): boolean {
   );
 }
 
-/** Открытая версия станции и минимум вокруг неё: название пиццерии и язык страны. */
+/** Открытая версия станции и минимум вокруг неё: названия пиццерии и станции. */
 interface FillTargetReady {
   readonly kind: "ok";
   readonly version: ChecklistVersion;
@@ -63,7 +64,6 @@ interface FillTargetReady {
   readonly modeChosen: boolean;
   readonly stationName: string;
   readonly storeName: string;
-  readonly countryLocale: string;
   /**
    * Часовой пояс пиццерии (`stores.timezone`): время на экране принадлежит кухне,
    * а не телефону. Отдаётся только на этом исходе — там, где код УЖЕ настоящий:
@@ -79,10 +79,8 @@ interface FillTargetReady {
  *   от «код был, но отозван».
  * · `no-checklist` — станция есть, но сейчас ей заполнять нечего. Отдельное состояние
  *   потому, что сотруднику с настоящей наклейкой надо сказать правду: бежать к
- *   управляющему за новой наклейкой не нужно. Из данных несёт ровно одно — язык страны,
- *   и только потому, что на этом языке отбивку и надо написать (D122: «отбивки и
- *   сервисные сообщения также должны быть на этом языке»). Названия пиццерии и станции
- *   не отдаются по-прежнему: язык — это одна из двух букв, а название — это адрес.
+ *   управляющему за новой наклейкой не нужно. Из данных не несёт ничего вовсе — ни
+ *   названий, ни языка страны (см. `NO_CHECKLIST`).
  */
 /**
  * Несколько чек-листов открыто одновременно — сотрудник выбирает.
@@ -96,25 +94,26 @@ interface FillTargetChoice {
   readonly options: readonly FillChoiceOption[];
   readonly stationName: string;
   readonly storeName: string;
-  readonly countryLocale: string;
 }
 
 export type FillTarget =
   | FillTargetReady
   | FillTargetChoice
   | { readonly kind: "unknown-code" }
-  | { readonly kind: "no-checklist"; readonly countryLocale: string };
+  | { readonly kind: "no-checklist" };
 
 const UNKNOWN_CODE = { kind: "unknown-code" } as const;
 
 /**
- * Отбивка «заполнять нечего» знает язык своей пиццерии. Её видит человек с настоящей
- * наклейкой, стоящий на кухне этой самой пиццерии, — и по D122 язык этой поверхности
- * принадлежит ей, а не телефону в кармане.
+ * «Заполнять нечего» не несёт о пиццерии НИЧЕГО — даже языка страны.
+ *
+ * Язык этой отбивки по-прежнему её (D122: «отбивки и сервисные сообщения также должны
+ * быть на этом языке»), но берётся он не отсюда. Язык этой поверхности решается один раз
+ * на запрос в `./document`, и его же объявляет документ; вторая копия того же факта в
+ * ответе экрану была тем местом, откуда решение могли посчитать заново и разойтись
+ * (T270). Публичная ссылка от этого отдаёт на одну строку меньше — ровно в духе D021.
  */
-function noChecklist(context: StationContext): FillTarget {
-  return { kind: "no-checklist", countryLocale: context.countryLocale };
-}
+const NO_CHECKLIST = { kind: "no-checklist" } as const;
 
 interface StationContext {
   readonly storeId: string;
@@ -124,8 +123,18 @@ interface StationContext {
   readonly timeZone: string;
 }
 
-/** Станция, её пиццерия и язык страны — ровно то, что попадёт на экран. */
-async function stationContext(code: string): Promise<StationContext | null> {
+/**
+ * Станция, её пиццерия и язык страны — ровно то, что попадёт на экран.
+ *
+ * Под `cache()`, потому что за этой строкой в одном запросе приходят двое: экран — за
+ * содержимым, корневая разметка — за языком документа (T270). Без памяти на запрос это
+ * были бы два одинаковых запроса в базу на каждое открытие экрана. Память живёт ровно
+ * один проход рендера; вне рендера — в тестах — `cache` просто зовёт функцию, и
+ * поведение остаётся прежним.
+ */
+const stationContext = cache(async function stationContext(
+  code: string,
+): Promise<StationContext | null> {
   const [row] = await getDb()
     .select({
       storeId: stores.id,
@@ -141,6 +150,22 @@ async function stationContext(code: string): Promise<StationContext | null> {
     .limit(1);
 
   return row ?? null;
+});
+
+/**
+ * Язык страны этой станции — и ничего больше.
+ *
+ * Нужен корневой разметке, чтобы объявить язык ДОКУМЕНТА тем же, что язык текста на
+ * экране (T270). Отдельная функция, а не второй запрос: за строкой станции она идёт в тот
+ * же `stationContext`, то есть в единственный за запрос поход в базу. `null` — станции по
+ * такому коду нет (или код заведомо не код), и тогда пиццерии нет, а значит нет и её
+ * языка: подставлять за неё нечего.
+ */
+export async function stationCountryLocale(
+  code: string,
+): Promise<string | null> {
+  if (!isPlausibleCode(code)) return null;
+  return (await stationContext(code))?.countryLocale ?? null;
 }
 
 /**
@@ -159,7 +184,7 @@ export async function loadFillTarget(
   if (context === null) return UNKNOWN_CODE;
 
   const open = await listPublishedVersionsForStation(code, at);
-  if (open.length === 0) return noChecklist(context);
+  if (open.length === 0) return NO_CHECKLIST;
 
   // Выбранный чек-лист берётся только из списка открытых на ЭТОЙ станции: чужой
   // идентификатор не подставляет свой молча, а возвращает к выбору — иначе сотрудник
@@ -183,7 +208,6 @@ export async function loadFillTarget(
       })),
       stationName: context.stationName,
       storeName: context.storeName,
-      countryLocale: context.countryLocale,
     };
   }
 
@@ -197,7 +221,7 @@ export async function loadFillTarget(
   const sections = sectionsForMode(found.version.sections, mode);
   // В этом режиме от станции сегодня не ждут ничего: честнее сказать «заполнять
   // нечего», чем открыть чек-лист без пунктов с активной кнопкой отправки.
-  if (sections.length === 0) return noChecklist(context);
+  if (sections.length === 0) return NO_CHECKLIST;
 
   return {
     kind: "ok",
@@ -208,7 +232,6 @@ export async function loadFillTarget(
     modeChosen: shift?.chosen ?? false,
     stationName: context.stationName,
     storeName: context.storeName,
-    countryLocale: context.countryLocale,
     timeZone: context.timeZone,
   };
 }

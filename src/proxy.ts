@@ -3,9 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { sessionSecret } from "@/blocks/auth/config";
 import { PUBLIC_FILL_ROOT } from "@/blocks/core/public-routes";
 import {
-  FILL_DOCUMENT_LOCALE_HEADER,
-  fillDocumentLocale,
-} from "@/blocks/fill/locale";
+  FILL_STATION_CODE_HEADER,
+  stationCodeFromPath,
+} from "@/blocks/fill/params";
 import { PUBLIC_FILL_PREFIX, securityHeaders } from "@/security-headers";
 import { LOGIN_PATH } from "@/blocks/auth/routes";
 import { SESSION_COOKIE_NAME, readSessionToken } from "@/blocks/auth/session";
@@ -49,20 +49,28 @@ function createNonce(): string {
  * там `/s/*` из источника исключён нарочно. Два заголовка политики на одном ответе
  * браузер применяет пересечением, и понять, что именно сработало, было бы гаданием.
  */
-function publicFillResponse(request: NextRequest): NextResponse {
+function publicFillResponse(
+  request: NextRequest,
+  pathname: string,
+): NextResponse {
   const nonce = createNonce();
   const isDevelopment = process.env.NODE_ENV === "development";
   const headers = securityHeaders({ nonce, isDevelopment });
 
   const requestHeaders = new Headers(request.headers);
   for (const header of headers) requestHeaders.set(header.key, header.value);
-  // Язык документа для корневой разметки: она рендерится раньше страницы и спросить
-  // экран не может, а своё умолчание у неё другое — см. `fillDocumentLocale`.
-  // `set`, а не `append`: значение клиента здесь всегда затирается своим.
-  requestHeaders.set(
-    FILL_DOCUMENT_LOCALE_HEADER,
-    fillDocumentLocale(request.headers.get("accept-language")),
-  );
+
+  // Код станции для корневой разметки: язык ДОКУМЕНТА этой поверхности принадлежит
+  // пиццерии (D122), а знает её только база — сюда посреднику хода нет. Поэтому
+  // посредник называет код, а язык по нему считает сама разметка (`fill/document.ts`).
+  // Прежде здесь ехал готовый язык, посчитанный из `Accept-Language`, и это и был
+  // дефект T270: документ объявлял язык телефона поверх текста на языке пиццерии.
+  //
+  // `set`/`delete`, а не `append`: значение клиента здесь всегда затирается своим —
+  // иначе заголовок с чужого адреса доехал бы до разметки как наш.
+  const stationCode = stationCodeFromPath(pathname);
+  if (stationCode === null) requestHeaders.delete(FILL_STATION_CODE_HEADER);
+  else requestHeaders.set(FILL_STATION_CODE_HEADER, stationCode);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   for (const header of headers) response.headers.set(header.key, header.value);
@@ -74,7 +82,7 @@ export function proxy(request: NextRequest): NextResponse {
 
   // Первым делом и без единого обращения к сессии: публичный маршрут о входе не знает.
   if (pathname.startsWith(PUBLIC_FILL_PREFIX))
-    return publicFillResponse(request);
+    return publicFillResponse(request, pathname);
 
   // Обрезанная ссылка станции (`/s/` браузер приводит к `/s`) — тоже публичная сторона,
   // а не кабинет: человек с кухни обязан увидеть «такого адреса нет», а не пароль

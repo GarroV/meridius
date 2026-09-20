@@ -4,7 +4,6 @@ import { DEFAULT_LOCALE } from "@/blocks/core/locale";
 
 import {
   FILL_LAST_RESORT_LOCALE,
-  fillDocumentLocale,
   pickFillLocales,
   pickFillText,
 } from "./locale";
@@ -134,24 +133,5 @@ describe("текст пункта на языке цепочки", () => {
 
   it("совсем пустой текст даёт пустую строку, а не падение", () => {
     expect(pickFillText({}, ["ru"])).toBe("");
-  });
-});
-
-/**
- * Язык документа публичного экрана, когда о станции ещё ничего не известно. Он же
- * уезжает заголовком в корневую разметку (`src/proxy.ts`), поэтому ответ обязан быть
- * один: два умолчания на один запрос и дали документ, объявленный английским поверх
- * русского текста (T232).
- */
-describe("fillDocumentLocale", () => {
-  it("телефон, который назвал свой язык, получает его", () => {
-    expect(fillDocumentLocale("en-GB,en;q=0.9")).toBe("en");
-    expect(fillDocumentLocale("ru-RU,ru;q=0.9")).toBe("ru");
-  });
-
-  it("без заголовка и на незнакомом языке — язык продукта", () => {
-    expect(fillDocumentLocale(null)).toBe(DEFAULT_LOCALE);
-    expect(fillDocumentLocale("")).toBe(DEFAULT_LOCALE);
-    expect(fillDocumentLocale("kk-KZ")).toBe(DEFAULT_LOCALE);
   });
 });
