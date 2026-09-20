@@ -23,7 +23,6 @@ import { THEME_COOKIE_NAME } from "../src/blocks/core/theme";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 
 const THEMES = ["light", "dark"] as const;
-type Theme = (typeof THEMES)[number];
 
 /** Любая запись цвета, какую отдаёт браузер: `rgb(r, g, b)` или `rgba(r, g, b, a)`. */
 const COLOR = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/g;
@@ -34,12 +33,28 @@ interface Paint {
   readonly alpha: number;
 }
 
-/** Все цвета строки в порядке появления. Невидимые (alpha 0) сюда попадают тоже. */
+/**
+ * Все цвета строки в порядке появления. Невидимые (alpha 0) сюда попадают тоже — отсеивает
+ * их тот, кто спрашивает про краску.
+ *
+ * Группы читаются колбэком замены, а не индексами совпадения, — тот же приём, что у
+ * `design-reference.ts`: по типам `match[1]` это `string | undefined`, и проверка на
+ * `undefined` была бы веткой, в которую не попадает ни один вход. Прозрачность —
+ * единственная группа, которой на входе честно может не быть (`rgb(…)` без альфы).
+ */
 function colorsOf(value: string): readonly Paint[] {
-  return [...value.matchAll(COLOR)].map((m) => ({
-    rgb: `${m[1]},${m[2]},${m[3]}`,
-    alpha: m[4] === undefined ? 1 : Number(m[4]),
-  }));
+  const paints: Paint[] = [];
+  value.replace(
+    COLOR,
+    (_whole, r: string, g: string, b: string, alpha: string | undefined) => {
+      paints.push({
+        rgb: `${r},${g},${b}`,
+        alpha: alpha === undefined ? 1 : Number(alpha),
+      });
+      return "";
+    },
+  );
+  return paints;
 }
 
 interface Ring {
