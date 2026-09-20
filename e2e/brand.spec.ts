@@ -20,7 +20,20 @@ test.describe("имя продукта на экране", () => {
   for (const locale of ["ru-RU", "en-US"] as const) {
     test(`карточка входа и кабинет говорят ${BRAND} (${locale})`, async ({
       browser,
+      request,
     }) => {
+      // Заголовок вкладки читается из ОТДАННОГО документа, а не из живой вкладки:
+      // `<title>` смотрят поисковик, мессенджер, закладка и история браузера — все
+      // они видят то, что пришло по проводу. Проверка живого DOM здесь была зелёной
+      // на любом заголовке, который React доставил бы после гидратации (T271).
+      const delivered = await request.get("/admin/login", {
+        headers: { "accept-language": locale },
+      });
+      expect(delivered.status()).toBe(200);
+      expect(/<title>([^<]*)<\/title>/.exec(await delivered.text())?.[1]).toBe(
+        BRAND,
+      );
+
       // Язык задаётся явно: имя не переводится, и именно это здесь и проверяется —
       // на обоих языках в шапке стоит одно и то же слово.
       const context = await browser.newContext({ locale });
@@ -30,9 +43,6 @@ test.describe("имя продукта на экране", () => {
       await expect(
         page.getByText(BRAND, { exact: false }).first(),
       ).toBeVisible();
-      // Заголовок вкладки — то самое место, где до ребрендинга стояло имя репозитория.
-      await expect(page).toHaveTitle(BRAND);
-
       await page
         .getByLabel(locale === "ru-RU" ? "Пароль" : "Password")
         .fill(E2E_ADMIN_PASSWORD);
