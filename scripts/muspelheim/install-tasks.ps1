@@ -1,4 +1,4 @@
-<#
+﻿<#
 Приводит задачи планировщика стенда показа на MUSPELHEIM в нужное состояние (issue #92).
 Идемпотентен: можно прогонять повторно, в том числе после перестановки площадки.
 
@@ -19,12 +19,28 @@ $PRODUCT_BOOT_DELAY = 'PT2M'  # даёт подняться базе в Docker �
 
 # Площадка — ноутбук с обезвреженной крышкой, поэтому работа от батареи разрешается
 # явно: настройки по умолчанию гасят задачу при переходе на батарею.
-$settings = New-ScheduledTaskSettingsSet `
+#
+# Наборов два, и разница между ними — не украшение. Сторож отрабатывает секунды,
+# и лимит в 10 минут для него предохранитель от зависшего прогона. Продукт и
+# звено-прокси, наоборот, ОБЯЗАНЫ жить бесконечно: с лимитом планировщик убивает
+# их ровно через 10 минут (issue #140 — стенд умирал каждые 10 минут, сторож
+# поднимал его каждые 15, и снаружи это выглядело как случайный 502).
+# [TimeSpan]::Zero в ExecutionTimeLimit означает «без ограничения».
+$watchdogSettings = New-ScheduledTaskSettingsSet `
   -AllowStartIfOnBatteries `
   -DontStopIfGoingOnBatteries `
+  -DontStopOnIdleEnd `
   -StartWhenAvailable `
   -MultipleInstances IgnoreNew `
   -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
+
+$serviceSettings = New-ScheduledTaskSettingsSet `
+  -AllowStartIfOnBatteries `
+  -DontStopIfGoingOnBatteries `
+  -DontStopOnIdleEnd `
+  -StartWhenAvailable `
+  -MultipleInstances IgnoreNew `
+  -ExecutionTimeLimit ([TimeSpan]::Zero)
 
 $watchdogTrigger = New-ScheduledTaskTrigger -AtStartup
 $repetitionSource = New-ScheduledTaskTrigger -Once -At (Get-Date) `
@@ -45,14 +61,14 @@ $watchdogAction = New-ScheduledTaskAction -Execute 'powershell.exe' `
   -Argument ('-NoProfile -ExecutionPolicy Bypass -File ' + $WATCHDOG_SCRIPT)
 
 Register-ScheduledTask -TaskName 'meridius-watchdog' -Action $watchdogAction `
-  -Trigger @($watchdogTrigger, $immediateTrigger) -Settings $settings -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
+  -Trigger @($watchdogTrigger, $immediateTrigger) -Settings $watchdogSettings -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
 Write-Output 'meridius-watchdog: зарегистрирован'
 
 $productTrigger = New-ScheduledTaskTrigger -AtStartup
 $productTrigger.Delay = $PRODUCT_BOOT_DELAY
-Set-ScheduledTask -TaskName 'meridius-start' -Trigger $productTrigger -Settings $settings | Out-Null
-Write-Output 'meridius-start: триггер на загрузку и работа от батареи'
+Set-ScheduledTask -TaskName 'meridius-start' -Trigger $productTrigger -Settings $serviceSettings | Out-Null
+Write-Output 'meridius-start: триггер на загрузку, работа от батареи, без лимита времени'
 
 Set-ScheduledTask -TaskName 'meridius-qr-proxy' `
-  -Trigger (New-ScheduledTaskTrigger -AtStartup) -Settings $settings | Out-Null
-Write-Output 'meridius-qr-proxy: работа от батареи'
+  -Trigger (New-ScheduledTaskTrigger -AtStartup) -Settings $serviceSettings | Out-Null
+Write-Output 'meridius-qr-proxy: работа от батареи, без лимита времени'
