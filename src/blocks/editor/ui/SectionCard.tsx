@@ -24,7 +24,7 @@ const HEAD_CLASS =
 // знаков), она не растёт под содержимое и не сжимается под соседей. Без этого длинный
 // заголовок секции обрезался на середине слова — «Opening 05:00–08:00 · S».
 const TITLE_CLASS =
-  "font-ui text-ink min-w-0 flex-1 rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--fs-body)] font-semibold hover:border-[var(--line-control)] focus:border-[var(--accent)] focus:outline-none";
+  "font-ui text-ink min-w-0 flex-1 rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--fs-body)] font-semibold hover:border-[var(--line-control)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const GHOST_BUTTON_CLASS =
   "flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] hover:bg-[var(--surface-3)] hover:text-[var(--ink)]";
 const SMALL_BUTTON_CLASS =
@@ -280,7 +280,7 @@ export function SectionCard(props: SectionCardProps) {
                 data-testid="paste-area"
                 autoFocus
                 rows={6}
-                className="text-ink bg-surface w-full rounded-[var(--r-control)] border border-[var(--line-control)] p-[var(--space-5)] text-[length:var(--fs-body)] focus:border-[var(--accent)] focus:outline-none"
+                className="text-ink bg-surface w-full rounded-[var(--r-control)] border border-[var(--line-control)] p-[var(--space-5)] text-[length:var(--fs-body)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none"
                 placeholder={t("pastePlaceholder")}
                 aria-label={t("pastePlaceholder")}
                 value={pasted}

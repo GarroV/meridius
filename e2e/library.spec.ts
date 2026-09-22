@@ -214,7 +214,7 @@ test.describe("библиотека переиспользуемых блоко�
     const chip = page.getByTestId("item-schedule-chip");
     await expect(chip).toHaveCount(1);
     await expect(chip).toHaveAttribute("data-kind", "none");
-    await expect(chip).toHaveText("Разово");
+    await expect(chip).toHaveText("Один раз");
   });
 
   test("чип блока называет отрезок относительным, без часов суток", async ({
