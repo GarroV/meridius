@@ -121,7 +121,18 @@ describe("публикация: состояние действия говори
     expect(state.closedWindow?.start).toBe(window.start);
     expect(state.closedWindow?.end).toBe(window.end);
     expect(state.closedWindow?.opensAt).toBe(window.start);
-    expect(state.closedWindow?.tomorrow).toBe(false);
+    // «Завтра» — не константа, а следствие часа прогона, и написать здесь `false`
+    // значит требовать, чтобы прогон шёл днём. Окно строится сдвигом «через два часа»
+    // от часа пиццерии; после 22:00 UTC этот сдвиг переезжает за полночь, и верный
+    // ответ становится `true`. Проверяется само правило: окно завтрашнее РОВНО ТОГДА,
+    // когда его начало по времени суток раньше, чем сейчас.
+    //
+    // Замерено 24.09.2026: с константой `false` прогон краснел в 22:20 UTC — то есть
+    // каждую ночь, и именно в окно раскатки продукта (23:00–06:59), единственные часы,
+    // когда пуш в main разрешён. Выглядело это как случайное мигание.
+    const startsBeforeNow =
+      minutesOf(window.start) < minutesOf(state.closedWindow?.now ?? "");
+    expect(state.closedWindow?.tomorrow).toBe(startsBeforeNow);
     // Записанное подменой не лежит без дела: действие обязано и спросить права, и
     // перечитать экран редактора — версия на нём появилась.
     expect(calls.admin).toBe(1);
