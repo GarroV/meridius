@@ -11,6 +11,8 @@ import {
   THEME_BOOTSTRAP_SCRIPT,
   themeFromCookieHeader,
 } from "@/blocks/core/theme";
+import { currentDevice } from "@/blocks/device/current";
+import { DEVICE_TAB_HEADER } from "@/blocks/device/params";
 import { fillLanguage } from "@/blocks/fill/document";
 import { FILL_STATION_CODE_HEADER } from "@/blocks/fill/params";
 import { nonceFromPolicy } from "@/security-headers";
@@ -58,8 +60,17 @@ export default async function RootLayout({
   // который до гидратации может не дойти вовсе. Цена была не в одном `useEffect`, а в
   // том, что отданный документ и живая вкладка отвечали по-разному, и зелёной
   // оказывалась та проверка, которая смотрела позже: так дефект T270 и дожил до приёмки.
+  //
+  // У привязанной вкладки планшета кода в адресе нет вовсе (`/station`), поэтому
+  // посредник называет только сам факт вкладки, а код разметка спрашивает по куке —
+  // через ту же память на запрос, что и страница. Язык дальше считается тем же
+  // `fillLanguage`: поверхность та же, пиццерия та же, и второго правила для неё нет.
   const requestHeaders = await headers();
-  const stationCode = requestHeaders.get(FILL_STATION_CODE_HEADER);
+  const stationCode =
+    requestHeaders.get(FILL_STATION_CODE_HEADER) ??
+    (requestHeaders.get(DEVICE_TAB_HEADER) === null
+      ? null
+      : ((await currentDevice())?.stationCode ?? null));
   const locale =
     stationCode === null
       ? asLocale(await getLocale())

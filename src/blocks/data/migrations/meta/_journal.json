@@ -92,6 +92,13 @@
       "when": 1789200000000,
       "tag": "0012_submission_repeat_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789250000000,
+      "tag": "0013_device_pairing",
+      "breakpoints": true
     }
   ]
 }

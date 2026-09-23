@@ -14,6 +14,10 @@ const DEPS = {
   qr: ["catalog", "data", "auth", "core"],
   fill: ["data", "editor", "core"],
   feed: ["data", "auth", "core"],
+  // device рисует экран заполнения (fill), держит строки привязки (data), заводит пин с
+  // экрана кабинета (auth) и зовёт общую подпись (core). Обратного направления нет:
+  // ни fill, ни auth о привязке планшета не знают.
+  device: ["fill", "data", "auth", "core"],
   demo: ["catalog", "editor", "fill", "feed", "data", "core"],
 };
 
@@ -37,6 +41,15 @@ module.exports = {
         "Публичный маршрут заполнения не имеет права зависеть от входа в админку",
       severity: "error",
       from: { path: "^src/app/s/" },
+      to: { path: "^src/blocks/auth/" },
+    },
+    {
+      name: "tablet-route-has-no-auth",
+      comment:
+        "Страница привязки и привязанная вкладка — публичная сторона: отказ кабинета не " +
+        "имеет права увести человека с кухни на пароль, которого у него нет (T187)",
+      severity: "error",
+      from: { path: "^src/app/(pair|station)/" },
       to: { path: "^src/blocks/auth/" },
     },
     {

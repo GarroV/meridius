@@ -9,7 +9,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useState } from "react";
-import type { ClipboardEvent, KeyboardEvent } from "react";
+import type { ClipboardEvent, KeyboardEvent, ReactNode } from "react";
 
 import { ADMIN_CONTENT_CLASS } from "@/blocks/core/ui/admin-frame";
 import { useLive } from "@/blocks/core/ui/use-live";
@@ -64,6 +64,8 @@ export interface ChecklistEditorProps {
   readonly nextVersionNumber: number;
   readonly previewHref: string;
   readonly crumbs: string;
+  /** Готовая разметка действия кабинета над станцией чек-листа (см. `EditorScreen`). */
+  readonly stationAction?: ReactNode;
 }
 
 const BUTTON_CLASS =
@@ -431,6 +433,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               onInsert={insertBlock}
             />
             <StationNotice station={props.station} window={window} />
+            {props.stationAction}
           </aside>
         </div>
       </div>

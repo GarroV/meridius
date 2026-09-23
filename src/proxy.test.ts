@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { SESSION_COOKIE_NAME, createSessionToken } from "@/blocks/auth/session";
+import { DEVICE_TAB_HEADER } from "@/blocks/device/params";
 import { FILL_STATION_CODE_HEADER } from "@/blocks/fill/params";
 
 import { config, proxy } from "./proxy";
@@ -30,10 +31,46 @@ afterEach(() => {
 });
 
 describe("охрана перед рендером", () => {
-  test("сторожит весь /admin и, отдельной веткой, публичный /s", () => {
+  test("сторожит весь /admin и, отдельными ветками, публичную сторону", () => {
     // `/s/*` попал в matcher не ради охраны: этому маршруту выдаётся одноразовый
-    // ключ политики безопасности (T071), а выдать его больше некому.
-    expect(config.matcher).toEqual(["/admin/:path*", "/s/:path*"]);
+    // ключ политики безопасности (T071), а выдать его больше некому. Страница привязки
+    // планшета и привязанная вкладка — та же публичная сторона и тот же ключ.
+    expect(config.matcher).toEqual([
+      "/admin/:path*",
+      "/s/:path*",
+      "/pair",
+      "/station",
+    ]);
+  });
+
+  test("страница привязки и вкладка планшета не читают сессию кабинета", () => {
+    // Ни без куки, ни с подделанной: обе ветки стоят до всего, что связано со входом.
+    const forged = createSessionToken(
+      "чужой-секрет-достаточной-длины-123456",
+      new Date(),
+    );
+
+    for (const path of ["/pair", "/station"]) {
+      for (const cookie of [undefined, forged]) {
+        const response = proxy(requestTo(path, cookie));
+        expect(response.status, `${path} завернуло на вход`).toBe(200);
+        expect(response.headers.get("content-security-policy")).toContain(
+          "nonce-",
+        );
+      }
+    }
+  });
+
+  test("признак вкладки планшета ставится только на /station и только свой", () => {
+    // Заголовок приходит и снаружи: клиент вправе прислать что угодно, и на странице
+    // привязки этот признак означал бы, что язык документа считают по чужой куке.
+    const headers = new Headers({ [DEVICE_TAB_HEADER]: "1" });
+    const forgedOnPair = new NextRequest(new URL("/pair", ORIGIN), { headers });
+
+    expect(
+      proxy(forgedOnPair).headers.get("content-security-policy"),
+    ).toContain("nonce-");
+    expect(proxy(requestTo("/station")).status).toBe(200);
   });
 
   test("публичный маршрут не заворачивается на вход и не читает сессию", () => {

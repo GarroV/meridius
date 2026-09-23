@@ -16,6 +16,7 @@ const SECTIONS = [
   { name: "QR-коды", path: "/admin/qr" },
   { name: "Заполнения", path: "/admin/feed" },
   { name: "Страны и пиццерии", path: "/admin/catalog" },
+  { name: "Устройства", path: "/admin/devices" },
 ] as const;
 
 /**

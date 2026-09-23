@@ -1,5 +1,4 @@
-import { Buffer } from "node:buffer";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { openSignedToken, packSignedToken } from "@/blocks/core/signed-token";
 
 /** Имя сессионной куки. Одно на весь продукт: аккаунт в MVP один (D014). */
 export const SESSION_COOKIE_NAME = "meridius_admin";
@@ -14,8 +13,6 @@ export const SESSION_COOKIE_NAME = "meridius_admin";
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 const PAYLOAD_VERSION = 1;
-const SEPARATOR = ".";
-const ENCODING = "base64url";
 const MILLISECONDS = 1000;
 
 /** Сессия администратора. Ни имени, ни роли: в MVP аккаунт один и прав у него все. */
@@ -29,29 +26,12 @@ interface Payload {
   readonly expiresAt: number;
 }
 
-function sign(payload: string, secret: string): string {
-  return createHmac("sha256", secret).update(payload).digest(ENCODING);
-}
-
-// Сравнение подписей постоянного времени. Длины HMAC совпадают всегда, кроме случая,
-// когда подпись в куке подделана — там разная длина сама по себе означает отказ.
-function signaturesMatch(expected: string, actual: string): boolean {
-  const left = Buffer.from(expected, ENCODING);
-  const right = Buffer.from(actual, ENCODING);
-
-  return left.length === right.length && timingSafeEqual(left, right);
-}
-
-function parsePayload(encoded: string): Payload | null {
-  let decoded: unknown;
-  try {
-    decoded = JSON.parse(Buffer.from(encoded, ENCODING).toString("utf8"));
-  } catch {
-    return null;
-  }
-
-  if (typeof decoded !== "object" || decoded === null) return null;
-  const { v, iat, exp } = decoded as Record<string, unknown>;
+/**
+ * Разбор содержимого куки. Подпись к этому моменту уже сошлась (`openSignedToken`):
+ * здесь проверяется только смысл полей — он принадлежит входу, а не общей подписи.
+ */
+function parsePayload(claims: Record<string, unknown>): Payload | null {
+  const { v, iat, exp } = claims;
   if (
     v !== PAYLOAD_VERSION ||
     typeof iat !== "number" ||
@@ -66,18 +46,20 @@ function parsePayload(encoded: string): Payload | null {
 /**
  * Собирает значение сессионной куки: содержимое и подпись HMAC-SHA256 на `SESSION_SECRET`.
  * Внутри только отметки времени — ни пароля, ни секрета, ни персональных данных.
+ *
+ * Подпись берётся из `core/signed-token`: она одна на весь продукт, и вторая копия
+ * рядом с кукой планшета была бы тем расхождением, которое годами выглядит рабочим.
  */
 export function createSessionToken(secret: string, now: Date): string {
   const issuedAt = Math.floor(now.getTime() / MILLISECONDS);
-  const payload = Buffer.from(
-    JSON.stringify({
+  return packSignedToken(
+    {
       v: PAYLOAD_VERSION,
       iat: issuedAt,
       exp: issuedAt + SESSION_MAX_AGE_SECONDS,
-    }),
-  ).toString(ENCODING);
-
-  return `${payload}${SEPARATOR}${sign(payload, secret)}`;
+    },
+    secret,
+  );
 }
 
 /**
@@ -89,14 +71,10 @@ export function readSessionToken(
   secret: string,
   now: Date,
 ): AdminSession | null {
-  const parts = token.split(SEPARATOR);
-  if (parts.length !== 2) return null;
+  const claims = openSignedToken(token, secret);
+  if (claims === null) return null;
 
-  const [payload, signature] = parts;
-  if (!payload || !signature) return null;
-  if (!signaturesMatch(sign(payload, secret), signature)) return null;
-
-  const parsed = parsePayload(payload);
+  const parsed = parsePayload(claims);
   if (parsed === null) return null;
 
   const expiresAt = new Date(parsed.expiresAt * MILLISECONDS);

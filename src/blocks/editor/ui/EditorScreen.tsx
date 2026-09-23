@@ -30,7 +30,19 @@ function windowOf(start: string, end: string): WindowValue {
  * и с числительными («4 пункта», «используется ещё в 6 чек-листах»), а склонять их
  * пробросом готовых строк нельзя — количество меняется прямо на экране.
  */
-export async function EditorScreen({ checklistId }: { checklistId: string }) {
+export async function EditorScreen({
+  checklistId,
+  stationAction,
+}: {
+  readonly checklistId: string;
+  /**
+   * Действие кабинета, которому нужна СОХРАНЁННАЯ станция чек-листа, — сейчас это
+   * «Привязать планшет» блока `device`. Приходит готовой разметкой от страницы, а не
+   * импортом: правило границ не даёт редактору зависеть от блока привязки, а второй
+   * поход в базу за станцией ради одной карточки был бы лишним.
+   */
+  readonly stationAction?: (stationId: string | null) => React.ReactNode;
+}) {
   const state = await loadEditor(checklistId);
   if (state === null) notFound();
 
@@ -80,6 +92,7 @@ export async function EditorScreen({ checklistId }: { checklistId: string }) {
           nextVersionNumber={highestVersion + 1}
           previewHref={checklistPreviewPath(checklistId)}
           crumbs={crumbs}
+          stationAction={stationAction?.(state.checklist.stationId ?? null)}
         />
       </div>
     </NextIntlClientProvider>
