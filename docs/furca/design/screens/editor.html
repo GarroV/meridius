@@ -58,7 +58,15 @@
   .keys { display: flex; gap: var(--space-6); flex-wrap: wrap; align-items: center; color: var(--ink-3); font-size: var(--fs-meta); }
   kbd { font: var(--w-medium) var(--fs-micro)/16px var(--font-num); background: var(--surface-3); border: 1px solid var(--line-control); border-bottom-width: 2px; border-radius: var(--r-mark); padding: 1px 5px; color: var(--ink-2); }
   .side { position: sticky; top: var(--space-9); align-self: start; width: 268px; }
-  .layout { display: grid; grid-template-columns: 1fr 268px; gap: var(--space-8); align-items: start; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 268px; gap: var(--space-8); align-items: start; }
+  /* Телефон: боковая колонка уходит под содержимое, а не выталкивает страницу вбок.
+     По D092 кабинет на телефоне обязан быть пригодным для правки; прокрутка остаётся
+     у таблиц и сеток, но не у самой страницы (T252). Рубеж тот же, что у каркаса
+     в app.css, — чтобы меню и содержимое перестраивались одновременно. */
+  @media (max-width: 767.98px) {
+    .layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
+    .side { position: static; width: auto; }
+  }
   .lib-item { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--line); font-size: var(--fs-dense); }
   .lib-item:last-child { border-bottom: none; }
   .lib-item__use { color: var(--ink-3); font-size: var(--fs-micro); }
