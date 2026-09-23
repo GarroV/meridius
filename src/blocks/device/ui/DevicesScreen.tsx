@@ -19,7 +19,7 @@ import { UnlinkButton } from "./UnlinkButton";
  */
 
 const NOTICE_CLASS =
-  "rounded-[var(--r-block)] border border-[var(--line-strong)] bg-[var(--surface-3)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)] text-[var(--ink-2)]";
+  "rounded-[var(--r-block)] border border-[var(--line-strong)] bg-[var(--surface-2)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)] text-[var(--ink-2)]";
 const FAILED_NOTICE_CLASS =
   "text-err rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)]";
 const COUNT_CLASS =

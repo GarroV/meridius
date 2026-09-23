@@ -13,3 +13,6 @@ playwright-report/
 
 # Генерируется next typegen и переписывается при каждом dev/build
 next-env.d.ts
+
+# Отчёты AITriage: машинные, пишутся при каждом прогоне сканера и в историю не нужны.
+aitriage-reports/

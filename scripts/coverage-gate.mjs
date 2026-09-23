@@ -5,6 +5,10 @@
 // приёмкой. База лежит в `coverage-baseline.json` рядом с кодом и двигается только
 // вверх — `node scripts/coverage-gate.mjs --update` после того, как приёмка принята.
 //
+// И меряется ЯДРО, а не продукт целиком (D139): список — `src/blocks/core/coverage-core.ts`.
+// Обвязку держат сквозные сценарии, а не модульные тесты, поэтому порог по всему
+// продукту краснел на каждом блоке с экранами — то есть на правильной работе.
+//
 //   node scripts/coverage-gate.mjs            проверить прогон против базы
 //   node scripts/coverage-gate.mjs --update   принять выросшие числа как новую базу
 //
@@ -17,6 +21,8 @@ register("./src-resolve-hook.mjs", import.meta.url);
 
 const { compareCoverage, MEASURES } =
   await import("../src/blocks/core/coverage-gate.ts");
+const { isCoreFile, CORE_FILE_LIST } =
+  await import("../src/blocks/core/coverage-core.ts");
 
 const REPORT = fileURLToPath(
   new URL("../reports/coverage/coverage-summary.json", import.meta.url),
@@ -38,23 +44,66 @@ if (!existsSync(REPORT)) {
   process.exit(1);
 }
 
-const total = JSON.parse(readFileSync(REPORT, "utf8")).total ?? {};
-const present = MEASURES.filter(
-  (measure) => typeof total[measure]?.pct === "number",
+// Меряется ЯДРО, а не продукт целиком (D139). Обвязку — экраны, `ui/`, серверные
+// действия — по стандарту проекта держат не модульные тесты, а живой запуск: её
+// проверяют 292 сквозных сценария, и их покрытие сюда не попадает вовсе, vitest о
+// них не знает. Порог по всему продукту поэтому краснел на каждом блоке с экранами,
+// то есть на правильной работе, и учил единственному ходу — двигать базу вниз.
+const report = JSON.parse(readFileSync(REPORT, "utf8"));
+const ROOT = fileURLToPath(new URL("../", import.meta.url));
+
+const sum = Object.fromEntries(
+  MEASURES.map((measure) => [measure, { total: 0, covered: 0 }]),
 );
+const seen = new Set();
+
+for (const [file, entry] of Object.entries(report)) {
+  if (file === "total") continue;
+  const path = (file.startsWith(ROOT) ? file.slice(ROOT.length) : file).replace(
+    /\\/g,
+    "/",
+  );
+  if (!isCoreFile(path)) continue;
+  seen.add(path);
+  for (const measure of MEASURES) {
+    const part = entry[measure];
+    if (typeof part?.total !== "number" || typeof part.covered !== "number") {
+      continue;
+    }
+    sum[measure].total += part.total;
+    sum[measure].covered += part.covered;
+  }
+}
+
+// Файл ядра, которого в отчёте нет вовсе, не коснулся ни один тест — а выглядит это
+// как «непокрытых не прибавилось». Молчать об этом нельзя: именно так ядро и уходит
+// из-под порога, не уронив ни одной проверки.
+const untouched = CORE_FILE_LIST.filter((path) => !seen.has(path));
+if (untouched.length > 0) {
+  console.error(
+    "ФАЙЛ ЯДРА НЕ ВИДЕН НИ ОДНОМУ ТЕСТУ — его нет в отчёте о покрытии:\n" +
+      untouched.map((path) => `  ${path}`).join("\n") +
+      "\n  Это провал, а не ноль: ноль означал бы, что файл измерен и не покрыт.\n" +
+      "  Либо на него есть проверка, либо он не ядро — тогда уберите его из\n" +
+      "  `src/blocks/core/coverage-core.ts`, и это осознанное решение, а не правка списка.",
+  );
+  process.exit(1);
+}
+
+const present = MEASURES.filter((measure) => sum[measure].total > 0);
 const current = Object.fromEntries(
-  present.map((measure) => [measure, total[measure].pct]),
+  present.map((measure) => [
+    measure,
+    (sum[measure].covered / sum[measure].total) * 100,
+  ]),
 );
 // Число непокрытых — то, чем меряют с T244: оно не растёт от удаления кода,
 // а усыхание проверок ловит по-прежнему. Доля остаётся для человека в выводе.
 current.uncovered = Object.fromEntries(
-  present
-    .filter(
-      (measure) =>
-        typeof total[measure].total === "number" &&
-        typeof total[measure].covered === "number",
-    )
-    .map((measure) => [measure, total[measure].total - total[measure].covered]),
+  present.map((measure) => [
+    measure,
+    sum[measure].total - sum[measure].covered,
+  ]),
 );
 
 const percent = (value) => `${value.toFixed(2)}%`;
@@ -105,7 +154,10 @@ if (!verdict.ok && update && baseline.uncovered === undefined) {
 
 if (!verdict.ok) {
   console.error(
-    "\nПорог относительный: ниже прошлой принятой приёмки — значит блок не принят.\n" +
+    "\nПорог относительный и меряет ЯДРО: ниже прошлой принятой приёмки — блок не принят.\n" +
+      "  Просело именно ядро — расчёты, деньги, права доступа, где сбой молчит.\n" +
+      "  Экраны и обвязка сюда не входят вовсе, поэтому «это же просто интерфейс» здесь\n" +
+      "  не объяснение: список ядра — `src/blocks/core/coverage-core.ts`.\n" +
       "  Допишите проверки на то, что добавили, а не понижайте базу.\n" +
       "  База двигается вверх командой `node scripts/coverage-gate.mjs --update`.",
   );
