@@ -44,6 +44,8 @@ export {
   checklists,
   checks,
   countries,
+  devicePairings,
+  devices,
   loginAttempts,
   stations,
   storeShiftModes,
