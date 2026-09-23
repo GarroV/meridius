@@ -54,8 +54,18 @@ describe("проверка окружения при старте", () => {
     const notes = checkStartupConfig({
       SESSION_SECRET: "x".repeat(32),
       ADMIN_PASSWORD_HASH: "scrypt.32768.8.3.c29sdA.a2V5",
+      DEVICE_SESSION_SECRET: "y".repeat(32),
     }).join(" \u00b7 ");
-    expect(notes).not.toMatch(/SESSION_SECRET|ADMIN_PASSWORD_HASH/);
+    // Границы слова: имя секрета планшета кончается теми же знаками
+    // (`DEVICE_SESSION_SECRET`), и без них эта проверка краснела бы на соседней настройке.
+    expect(notes).not.toMatch(/\bSESSION_SECRET\b|\bADMIN_PASSWORD_HASH\b/);
+  });
+
+  it("говорит вслух, что привязка планшета не настроена", () => {
+    // Без секрета подписи `/pair` отказывает на вводе кода, а привязанные планшеты
+    // просят новый — со стороны кухни это неотличимо от отвязки, которой не делали.
+    const notes = checkStartupConfig({}).join(" \u00b7 ");
+    expect(notes).toMatch(/DEVICE_SESSION_SECRET/);
   });
   it("не даёт продукту подняться с негодным базовым путём", () => {
     // Путь печатается внутри QR-кода станции наравне с адресом: негодное значение
