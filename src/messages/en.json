@@ -757,6 +757,15 @@
       "tooOften": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
       "broken": "Could not pair the tablet. Try again."
     },
+    "issue": {
+      "title": "Tablet pairing",
+      "action": "Pair a tablet",
+      "again": "Issue a new code",
+      "noStation": "This checklist has no station. Pick a station and save: a tablet is paired to a station, not to a checklist.",
+      "hint": "The code is valid for {minutes, plural, one {# minute} other {# minutes}} and works once.",
+      "where": "On the tablet, open {path} and type this code.",
+      "failed": "Could not issue a code. Try again."
+    },
     "tab": {
       "unpaired": {
         "title": "This tablet is not paired",

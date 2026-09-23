@@ -23,6 +23,15 @@ const UUID_PATTERN =
  * типа — то есть подделанная кука отвечала бы пятисоткой вместо «планшет не узнан».
  */
 export function isDeviceId(value: string): boolean {
+  return isUuid(value);
+}
+
+/**
+ * Похоже ли значение на опознаватель, который выдавали мы. Отдельно от `isDeviceId`,
+ * потому что тем же вопросом задаётся выпуск пина о СТАНЦИИ: значение доезжает до
+ * запроса из внешнего мира, а `uuid` не того вида роняет запрос ошибкой типа.
+ */
+export function isUuid(value: string): boolean {
   return UUID_PATTERN.test(value);
 }
 
