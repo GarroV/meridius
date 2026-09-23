@@ -797,7 +797,11 @@
       "lastSeen": "Last seen {when}",
       "unlink": "Unpair",
       "failed": "Could not unpair. Refresh the page and try again.",
-      "count": "{count, plural, one {# tablet} other {# tablets}}"
+      "count": "{count, plural, one {# tablet} other {# tablets}}",
+      "confirm": {
+        "title": "Unpair the tablet at {station}",
+        "warning": "The tablet stops showing the checklist right away and asks for a new pairing code. A new code is issued from this station's checklist screen."
+      }
     }
   }
 }

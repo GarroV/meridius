@@ -23,6 +23,7 @@ export const ADMIN_SECTIONS = {
   feed: { path: "/admin/feed", ready: true },
   catalog: { path: "/admin/catalog", ready: true },
   qr: { path: "/admin/qr", ready: true },
+  devices: { path: "/admin/devices", ready: true },
 } as const satisfies Record<string, AdminSection>;
 
 /**
@@ -55,5 +56,5 @@ export interface AdminNavGroup {
  */
 export const ADMIN_NAV_GROUPS = [
   { key: "work", items: ["checklists", "library", "feed"] },
-  { key: "reference", items: ["catalog", "qr"] },
+  { key: "reference", items: ["catalog", "qr", "devices"] },
 ] as const satisfies readonly AdminNavGroup[];
