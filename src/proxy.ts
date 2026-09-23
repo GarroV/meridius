@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { sessionSecret } from "@/blocks/auth/config";
-import { PUBLIC_FILL_ROOT } from "@/blocks/core/public-routes";
+import {
+  PUBLIC_FILL_ROOT,
+  PUBLIC_PAIR_PATH,
+  PUBLIC_STATION_PATH,
+} from "@/blocks/core/public-routes";
+import { DEVICE_TAB_HEADER } from "@/blocks/device/params";
 import {
   FILL_STATION_CODE_HEADER,
   stationCodeFromPath,
@@ -26,7 +31,10 @@ export const config = {
   // в политике безопасности: выдать ключ на запрос больше некому (T071). О входе этот
   // маршрут по-прежнему не знает и ни одной куки не читает — ветка для него первая
   // и заканчивается раньше, чем начинается что-либо про сессию.
-  matcher: ["/admin/:path*", "/s/:path*"],
+  //
+  // Страница привязки и привязанная вкладка — та же публичная сторона и тот же ключ:
+  // на вкладке живёт экран заполнения целиком, а значит и его инлайновые скрипты.
+  matcher: ["/admin/:path*", "/s/:path*", "/pair", "/station"],
 };
 
 const NONCE_BYTES = 16;
@@ -52,6 +60,7 @@ function createNonce(): string {
 function publicFillResponse(
   request: NextRequest,
   pathname: string,
+  isTablet = false,
 ): NextResponse {
   const nonce = createNonce();
   const isDevelopment = process.env.NODE_ENV === "development";
@@ -72,6 +81,13 @@ function publicFillResponse(
   if (stationCode === null) requestHeaders.delete(FILL_STATION_CODE_HEADER);
   else requestHeaders.set(FILL_STATION_CODE_HEADER, stationCode);
 
+  // У привязанной вкладки кода в адресе нет вовсе, и посреднику его взять неоткуда:
+  // он исполняется без базы. Поэтому здесь ставится только признак «это вкладка
+  // планшета», а код по куке спрашивает уже корневая разметка (`app/layout.tsx`).
+  // Значение клиента затирается своим: иначе признак приехал бы с чужого адреса.
+  if (isTablet) requestHeaders.set(DEVICE_TAB_HEADER, "1");
+  else requestHeaders.delete(DEVICE_TAB_HEADER);
+
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   for (const header of headers) response.headers.set(header.key, header.value);
   return response;
@@ -83,6 +99,14 @@ export function proxy(request: NextRequest): NextResponse {
   // Первым делом и без единого обращения к сессии: публичный маршрут о входе не знает.
   if (pathname.startsWith(PUBLIC_FILL_PREFIX))
     return publicFillResponse(request, pathname);
+
+  // Страница привязки и привязанная вкладка — та же публичная сторона: ни одной куки
+  // кабинета здесь не читается, иначе отказ кабинета однажды увёл бы человека с кухни
+  // на пароль, которого у него нет (T187).
+  if (pathname === PUBLIC_PAIR_PATH)
+    return publicFillResponse(request, pathname);
+  if (pathname === PUBLIC_STATION_PATH)
+    return publicFillResponse(request, pathname, true);
 
   // Обрезанная ссылка станции (`/s/` браузер приводит к `/s`) — тоже публичная сторона,
   // а не кабинет: человек с кухни обязан увидеть «такого адреса нет», а не пароль

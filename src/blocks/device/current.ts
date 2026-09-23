@@ -4,6 +4,7 @@
 // строка устройства. Подпись без строки не значит ничего — отвязка из кабинета обязана
 // действовать тем же мигом, а не через год, когда кука истечёт сама.
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 import { deviceSessionSecret } from "./config";
 import type { LiveDevice } from "./devices";
@@ -36,17 +37,26 @@ export async function deviceIdFromCookie(now: Date): Promise<string | null> {
  *
  * Заодно отмечает «был на связи»: отметка пишется, только если прошлая старше порога,
  * поэтому просмотр чек-листа не превращается в поток записей в базу.
+ *
+ * Под `cache()` и без аргументов — по той же причине, что `fillLanguage` (T270): за этим
+ * ответом в одном запросе приходят двое, корневая разметка (за языком документа) и сама
+ * вкладка (за содержимым). Без памяти на запрос это были бы два похода в базу и две
+ * отметки «был на связи»; а `now` аргументом сделал бы память бесполезной — два вызова
+ * с разными мгновениями считались бы разными.
  */
-export async function currentDevice(now: Date): Promise<LiveDevice | null> {
-  const deviceId = await deviceIdFromCookie(now);
-  if (deviceId === null) return null;
+export const currentDevice = cache(
+  async function currentDevice(): Promise<LiveDevice | null> {
+    const now = new Date();
+    const deviceId = await deviceIdFromCookie(now);
+    if (deviceId === null) return null;
 
-  const device = await findPairedDevice(deviceId);
-  if (device === null) return null;
+    const device = await findPairedDevice(deviceId);
+    if (device === null) return null;
 
-  await touchDeviceSeen(device.id, now);
-  return device;
-}
+    await touchDeviceSeen(device.id, now);
+    return device;
+  },
+);
 
 /**
  * Запоминает планшет: подписанная кука на год, `HttpOnly`, `Secure`, `SameSite=Lax`.
