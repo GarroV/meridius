@@ -14,6 +14,7 @@ import { CHECKLIST_PARAM } from "../params";
 import { buildRoundsPanel } from "../rounds-view";
 import { loadFillTarget } from "../station";
 import type { FillTarget } from "../station";
+import type { TabletTab } from "../model";
 import { issueFillTicket } from "../ticket";
 import { buildChoiceView, buildFillView } from "../view";
 import { dropAlarmAction, setAlarmAction } from "./alarm-action";
@@ -51,6 +52,7 @@ function translatorFor(locale: Locale) {
 export async function FillScreen({
   code,
   checklistId,
+  tablet,
 }: {
   readonly code: string;
   /**
@@ -58,6 +60,12 @@ export async function FillScreen({
    * идентификатор не подставляет свой молча — экран снова показывает выбор.
    */
   readonly checklistId?: string | undefined;
+  /**
+   * Экран открыт в привязанной вкладке планшета (блок `device`). Телефон по наклейке
+   * этого признака не получает НИКОГДА: часы, удержание экрана, чип звука и сброс
+   * недозаполненного — поведение планшета у станции, а не всякого, кто отсканировал.
+   */
+  readonly tablet?: TabletTab | undefined;
 }): Promise<ReactElement> {
   // Язык экрана и вердикт предела частоты — одно решение на запрос, общее с документом.
   // Цепочка `locales` нужна текстам самого чек-листа: методист мог завести пункт только
@@ -69,12 +77,15 @@ export async function FillScreen({
     // Пиццерии здесь нет: предел нарочно срабатывает ДО похода в базу, иначе он не
     // защищал бы её от перебора. Значит, язык остался за телефоном — так его и посчитали.
     return (
-      <StateScreen
-        testId="fill-too-often"
-        tone="plain"
-        title={t("tooOften.title")}
-        text={t("tooOften.text")}
-      />
+      <>
+        {tablet?.extras}
+        <StateScreen
+          testId="fill-too-often"
+          tone="plain"
+          title={t("tooOften.title")}
+          text={t("tooOften.text")}
+        />
+      </>
     );
   }
 
@@ -101,12 +112,16 @@ export async function FillScreen({
     const state = target.kind === "unknown-code" ? "invalid" : "none";
     return (
       <div lang={locale}>
+        {tablet?.extras}
         <StateScreen
           testId={`fill-${state}`}
           tone="plain"
           title={t(`${state}.title`)}
           text={t(`${state}.text`)}
           {...(state === "invalid" ? { notice: t("invalid.reissued") } : {})}
+          {...(state === "none" && tablet?.idle !== undefined
+            ? { note: tablet.idle }
+            : {})}
         />
       </div>
     );
@@ -118,6 +133,7 @@ export async function FillScreen({
   if (target.kind === "choice") {
     return (
       <div lang={locale}>
+        {tablet?.extras}
         <ChoiceScreen
           view={buildChoiceView({
             options: target.options,
@@ -189,11 +205,19 @@ export async function FillScreen({
     // Язык проставлен на самом экране, а не на <html>: корневая разметка общая
     // с админкой и знает только язык запроса, а здесь он мог откатиться на язык страны.
     <div lang={locale}>
+      {tablet?.extras}
       <NextIntlClientProvider
         locale={locale}
         messages={{ fill: MESSAGES[locale].fill }}
       >
         <FillForm
+          // Ключ — опознаватель текущего окна и открытой версии. Сменилось окно, и
+          // React снимает форму вместе с недозаполненным черновиком: он живёт в
+          // состоянии формы, и обновления страницы не переживает ТОЛЬКО так.
+          // На телефоне ключа нет вовсе — там терять ответы не за что.
+          {...(tablet === undefined
+            ? {}
+            : { key: `${tablet.windowKey}:${target.version.id}` })}
           view={view}
           code={code}
           versionId={target.version.id}

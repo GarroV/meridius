@@ -8,19 +8,10 @@ import { and, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { devicePairings, getDb } from "@/blocks/data";
 
-/** Четыре цифры: код вводится на планшете в шумной кухне и диктуется голосом через зал. */
-export const PIN_LENGTH = 4;
-
-/**
- * Пять минут — столько занимает дойти до планшета (D133). Сутки жизни кода превратили бы
- * его в пароль: подобравший получил бы то же, что даёт наклейка станции, и это пережило бы
- * перевыпуск кода.
- */
-export const PIN_TTL_SECONDS = 5 * 60;
+import { PIN_LENGTH, PIN_TTL_SECONDS, isPin } from "./pin";
 
 const MILLISECONDS = 1000;
 const PIN_CEILING = 10_000;
-const PIN_PATTERN = /^\d{4}$/;
 
 /**
  * Сколько раз пробовать другой код, если выпало занятое значение. Занятыми бывают только
@@ -59,11 +50,6 @@ export interface IssuedPin {
  */
 function randomPin(): string {
   return String(randomInt(0, PIN_CEILING)).padStart(PIN_LENGTH, "0");
-}
-
-/** Похоже ли введённое на пин вообще. Ввод приходит из интернета — его форма не обещана. */
-export function isPin(value: string): boolean {
-  return PIN_PATTERN.test(value);
 }
 
 /**

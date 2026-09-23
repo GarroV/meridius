@@ -8,7 +8,8 @@ import { describe, expect, it } from "vitest";
 import { devicePairings, getDb } from "@/blocks/data";
 import { createStation } from "@/blocks/data/testing/fixtures";
 
-import { PIN_TTL_SECONDS, consumePairingPin, issuePairingPin } from "./pairing";
+import { consumePairingPin, issuePairingPin } from "./pairing";
+import { PIN_TTL_SECONDS } from "./pin";
 
 const NOW = new Date("2026-09-23T10:00:00Z");
 const SECOND = 1000;

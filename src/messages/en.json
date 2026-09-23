@@ -53,7 +53,9 @@
       "catalog": "Countries and pizzerias",
       "catalogHint": "Add a pizzeria and its stations",
       "library": "Block library",
-      "libraryHint": "Create a block and insert it into checklists"
+      "libraryHint": "Create a block and insert it into checklists",
+      "devices": "Devices",
+      "devicesHint": "See paired tablets and unpair them"
     },
     "nav": {
       "brand": "MERIDIUS",
@@ -544,7 +546,7 @@
       "labelLabel": "What for",
       "labelPlaceholder": "For example: take out the dough",
       "add": "Set",
-      "drop": "Remove the alarm \u00ab{label}\u00bb",
+      "drop": "Remove the alarm «{label}»",
       "ringing": "Alarm for {time}",
       "acknowledge": "Got it",
       "noSound": "No sound: the tablet keeps a page silent until someone taps on it.",
@@ -743,6 +745,50 @@
       "nothingToPublish": "Nothing to publish.",
       "unknownBlock": "Library block not found.",
       "unknown": "Could not save. Try again."
+    }
+  },
+  "device": {
+    "pair": {
+      "title": "Pair this tablet",
+      "text": "Ask the manager to open the station checklist in the workspace and press “Pair tablet”. Type the four digits here.",
+      "label": "Pairing code",
+      "submit": "Pair",
+      "refused": "This code does not work. Ask for a new one: a code lives five minutes and works once.",
+      "tooOften": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
+      "broken": "Could not pair the tablet. Try again."
+    },
+    "tab": {
+      "unpaired": {
+        "title": "This tablet is not paired",
+        "text": "The tablet has been unpaired, or its station is gone. Ask the manager for a new code.",
+        "action": "Enter a code"
+      },
+      "sound": {
+        "enable": "Turn sound on",
+        "enabled": "Sound is on",
+        "blocked": "The browser refused sound. Touch the screen and try again."
+      },
+      "opensIn": "Next checklist in {left}"
+    },
+    "checklist": {
+      "title": "Station tablet",
+      "text": "The tablet opens straight into this station's checklist. Pair it once: the code lives five minutes.",
+      "button": "Pair tablet",
+      "noStation": "Assign a station to this checklist first: a tablet is paired to a station, not to a checklist.",
+      "code": "Pairing code",
+      "expires": "Works for 5 minutes. On the tablet open {address} and type the code.",
+      "failed": "Could not issue a code. Try again.",
+      "close": "Done"
+    },
+    "admin": {
+      "title": "Devices",
+      "notice": "A paired tablet survives a station code reissue: only unpairing stops it. A tablet you do not recognise in this list is the way to spot a guessed code.",
+      "empty": "No tablets are paired yet. The code is issued from the station checklist screen.",
+      "pairedAt": "Paired {when}",
+      "lastSeen": "Last seen {when}",
+      "unlink": "Unpair",
+      "failed": "Could not unpair. Refresh the page and try again.",
+      "count": "{count, plural, one {# tablet} other {# tablets}}"
     }
   }
 }

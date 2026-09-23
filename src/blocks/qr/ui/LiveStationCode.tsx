@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
+import { useScreenAwake } from "@/blocks/core/ui/use-screen-awake";
+
 /**
  * Держит экран планшета живым: следит за перевыпуском кода и не даёт погаснуть.
  *
@@ -30,42 +32,6 @@ export interface LiveStationCodeProps {
 
 interface CodeAnswer {
   readonly code?: unknown;
-}
-
-/** Экран планшета не должен гаснуть посреди смены: пока вкладка видна — держим. */
-function useScreenAwake(): void {
-  useEffect(() => {
-    // Браузер без Wake Lock (или запрет политикой) — не повод ломать экран:
-    // QR продолжает висеть, просто планшет гасит подсветку своим таймером.
-    if (!("wakeLock" in navigator)) return;
-
-    let sentinel: WakeLockSentinel | null = null;
-    let dropped = false;
-
-    const acquire = async (): Promise<void> => {
-      if (dropped || document.visibilityState !== "visible") return;
-      try {
-        sentinel = await navigator.wakeLock.request("screen");
-      } catch {
-        // Отказ бывает штатным: свёрнутая вкладка, экономия батареи.
-        sentinel = null;
-      }
-    };
-
-    // Блокировка снимается сама, когда вкладку скрывают, — и не возвращается сама.
-    const onVisible = (): void => {
-      void acquire();
-    };
-
-    void acquire();
-    document.addEventListener("visibilitychange", onVisible);
-
-    return () => {
-      dropped = true;
-      document.removeEventListener("visibilitychange", onVisible);
-      void sentinel?.release();
-    };
-  }, []);
 }
 
 export function LiveStationCode({
