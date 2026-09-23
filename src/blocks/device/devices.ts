@@ -32,6 +32,15 @@ export interface PairedDevice {
   readonly stationId: string;
 }
 
+/** Живая привязка вместе со свежим кодом станции — тем, что уйдёт в `loadFillTarget`. */
+export interface LiveDevice extends PairedDevice {
+  /**
+   * Код станции СЕЙЧАС. Спрашивается заново при каждой отрисовке, поэтому перевыпуск
+   * кода (D006) привязку не задевает: в куке и в строке устройства кода нет вовсе.
+   */
+  readonly stationCode: string;
+}
+
 export interface PairDeviceInput {
   readonly stationId: string;
   /**
@@ -76,14 +85,19 @@ export async function pairDevice(
  * без живой строки не значит ничего, и отвязка из кабинета обязана действовать тем же
  * мигом, а не после истечения куки через год.
  */
-export async function findPairedDevice(
-  id: string,
-): Promise<PairedDevice | null> {
+export async function findPairedDevice(id: string): Promise<LiveDevice | null> {
   if (!isDeviceId(id)) return null;
 
+  // Одним запросом со станцией: код нужен той же отрисовке, а второй поход в базу за ним
+  // означал бы, что между проверкой привязки и кодом станция успела измениться.
   const [row] = await getDb()
-    .select({ id: devices.id, stationId: devices.stationId })
+    .select({
+      id: devices.id,
+      stationId: devices.stationId,
+      stationCode: stations.code,
+    })
     .from(devices)
+    .innerJoin(stations, eq(devices.stationId, stations.id))
     .where(eq(devices.id, id))
     .limit(1);
 

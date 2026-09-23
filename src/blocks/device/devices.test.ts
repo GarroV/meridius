@@ -23,13 +23,33 @@ function later(seconds: number): Date {
 
 describe("привязка планшета", () => {
   it("заводит строку, по которой планшет узнаётся", async () => {
-    const { stationId } = await createStation();
+    const { stationId, stationCode } = await createStation();
 
     const device = await pairDevice({ stationId }, NOW);
 
     expect(await findPairedDevice(device.id)).toEqual({
       id: device.id,
       stationId,
+      stationCode,
+    });
+  });
+
+  it("отдаёт код станции ЗАНОВО: перевыпуск (D006) привязку не задевает", async () => {
+    // Ради этого в куке и в строке устройства кода нет вовсе: закреплённая вкладка
+    // после перевыпуска вела бы в отказ — с этого дизайн и начинался.
+    const { stationId } = await createStation();
+    const device = await pairDevice({ stationId }, NOW);
+    const reissued = "переизданныйкод";
+
+    await getDb()
+      .update(stations)
+      .set({ code: reissued })
+      .where(eq(stations.id, stationId));
+
+    expect(await findPairedDevice(device.id)).toEqual({
+      id: device.id,
+      stationId,
+      stationCode: reissued,
     });
   });
 
@@ -47,6 +67,7 @@ describe("привязка планшета", () => {
     expect(await findPairedDevice(after.id)).toEqual({
       id: after.id,
       stationId: second.stationId,
+      stationCode: second.stationCode,
     });
   });
 
@@ -54,7 +75,7 @@ describe("привязка планшета", () => {
     // Два планшета на одной станции работают оба (дизайн, краевые случаи). Если снятие
     // прежней привязки сметало бы станцию целиком, соседний планшет отвязался бы молча:
     // человек у него увидел бы «введите новый код» без единой причины.
-    const { stationId } = await createStation();
+    const { stationId, stationCode } = await createStation();
     const first = await pairDevice({ stationId }, NOW);
 
     const second = await pairDevice({ stationId }, later(60));
@@ -62,10 +83,12 @@ describe("привязка планшета", () => {
     expect(await findPairedDevice(first.id)).toEqual({
       id: first.id,
       stationId,
+      stationCode,
     });
     expect(await findPairedDevice(second.id)).toEqual({
       id: second.id,
       stationId,
+      stationCode,
     });
   });
 });
