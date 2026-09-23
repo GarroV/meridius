@@ -43,6 +43,12 @@ const READY = [
     name: "Страны и пиццерии",
     screen: "catalog-screen",
   },
+  {
+    key: "devices",
+    path: "/admin/devices",
+    name: "Устройства",
+    screen: "devices-screen",
+  },
 ] as const;
 
 /** Вход как им пользуются: форма, пароль, первый экран кабинета. */

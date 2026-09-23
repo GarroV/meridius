@@ -4,6 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 import {
   E2E_ADMIN_PASSWORD_HASH,
+  E2E_DEVICE_SESSION_SECRET,
   E2E_SESSION_SECRET,
 } from "./e2e/admin-credentials";
 import { e2eDatabaseUrl } from "./e2e/database";
@@ -109,6 +110,9 @@ export default defineConfig({
     env: {
       ADMIN_PASSWORD_HASH: E2E_ADMIN_PASSWORD_HASH,
       SESSION_SECRET: E2E_SESSION_SECRET,
+      // Подпись куки планшета: без неё продукт не стартует вовсе, и привязанная
+      // вкладка отвечала бы пятисоткой вместо чек-листа.
+      DEVICE_SESSION_SECRET: E2E_DEVICE_SESSION_SECRET,
       // Своя база прогона: рабочую сносила бы подготовка, а тестовую посреди прогона
       // пересоздаёт vitest. Адрес считается сам и в свежем клоне без .env тоже.
       DATABASE_URL: e2eDatabaseUrl(),
