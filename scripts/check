@@ -13,6 +13,7 @@ FAILED=()
 run() {
   local name="$1"; shift
   local log="reports/step-$(printf '%s' "$name" | tr ' /' '--').log"
+  LAST_LOG="$log"
   printf '\n\033[1m▸ %s\033[0m\n' "$name"
   "$@" 2>&1 | tee "$log"
   local code=${PIPESTATUS[0]}
@@ -48,6 +49,25 @@ run "порог покрытия"   node scripts/coverage-gate.mjs
 run "мёртвый код"      npx --no-install knip
 run "границы модулей"  npx --no-install depcruise src
 run "сквозные сценарии" npx --no-install playwright test
+E2E_LOG="$LAST_LOG"
+
+# Пропавший перевод не роняет ни один сценарий: next-intl печатает MISSING_MESSAGE в
+# журнал сервера и рисует на экране сырой ключ, а сценарий остаётся зелёным — именно так
+# 228 сценариев прошли мимо снятого перевода (T254). Поэтому строка в выводе сервера
+# считается провалом прогона (T255).
+missing_translations() {
+  if [ ! -f "$E2E_LOG" ]; then
+    printf 'нет вывода сквозных сценариев (%s) — проверять нечего, и это провал, а не пропуск\n' "$E2E_LOG"
+    return 1
+  fi
+  local hits
+  hits="$(grep -F 'MISSING_MESSAGE' "$E2E_LOG" | sort -u | head -20)"
+  [ -z "$hits" ] && return 0
+  printf 'next-intl не нашёл перевод — на экране вместо текста стоит сырой ключ:\n%s\n' "$hits"
+  printf 'Фича не готова, пока её тексты есть только на одном языке.\n'
+  return 1
+}
+run "переводы на месте" missing_translations
 
 if [ ${#FAILED[@]} -gt 0 ]; then
   printf '\n\033[31mПРОВАЛ (%d): %s\033[0m\n' "${#FAILED[@]}" "${FAILED[*]}"
