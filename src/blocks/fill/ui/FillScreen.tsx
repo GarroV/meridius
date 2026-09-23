@@ -215,9 +215,14 @@ export async function FillScreen({
           // React снимает форму вместе с недозаполненным черновиком: он живёт в
           // состоянии формы, и обновления страницы не переживает ТОЛЬКО так.
           // На телефоне ключа нет вовсе — там терять ответы не за что.
-          {...(tablet === undefined
-            ? {}
-            : { key: `${tablet.windowKey}:${target.version.id}` })}
+          //
+          // Ключ стоит прямо, а не приезжает расширением объекта: React 19 ругается на
+          // `key` внутри расширения предупреждением в консоли — увидено живым запуском.
+          key={
+            tablet === undefined
+              ? undefined
+              : `${tablet.windowKey}:${target.version.id}`
+          }
           view={view}
           code={code}
           versionId={target.version.id}
