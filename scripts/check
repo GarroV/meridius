@@ -7,10 +7,23 @@ cd "$(dirname "$0")/.." || exit 1
 mkdir -p reports
 
 FAILED=()
+# Шаг не имеет права упасть молча: код возврата и полный вывод сохраняются, а пустой
+# вывод называется вслух. Молчащий шаг обучает перезапускать прогон вместо того, чтобы
+# читать причину — так уже было с шагом тестов, чей отчёт уходил только в JUnit (T258).
 run() {
   local name="$1"; shift
+  local log="reports/step-$(printf '%s' "$name" | tr ' /' '--').log"
   printf '\n\033[1m▸ %s\033[0m\n' "$name"
-  if ! "$@"; then FAILED+=("$name"); fi
+  "$@" 2>&1 | tee "$log"
+  local code=${PIPESTATUS[0]}
+  [ "$code" -eq 0 ] && return 0
+  FAILED+=("$name (код $code)")
+  printf '\033[31m✗ %s — код возврата %d\033[0m\n' "$name" "$code"
+  if [ -s "$log" ]; then
+    printf '  полный вывод шага: %s\n' "$log"
+  else
+    printf '\033[31m  шаг не напечатал НИ СТРОКИ: причина неизвестна. Это дефект шага, а не мелочь — читать нечего, и перезапуск ничего не выяснит\033[0m\n'
+  fi
 }
 need() {
   if ! command -v "$1" >/dev/null 2>&1 && ! [ -x "node_modules/.bin/$1" ]; then
@@ -26,7 +39,9 @@ run "формат"           npx --no-install prettier --check .
 # Типы генерируются раньше линта: линт с типами опирается на определения маршрутов от next typegen.
 run "типы"             bash -c 'npx --no-install next typegen && npx --no-install tsc --noEmit'
 run "линт с типами"    npx --no-install eslint .
-run "тесты"            npx --no-install vitest run --coverage --reporter=junit --outputFile=reports/vitest.junit.xml
+# Два репортера, а не один: JUnit нужен приёмке для разбора состава, консольный — человеку.
+# С одним только JUnit падение теста не печатало ни строки причины (T258).
+run "тесты"            npx --no-install vitest run --coverage --reporter=default --reporter=junit --outputFile=reports/vitest.junit.xml
 # Порог покрытия относительный (T180): сравнение с прошлой принятой приёмкой, а не с
 # числом из принципов. Идёт сразу после тестов — раньше их отчёта ещё нет.
 run "порог покрытия"   node scripts/coverage-gate.mjs
