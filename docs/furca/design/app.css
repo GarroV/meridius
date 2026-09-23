@@ -1,8 +1,12 @@
 /* ─────────────────────────────────────────────────────────────
-   MERIDIUS — компоненты экранного эталона.
-   Токены берутся из reference/tokens.css (дизайн-система Dodo P&L,
-   направление «Реестр»). Здесь только компоненты этого продукта:
+   MERIDIUS — компоненты экранного эталона. ЭТОТ СЛОЙ НЕ КАНОН.
+   Канон — дизайн-система линейки: reference/tokens.css и
+   reference/components.css (копии GarroV/forma). В любом расхождении
+   главнее они, а правится этот файл — решение D126.
+   Токены берутся оттуда же. Здесь только компоненты этого продукта:
    структура своя, визуальный язык общий (решение D013).
+   Расходиться с дизайн-системой молча нельзя: осознанное отступление
+   записывается решением, а не остаётся строкой в этом файле.
    ───────────────────────────────────────────────────────────── */
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -18,7 +22,7 @@ h1, h2, h3 { margin: 0; font-weight: var(--w-semibold); }
 h1 { font-size: var(--fs-display); line-height: var(--lh-display); }
 h2 { font-size: var(--fs-title); line-height: var(--lh-title); }
 h3 { font-size: var(--fs-body); line-height: var(--lh-body); }
-:focus-visible { outline: var(--focus-outline); outline-offset: 2px; }
+:focus-visible { outline: var(--focus-outline); outline-offset: 1px; }
 
 /* ── Каркас админки ──────────────────────────────────────── */
 .app { display: grid; grid-template-columns: 208px 1fr; min-height: 100vh; }
@@ -136,7 +140,7 @@ h3 { font-size: var(--fs-body); line-height: var(--lh-body); }
   cursor: pointer; text-decoration: none;
   transition: background var(--t-state) var(--ease), border-color var(--t-state) var(--ease);
 }
-.btn:hover { border-color: var(--line-control-2); background: var(--surface-2); }
+.btn:hover { border-color: var(--line-control-2); background: var(--surface-3); }
 .btn--primary { background: var(--accent); border-color: var(--accent); color: var(--ink-inverse); }
 .btn--primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn--ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
