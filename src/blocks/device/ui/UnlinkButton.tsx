@@ -28,7 +28,7 @@ const ACTION_NAME = "unlink";
 const BTN_GHOST_SM_CLASS =
   "normal-case inline-flex h-[var(--control-h-sm)] items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-ink";
 
-export interface UnlinkButtonTexts {
+interface UnlinkButtonTexts {
   readonly unlink: string;
   readonly title: string;
   readonly warning: string;

@@ -21,6 +21,24 @@ import { uniqueStationCode } from "./testing/fixtures";
 
 const GUARD_MIGRATION = "0012_submission_repeat_guard";
 
+/**
+ * Откатывает миграции, пока не снимется названная. Раньше здесь стоял один откат
+ * «последней» — и проверка падала на ровном месте, как только в продукте появилась
+ * следующая миграция (0013, привязка планшета). Состояние, которое нужно этому файлу,
+ * называется «до правила 0012», а не «на одну миграцию назад».
+ */
+async function rollbackDownTo(target: string): Promise<string> {
+  for (;;) {
+    const rolled = await rollbackLastMigration(pool);
+    if (rolled === null) {
+      throw new Error(
+        `Миграция ${target} не нашлась: откатывать больше нечего`,
+      );
+    }
+    if (rolled === target) return rolled;
+  }
+}
+
 const FIRST_START = "2026-09-10T08:00:00Z";
 const SECOND_START = "2026-09-10T09:00:00Z";
 const TIED_START = "2026-09-10T10:00:00Z";
@@ -102,7 +120,7 @@ beforeAll(async () => {
   pool = new Pool({ connectionString: url.toString() });
   await applyMigrations(pool);
   // База в состоянии «до правила»: накатано всё, кроме самой миграции 0012.
-  expect(await rollbackLastMigration(pool)).toBe(GUARD_MIGRATION);
+  expect(await rollbackDownTo(GUARD_MIGRATION)).toBe(GUARD_MIGRATION);
   target = await publishedVersion();
 });
 
@@ -169,7 +187,7 @@ test("после миграции новый повтор отвергается
 test("откат снимает правило и пометку, а записи оставляет", async () => {
   const before = await fillings();
 
-  expect(await rollbackLastMigration(pool)).toBe(GUARD_MIGRATION);
+  expect(await rollbackDownTo(GUARD_MIGRATION)).toBe(GUARD_MIGRATION);
 
   expect(await fillings()).toStrictEqual(before);
   const columns = await pool.query(

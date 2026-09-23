@@ -12,7 +12,7 @@ const MILLISECONDS = 1000;
  * превратила бы просмотр чек-листа в поток записей в базу, а список в кабинете отвечает
  * на вопрос «планшет вообще жив», где минуты значения не имеют.
  */
-export const SEEN_REFRESH_SECONDS = 5 * 60;
+const SEEN_REFRESH_SECONDS = 5 * 60;
 
 const UUID_PATTERN =
   /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;

@@ -22,7 +22,7 @@ const SECONDS_IN_DAY = 24 * 60 * 60;
 const MILLISECONDS = 1000;
 
 /** Окно чек-листа местным временем пиццерии: «06:00:00» — «12:00:00». */
-export interface DayWindow {
+interface DayWindow {
   readonly start: string;
   readonly end: string;
 }
@@ -90,7 +90,7 @@ function secondsOfClock(value: string): number | null {
  * Через `Intl`, а не арифметикой над смещением: переход на летнее время и получасовые
  * пояса иначе дают ошибку в час, и вкладка просыпалась бы не на границе окна.
  */
-export function secondsOfDay(at: Date, timeZone: string): number {
+function secondsOfDay(at: Date, timeZone: string): number {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone,
     hour: "2-digit",

@@ -22,7 +22,7 @@ import type { RateVerdict } from "@/blocks/fill/rate-limit";
  *   шестьдесят значений из десяти тысяч, то есть шанс попасть — меньше процента.
  *   Настоящей кухне столько попыток за пять минут не нужно: привязка бывает раз в год.
  */
-export const PAIR_LIMITS = {
+const PAIR_LIMITS = {
   perClient: { maxHits: 10, windowSeconds: 5 * 60, maxTrackedKeys: 10_000 },
   everyone: { maxHits: 60, windowSeconds: 5 * 60, maxTrackedKeys: 1 },
 } as const;
@@ -69,10 +69,4 @@ export function pairClientKey(
     peerAddress: null,
     trustedProxyHops: trustedProxyHops(env),
   });
-}
-
-/** Полный сброс. Нужен проверкам, которые делят один процесс. */
-export function forgetAllPairAttempts(): void {
-  perClient.clearAll();
-  everyone.clearAll();
 }

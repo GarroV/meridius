@@ -31,7 +31,7 @@ const CODE_CLASS =
 const HINT_CLASS =
   "text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--ink-3)]";
 const FAILED_CLASS =
-  "text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--bad)]";
+  "text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--err)]";
 
 export function PairTabletButton({
   issue,
