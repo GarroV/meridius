@@ -21,11 +21,6 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 
-/** Телефон — самая узкая ширина, на которой обязан работать экран библиотеки. */
-const PHONE = { width: 390, height: 844 } as const;
-/** Окно раздела про чип: места достаточно, дефект там не про сжатие. */
-const WIDE = { width: 1280, height: 900 } as const;
-
 /**
  * Порог ширины карточки правки блока.
  *
@@ -35,6 +30,11 @@ const WIDE = { width: 1280, height: 900 } as const;
  * работу, ради которой открыт.
  */
 import { themeTokens } from "../src/blocks/core/design-reference";
+
+/** Телефон — самая узкая ширина, на которой обязан работать экран библиотеки. */
+const PHONE = { width: 390, height: 844 } as const;
+/** Окно раздела про чип: места достаточно, дефект там не про сжатие. */
+const WIDE = { width: 1280, height: 900 } as const;
 
 const CARD_MIN = 300;
 
