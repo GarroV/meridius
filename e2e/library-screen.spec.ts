@@ -19,6 +19,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { themeTokens } from "../src/blocks/core/design-reference";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 
 /**
@@ -29,8 +30,6 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
  * под 358: уже него в карточку не влезает строка пункта, и экран перестаёт делать
  * работу, ради которой открыт.
  */
-import { themeTokens } from "../src/blocks/core/design-reference";
-
 /** Телефон — самая узкая ширина, на которой обязан работать экран библиотеки. */
 const PHONE = { width: 390, height: 844 } as const;
 /** Окно раздела про чип: места достаточно, дефект там не про сжатие. */
