@@ -19,8 +19,6 @@ import { nonceFromPolicy } from "@/security-headers";
 import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
 
-import { FONT_VARIABLES } from "./fonts";
-
 import "./globals.css";
 
 /**
@@ -91,7 +89,6 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={FONT_VARIABLES}
       {...(theme === undefined ? {} : { [THEME_ATTRIBUTE]: theme })}
       // Скрипт ниже дописывает `data-theme` до гидратации — для React это
       // расхождение с тем, что он отрисовал, и без этой пометки он печатал бы

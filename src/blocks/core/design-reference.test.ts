@@ -20,11 +20,15 @@ import {
 } from "./design-reference";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
-const TOKENS = path.resolve(ROOT, "../docs/furca/design/reference/tokens.css");
-const COMPONENTS = path.resolve(
-  ROOT,
-  "../docs/furca/design/reference/components.css",
-);
+// Ядро дизайн-системы несёт и токены, и слой компонентов одним файлом — именно его
+// подключает продукт (`src/app/globals.css`). Сверяться с чем-то другим значит сверяться
+// с тем, что на экране не участвует: прежние `tokens.css` и `components.css` остались
+// только под эталонными HTML и продукту больше не поставляются.
+const CORE = path.resolve(ROOT, "../docs/furca/design/reference/dodo-ds.css");
+const TOKENS = CORE;
+const COMPONENTS = CORE;
+/** Доменный слой продукта (слой 3): свои токены объявляет он. */
+const DOMAIN = path.resolve(ROOT, "../docs/furca/design/reference/domain.css");
 /** Слой экранов эталона: там же, где `.item__num`, — вид числового поля. */
 const APP = path.resolve(ROOT, "../docs/furca/design/app.css");
 
@@ -279,12 +283,9 @@ describe("сторож ссылок на токены", () => {
   // хоть где-то — иначе CSS молча отбросит свойство.
   const declaredAnywhere = new Set([
     ...parseTokens(readFileSync(TOKENS, "utf8")).keys(),
+    ...parseTokens(readFileSync(DOMAIN, "utf8")).keys(),
     ...consumers.flatMap((text) =>
-      [
-        ...text.matchAll(/(--[\w-]+)\s*:/g),
-        // next/font заводит переменную из TypeScript, а не из CSS
-        ...text.matchAll(/variable:\s*"(--[\w-]+)"/g),
-      ].map((match) => match[1]),
+      [...text.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]),
     ),
   ]);
 

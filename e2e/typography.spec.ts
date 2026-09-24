@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 // уже построенных экранах, чтобы правило держалось не только там, где его заметили.
 const SCREENS = ["/", "/admin/login"] as const;
 
-// Значения из docs/furca/design/reference/tokens.css: --fs-body / --lh-body.
+// Значения из docs/furca/design/reference/dodo-ds.css: --fs-body / --lh-body.
 const BASE_FONT_SIZE = "13px";
 const BASE_LINE_HEIGHT = "18px";
 
@@ -30,14 +30,13 @@ test.describe("типографика по эталону", () => {
 
       expect(base.fontSize).toBe(BASE_FONT_SIZE);
       expect(base.lineHeight).toBe(BASE_LINE_HEIGHT);
-      // Первым в списке — само семейство эталона, а не запасное. Второе имя,
-      // «Golos Text Fallback», выставляет next/font: это подогнанный по метрикам
-      // системный шрифт на время загрузки, и его наличие отличает подключённый
-      // шрифт от простого упоминания имени в токене.
-      expect(base.fontFamily).toMatch(/^"Golos Text", "Golos Text Fallback"/);
+      // Первым в списке — само семейство канона, а не запасное. Одного этого мало:
+      // имя в токене стоит и тогда, когда файла нет вовсе, — поэтому следующая проверка
+      // спрашивает браузер, доехало ли начертание.
+      expect(base.fontFamily).toMatch(/^Manrope,/);
     });
 
-    test(`Golos Text на ${screen} действительно загружен, а не только объявлен`, async ({
+    test(`Manrope на ${screen} действительно загружен, а не только объявлен`, async ({
       page,
     }) => {
       await page.goto(screen);
@@ -52,17 +51,18 @@ test.describe("типографика по эталону", () => {
         }));
       });
 
-      const golos = faces.filter((face) => face.family.includes("Golos"));
-      expect(golos.length).toBeGreaterThan(0);
-      expect(golos.some((face) => face.status === "loaded")).toBe(true);
+      const manrope = faces.filter((face) => face.family.includes("Manrope"));
+      expect(manrope.length).toBeGreaterThan(0);
+      expect(manrope.some((face) => face.status === "loaded")).toBe(true);
     });
   }
 
   test("моноширинное семейство эталона подключено и доступно экранам", async ({
     page,
   }) => {
-    // Числа, время и коды станций эталон набирает IBM Plex Mono. Экранов с ними ещё нет,
-    // поэтому проверяется то, что им достанется: значение токена --font-num.
+    // Числа, время и коды станций канон набирает Space Grotesk. Кириллицы у него нет
+    // вовсе — это его работа, и потому проверяется значение токена --font-num, а не
+    // начертание какой-то строки экрана.
     await page.goto("/");
 
     const family = await page
@@ -71,11 +71,12 @@ test.describe("типографика по эталону", () => {
         globalThis.getComputedStyle(element).getPropertyValue("--font-num"),
       );
 
-    expect(family).toMatch(/^"IBM Plex Mono", "IBM Plex Mono Fallback"/);
+    expect(family.trim()).toMatch(/^['"]Space Grotesk['"]/);
   });
 
   test("шрифты раздаёт само приложение, а не чужой домен", async ({ page }) => {
-    // Эталон грузит их из Google Fonts. Продукту так нельзя: на кухне связь слабая,
+    // Канон грузит их из Google Fonts только в прототипе. Продукту так нельзя: на кухне
+    // связь слабая,
     // и первый экран не должен ждать стороннего домена. Плюс ни одного запроса наружу.
     const fontRequests: string[] = [];
     page.on("request", (request) => {
