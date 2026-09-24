@@ -191,7 +191,7 @@
   --accent:          #5B57F2;
   --accent-hover:    #6F6BF5;
   --accent-press:    #4A46D6;
-  --accent-soft:     #EEEDFE;
+  --accent-soft:     #F2F1FE;   /* акцентный текст на ней обязан проходить порог: 4,59 (было 4,44) */
   --accent-line:     #D6D4FB;
 
   /* ── Внимание ────────────────────────────────────────────
