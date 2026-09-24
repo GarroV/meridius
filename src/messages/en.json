@@ -33,6 +33,9 @@
       "light": "Light",
       "dark": "Dark"
     },
+    "locale": {
+      "label": "Language"
+    },
     "crumbs": "Workspace",
     "notFound": {
       "title": "No such section",

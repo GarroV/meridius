@@ -7,16 +7,27 @@
 // названный язык поверхности или заголовок запроса.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LOCALE_COOKIE } from "@/blocks/core/locale";
 import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
 
-// Заголовки запроса, которого в модульном тесте нет: подменяем хранилище Next своим.
+// Заголовки и куки запроса, которого в модульном тесте нет: подменяем хранилища Next
+// своими. Кука здесь не декорация: с #161 язык кабинета решает выбор человека, и мок
+// без неё означал бы, что проверка стережёт уже не ту развилку.
 const requestHeaders = vi.hoisted(() => new Map<string, string>());
+const requestCookies = vi.hoisted(() => new Map<string, string>());
 
 vi.mock("next/headers", () => ({
   headers: () =>
     Promise.resolve({
       get: (name: string) => requestHeaders.get(name) ?? null,
+    }),
+  cookies: () =>
+    Promise.resolve({
+      get: (name: string) => {
+        const value = requestCookies.get(name);
+        return value === undefined ? undefined : { name, value };
+      },
     }),
 }));
 
@@ -42,6 +53,7 @@ function params(locale?: string) {
 
 beforeEach(() => {
   requestHeaders.clear();
+  requestCookies.clear();
 });
 
 describe("язык называют явно — он и решает", () => {
@@ -105,5 +117,50 @@ describe("языка не назвали — решает заголовок з�
 
     expect(config.locale).toBe("en");
     expect(config.messages).toBe(en);
+  });
+});
+
+describe("язык кабинета выбран человеком — выбор сильнее браузера", () => {
+  /**
+   * Развилка #161: владелец видел кабинет по-английски, потому что так сказал его
+   * браузер, и сменить язык было нечем. Заголовок остаётся первой догадкой, но
+   * названный вслух выбор её отменяет.
+   */
+  it("кука языка перебивает заголовок браузера", async () => {
+    // Arrange: браузер английский, человек выбрал русский.
+    requestHeaders.set("accept-language", "en-GB,en;q=0.9");
+    requestCookies.set(LOCALE_COOKIE, "ru");
+
+    // Act: язык поверхности не назван — решает кабинет.
+    const config = await requestConfig(params());
+
+    // Assert
+    expect(config.locale).toBe("ru");
+    expect(config.messages).toBe(ru);
+  });
+
+  it("чужая метка в куке не принимается: страница не остаётся без надписей", async () => {
+    // Arrange: куку правит кто угодно, значением индексируется словарь.
+    requestHeaders.set("accept-language", "en-GB,en;q=0.9");
+    requestCookies.set(LOCALE_COOKIE, "zz");
+
+    // Act
+    const config = await requestConfig(params());
+
+    // Assert: откат к догадке браузера, а не undefined вместо словаря.
+    expect(config.locale).toBe("en");
+    expect(config.messages).toBe(en);
+  });
+
+  it("язык поверхности сильнее выбора человека: наклейку печатает пиццерия", async () => {
+    // Arrange: методист выбрал английский кабинет, но лист QR принадлежит пиццерии.
+    requestCookies.set(LOCALE_COOKIE, "en");
+
+    // Act: язык назван явно — так спрашивает поверхность пиццерии (D122).
+    const config = await requestConfig(params("ru"));
+
+    // Assert
+    expect(config.locale).toBe("ru");
+    expect(config.messages).toBe(ru);
   });
 });

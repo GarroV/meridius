@@ -10,7 +10,7 @@
 // Раздел, которого в продукте ещё нет, рисуется `<span aria-disabled>`, а не ссылкой:
 // ссылка вела бы в 404.
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { ReactElement } from "react";
 
 import {
@@ -19,6 +19,8 @@ import {
   ADMIN_SECTIONS,
   type AdminSectionKey,
 } from "../admin-sections";
+import { asLocale } from "../locale";
+import { LocaleToggle } from "./LocaleToggle";
 import { ThemeToggle } from "./ThemeToggle";
 
 // Ниже складки (`--page-fold`, 768 px) меню из боковой колонки становится верхней
@@ -54,6 +56,7 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
   // Первый экран кабинета уже звал разделы через `admin.sections.*`, и четыре копии
   // меню держали пятую, шестую и седьмую копию тех же слов.
   const t = useTranslations("admin");
+  const locale = useLocale();
 
   return (
     <nav className={NAV_CLASS}>
@@ -119,6 +122,13 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
         управление, и ночная смена начинается как раз с телефона.
         Слова переводит меню, а не сам переключатель (T254): см. `ThemeToggle.tsx`.
       */}
+      {/*
+        Язык кабинета (#161). Стоит рядом с темой и по той же причине остаётся ниже
+        складки: это управление, а не справка, и человек, открывший кабинет на чужом
+        языке, ищет переключатель первым делом — в том числе с телефона.
+      */}
+      <LocaleToggle current={asLocale(locale)} label={t("locale.label")} />
+
       <ThemeToggle
         labels={{
           label: t("theme.label"),

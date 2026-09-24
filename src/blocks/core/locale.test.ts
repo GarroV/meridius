@@ -9,6 +9,7 @@ import {
   isLocale,
   LOCALES,
   pickLocale,
+  resolveLocale,
 } from "./locale";
 import { repositoryRoot } from "./repo-copy";
 import { withoutComments } from "./source-text";
@@ -128,5 +129,31 @@ describe("языки продукта перечислены в одном ме�
         "копию не видит — с третьим языком в LOCALES он назовёт только словари, — " +
         "и продукт молча не заговорит на нём там, где список написан заново.",
     ).toEqual([]);
+  });
+});
+
+describe("resolveLocale", () => {
+  test("выбор человека сильнее заголовка браузера", () => {
+    expect(
+      resolveLocale({ chosen: "ru", acceptLanguage: "en-US,en;q=0.9" }),
+    ).toBe("ru");
+  });
+
+  test("без выбора язык берётся из заголовка браузера", () => {
+    expect(
+      resolveLocale({ chosen: null, acceptLanguage: "ru-RU,ru;q=0.9" }),
+    ).toBe("ru");
+  });
+
+  test("чужая метка в куке не принимается и не роняет страницу", () => {
+    expect(
+      resolveLocale({ chosen: "zz", acceptLanguage: "ru-RU,ru;q=0.9" }),
+    ).toBe("ru");
+  });
+
+  test("без выбора и без заголовка — язык по умолчанию", () => {
+    expect(resolveLocale({ chosen: null, acceptLanguage: null })).toBe(
+      DEFAULT_LOCALE,
+    );
   });
 });
