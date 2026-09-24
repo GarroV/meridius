@@ -1,6 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import { formActionPath } from "@/blocks/core/base-path";
+
 import type { ChecklistFilterSelection } from "../filter-options";
 import { CHECKLISTS_PATH } from "../routes";
 import { ChecklistFilterSelects } from "./ChecklistFilterSelects";
@@ -39,7 +41,7 @@ export async function ChecklistFilters({
       <div className={BODY_CLASS}>
         <form
           method="get"
-          action={CHECKLISTS_PATH}
+          action={formActionPath(CHECKLISTS_PATH)}
           data-testid="checklist-filters"
           className={ROW_CLASS}
         >

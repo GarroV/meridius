@@ -36,6 +36,25 @@ function basePath(): string {
  * поэтому здесь путь только приставляется.
  */
 export function redirectPath<T extends string>(path: T): T {
+  return withBasePath(path);
+}
+
+/**
+ * Путь для нативного `action` обычной GET-формы (фильтры экранов).
+ *
+ * Отдельно от `<Link>` и роутера: тем базовый путь приставляет сам Next, а атрибут
+ * `action` он не трогает — браузер отправляет форму ровно по написанному адресу.
+ * На площадке с базовым путём выбор страны в фильтре уводил на `/admin/feed`, то есть
+ * на «Такой страницы нет», и экран выглядел упавшим (проверено на стенде 24.09.2026).
+ *
+ * Важно: `href` ссылки рядом с такой формой (сброс фильтра) остаётся БЕЗ приставки —
+ * иначе выходит `/qr/qr/admin/feed`, та же ошибка с другой стороны.
+ */
+export function formActionPath<T extends string>(path: T): T {
+  return withBasePath(path);
+}
+
+function withBasePath<T extends string>(path: T): T {
   const base = basePath();
   return (base === "" ? path : `${base}${path}`) as T;
 }

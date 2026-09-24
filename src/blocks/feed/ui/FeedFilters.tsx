@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import { formActionPath } from "@/blocks/core/base-path";
+
 import type { FeedSelection } from "../model";
 import { FEED_PATH } from "../routes";
 import { FeedFilterSelects } from "./FeedFilterSelects";
@@ -54,7 +56,7 @@ export async function FeedFilters({
       <div className={BODY_CLASS}>
         <form
           method="get"
-          action={action}
+          action={formActionPath(action)}
           data-testid="feed-filters"
           className={ROW_CLASS}
         >
