@@ -70,11 +70,16 @@ const test = base.extend<{ signedIn: boolean }, { adminSession: SessionState }>(
   },
 );
 
-/** Эталон токенов — единственный источник цветов; значения в сценарии не переписываются. */
+/**
+ * Ядро дизайн-системы — единственный источник цветов; значения в сценарии не
+ * переписываются (D143). Канон будет улучшаться и дальше, и проверка, повторяющая
+ * его значения буквами, краснела бы на исправном продукте при каждом обновлении.
+ * Читается ровно тот файл, который подключает продукт (`src/app/globals.css`).
+ */
 const TOKENS_CSS = readFileSync(
   path.resolve(
     import.meta.dirname,
-    "../docs/furca/design/reference/tokens.css",
+    "../docs/furca/design/reference/dodo-ds.css",
   ),
   "utf8",
 );

@@ -14,6 +14,9 @@
 // чип брал вместе с коробкой и отклик на наведение — вид общий, и следующая добавка к
 // нему снова приедет туда, где нажатия нет. Поэтому здесь же, отдельным тестом, проверен
 // и настоящий чип редактора: починка, снявшая обещание у показа, могла снять его и там.
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
@@ -31,16 +34,56 @@ const WIDE = { width: 1280, height: 900 } as const;
  * под 358: уже него в карточку не влезает строка пункта, и экран перестаёт делать
  * работу, ради которой открыт.
  */
+import { themeTokens } from "../src/blocks/core/design-reference";
+
 const CARD_MIN = 300;
 
 /** Сколько шагов Tab делаем, разыскивая чип: он не должен всплыть ни на одном. */
 const TAB_STEPS = 12;
 
-/** Вид чипа в покое и при наведении, общий для чипа-показа и чипа редактора (T224). */
-const CHIP_BORDER_REST = "rgb(215, 219, 224)";
-const CHIP_BORDER_HOVER = "rgb(185, 193, 202)";
-const CHIP_TEXT_REST = "rgb(98, 107, 119)";
-const CHIP_TEXT_HOVER = "rgb(92, 102, 114)";
+/**
+ * Вид чипа в покое и при наведении, общий для чипа-показа и чипа редактора (T224).
+ * Значения берутся из ядра дизайн-системы, а не переписываются сюда числами (D143):
+ * канон улучшается, и цифра здесь краснела бы на исправном продукте при каждом его
+ * обновлении. Проверяется по-прежнему то, ради чего сценарий написан, — что чип
+ * меняет вид под курсором ровно теми токенами, а не своими цветами.
+ */
+const CORE_CSS = readFileSync(
+  path.resolve(
+    import.meta.dirname,
+    "../docs/furca/design/reference/dodo-ds.css",
+  ),
+  "utf8",
+);
+
+const HEX_COLOR = /#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})\b/i;
+
+/** Хекс канона (`#RRGGBB`) в запись, которую отдаёт браузер (`rgb(r, g, b)`). */
+function rgbOf(hex: string): string {
+  let rgb: string | undefined;
+  hex.replace(HEX_COLOR, (_whole, r: string, g: string, b: string) => {
+    rgb = `rgb(${String(parseInt(r, 16))}, ${String(parseInt(g, 16))}, ${String(parseInt(b, 16))})`;
+    return "";
+  });
+  if (rgb === undefined) {
+    throw new Error(`«${hex}» не похож на шестизначный хекс канона`);
+  }
+  return rgb;
+}
+
+/** Значение светлого токена канона в записи браузера. Нет токена — сверять нечем. */
+function tokenRgb(name: string): string {
+  const value = themeTokens(CORE_CSS, "light").get(name);
+  if (value === undefined) {
+    throw new Error(`ядро дизайн-системы не называет ${name}`);
+  }
+  return rgbOf(value);
+}
+
+const CHIP_BORDER_REST = tokenRgb("--line-control");
+const CHIP_BORDER_HOVER = tokenRgb("--line-control-2");
+const CHIP_TEXT_REST = tokenRgb("--ink-3");
+const CHIP_TEXT_HOVER = tokenRgb("--ink-2");
 
 function label(): string {
   return Math.random().toString(36).slice(2, 8);
