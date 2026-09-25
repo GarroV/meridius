@@ -114,7 +114,7 @@ const NOTE_CLASS =
 // Кружок `.ok-mark`: 56×56, скругление 50%, фон var(--ok-soft), рамка
 // var(--ok-line).
 const OK_MARK_CLASS =
-  "flex h-[56px] w-[56px] items-center justify-center rounded-full border border-[var(--ok-line)] bg-[var(--ok-soft)]";
+  "flex h-[56px] w-[56px] items-center justify-center rounded-[var(--r-pill)] border border-[var(--ok-line)] bg-[var(--ok-soft)]";
 
 /**
  * Галочка внутри `.ok-mark`. В эталоне она нарисована CSS-маской с

@@ -261,7 +261,7 @@ function ProgressBar({
 }): ReactElement {
   return (
     <div className="mt-[var(--space-6)] flex items-center gap-[var(--space-5)]">
-      <span className="h-[4px] flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
+      <span className="h-[4px] flex-1 overflow-hidden rounded-[var(--r-pill)] bg-[var(--surface-3)]">
         <i style={{ width: "0%" }} className="bg-accent block h-full" />
       </span>
       <span className="text-[length:var(--fs-meta)] text-[var(--ink-2)] whitespace-nowrap">

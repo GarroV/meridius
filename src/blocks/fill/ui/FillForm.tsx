@@ -386,7 +386,7 @@ export function FillForm({
         <div className="mt-[var(--space-6)] flex items-center gap-[var(--space-5)]">
           <span
             data-testid="fill-progress"
-            className="h-[4px] flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]"
+            className="h-[4px] flex-1 overflow-hidden rounded-[var(--r-pill)] bg-[var(--surface-3)]"
           >
             <i
               className="bg-accent block h-full"

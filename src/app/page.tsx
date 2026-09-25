@@ -11,7 +11,10 @@ export default async function HomePage() {
   const t = await getTranslations("home");
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-[var(--space-5)] p-[var(--space-8)]">
-      <h1 className="text-accent text-2xl font-semibold" data-testid="title">
+      <h1
+        className="text-accent text-[length:var(--fs-display)] leading-[var(--lh-display)] font-semibold"
+        data-testid="title"
+      >
         {t("title")}
       </h1>
       <p className="text-ink-2" data-testid="subtitle">

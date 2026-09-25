@@ -17,7 +17,7 @@ import { startRefreshClock } from "@/blocks/fill/ui/refresh-clock";
  */
 
 const CHIP_CLASS =
-  "fixed right-[var(--space-6)] bottom-[var(--space-6)] z-3 inline-flex min-h-[var(--tap-min)] cursor-pointer items-center gap-[var(--space-3)] rounded-full border border-[var(--line-strong)] bg-surface px-[var(--space-6)] py-[var(--space-4)] text-[length:var(--fs-dense)] text-ink shadow-[var(--sh-pop)]";
+  "fixed right-[var(--space-6)] bottom-[var(--space-6)] z-3 inline-flex min-h-[var(--tap-min)] cursor-pointer items-center gap-[var(--space-3)] rounded-[var(--r-pill)] border border-[var(--line-strong)] bg-surface px-[var(--space-6)] py-[var(--space-4)] text-[length:var(--fs-dense)] text-ink shadow-[var(--sh-pop)]";
 
 /** Сколько держится подтверждение «звук включён», прежде чем чип уйдёт с экрана. */
 const CONFIRMATION_MS = 3000;
