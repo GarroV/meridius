@@ -37,6 +37,7 @@
       "label": "Language"
     },
     "crumbs": "Workspace",
+    "skipToContent": "Skip to content",
     "notFound": {
       "title": "No such section",
       "text": "There is no such address in the workspace: it may have a typo, or the section has been removed.",

@@ -445,3 +445,72 @@ test.describe("доступность: админка", () => {
     expectAccessible(await runAxe(page));
   });
 });
+
+/**
+ * Ориентир содержимого и обход меню — отдельным прогоном и по отдельной причине.
+ *
+ * Правила `region` и `bypass` у axe лежат в разряде «лучших практик», а не нарушений
+ * WCAG, поэтому в наборе тегов выше их нет и быть не может: добавить целиком тег
+ * `best-practice` — значит включить десятки чужих правил одним движением. Здесь
+ * включены ровно эти два, и `withRules` вместо `withTags` именно поэтому.
+ *
+ * Цена их отсутствия измерена 25.09.2026: `<main>` не было НИ НА ОДНОМ экране кабинета,
+ * ссылки-пропуска меню не было нигде, и тринадцать зелёных прогонов axe этого не
+ * показывали. Человек с клавиатуры проходил семь пунктов меню, два переключателя и
+ * кнопку выхода — на каждой странице заново.
+ *
+ * Перебор идёт по разделам, а не по одному экрану: каркас общий, но рисуют его ДВА
+ * места (`core/ui/AdminShell` и `editor/ui/EditorScreen` — у редактора своя верхняя
+ * полоса), и разъезжались они в этом проекте уже трижды.
+ */
+const FRAME_RULES = ["region", "bypass"];
+
+const CABINET_PATHS = [
+  "/admin",
+  "/admin/checklists",
+  "/admin/library",
+  "/admin/feed",
+  "/admin/catalog",
+  "/admin/qr",
+  "/admin/devices",
+] as const;
+
+test.describe("доступность: каркас кабинета", () => {
+  // Язык — как у соседнего разбора админки: вход подписан по-русски, и по-английски
+  // поле пароля просто не находится. Умолчание Chromium — en-US.
+  test.use({ locale: "ru-RU", viewport: { width: 1280, height: 900 } });
+
+  for (const path of CABINET_PATHS) {
+    test(`${path}: есть ориентир содержимого и обход меню`, async ({
+      page,
+    }) => {
+      await signIn(page);
+      await page.goto(path);
+      await page.getByTestId("admin-main").waitFor();
+
+      const results = await new AxeBuilder({ page })
+        .withRules(FRAME_RULES)
+        .analyze();
+      expectAccessible(results);
+    });
+  }
+
+  test("ссылка-пропуск получает фокус первой и уводит на содержимое", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.goto("/admin");
+
+    // Первый Tab на странице: до меню, до переключателей, до всего.
+    await page.keyboard.press("Tab");
+    const skip = page.getByTestId("skip-to-content");
+    await expect(skip).toBeFocused();
+
+    // Ссылка обязана быть ВИДНОЙ в фокусе: уведённая за край и там оставшаяся
+    // бесполезна зрячему человеку с клавиатурой — а он основной её потребитель.
+    await expect(skip).toBeInViewport();
+
+    await skip.press("Enter");
+    await expect(page.getByTestId("admin-main")).toBeFocused();
+  });
+});

@@ -13,6 +13,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { AdminSectionKey } from "../admin-sections";
 import { ADMIN_CONTENT_CLASS, ADMIN_FRAME_CLASS } from "./admin-frame";
 import { AdminNav } from "./AdminNav";
+import { ADMIN_CONTENT_ID, SkipLink } from "./SkipLink";
 
 const H1_CLASS =
   "text-[length:var(--fs-display)] leading-[var(--lh-display)] font-semibold";
@@ -41,9 +42,22 @@ export function AdminShell({
 }: AdminShellProps): ReactElement {
   return (
     <div data-testid={testId} className={ADMIN_FRAME_CLASS}>
+      <SkipLink />
       <AdminNav active={active} />
 
-      <div data-testid="admin-main" className="flex min-w-0 flex-col">
+      {/*
+        `<main>` — ориентир, по которому программа чтения с экрана переходит к
+        содержимому. До этой правки его не было НИ НА ОДНОМ экране кабинета, и каркас
+        читался сплошным потоком. `tabIndex={-1}` нужен ссылке-пропуску: без него
+        переход по якорю прокручивает страницу, но фокус остаётся на меню, и следующий
+        Tab возвращает человека туда же, откуда он только что ушёл.
+      */}
+      <main
+        id={ADMIN_CONTENT_ID}
+        tabIndex={-1}
+        data-testid="admin-main"
+        className="flex min-w-0 flex-col focus:outline-none"
+      >
         {/*
           Ниже складки верхняя полоса переносит действие на следующую строку, а не сжимает
           заголовок до нечитаемого: кнопка раздела шире половины экрана на 375 px.
@@ -65,7 +79,7 @@ export function AdminShell({
         >
           {children}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

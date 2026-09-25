@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { ADMIN_FRAME_CLASS } from "@/blocks/core/ui/admin-frame";
 import { AdminNav } from "@/blocks/core/ui/AdminNav";
+import { ADMIN_CONTENT_ID, SkipLink } from "@/blocks/core/ui/SkipLink";
 
 import { loadEditor } from "../drafts";
 import { listStations } from "../listing";
@@ -74,26 +75,40 @@ export async function EditorScreen({
       messages={{ editor: messages["editor"] as AbstractIntlMessages }}
     >
       <div data-testid="editor-screen" className={ADMIN_FRAME_CLASS}>
+        <SkipLink />
         <AdminNav active="checklists" />
-        <ChecklistEditor
-          checklistId={checklistId}
-          locale={locale}
-          initialTitle={pickEditorText(state.checklist.title, locale)}
-          initialStationId={state.checklist.stationId ?? ""}
-          initialWindow={windowOf(
-            state.checklist.windowStart,
-            state.checklist.windowEnd,
-          )}
-          initialSections={state.sections}
-          stations={stations}
-          station={state.station}
-          versions={state.versions}
-          library={state.library}
-          nextVersionNumber={highestVersion + 1}
-          previewHref={checklistPreviewPath(checklistId)}
-          crumbs={crumbs}
-          stationAction={stationAction?.(state.checklist.stationId ?? null)}
-        />
+        {/*
+          Редактор собирает верхнюю полосу сам (кнопки публикации живут внутри
+          клиентской формы и обязаны видеть её состояние), поэтому общего каркаса у
+          него нет — а ориентир и якорь нужны те же. `<main>` встаёт на место, которое
+          занимал редактор: он и был второй колонкой сетки.
+        */}
+        <main
+          id={ADMIN_CONTENT_ID}
+          tabIndex={-1}
+          data-testid="admin-main"
+          className="flex min-w-0 flex-col focus:outline-none"
+        >
+          <ChecklistEditor
+            checklistId={checklistId}
+            locale={locale}
+            initialTitle={pickEditorText(state.checklist.title, locale)}
+            initialStationId={state.checklist.stationId ?? ""}
+            initialWindow={windowOf(
+              state.checklist.windowStart,
+              state.checklist.windowEnd,
+            )}
+            initialSections={state.sections}
+            stations={stations}
+            station={state.station}
+            versions={state.versions}
+            library={state.library}
+            nextVersionNumber={highestVersion + 1}
+            previewHref={checklistPreviewPath(checklistId)}
+            crumbs={crumbs}
+            stationAction={stationAction?.(state.checklist.stationId ?? null)}
+          />
+        </main>
       </div>
     </NextIntlClientProvider>
   );
