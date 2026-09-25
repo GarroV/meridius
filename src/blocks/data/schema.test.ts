@@ -422,3 +422,68 @@ describe("пиццерия и станция", () => {
     expect(code).toBe(PG_FOREIGN_KEY_VIOLATION);
   });
 });
+
+// D155: копия помнит, из какого шаблона сделана. Ссылка идёт на ту же таблицу — шаблон
+// это такой же чек-лист, — и потому объявлена ленивым колбэком: на момент объявления
+// колонки таблицы ещё не существует. Колбэк разворачивается только внутри драйвера, и
+// проверить его можно ровно одним способом: удалить шаблон и посмотреть, что стало с копией.
+//
+// Поведение тут важнее самой ссылки. `set null` означает: удаление шаблона НЕ уносит
+// раскатанные копии — станции продолжают работать, теряется только память о родителе.
+// Ошибись мы в `cascade` — удаление одного шаблона молча стёрло бы чек-листы сорока
+// станций, и узнали бы мы об этом от пиццерии, а не от теста.
+describe("шаблон и его копии", () => {
+  test("удаление шаблона оставляет копию жить, забывая источник", async () => {
+    const templateId = await createChecklist();
+    await db
+      .update(checklists)
+      .set({ isTemplate: true })
+      .where(eq(checklists.id, templateId));
+
+    const copy = await db
+      .insert(checklists)
+      .values({
+        title: { ru: "Копия", en: "Copy" },
+        windowStart: "06:00:00",
+        windowEnd: "12:00:00",
+        sourceChecklistId: templateId,
+        sourceVersion: 1,
+      })
+      .returning({ id: checklists.id });
+    const copyId = copy[0]?.id ?? "";
+
+    await db.delete(checklists).where(eq(checklists.id, templateId));
+
+    const [row] = await db
+      .select({
+        id: checklists.id,
+        sourceChecklistId: checklists.sourceChecklistId,
+        sourceVersion: checklists.sourceVersion,
+      })
+      .from(checklists)
+      .where(eq(checklists.id, copyId));
+
+    expect(row?.id, "копия исчезла вместе с шаблоном — это потеря данных").toBe(
+      copyId,
+    );
+    expect(row?.sourceChecklistId).toBeNull();
+    // Номер версии остаётся: по нему видно, на какой редакции шаблона копия отстала,
+    // даже когда самого шаблона уже нет.
+    expect(row?.sourceVersion).toBe(1);
+  });
+
+  test("шаблон не может висеть на станции", async () => {
+    const { stationId } = await createStation();
+    const code = await dbErrorCode(
+      db.insert(checklists).values({
+        title: { ru: "Шаблон на станции", en: "Template on station" },
+        windowStart: "06:00:00",
+        windowEnd: "12:00:00",
+        isTemplate: true,
+        stationId,
+      }),
+    );
+
+    expect(code).toBe(PG_CHECK_VIOLATION);
+  });
+});
