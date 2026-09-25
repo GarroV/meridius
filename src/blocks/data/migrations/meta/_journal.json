@@ -99,6 +99,13 @@
       "when": 1789250000000,
       "tag": "0013_device_pairing",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789260000000,
+      "tag": "0014_templates_and_copies",
+      "breakpoints": true
     }
   ]
 }
