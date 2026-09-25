@@ -17,6 +17,14 @@ import { seedStationWithoutChecklist } from "./fill-fixtures";
 test.describe("раздел «Станции»", () => {
   test.use({ locale: "ru-RU" });
 
+  // Последовательно, и это обход чужого дефекта, а не привычка. Каждый сценарий входит
+  // сам, а предел входа занимает место ДО проверки пароля и снимает счёт только после
+  // успеха: семь одновременных входов с верным паролем упираются в `perClient` (5 за
+  // 15 минут), и один-два сценария падают на входе — каждый раз разные. Выглядело как
+  // известная флейка под нагрузкой (#85), оказалось #170. Как только #170 починят,
+  // строку убрать: параллельный прогон здесь ничем больше не мешает.
+  test.describe.configure({ mode: "serial" });
+
   test.beforeEach(async ({ page }) => {
     await page.goto("/admin/login");
     await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
@@ -102,6 +110,59 @@ test.describe("раздел «Станции»", () => {
     } else {
       await expect(page.getByTestId("gap-silent")).toHaveCount(rows);
     }
+  });
+
+  test("со списка открывается карточка станции, и на ней всё про эту станцию", async ({
+    page,
+  }) => {
+    const seeded = await seedStationWithoutChecklist("карточки", "ru");
+
+    await page.goto("/admin/stations?gap=noChecklist");
+    await page
+      .getByTestId("station-row")
+      .filter({ hasText: seeded.stationName })
+      .getByTestId("station-link")
+      .click();
+
+    await expect(page.getByTestId("station-screen")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: seeded.stationName }),
+    ).toBeVisible();
+
+    // Три карточки в одном месте — ровно то, ради чего раздел затевался: до него
+    // чек-лист, наклейка и планшет жили в трёх разных разделах.
+    await expect(page.getByTestId("station-checklist-card")).toBeVisible();
+    await expect(page.getByTestId("station-sticker-card")).toBeVisible();
+    await expect(page.getByTestId("station-tablet-card")).toBeVisible();
+
+    // Наклейка показывает тот самый код, который сеятель выдал станции.
+    await expect(page.getByTestId("station-code")).toHaveText(seeded.code);
+
+    // Станция без чек-листа объясняет, чем это плохо, а не просто пустует.
+    await expect(page.getByText("откроет пустоту")).toBeVisible();
+  });
+
+  test("на карточке есть инструкция привязки и три факта, из-за которых её считали сломанной", async ({
+    page,
+  }) => {
+    const seeded = await seedStationWithoutChecklist("инструкции", "ru");
+
+    await page.goto("/admin/stations?gap=noChecklist");
+    await page
+      .getByTestId("station-row")
+      .filter({ hasText: seeded.stationName })
+      .getByTestId("station-link")
+      .click();
+
+    // Просьба владельца дословно: «надо в разделе привязки дать инструкцию, как
+    // привязывать планшет, и соответственно всю логику описать».
+    const steps = page.getByTestId("pair-steps").getByRole("listitem");
+    await expect(steps).toHaveCount(3);
+
+    const facts = page.getByTestId("pair-facts");
+    await expect(facts).toContainText("пять минут");
+    await expect(facts).toContainText("привязку планшета не трогает");
+    await expect(facts).toContainText("до отвязки");
   });
 
   test("неизвестный фильтр показывает всё, а не пустоту", async ({ page }) => {

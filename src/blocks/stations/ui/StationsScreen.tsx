@@ -8,6 +8,7 @@ import { AdminShell } from "@/blocks/core/ui/AdminShell";
 import type { StationGap } from "../gaps";
 import type { NetworkStation } from "../overview";
 import { countGaps, listNetworkStations } from "../overview";
+import { stationHref } from "./view";
 
 /**
  * Раздел «Станции» — единственное место, где живёт всё про станцию (D151).
@@ -120,7 +121,13 @@ function StationRow({
 }): ReactElement {
   return (
     <div className={ROW_CLASS} data-testid="station-row">
-      <span className={ROW_NAME_CLASS}>{station.name}</span>
+      <Link
+        href={stationHref(station.id)}
+        className={ROW_NAME_CLASS}
+        data-testid="station-link"
+      >
+        {station.name}
+      </Link>
 
       {station.checklistCount === 0 ? (
         <span className={GAP_CLASS} data-testid="gap-noChecklist">

@@ -827,6 +827,31 @@
       "silent": "Silent · {count}"
     },
     "empty": "No stations yet. Add them in the countries and pizzerias reference.",
-    "emptyFiltered": "No stations match — which is good news."
+    "emptyFiltered": "No stations match — which is good news.",
+    "card": {
+      "checklist": "Checklist",
+      "noChecklistWhy": "This station's sticker opens onto nothing: there is nothing to fill in.",
+      "detach": "Remove",
+      "attachLabel": "Put a checklist on it",
+      "attach": "Put on",
+      "nothingToAttach": "No free checklists — they are all on stations already.",
+      "sticker": "Sticker",
+      "stickerWhat": "People scan the sticker with their own phone. Nothing needs pairing for that.",
+      "print": "Print",
+      "reissue": "Reissue the code",
+      "reissueWarning": "The old sticker will stop working and has to be replaced.",
+      "tablet": "Tablet",
+      "tabletWhat": "A tablet is paired once and then simply stays on the station.",
+      "noTablet": "No tablet paired.",
+      "pairedAt": "Paired {at, date, short}"
+    },
+    "pairing": {
+      "step1": "Press “Pair a tablet” — a four-digit code appears.",
+      "step2": "On the tablet, open the pairing address shown next to the code.",
+      "step3": "Enter the code. The tablet is now bound to this station and opens it by itself.",
+      "factTtl": "The code lives five minutes and works once. Missed it — issue a new one, that breaks nothing.",
+      "factReissue": "Reissuing the QR sticker does not touch the tablet pairing. They are different things: the sticker is an address for phones, the pairing is the tablet itself.",
+      "factPersists": "The tablet stays paired until you unpair it. A reboot, a lost network and a closed tab do not undo it."
+    }
   }
 }
