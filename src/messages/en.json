@@ -852,6 +852,13 @@
       "factTtl": "The code lives five minutes and works once. Missed it — issue a new one, that breaks nothing.",
       "factReissue": "Reissuing the QR sticker does not touch the tablet pairing. They are different things: the sticker is an address for phones, the pairing is the tablet itself.",
       "factPersists": "The tablet stays paired until you unpair it. A reboot, a lost network and a closed tab do not undo it."
+    },
+    "rollout": {
+      "label": "Roll out a template",
+      "action": "Put on the selected",
+      "hint": "Tick the stations. Each gets its own copy — from then on the country edits it as its own.",
+      "noTemplates": "No templates yet. Nothing to roll out.",
+      "done": "Done: copies placed — {copied}, skipped (a copy was already there) — {skipped}."
     }
   }
 }

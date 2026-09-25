@@ -24,7 +24,7 @@ const DEPS = {
   // блоком, а не внутри catalog: справочник отвечает «какие станции у этой пиццерии»,
   // а раздел — «где по сети дырки», и второе знает про планшеты и наклейки, до которых
   // справочнику дела нет.
-  stations: ["qr", "catalog", "device", "data", "auth", "core"],
+  stations: ["qr", "catalog", "device", "editor", "data", "auth", "core"],
   demo: ["catalog", "editor", "fill", "feed", "data", "core"],
 };
 

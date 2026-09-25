@@ -20,10 +20,14 @@ import {
   reissueStationCode,
 } from "@/blocks/catalog";
 
-import { stationHref } from "./view";
+import { copyTemplateToStations } from "@/blocks/editor/templates";
+
+import { STATIONS_PATH, stationHref } from "./view";
 
 const STATION_ID = "stationId";
 const CHECKLIST_ID = "checklistId";
+const TEMPLATE_ID = "templateId";
+const STATION_IDS = "stationIds";
 
 function field(form: FormData, name: string): string {
   const value = form.get(name);
@@ -62,4 +66,36 @@ export async function submitReissueCode(form: FormData): Promise<void> {
   const stationId = field(form, STATION_ID);
   await reissueStationCode(stationId);
   await backToStation(stationId);
+}
+
+/**
+ * Раскатка шаблона на выбранные станции — то самое «повесить чек-лист на всю страну».
+ *
+ * Именно копии, а не одно назначение: чек-лист принадлежит одной станции, и назначение
+ * молча перевесило бы его с предыдущей на следующую, оставив остальные ни с чем.
+ *
+ * Пустой выбор возвращает человека назад, ничего не сделав. Это не придирка: «ничего не
+ * выбрано» обязано означать «ничего не делать», а не «сделать со всеми».
+ */
+export async function submitCopyToStations(form: FormData): Promise<void> {
+  await requireAdmin();
+
+  const templateId = field(form, TEMPLATE_ID);
+  const stationIds = form
+    .getAll(STATION_IDS)
+    .flatMap((value) => (typeof value === "string" && value ? [value] : []));
+
+  if (templateId === "" || stationIds.length === 0) {
+    redirect(STATIONS_PATH);
+  }
+
+  const outcome = await copyTemplateToStations(templateId, stationIds);
+
+  revalidatePath(STATIONS_PATH);
+  // Итог уезжает в адрес, а не в состояние экрана: человек, раскатавший на сорок
+  // станций, обязан увидеть, на сколько именно легло и сколько пропущено, — и увидеть
+  // это после перезагрузки тоже.
+  redirect(
+    `${STATIONS_PATH}?copied=${String(outcome.copied.length)}&skipped=${String(outcome.skipped.length)}`,
+  );
 }

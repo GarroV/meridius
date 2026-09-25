@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
@@ -8,6 +8,9 @@ import { AdminShell } from "@/blocks/core/ui/AdminShell";
 import type { StationGap } from "../gaps";
 import type { NetworkStation } from "../overview";
 import { countGaps, listNetworkStations } from "../overview";
+import { listTemplates } from "@/blocks/editor/templates";
+
+import { submitCopyToStations } from "./actions";
 import { stationHref } from "./view";
 
 /**
@@ -33,6 +36,12 @@ const CHIP_IDLE_CLASS =
   "bg-surface border-[var(--line-control)] text-[var(--ink-2)]";
 const CHIP_ACTIVE_CLASS =
   "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)] font-medium";
+const ROLLOUT_CLASS =
+  "bg-surface flex flex-wrap items-center gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--line-strong)] px-[var(--space-7)] py-[var(--space-5)] shadow-[var(--sh-xs)]";
+const SELECT_CLASS =
+  "bg-surface text-ink h-[var(--control-h)] min-w-[220px] rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-4)] text-[length:var(--fs-body)]";
+const BUTTON_CLASS =
+  "bg-surface text-ink flex h-[var(--control-h)] items-center rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium hover:border-[var(--line-control-2)]";
 const EMPTY_CLASS =
   "rounded-[var(--r-block)] border border-[var(--line)] bg-surface px-[var(--space-8)] py-[var(--space-10)] text-center text-[var(--ink-2)]";
 const COUNTRY_CARD_CLASS =
@@ -121,6 +130,19 @@ function StationRow({
 }): ReactElement {
   return (
     <div className={ROW_CLASS} data-testid="station-row">
+      {/*
+        Галочка — часть общей формы раскатки, обёрнутой вокруг всего списка. Своего
+        состояния у неё нет намеренно: выбор живёт в самой форме, переживает прокрутку
+        и не требует ни одной строки клиентского кода.
+      */}
+      <input
+        type="checkbox"
+        name="stationIds"
+        value={station.id}
+        aria-label={station.name}
+        data-testid="station-pick"
+        className="size-[18px] accent-[var(--accent)]"
+      />
       <Link
         href={stationHref(station.id)}
         className={ROW_NAME_CLASS}
@@ -161,7 +183,9 @@ export async function StationsScreen({
   gap,
 }: StationsScreenProps): Promise<ReactElement> {
   const t = await getTranslations("stations");
+  const locale = await getLocale();
   const all = await listNetworkStations();
+  const templates = await listTemplates();
   const counts = countGaps(all);
 
   const active = isGapFilter(gap) ? gap : undefined;
@@ -210,7 +234,43 @@ export async function StationsScreen({
           {active === undefined ? t("empty") : t("emptyFiltered")}
         </p>
       ) : (
-        <div className="flex flex-col gap-[var(--space-7)]">
+        <form
+          action={submitCopyToStations}
+          className="flex flex-col gap-[var(--space-7)]"
+          data-testid="rollout-form"
+        >
+          {templates.length === 0 ? (
+            <p className={META_CLASS} data-testid="no-templates">
+              {t("rollout.noTemplates")}
+            </p>
+          ) : (
+            <div className={ROLLOUT_CLASS} data-testid="rollout-bar">
+              <label className={META_CLASS} htmlFor="rollout-template">
+                {t("rollout.label")}
+              </label>
+              <select
+                id="rollout-template"
+                name="templateId"
+                className={SELECT_CLASS}
+                defaultValue={templates[0]?.id}
+              >
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.title[locale] ?? template.title["en"] ?? ""}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                className={BUTTON_CLASS}
+                data-testid="rollout-submit"
+              >
+                {t("rollout.action")}
+              </button>
+              <span className={META_CLASS}>{t("rollout.hint")}</span>
+            </div>
+          )}
+
           {countries.map((country) => (
             <section key={country.countryId} className={COUNTRY_CARD_CLASS}>
               <h2 className={COUNTRY_TITLE_CLASS}>{country.countryName}</h2>
@@ -224,7 +284,7 @@ export async function StationsScreen({
               ))}
             </section>
           ))}
-        </div>
+        </form>
       )}
     </AdminShell>
   );
