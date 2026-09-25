@@ -19,6 +19,7 @@ export interface AdminSection {
 
 export const ADMIN_SECTIONS = {
   checklists: { path: "/admin/checklists", ready: true },
+  stations: { path: "/admin/stations", ready: true },
   library: { path: "/admin/library", ready: true },
   feed: { path: "/admin/feed", ready: true },
   catalog: { path: "/admin/catalog", ready: true },
@@ -55,6 +56,8 @@ export interface AdminNavGroup {
  * копиях и под `checklists` в двух других) — T074.
  */
 export const ADMIN_NAV_GROUPS = [
-  { key: "work", items: ["checklists", "library", "feed"] },
+  // «Станции» стоят сразу за чек-листами и в группе работы, а не справочника: это
+  // рабочее место, где чек-лист встречается со станцией, а не опись сети (D151).
+  { key: "work", items: ["checklists", "stations", "library", "feed"] },
   { key: "reference", items: ["catalog", "qr", "devices"] },
 ] as const satisfies readonly AdminNavGroup[];

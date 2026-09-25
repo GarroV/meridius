@@ -306,19 +306,30 @@ export async function addChecklistToStation(
  * Отдельный сеятель, а не узкое окно у `seedFillStand`: окно закрывается по часам
  * прогона, и такой сценарий зеленел бы или краснел в зависимости от времени суток.
  */
+/** Что сеятель отдал: наклейка и имена, под которыми станция видна в кабинете. */
+export interface StationWithoutChecklist {
+  readonly code: string;
+  readonly stationName: string;
+  readonly storeName: string;
+  readonly countryName: string;
+}
+
 export async function seedStationWithoutChecklist(
   label: string,
   countryLocale: "ru" | "en",
-): Promise<{ code: string }> {
+): Promise<StationWithoutChecklist> {
   const suffix = randomUUID().slice(0, 8);
   const code = uniqueCode();
+  const countryName = `Страна ${label} ${suffix}`;
+  const storeName = `Almaty, Abaya ${suffix}`;
+  const stationName = `Kitchen ${suffix}`;
 
   return await withPool(async (pool) => {
     const country = firstId(
       (
         await pool.query<{ id: string }>(
           "insert into countries (name, locale) values ($1, $2) returning id",
-          [`Страна ${label} ${suffix}`, countryLocale],
+          [countryName, countryLocale],
         )
       ).rows,
       "countries",
@@ -327,15 +338,17 @@ export async function seedStationWithoutChecklist(
       (
         await pool.query<{ id: string }>(
           "insert into stores (country_id, name, timezone) values ($1, $2, $3) returning id",
-          [country, `Almaty, Abaya ${suffix}`, "UTC"],
+          [country, storeName, "UTC"],
         )
       ).rows,
       "stores",
     );
     await pool.query(
       "insert into stations (store_id, name, code) values ($1, $2, $3)",
-      [store, `Kitchen ${suffix}`, code],
+      [store, stationName, code],
     );
-    return { code };
+    // Имена возвращаются, а не собираются заново у звонящего: раздел станций ищет
+    // станцию на экране по имени, и второй способ его составить разъехался бы с этим.
+    return { code, stationName, storeName, countryName };
   });
 }

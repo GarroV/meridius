@@ -50,6 +50,8 @@
     "sections": {
       "checklists": "Checklists",
       "checklistsHint": "Create a checklist and publish a version",
+      "stations": "Stations",
+      "stationsHint": "Put a checklist on a station and pair a tablet",
       "qr": "QR codes",
       "qrHint": "Print station stickers",
       "feed": "Submissions",
@@ -807,5 +809,24 @@
         "warning": "The tablet stops showing the checklist right away and asks for a new pairing code. A new code is issued from this station's checklist screen."
       }
     }
+  },
+  "stations": {
+    "title": "Stations",
+    "breadcrumb": "Work",
+    "intro": "This is where the network's stations live. You can see what covers each one and how it is filled in: by phone from the sticker, or from a paired tablet. A station with no checklist is marked — its sticker opens onto nothing.",
+    "checklists": "{count, plural, one {# checklist} other {# checklists}}",
+    "tabletPaired": "Tablet paired",
+    "stickerOnly": "Sticker only",
+    "gaps": {
+      "noChecklist": "No checklist",
+      "silent": "Silent over a day"
+    },
+    "filters": {
+      "all": "All stations · {count}",
+      "noChecklist": "No checklist · {count}",
+      "silent": "Silent · {count}"
+    },
+    "empty": "No stations yet. Add them in the countries and pizzerias reference.",
+    "emptyFiltered": "No stations match — which is good news."
   }
 }

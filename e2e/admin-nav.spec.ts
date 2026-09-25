@@ -10,6 +10,8 @@
 // кабинет, — и ловит расхождение раньше, чем его увидит человек.
 import { test, expect, type Page } from "@playwright/test";
 
+import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
+
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 
 /**
@@ -49,7 +51,34 @@ const READY = [
     name: "Устройства",
     screen: "devices-screen",
   },
+  {
+    key: "stations",
+    path: "/admin/stations",
+    name: "Станции",
+    screen: "stations-screen",
+  },
 ] as const;
+
+/**
+ * Список выше зашит нарочно: он проверяет и подпись пункта, и адрес, и корень экрана —
+ * то есть ровно то, чего из `ADMIN_SECTIONS` не видно. Но зашитый список умеет молча
+ * отстать, и это не догадка: раздел «Станции» появился в продукте 25.09.2026, в перебор
+ * не попал, и сторож связности остался зелёным, не проверив про новый раздел ничего.
+ * Проверка ниже закрывает разрыв — забыть дописать раздел сюда больше нельзя.
+ */
+test("перебор сторожа покрывает все готовые разделы продукта", () => {
+  const ready = Object.entries(ADMIN_SECTIONS)
+    .filter(([, section]) => section.ready)
+    .map(([key]) => key)
+    .sort();
+
+  expect(
+    READY.map((section) => section.key as string).sort(),
+    "В продукте есть готовый раздел, которого нет в переборе этого сторожа. " +
+      "Допишите его в READY — подпись пункта, адрес и testid корня экрана, — " +
+      "иначе связность нового раздела не проверяется ничем.",
+  ).toEqual(ready);
+});
 
 /** Вход как им пользуются: форма, пароль, первый экран кабинета. */
 async function signIn(page: Page): Promise<void> {

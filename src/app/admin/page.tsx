@@ -25,6 +25,7 @@ import { AdminShell } from "@/blocks/core/ui/AdminShell";
 // посмотреть заполнения → поправить справочник. Что готово, решает `core/admin-sections`.
 const SECTIONS = [
   { key: "checklists", section: ADMIN_SECTIONS.checklists },
+  { key: "stations", section: ADMIN_SECTIONS.stations },
   { key: "library", section: ADMIN_SECTIONS.library },
   { key: "qr", section: ADMIN_SECTIONS.qr },
   { key: "feed", section: ADMIN_SECTIONS.feed },
