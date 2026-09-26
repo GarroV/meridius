@@ -158,3 +158,77 @@ test("CHECK-ограничения в schema.ts и в базе после миг
 
   expect(inDatabase).toStrictEqual(await declaredChecks());
 });
+
+// Внешние ключи — та же ловушка, что CHECK: миграция пишется руками, генератор сверяет базу
+// со схемой. Разойдись у ключа поведение при удалении, и следующая сгенерированная миграция
+// молча перепишет его на объявленное в схеме. Ставка здесь — данные: `on delete cascade`
+// вместо `set null` у `source_checklist_id` унёс бы вместе с шаблоном все его копии, по
+// которым уже работают станции (18579e2). Сверяется смысл ключа, а не имя: таблица,
+// колонки, куда ссылается и что делает при удалении.
+
+/** Ключ одной строкой: `таблица(колонки) → таблица(колонки) on delete действие`. */
+type ForeignKeyText = string;
+
+/** Действие при удалении так, как его пишет `pg_constraint.confdeltype`. */
+const ON_DELETE_CODES: Record<string, string> = {
+  a: "no action",
+  r: "restrict",
+  c: "cascade",
+  n: "set null",
+  d: "set default",
+};
+
+function declaredForeignKeys(): ForeignKeyText[] {
+  const keys: ForeignKeyText[] = [];
+  for (const value of Object.values(schema)) {
+    if (!is(value, PgTable)) continue;
+    const config = getTableConfig(value);
+    for (const key of config.foreignKeys) {
+      const reference = key.reference();
+      const target = getTableConfig(reference.foreignTable).name;
+      const from = reference.columns.map((column) => column.name).join(",");
+      const to = reference.foreignColumns
+        .map((column) => column.name)
+        .join(",");
+      keys.push(
+        `${config.name}(${from}) → ${target}(${to}) on delete ${key.onDelete ?? "no action"}`,
+      );
+    }
+  }
+  return keys.sort();
+}
+
+async function foreignKeysInDatabase(): Promise<ForeignKeyText[]> {
+  const rows = await db.execute<{
+    table_name: string;
+    columns: string;
+    target: string;
+    target_columns: string;
+    on_delete: string;
+  }>(sql`
+    select rel.relname as table_name,
+           (select string_agg(att.attname, ',' order by k.ord)
+              from unnest(con.conkey) with ordinality as k(num, ord)
+              join pg_attribute att on att.attrelid = con.conrelid and att.attnum = k.num) as columns,
+           target.relname as target,
+           (select string_agg(att.attname, ',' order by k.ord)
+              from unnest(con.confkey) with ordinality as k(num, ord)
+              join pg_attribute att on att.attrelid = con.confrelid and att.attnum = k.num) as target_columns,
+           con.confdeltype as on_delete
+    from pg_constraint con
+    join pg_class rel on rel.oid = con.conrelid
+    join pg_class target on target.oid = con.confrelid
+    join pg_namespace nsp on nsp.oid = rel.relnamespace
+    where con.contype = 'f' and nsp.nspname = 'public'
+  `);
+  return rows.rows
+    .map(
+      (row) =>
+        `${row.table_name}(${row.columns}) → ${row.target}(${row.target_columns}) on delete ${ON_DELETE_CODES[row.on_delete] ?? `неизвестный код ${row.on_delete}`}`,
+    )
+    .sort();
+}
+
+test("внешние ключи в schema.ts и в базе после миграций — одни и те же", async () => {
+  expect(await foreignKeysInDatabase()).toStrictEqual(declaredForeignKeys());
+});
