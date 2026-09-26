@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Откат последней применённой миграции на базе из DATABASE_URL.
-// Накат делает `npm run db:migrate` (drizzle-kit), обратного хода у него нет — он здесь.
+// Накат делает `npm run db:migrate` (scripts/db-migrate.mjs), обратного хода у него нет — он здесь.
 import { Pool } from "pg";
 
 import { rollbackLastMigration } from "../src/blocks/data/migrator.ts";

@@ -57,9 +57,10 @@ getSubmission(id: string): Promise<SubmissionDetail | null>
 | `src/blocks/data/checklists.ts` | `getDraft`, `publishVersion`, `getPublishedVersionForStation` |
 | `src/blocks/data/submissions.ts` | `saveSubmission`, `listSubmissions`, `getSubmission` |
 | `src/blocks/data/grading.ts` | Что считается проваленным пунктом: одно правило на ленту и карточку |
+| `src/blocks/data/health.ts` | `pingDatabase()` — один круг до базы для `/healthz` |
 | `src/blocks/data/index.ts` | Публичный вход блока: отсюда импортируют остальные блоки |
 | `src/blocks/data/testing/` | Харнесс тестов: подключение, подготовка тестовой базы, данные для тестов |
-| `drizzle.config.ts`, `scripts/db-rollback.mjs`, `scripts/db-generate-refused.mjs` | `npm run db:migrate` / `db:rollback`; `db:generate` намеренно отказывает — миграции пишутся руками (D089) |
+| `drizzle.config.ts`, `scripts/db-migrate.mjs`, `scripts/db-rollback.mjs`, `scripts/db-generate-refused.mjs` | `npm run db:migrate` (мигратор `drizzle-orm` через `applyMigrations`, тот же в прод-сервисе `migrate`) / `db:rollback`; `db:generate` намеренно отказывает — миграции пишутся руками (D089) |
 
 ## Решения, принятые внутри блока
 

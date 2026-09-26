@@ -1,0 +1,15 @@
+# Контекст сборки образа (Dockerfile). Всё, что здесь, в образ не попадает.
+# Секреты — в первую очередь: .env живёт только на сервере и приходит в контейнер от compose.
+.env
+.env.*
+!.env.example
+
+.git
+node_modules
+.next
+reports
+test-results
+playwright-report
+coverage
+tsconfig.tsbuildinfo
+*.pdf

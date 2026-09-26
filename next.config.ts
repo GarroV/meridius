@@ -32,10 +32,23 @@ const basePath = (process.env["BASE_PATH"] ?? "").replace(/\/$/, "");
 //
 // Пусто — не отказ: на площадке репозитория рядом может не быть вовсе, и продукт скажет
 // «сборка не подписана» вместо того, чтобы выдумать коммит.
-const buildCommit = headCommit(process.cwd()) ?? "";
+//
+// Сборка образа (`Dockerfile`) идёт без `.git` в контексте, поэтому коммит туда приходит
+// аргументом сборки в той же переменной, которую потом читает продукт. Заданное снаружи
+// значение главнее: оно и есть правда о том, что собирается.
+const givenCommit = process.env[BUILD_COMMIT_VAR]?.trim() ?? "";
+const buildCommit =
+  givenCommit === "" ? (headCommit(process.cwd()) ?? "") : givenCommit;
+
+// Самодостаточная сборка (`.next/standalone`) нужна только образу: она кладёт рядом
+// `server.js` и ровно те модули, которые продукт реально загружает. Включается явно, из
+// `Dockerfile`: `npm run start` и сквозные сценарии со standalone не работают — Next
+// предупреждает и просит запускать `server.js`, — поэтому разработка живёт как раньше.
+const isStandalone = process.env["NEXT_OUTPUT_STANDALONE"] === "1";
 
 const nextConfig: NextConfig = {
   ...(basePath === "" ? {} : { basePath }),
+  ...(isStandalone ? { output: "standalone" as const } : {}),
   env: { [BUILD_COMMIT_VAR]: buildCommit },
   typedRoutes: true,
   // Next 16 иначе кладёт в корень свои AGENTS.md и CLAUDE.md — инструкции агентам ведём мы, не сборщик.

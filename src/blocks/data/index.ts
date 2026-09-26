@@ -81,6 +81,7 @@ export { timezoneNames } from "./timezones";
 
 export type { Database } from "./client";
 export { getDb } from "./client";
+export { pingDatabase } from "./health";
 
 export type { VersionWithChecklist } from "./checklists";
 export {

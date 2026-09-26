@@ -139,7 +139,7 @@ JUnit XML в `reports/`: `reports/vitest.junit.xml` (`vitest run --reporter=juni
 | Запуск | `docker compose -p meridius up -d` — приложение и база. Своё имя compose-проекта обязательно: без него перехватываются чужие контейнеры площадки |
 | Порты | Приложение — 3100 (проверено свободным 06.09.2026). Порт базы наружу **не публикуется**: 5433 на площадке занят чужим проектом, и публиковать базу незачем |
 | Секреты | `SESSION_SECRET`, `ADMIN_PASSWORD_HASH`, `POSTGRES_PASSWORD` — свои на площадке, в `.env` рядом с compose. Демонстрационные значения из `.env.example` в production вход не открывают, и это проверяется |
-| Миграции | `npm run db:migrate` в контейнере приложения после старта базы; откат — `npm run db:rollback` |
+| Миграции | Отдельный одноразовый сервис `migrate` (`scripts/db-migrate.mjs`, тот же, что `npm run db:migrate`): приложение стартует только после его успешного конца. На Linux-проде — `deploy/compose.yaml` и `deploy/README.md`; откат — `npm run db:rollback` |
 | Адрес снаружи | `tailscale funnel` на своём порту (D034) — корень `:443` площадки отдаёт чужой продукт |
 | Бэкап | Метка `backup.pgdump=true` на контейнере базы: её подхватывает ночная задача площадки «PG Docker Backup» (03:30, ретеншн 14 дней) |
 | Смоук | `node scripts/mvp-smoke.mjs --url <внешний адрес> --password <пароль>` — весь сквозной сценарий MVP по внешнему адресу, со снимками каждого шага (T077, T079) |

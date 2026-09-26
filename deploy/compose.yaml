@@ -1,0 +1,71 @@
+# Прод meridius на Linux-сервере: база, одноразовый накат миграций и приложение.
+# Порядок обновления, ключи окружения и подключение к внешнему прокси — deploy/README.md.
+#
+# Запуск из корня клона:
+#   docker compose -f deploy/compose.yaml up -d --build
+# Окружение берётся из deploy/.env (рядом с этим файлом; в git не попадает).
+#
+# Наружу не публикуется ни один порт. Приложение слушает 3000 только внутри сети проекта;
+# до обратного прокси его доводит надстройка площадки (свой compose-файл поверх этого),
+# база не видна даже с самого сервера.
+name: meridius
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?задайте POSTGRES_USER в deploy/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в deploy/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?задайте POSTGRES_DB в deploy/.env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Миграции — отдельным шагом ДО приложения (инцидент 25.09: стенд поднялся на базе без
+  # свежих миграций). Сервис отрабатывает и выходит; приложение ждёт его успешного конца,
+  # поэтому каждое `up` сначала накатывает, а упавший накат не даёт стартовать приложению.
+  migrate:
+    build:
+      context: ..
+      target: migrate
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      context: ..
+      target: runner
+      # Запекаются в сборку: смена любого — пересборка (`up -d --build`), а не перезапуск.
+      args:
+        BASE_PATH: ${BASE_PATH:-}
+        PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?задайте PUBLIC_BASE_URL в deploy/.env}
+        BUILD_COMMIT: ${BUILD_COMMIT:-}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      BASE_PATH: ${BASE_PATH:-}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?задайте ADMIN_PASSWORD_HASH в deploy/.env}
+      SESSION_SECRET: ${SESSION_SECRET:?задайте SESSION_SECRET в deploy/.env}
+      DEVICE_SESSION_SECRET: ${DEVICE_SESSION_SECRET:?задайте DEVICE_SESSION_SECRET в deploy/.env}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
+    expose:
+      - "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
