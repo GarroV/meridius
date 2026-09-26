@@ -1,5 +1,19 @@
 # Прод meridius на Linux-сервере
 
+## Где живёт сейчас
+
+| Что              | Где                                                                                                                   |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Сервер           | VPS Contabo, Ubuntu 24.04, клон в `/srv/meridius`                                                                     |
+| Адрес            | https://meridius.95-111-249-216.sslip.io — временный; постоянный домен будет на Cloudflare                            |
+| Сеть к прокси    | `edge-meridius`, алиас `meridius-app`; надстройка — канон в `GarroV/vps-infra`, `projects/meridius/compose.edge.yaml` |
+| Бэкап            | Ночной, VPS → restic на MUSPELHEIM (`GarroV/vps-infra`, `backup/`)                                                    |
+| Стенд разработки | MUSPELHEIM, compose-проект `mac-stands`; на Маке порт 5433 — туннель на него (#174)                                   |
+
+План: при переходе на постоянный домен — `PUBLIC_BASE_URL` в `deploy/.env` и пересборка;
+старый прод на MUSPELHEIM гасится после проверки владельцем; `TRUSTED_PROXY_HOPS=1` — после
+проверки `X-Forwarded-For`.
+
 Как продукт живёт на сервере: что поднимается, в каком порядке, какие ключи окружения ему
 нужны и как его обновлять. Стенд разработки сюда не относится — он описан в корневом
 README и в #174.
@@ -25,21 +39,13 @@ README и в #174.
 
 ## Подключение к обратному прокси
 
-Порт `3000` не публикуется. Площадка подключает `app` к своей сети прокси собственной
-надстройкой поверх этого файла, например `deploy/compose.edge.yaml` на сервере (в git его
-нет — он про площадку, а не про продукт):
+Порт `3000` не публикуется. Площадка подключает `app` к сети общего Caddy своей
+надстройкой поверх этого файла. Её канон — не здесь, а в `GarroV/vps-infra`,
+`projects/meridius/compose.edge.yaml`: она про площадку, а не про продукт. Сеть —
+`edge-meridius`, алиас приложения в ней — `meridius-app`; Caddy ходит на
+`meridius-app:3000`.
 
-```yaml
-services:
-  app:
-    networks: [default, edge]
-networks:
-  edge:
-    external: true
-```
-
-Прокси ходит на `app:3000` (имя сервиса внутри сети `edge` — `meridius-app-1` или алиас,
-заданный надстройкой).
+В командах ниже `$EDGE` — путь к этой надстройке на сервере.
 
 ## Окружение
 
@@ -69,21 +75,21 @@ networks:
 ## Первый запуск
 
 ```sh
-git clone https://github.com/GarroV/meridius.git /opt/meridius   # путь — на выбор площадки
-cd /opt/meridius
+git clone https://github.com/GarroV/meridius.git /srv/meridius
+cd /srv/meridius
 cp deploy/.env.example deploy/.env    # заполнить по таблице выше
 BUILD_COMMIT=$(git rev-parse HEAD) \
-  docker compose -f deploy/compose.yaml -f deploy/compose.edge.yaml up -d --build
+  docker compose -f deploy/compose.yaml -f "$EDGE" up -d --build
 docker compose -f deploy/compose.yaml ps -a     # migrate: Exited (0), app: healthy
 ```
 
 ## Обновление
 
 ```sh
-cd /opt/meridius
+cd /srv/meridius
 git pull --ff-only
 BUILD_COMMIT=$(git rev-parse HEAD) \
-  docker compose -f deploy/compose.yaml -f deploy/compose.edge.yaml up -d --build
+  docker compose -f deploy/compose.yaml -f "$EDGE" up -d --build
 ```
 
 Одна команда делает всё в правильном порядке: `--build` пересобирает образы из свежего
