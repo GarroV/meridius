@@ -12,6 +12,7 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 /** Разделы, готовые к работе: подпись ссылки и адрес, куда она обязана привести. */
 const SECTIONS = [
   { name: "Чек-листы", path: "/admin/checklists" },
+  { name: "Станции", path: "/admin/stations" },
   { name: "Библиотека блоков", path: "/admin/library" },
   { name: "QR-коды", path: "/admin/qr" },
   { name: "Заполнения", path: "/admin/feed" },
