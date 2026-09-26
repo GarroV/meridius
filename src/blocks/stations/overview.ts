@@ -47,12 +47,19 @@ export interface NetworkStation {
  * двумя планшетами вернулась бы четырьмя строками, и любой счёт по ним стал бы вдвое
  * больше правды. Молча: запрос отработает и отдаст красивое неверное число.
  */
+// `::int` — не украшение. `count()` в PostgreSQL возвращает bigint, а драйвер отдаёт
+// bigint СТРОКОЙ: восьмибайтное число не влезает в `number` без потерь, и решать за
+// вызывающего драйвер не берётся. Тип `sql<number>` — это обещание, которое TypeScript
+// принимает на веру и проверить не может, поэтому обещание надо делать правдой в самом
+// SQL. Иначе сравнение `checklistCount === 0` в `gaps.ts` ловит строку "0", молча не
+// срабатывает, и экран показывает «разрывов нет» ровно там, где станция стоит без
+// чек-листа. Поймано на себе: линт счёл обёртку `Number()` лишней, потому что верил типу.
 const checklistCount = sql<number>`(
-  select count(*) from ${checklists} where ${checklists.stationId} = ${stations.id}
+  select count(*)::int from ${checklists} where ${checklists.stationId} = ${stations.id}
 )`;
 
 const deviceCount = sql<number>`(
-  select count(*) from ${devices} where ${devices.stationId} = ${stations.id}
+  select count(*)::int from ${devices} where ${devices.stationId} = ${stations.id}
 )`;
 
 /**
@@ -60,11 +67,16 @@ const deviceCount = sql<number>`(
  * станция в последний раз ОТЧИТАЛАСЬ, а начатое и брошенное заполнение отчётом не
  * является. Повторные отправки (`duplicate`) не отсеиваются намеренно: они всё равно
  * доказывают, что на станции кто-то был, а это ровно то, о чём спрашивает признак.
+ *
+ * `mapWith` — по той же причине, что `::int` у счётчиков: подзапрос возвращает сырое
+ * значение, и драйвер отдаёт `timestamptz` СТРОКОЙ, а `sql<Date>` только обещает дату.
+ * `mapWith` прогоняет значение через разбор самой колонки. Без него экран падал на
+ * первой же станции, где кто-то уже заполнял чек-лист (`since.getTime is not a function`).
  */
 const lastSubmissionAt = sql<Date | null>`(
   select max(${submissions.submittedAt}) from ${submissions}
   where ${submissions.stationId} = ${stations.id}
-)`;
+)`.mapWith(submissions.submittedAt);
 
 /**
  * Все станции сети, отсортированные так, как человек их ищет: страна, пиццерия,
@@ -95,12 +107,12 @@ export async function listNetworkStations(
 
   return rows.map(({ createdAt, ...row }) => ({
     ...row,
-    checklistCount: Number(row.checklistCount),
-    deviceCount: Number(row.deviceCount),
+    checklistCount: row.checklistCount,
+    deviceCount: row.deviceCount,
     lastSubmissionAt: row.lastSubmissionAt,
     gaps: gapsOf(
       {
-        checklistCount: Number(row.checklistCount),
+        checklistCount: row.checklistCount,
         lastSubmissionAt: row.lastSubmissionAt,
         createdAt,
       },

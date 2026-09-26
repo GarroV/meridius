@@ -4,12 +4,12 @@ import type { ReactElement } from "react";
 
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
+import { listTemplates } from "@/blocks/editor/templates";
+import type { LocalizedText } from "@/blocks/data";
 
 import type { StationGap } from "../gaps";
 import type { NetworkStation } from "../overview";
 import { countGaps, listNetworkStations } from "../overview";
-import { listTemplates } from "@/blocks/editor/templates";
-
 import { submitCopyToStations } from "./actions";
 import { stationHref } from "./view";
 
@@ -70,6 +70,13 @@ const SECTION_PATH = ADMIN_SECTIONS.stations.path;
 
 /** Значения фильтра в адресе. Совпадают с именами дырок: одно имя на продукт. */
 const GAP_FILTERS: readonly StationGap[] = ["noChecklist", "silent"];
+
+/** То же правило выбора языка, что на карточке станции: пустой перевод — не перевод. */
+function templateTitle(title: LocalizedText, locale: string): string {
+  const own = title[locale];
+  if (own !== undefined && own !== "") return own;
+  return title["en"] ?? "";
+}
 
 function isGapFilter(value: string | undefined): value is StationGap {
   return value !== undefined && GAP_FILTERS.includes(value as StationGap);
@@ -256,7 +263,7 @@ export async function StationsScreen({
               >
                 {templates.map((template) => (
                   <option key={template.id} value={template.id}>
-                    {template.title[locale] ?? template.title["en"] ?? ""}
+                    {templateTitle(template.title, locale)}
                   </option>
                 ))}
               </select>

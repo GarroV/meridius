@@ -24,7 +24,7 @@ import {
 /** Первая версия копии. Копия начинает жизнь опубликованной — иначе станция пуста. */
 const FIRST_VERSION = 1;
 
-export interface TemplateSnapshot {
+interface TemplateSnapshot {
   readonly id: string;
   readonly title: LocalizedText;
   readonly windowStart: string;
@@ -91,7 +91,7 @@ export async function listTemplates(): Promise<readonly TemplateRow[]> {
 }
 
 /** Отказ копирования — с причиной, которую можно показать человеку. */
-export class TemplateCopyError extends Error {
+class TemplateCopyError extends Error {
   constructor(readonly reason: "notTemplate" | "noPublishedVersion") {
     super(reason);
     this.name = "TemplateCopyError";
@@ -105,9 +105,7 @@ export class TemplateCopyError extends Error {
  * доедет до станций, откроется у сотрудника пустым экраном и будет выглядеть поломкой
  * продукта, а не недоделанной работой методиста.
  */
-export async function readTemplate(
-  templateId: string,
-): Promise<TemplateSnapshot> {
+async function readTemplate(templateId: string): Promise<TemplateSnapshot> {
   const db = getDb();
 
   const [template] = await db
@@ -122,7 +120,7 @@ export async function readTemplate(
     .where(eq(checklists.id, templateId))
     .limit(1);
 
-  if (template === undefined || !template.isTemplate) {
+  if (!template?.isTemplate) {
     throw new TemplateCopyError("notTemplate");
   }
 

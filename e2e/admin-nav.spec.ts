@@ -10,6 +10,7 @@
 // кабинет, — и ловит расхождение раньше, чем его увидит человек.
 import { test, expect, type Page } from "@playwright/test";
 
+import type { AdminSection } from "@/blocks/core/admin-sections";
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
@@ -67,7 +68,12 @@ const READY = [
  * Проверка ниже закрывает разрыв — забыть дописать раздел сюда больше нельзя.
  */
 test("перебор сторожа покрывает все готовые разделы продукта", () => {
-  const ready = Object.entries(ADMIN_SECTIONS)
+  // Тип берётся контрактный, а не выведенный: сегодня `ready` у всех разделов —
+  // литерал `true`, и на выведенном типе фильтр выглядел бы лишним кодом. Он не
+  // лишний: следующий раздел заводится неготовым, и тогда он обязан сработать.
+  const sections: readonly (readonly [string, AdminSection])[] =
+    Object.entries(ADMIN_SECTIONS);
+  const ready = sections
     .filter(([, section]) => section.ready)
     .map(([key]) => key)
     .sort();

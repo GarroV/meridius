@@ -22,13 +22,13 @@ import {
 } from "@/blocks/data";
 
 /** Чек-лист, висящий на станции. */
-export interface AttachedChecklist {
+interface AttachedChecklist {
   readonly id: string;
   readonly title: LocalizedText;
 }
 
 /** Привязанный планшет. Их может быть несколько: две точки входа на одной станции. */
-export interface PairedTablet {
+interface PairedTablet {
   readonly id: string;
   readonly pairedAt: Date;
   readonly lastSeenAt: Date;

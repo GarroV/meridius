@@ -19,7 +19,6 @@ import {
   detachChecklist,
   reissueStationCode,
 } from "@/blocks/catalog";
-
 import { copyTemplateToStations } from "@/blocks/editor/templates";
 
 import { STATIONS_PATH, stationHref } from "./view";
@@ -42,7 +41,7 @@ function field(form: FormData, name: string): string {
  * на экране ничего не изменилось. Именно так это и выглядело бы: не ошибкой, а
  * неработающей кнопкой.
  */
-async function backToStation(stationId: string): Promise<never> {
+function backToStation(stationId: string): never {
   const href = stationHref(stationId);
   revalidatePath(href);
   redirect(href);
@@ -52,20 +51,20 @@ export async function submitAssignChecklist(form: FormData): Promise<void> {
   await requireAdmin();
   const stationId = field(form, STATION_ID);
   await assignChecklist(stationId, field(form, CHECKLIST_ID));
-  await backToStation(stationId);
+  backToStation(stationId);
 }
 
 export async function submitDetachChecklist(form: FormData): Promise<void> {
   await requireAdmin();
   await detachChecklist(field(form, CHECKLIST_ID));
-  await backToStation(field(form, STATION_ID));
+  backToStation(field(form, STATION_ID));
 }
 
 export async function submitReissueCode(form: FormData): Promise<void> {
   await requireAdmin();
   const stationId = field(form, STATION_ID);
   await reissueStationCode(stationId);
-  await backToStation(stationId);
+  backToStation(stationId);
 }
 
 /**

@@ -11,8 +11,11 @@ import { PairTabletCard } from "@/blocks/device/ui/PairTabletCard";
 import { UnlinkButton } from "@/blocks/device/ui/UnlinkButton";
 
 import { getStationDetail } from "../detail";
-import { submitAssignChecklist, submitDetachChecklist } from "./actions";
-import { submitReissueCode } from "./actions";
+import {
+  submitAssignChecklist,
+  submitDetachChecklist,
+  submitReissueCode,
+} from "./actions";
 import { stationHref } from "./view";
 
 /**
@@ -60,7 +63,12 @@ const FACTS_CLASS =
  * ключ с пустым значением, и без запасного варианта строка в списке была бы пустой.
  */
 function localized(text: LocalizedText, locale: string): string {
-  return text[locale] || text["en"] || "";
+  // Явной развилкой, а не через `||`: пустая строка на месте перевода — это ОТСУТСТВИЕ
+  // перевода, и запасной вариант ей нужен. `??` сюда не годится (пустая строка не
+  // nullish), а `||` запрещён линтом как менее безопасный — так что условие пишется словами.
+  const own = text[locale];
+  if (own !== undefined && own !== "") return own;
+  return text["en"] ?? "";
 }
 
 function Card({
