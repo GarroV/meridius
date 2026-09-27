@@ -18,7 +18,7 @@ import type { Answer, Section } from "@/blocks/data";
 
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { e2eDatabaseUrl } from "./database";
-import { seedFillStand } from "./fill-fixtures";
+import { seedFillStand, seedStationWithoutChecklist } from "./fill-fixtures";
 
 const PHONE_VIEWPORT = { width: 375, height: 812 } as const;
 const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
@@ -468,6 +468,7 @@ const FRAME_RULES = ["region", "bypass"];
 const CABINET_PATHS = [
   "/admin",
   "/admin/checklists",
+  "/admin/stations",
   "/admin/library",
   "/admin/feed",
   "/admin/catalog",
@@ -494,6 +495,27 @@ test.describe("доступность: каркас кабинета", () => {
       expectAccessible(results);
     });
   }
+
+  // Карточка станции живёт по адресу с идентификатором, поэтому в перебор путей она не
+  // ложится: до неё доходят так же, как человек, — со списка раздела.
+  test("/admin/stations/[id]: есть ориентир содержимого и обход меню", async ({
+    page,
+  }) => {
+    const seeded = await seedStationWithoutChecklist("доступности", "ru");
+    await signIn(page);
+    await page.goto("/admin/stations");
+    await page
+      .getByTestId("station-row")
+      .filter({ hasText: seeded.stationName })
+      .getByTestId("station-link")
+      .click();
+    await page.getByTestId("station-screen").waitFor();
+
+    const results = await new AxeBuilder({ page })
+      .withRules(FRAME_RULES)
+      .analyze();
+    expectAccessible(results);
+  });
 
   test("ссылка-пропуск получает фокус первой и уводит на содержимое", async ({
     page,
