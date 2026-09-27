@@ -184,16 +184,25 @@ function StationRow({
 export interface StationsScreenProps {
   /** Значение фильтра из адреса. Неизвестное — показываем всё, а не пустоту. */
   readonly gap?: string | undefined;
+  /**
+   * Шаблон, с которым пришли из раздела «Шаблоны» («Взять к себе», T309). Выбран в
+   * раскатке заранее: иначе человек, нажавший «взять этот», раскатал бы первый в списке.
+   * Неизвестный — выбор по умолчанию, а не пустой список.
+   */
+  readonly template?: string | undefined;
 }
 
 export async function StationsScreen({
   gap,
+  template,
 }: StationsScreenProps): Promise<ReactElement> {
   const t = await getTranslations("stations");
   const locale = await getLocale();
   const all = await listNetworkStations();
   const templates = await listTemplates();
   const counts = countGaps(all);
+  const chosenTemplate =
+    templates.find((row) => row.id === template)?.id ?? templates[0]?.id;
 
   const active = isGapFilter(gap) ? gap : undefined;
   const rows =
@@ -259,7 +268,7 @@ export async function StationsScreen({
                 id="rollout-template"
                 name="templateId"
                 className={SELECT_CLASS}
-                defaultValue={templates[0]?.id}
+                defaultValue={chosenTemplate}
               >
                 {templates.map((template) => (
                   <option key={template.id} value={template.id}>

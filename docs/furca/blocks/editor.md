@@ -9,7 +9,12 @@
 ## API-контракт
 
 ```ts
-createChecklist({ stationId, title, window }); getDraft(checklistId)
+createChecklist({ stationId, title, window }, kind?: 'checklist' | 'template'); getDraft(checklistId)
+// шаблоны (T309, D154): станции у шаблона не бывает — createChecklist и updateChecklist её отбрасывают
+listTemplates(): TemplateRow[]             // опубликованные шаблоны — для выбора в раскатке
+listTemplateCards(): TemplateCard[]        // все шаблоны в работе, и черновые, — для раздела «Шаблоны»
+copyTemplateToStations(templateId, stationIds): CopyOutcome   // раскатка: опубликованная копия на каждую станцию
+takeTemplate(templateId): Promise<string>  // «взять без станции»: одна ЧЕРНОВАЯ копия, помнит источник и версию
 saveDraft(checklistId, sections: Section[])
 publish(checklistId): Promise<ChecklistVersion>
 duplicateChecklist(checklistId, { toStationId? }): Promise<string>
@@ -389,6 +394,18 @@ T129 (список отправляет себя сам) там непримен
 оснастка печатает `git status` по тронутым файлам: все восемь раз — чисто.
 
 ## Статус
+
+**28.09.2026 — T309, раздел «Шаблоны».** Экран `/admin/templates` (карточки: название,
+пунктов, дата обновления; «Взять к себе» → раскатка в `/admin/stations?template=<id>` с
+этим шаблоном, «Взять без станции» → редактор черновой копии, «Посмотреть», «Править») и
+`/admin/templates/new` (та же форма заведения, без поля станции). Шаблоны ушли из общего
+списка чек-листов; у шаблона в редакторе нет поля станции, меню подсвечивает «Шаблоны».
+«Взять без станции» даёт черновик, а не опубликованную копию: публикация замораживает
+станцию в версии (принцип 3), и опубликованная «никуда» копия осталась бы никуда.
+Ядро закрыто на настоящей базе (`take-template.test.ts`, шаблон в `listing.test.ts`);
+тест поймал настоящую ошибку ещё до экрана — `${checklists.id}` внутри подзапроса Drizzle
+пишет без таблицы, и номер версии молча приходил пустым. Путь человека — `e2e/templates.spec.ts`.
+Не сделано и вынесено в T336: «шаблон обновился» на копии, отличия и принятие.
 
 **Волна 20, ветка `feat/editor-w20` — T284, T283, T281.**
 

@@ -26,6 +26,7 @@ import { AdminShell } from "@/blocks/core/ui/AdminShell";
 const SECTIONS = [
   { key: "checklists", section: ADMIN_SECTIONS.checklists },
   { key: "stations", section: ADMIN_SECTIONS.stations },
+  { key: "templates", section: ADMIN_SECTIONS.templates },
   { key: "library", section: ADMIN_SECTIONS.library },
   { key: "qr", section: ADMIN_SECTIONS.qr },
   { key: "feed", section: ADMIN_SECTIONS.feed },

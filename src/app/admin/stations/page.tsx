@@ -12,7 +12,12 @@ export default async function StationsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<ReactElement> {
-  const { gap } = await searchParams;
+  const { gap, template } = await searchParams;
 
-  return <StationsScreen gap={typeof gap === "string" ? gap : undefined} />;
+  return (
+    <StationsScreen
+      gap={typeof gap === "string" ? gap : undefined}
+      template={typeof template === "string" ? template : undefined}
+    />
+  );
 }

@@ -82,7 +82,12 @@ const RECENT_DAYS = 7;
 function filterConditions(filter: ChecklistFilter): SQL[] {
   // Снятые с работы не показываются: для методиста они удалены. Сама строка остаётся
   // в базе только потому, что на её версии ссылаются заполнения (принцип 3, D002).
-  const conditions: SQL[] = [sql`c.archived_at is null`];
+  // Шаблоны живут своим разделом (T309): в общем списке шаблон стоял бы строкой «без
+  // станции» среди недоделанных, и его «доделывали» бы, вешая на станцию.
+  const conditions: SQL[] = [
+    sql`c.archived_at is null`,
+    sql`c.is_template = false`,
+  ];
   const chosen: [string, string | null][] = [
     ["co.id", filter.countryId],
     ["sto.id", filter.storeId],

@@ -12,6 +12,7 @@ import { requireAdmin } from "@/blocks/auth/guard";
 
 import {
   checklistInputFrom,
+  checklistKindFrom,
   failureState,
   formText,
   sectionsFrom,
@@ -21,8 +22,9 @@ import { createChecklist, saveDraft, updateChecklist } from "./drafts";
 import { duplicateChecklist } from "./duplicate";
 import { publish } from "./publish";
 import { removeChecklist } from "./removal";
-import { CHECKLISTS_PATH, checklistPath } from "./routes";
+import { CHECKLISTS_PATH, TEMPLATES_PATH, checklistPath } from "./routes";
 import { closedWindowNow } from "./station-clock";
+import { takeTemplate } from "./templates";
 import { EditorInputError } from "./validation";
 
 /**
@@ -46,7 +48,10 @@ export async function submitCreateChecklist(
 
   let checklistId: string;
   try {
-    checklistId = await createChecklist(checklistInputFrom(form));
+    checklistId = await createChecklist(
+      checklistInputFrom(form),
+      checklistKindFrom(form),
+    );
   } catch (error) {
     return failure(error);
   }
@@ -54,7 +59,23 @@ export async function submitCreateChecklist(
   // redirect() бросает исключение управления потоком — он обязан быть вне try/catch,
   // иначе переход будет пойман как отказ и методист останется на пустой форме.
   revalidatePath(CHECKLISTS_PATH);
+  revalidatePath(TEMPLATES_PATH);
   redirect(checklistPath(checklistId));
+}
+
+/**
+ * «Взять без станции» в разделе «Шаблоны» (T309): черновая копия к себе и сразу её
+ * редактор — поправить под себя и выбрать станцию. Кнопка стоит только у опубликованных
+ * шаблонов, поэтому отказ `takeTemplate` здесь — это устаревшая вкладка, и он уходит на
+ * экран ошибки, а не проглатывается.
+ */
+export async function submitTakeTemplate(form: FormData): Promise<void> {
+  await requireAdmin();
+
+  const copyId = await takeTemplate(formText(form, "templateId"));
+
+  revalidatePath(CHECKLISTS_PATH);
+  redirect(checklistPath(copyId));
 }
 
 /** «Сохранить черновик»: свойства чек-листа и разметка уходят одним действием. */

@@ -39,6 +39,7 @@ export function PropertiesCard({
   stationId,
   window,
   stations,
+  showStation,
   onTitle,
   onStation,
   onWindow,
@@ -47,6 +48,8 @@ export function PropertiesCard({
   readonly stationId: string;
   readonly window: WindowValue;
   readonly stations: readonly StationOption[];
+  /** `false` у шаблона: станции у него не бывает, и пустой выбор читался бы «выбрать потом». */
+  readonly showStation: boolean;
   readonly onTitle: (value: string) => void;
   readonly onStation: (value: string) => void;
   readonly onWindow: (value: WindowValue) => void;
@@ -78,28 +81,30 @@ export function PropertiesCard({
           />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-[var(--space-3)]">
-          <label className={FIELD_LABEL_CLASS} htmlFor="checklist-station">
-            {t("station")}
-          </label>
-          <select
-            id="checklist-station"
-            data-testid="checklist-station"
-            className={`${CONTROL_CLASS} pr-[var(--space-8)]`}
-            style={SELECT_ARROW}
-            value={stationId}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-              onStation(event.target.value);
-            }}
-          >
-            <option value="">{t("noStation")}</option>
-            {stations.map((station) => (
-              <option key={station.id} value={station.id}>
-                {`${station.countryName} · ${station.storeName} · ${station.name}`}
-              </option>
-            ))}
-          </select>
-        </div>
+        {showStation ? (
+          <div className="flex min-w-0 flex-1 flex-col gap-[var(--space-3)]">
+            <label className={FIELD_LABEL_CLASS} htmlFor="checklist-station">
+              {t("station")}
+            </label>
+            <select
+              id="checklist-station"
+              data-testid="checklist-station"
+              className={`${CONTROL_CLASS} pr-[var(--space-8)]`}
+              style={SELECT_ARROW}
+              value={stationId}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                onStation(event.target.value);
+              }}
+            >
+              <option value="">{t("noStation")}</option>
+              {stations.map((station) => (
+                <option key={station.id} value={station.id}>
+                  {`${station.countryName} · ${station.storeName} · ${station.name}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         <div className="flex min-w-0 flex-1 flex-col gap-[var(--space-3)]">
           <label className={FIELD_LABEL_CLASS} htmlFor="checklist-window">

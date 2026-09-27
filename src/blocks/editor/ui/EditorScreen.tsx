@@ -59,8 +59,11 @@ export async function EditorScreen({
     0,
   );
 
+  // Шаблон правится тем же редактором, но живёт своим разделом (T309): и меню, и путь
+  // над заголовком ведут туда, откуда его открыли.
+  const isTemplate = state.checklist.isTemplate;
   const crumbs = [
-    t("screen.crumbsRoot"),
+    isTemplate ? t("screen.crumbsTemplates") : t("screen.crumbsRoot"),
     state.station?.countryName,
     state.station?.storeName,
     state.station?.name,
@@ -76,7 +79,7 @@ export async function EditorScreen({
     >
       <div data-testid="editor-screen" className={ADMIN_FRAME_CLASS}>
         <SkipLink />
-        <AdminNav active="checklists" />
+        <AdminNav active={isTemplate ? "templates" : "checklists"} />
         {/*
           Редактор собирает верхнюю полосу сам (кнопки публикации живут внутри
           клиентской формы и обязаны видеть её состояние), поэтому общего каркаса у
@@ -94,6 +97,7 @@ export async function EditorScreen({
             locale={locale}
             initialTitle={pickEditorText(state.checklist.title, locale)}
             initialStationId={state.checklist.stationId ?? ""}
+            isTemplate={isTemplate}
             initialWindow={windowOf(
               state.checklist.windowStart,
               state.checklist.windowEnd,

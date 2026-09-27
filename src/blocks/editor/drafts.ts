@@ -47,6 +47,13 @@ export interface ChecklistInput {
   window: EditorWindow;
 }
 
+/**
+ * Что заводится: чек-лист станции или шаблон УК (T309, D154). Шаблон — эталон, который
+ * берут к себе копией; станции у него не бывает, и это держит база
+ * (`checklists_template_without_station`).
+ */
+export type ChecklistKind = "checklist" | "template";
+
 /** Станция чек-листа вместе с путём до неё: страна → пиццерия → станция. */
 export interface EditorStation {
   id: string;
@@ -133,9 +140,22 @@ function checklistValues(input: ChecklistInput): {
   };
 }
 
-/** Заводит чек-лист вместе с черновиком: за один заход, без промежуточного «сохранить». */
-export async function createChecklist(input: ChecklistInput): Promise<string> {
-  const values = checklistValues(input);
+/**
+ * Заводит чек-лист вместе с черновиком: за один заход, без промежуточного «сохранить».
+ *
+ * У шаблона станция отбрасывается, а не отвергается: поле спрятано, и присланная станция
+ * — это чужой запрос или старая вкладка, а не намерение. Отказ базы на ней выглядел бы
+ * поломкой формы.
+ */
+export async function createChecklist(
+  input: ChecklistInput,
+  kind: ChecklistKind = "checklist",
+): Promise<string> {
+  const isTemplate = kind === "template";
+  const parsed = checklistValues(input);
+  const values = isTemplate
+    ? { ...parsed, stationId: null, isTemplate }
+    : parsed;
 
   return getDb().transaction(async (tx) => {
     const inserted = await tx
@@ -164,9 +184,15 @@ export async function updateChecklist(
   requireChecklistId(checklistId);
   const values = checklistValues(input);
 
+  // Станция шаблона остаётся пустой, что бы ни пришло: см. `createChecklist`. Условие
+  // стоит в самом запросе, а не читается заранее, — так между чтением и записью нечему
+  // разойтись.
   const updated = await getDb()
     .update(checklists)
-    .set(values)
+    .set({
+      ...values,
+      stationId: sql`case when ${checklists.isTemplate} then null else ${values.stationId}::uuid end`,
+    })
     .where(eq(checklists.id, checklistId))
     .returning({ id: checklists.id });
   if (updated.length === 0) {

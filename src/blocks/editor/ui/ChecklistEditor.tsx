@@ -55,6 +55,8 @@ export interface ChecklistEditorProps {
   readonly locale: string;
   readonly initialTitle: string;
   readonly initialStationId: string;
+  /** Шаблон станции не имеет (D154): поля станции в свойствах у него нет. */
+  readonly isTemplate: boolean;
   readonly initialWindow: WindowValue;
   readonly initialSections: readonly Section[];
   readonly stations: readonly StationOption[];
@@ -273,6 +275,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               stationId={stationId}
               window={window}
               stations={props.stations}
+              showStation={!props.isTemplate}
               onTitle={setTitle}
               onStation={setStationId}
               onWindow={setWindow}
@@ -432,8 +435,14 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               locale={locale}
               onInsert={insertBlock}
             />
-            <StationNotice station={props.station} window={window} />
-            {props.stationAction}
+            {/* У шаблона станции не бывает: «выберите станцию» и привязка планшета
+                звали бы туда, куда шаблону нельзя (D154). */}
+            {props.isTemplate ? null : (
+              <>
+                <StationNotice station={props.station} window={window} />
+                {props.stationAction}
+              </>
+            )}
           </aside>
         </div>
       </div>

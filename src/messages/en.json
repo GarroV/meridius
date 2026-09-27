@@ -52,6 +52,8 @@
       "checklistsHint": "Create a checklist and publish a version",
       "stations": "Stations",
       "stationsHint": "Put a checklist on a station and pair a tablet",
+      "templates": "Templates",
+      "templatesHint": "Take a head-office template and adapt it",
       "qr": "QR codes",
       "qrHint": "Print station stickers",
       "feed": "Submissions",
@@ -222,7 +224,8 @@
       "publishing": "Publishing…",
       "saved": "Draft saved",
       "published": "Version {number} published",
-      "notFound": "Checklist not found"
+      "notFound": "Checklist not found",
+      "crumbsTemplates": "Templates"
     },
     "section": {
       "titlePlaceholder": "Section title",
@@ -860,5 +863,20 @@
       "noTemplates": "No templates yet. Nothing to roll out.",
       "done": "Done: copies placed — {copied}, skipped (a copy was already there) — {skipped}."
     }
+  },
+  "templates": {
+    "title": "Templates",
+    "breadcrumb": "Work",
+    "new": "New template",
+    "intro": "This is how we see the ideal shift. Take a template and adapt it: your copy lives its own life, and the template prescribes nothing.",
+    "empty": "No templates yet. Create the first one — every country will be able to take it.",
+    "untitled": "Untitled",
+    "items": "{count, plural, one {# item} other {# items}}",
+    "updated": "updated {date}",
+    "unpublished": "Not published",
+    "takeToStations": "Take to stations",
+    "takeAlone": "Take without a station",
+    "preview": "Preview",
+    "edit": "Edit"
   }
 }

@@ -13,6 +13,20 @@ export const CHECKLISTS_PATH = ADMIN_SECTIONS.checklists.path;
 /** Заведение чек-листа. Статический сегмент побеждает динамический `[id]` в Next. */
 export const NEW_CHECKLIST_PATH = `${CHECKLISTS_PATH}/new`;
 
+/** Раздел «Шаблоны» (T309): эталоны УК, которые страны берут к себе копией. */
+export const TEMPLATES_PATH = ADMIN_SECTIONS.templates.path;
+
+export const NEW_TEMPLATE_PATH = `${TEMPLATES_PATH}/new`;
+
+/**
+ * «Взять к себе» — в раскатку раздела «Станции» с уже выбранным шаблоном. Адрес
+ * собирается здесь, а не в блоке станций: редактор блок станций не импортирует
+ * (`.dependency-cruiser.cjs`), а путь раздела у обоих один — из `admin-sections`.
+ */
+export function templateRolloutPath(templateId: string): string {
+  return `${ADMIN_SECTIONS.stations.path}?template=${encodeURIComponent(templateId)}`;
+}
+
 export function checklistPath(checklistId: string): string {
   return `${CHECKLISTS_PATH}/${checklistId}`;
 }

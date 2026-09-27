@@ -11,7 +11,7 @@
 // копию не трогает. Номер нужен, чтобы отличить свежую копию от отставшей и сказать
 // стране «шаблон обновился» — приглашением, а не требованием (D154: шаблон ничего не
 // предписывает).
-import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import {
   checklistVersions,
@@ -20,6 +20,8 @@ import {
   type LocalizedText,
   type Section,
 } from "@/blocks/data";
+
+import { isUuid } from "./validation";
 
 /** Первая версия копии. Копия начинает жизнь опубликованной — иначе станция пуста. */
 const FIRST_VERSION = 1;
@@ -90,6 +92,56 @@ export async function listTemplates(): Promise<readonly TemplateRow[]> {
     .orderBy(checklists.title);
 }
 
+/** Карточка раздела «Шаблоны»: что это, какого размера и насколько свежее. */
+export interface TemplateCard {
+  readonly id: string;
+  readonly title: LocalizedText;
+  /** Номер опубликованной версии; `null` — шаблон ещё не опубликован, взять его нечем. */
+  readonly publishedNumber: number | null;
+  readonly publishedAt: Date | null;
+  /** Пунктов в опубликованной версии, а до первой публикации — в черновике. */
+  readonly itemCount: number;
+}
+
+/**
+ * Все шаблоны, которые в работе, — и черновые тоже: методист УК заводит шаблон здесь
+ * же, и неопубликованный шаблон, пропавший из раздела, открыть было бы неоткуда.
+ *
+ * Пункты считает база по той же версии, что видит человек: опубликованной, а если её
+ * нет — черновику (как и в списке чек-листов, `listing.ts`).
+ *
+ * Внешняя строка в подзапросах названа именем таблицы, а не `${checklists.id}`: в выборке
+ * из одной таблицы Drizzle пишет колонку без таблицы, `"id"`, и внутри подзапроса она
+ * тихо становилась `v.id` — номер версии приходил пустым у каждого шаблона.
+ */
+export async function listTemplateCards(): Promise<readonly TemplateCard[]> {
+  return await getDb()
+    .select({
+      id: checklists.id,
+      title: checklists.title,
+      publishedNumber: sql<
+        number | null
+      >`(select v.version_number from checklist_versions v
+          where v.checklist_id = checklists.id and v.status = 'published')`,
+      publishedAt:
+        sql<Date | null>`(select v.published_at from checklist_versions v
+          where v.checklist_id = checklists.id and v.status = 'published')`.mapWith(
+          checklistVersions.publishedAt,
+        ),
+      itemCount: sql<number>`(select coalesce(sum(jsonb_array_length(s->'items')), 0)::int
+          from checklist_versions v
+          cross join lateral jsonb_array_elements(v.sections) s
+         where v.id = coalesce(
+                 (select p.id from checklist_versions p
+                   where p.checklist_id = checklists.id and p.status = 'published'),
+                 (select d.id from checklist_versions d
+                   where d.checklist_id = checklists.id and d.status = 'draft')))`,
+    })
+    .from(checklists)
+    .where(and(eq(checklists.isTemplate, true), isNull(checklists.archivedAt)))
+    .orderBy(checklists.createdAt);
+}
+
 /** Отказ копирования — с причиной, которую можно показать человеку. */
 class TemplateCopyError extends Error {
   constructor(readonly reason: "notTemplate" | "noPublishedVersion") {
@@ -106,6 +158,9 @@ class TemplateCopyError extends Error {
  * продукта, а не недоделанной работой методиста.
  */
 async function readTemplate(templateId: string): Promise<TemplateSnapshot> {
+  // Идентификатор приходит из формы: строка не в виде uuid уронила бы запрос отказом
+  // базы, а по смыслу это тот же «такого шаблона нет».
+  if (!isUuid(templateId)) throw new TemplateCopyError("notTemplate");
   const db = getDb();
 
   const [template] = await db
@@ -235,4 +290,44 @@ export async function copyTemplateToStations(
   });
 
   return { copied: targets, skipped: alreadyHave };
+}
+
+/**
+ * «Взять без станции»: одна копия шаблона к себе, чтобы поправить её под себя (D154)
+ * и уже потом решить, куда повесить.
+ *
+ * Копия — ЧЕРНОВИК, а не опубликованная версия, как при раскатке. Публикация замораживает
+ * станцию в версии (принцип 3), и копия, опубликованная «никуда», осталась бы никуда и
+ * после того, как ей выбрали станцию в свойствах: сотрудник её не увидел бы до
+ * переопубликования, а методист был бы уверен, что всё повесил.
+ *
+ * Пункты сохраняют опознаватели шаблона: по ним потом видно, что в копии изменили.
+ */
+export async function takeTemplate(templateId: string): Promise<string> {
+  const template = await readTemplate(templateId);
+
+  return await getDb().transaction(async (tx) => {
+    const [copy] = await tx
+      .insert(checklists)
+      .values({
+        title: template.title,
+        windowStart: template.windowStart,
+        windowEnd: template.windowEnd,
+        stationId: null,
+        sourceChecklistId: template.id,
+        sourceVersion: template.versionNumber,
+      })
+      .returning({ id: checklists.id });
+
+    if (copy === undefined) {
+      throw new Error("Копия шаблона не создалась: база не вернула строку");
+    }
+
+    await tx.insert(checklistVersions).values({
+      checklistId: copy.id,
+      status: "draft",
+      sections: [...template.sections],
+    });
+    return copy.id;
+  });
 }

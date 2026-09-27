@@ -221,6 +221,27 @@ describe("listChecklists и снятые с работы", () => {
   });
 });
 
+describe("listChecklists и шаблоны (T309)", () => {
+  test("шаблон в список чек-листов не попадает: у него свой раздел", async () => {
+    // Шаблон — это эталон УК, а не чек-лист станции. В общем списке он стоял бы строкой
+    // «без станции» среди недоделанных, и методист «доделывал» бы его, вешая на станцию,
+    // — а шаблон со станцией запрещён базой, и правка кончалась бы отказом.
+    const plain = await createChecklist({
+      stationId: null,
+      title: { ru: "Обычный без станции" },
+      window: MORNING,
+    });
+    const template = await createChecklist(
+      { stationId: null, title: { ru: "Шаблон смены" }, window: MORNING },
+      "template",
+    );
+
+    const ids = (await listChecklists(NO_FILTER)).map((row) => row.id);
+    expect(ids).toContain(plain);
+    expect(ids).not.toContain(template);
+  });
+});
+
 describe("listChecklists под фильтром", () => {
   test("выбранная страна оставляет свои чек-листы и убирает чужие", async () => {
     const mine = await createStation();

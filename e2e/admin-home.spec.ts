@@ -13,6 +13,7 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 const SECTIONS = [
   { name: "Чек-листы", path: "/admin/checklists" },
   { name: "Станции", path: "/admin/stations" },
+  { name: "Шаблоны", path: "/admin/templates" },
   { name: "Библиотека блоков", path: "/admin/library" },
   { name: "QR-коды", path: "/admin/qr" },
   { name: "Заполнения", path: "/admin/feed" },

@@ -7,7 +7,7 @@
 import type { Section } from "@/blocks/data";
 
 import type { EditorActionState } from "./action-state";
-import type { ChecklistInput } from "./drafts";
+import type { ChecklistInput, ChecklistKind } from "./drafts";
 import type { EditorErrorCode } from "./validation";
 import { EditorInputError, LIMITS, parseSections } from "./validation";
 import {
@@ -62,6 +62,15 @@ export function checklistInputFrom(form: FormData): ChecklistInput {
       formText(form, WINDOW_TO_FIELD),
     ),
   };
+}
+
+/**
+ * Что заводит форма: скрытое поле `kind` ставит только экран «Новый шаблон» (T309).
+ * Всё, кроме точного `template`, — обычный чек-лист: ошибиться в сторону чек-листа
+ * безопасно, он виден в общем списке, а лишний шаблон разъехался бы по странам.
+ */
+export function checklistKindFrom(form: FormData): ChecklistKind {
+  return formText(form, "kind") === "template" ? "template" : "checklist";
 }
 
 /**

@@ -58,6 +58,12 @@ const READY = [
     name: "Станции",
     screen: "stations-screen",
   },
+  {
+    key: "templates",
+    path: "/admin/templates",
+    name: "Шаблоны",
+    screen: "templates-screen",
+  },
 ] as const;
 
 /**

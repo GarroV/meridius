@@ -469,6 +469,8 @@ const CABINET_PATHS = [
   "/admin",
   "/admin/checklists",
   "/admin/stations",
+  "/admin/templates",
+  "/admin/templates/new",
   "/admin/library",
   "/admin/feed",
   "/admin/catalog",

@@ -8,8 +8,9 @@ import { useLive } from "@/blocks/core/ui/use-live";
 
 import { submitCreateChecklist } from "../actions";
 import { INITIAL_EDITOR_STATE } from "../action-state";
+import type { ChecklistKind } from "../drafts";
 import type { StationOption } from "../listing";
-import { CHECKLISTS_PATH } from "../routes";
+import { CHECKLISTS_PATH, TEMPLATES_PATH } from "../routes";
 import type { EditorErrorCode } from "../validation";
 import {
   WINDOW_FIELD,
@@ -59,6 +60,11 @@ export interface NewChecklistFormProps {
   /** Язык интерфейса — уходит в скрытое поле `locale`: на нём хранится название чек-листа. */
   readonly locale: string;
   readonly labels: NewChecklistLabels;
+  /**
+   * Что заводится. У шаблона нет поля станции: станции у него не бывает (D154), и
+   * пустой выбор «без станции» читался бы как «выбрать потом» (T309).
+   */
+  readonly kind?: ChecklistKind;
 }
 
 const FIELD_LABEL_CLASS =
@@ -91,6 +97,7 @@ export function NewChecklistForm({
   stations,
   locale,
   labels,
+  kind = "checklist",
 }: NewChecklistFormProps): ReactElement {
   const [state, action, pending] = useActionState(
     submitCreateChecklist,
@@ -133,27 +140,29 @@ export function NewChecklistForm({
             />
           </div>
 
-          <div className={FIELD_CLASS}>
-            <label
-              className={FIELD_LABEL_CLASS}
-              htmlFor="new-checklist-station"
-            >
-              {labels.station}
-            </label>
-            <select
-              id="new-checklist-station"
-              name="stationId"
-              defaultValue=""
-              className={CONTROL_CLASS}
-            >
-              <option value="">{labels.noStation}</option>
-              {stations.map((stationOption) => (
-                <option key={stationOption.id} value={stationOption.id}>
-                  {`${stationOption.countryName} · ${stationOption.storeName} · ${stationOption.name}`}
-                </option>
-              ))}
-            </select>
-          </div>
+          {kind === "template" ? null : (
+            <div className={FIELD_CLASS}>
+              <label
+                className={FIELD_LABEL_CLASS}
+                htmlFor="new-checklist-station"
+              >
+                {labels.station}
+              </label>
+              <select
+                id="new-checklist-station"
+                name="stationId"
+                defaultValue=""
+                className={CONTROL_CLASS}
+              >
+                <option value="">{labels.noStation}</option>
+                {stations.map((stationOption) => (
+                  <option key={stationOption.id} value={stationOption.id}>
+                    {`${stationOption.countryName} · ${stationOption.storeName} · ${stationOption.name}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className={FIELD_CLASS}>
             <label className={FIELD_LABEL_CLASS} htmlFor="new-checklist-window">
@@ -231,6 +240,7 @@ export function NewChecklistForm({
         </div>
 
         <input type="hidden" name="locale" value={locale} />
+        <input type="hidden" name="kind" value={kind} />
 
         <div className="flex flex-wrap items-center gap-[var(--space-5)]">
           {/*
@@ -248,7 +258,10 @@ export function NewChecklistForm({
           >
             {labels.create}
           </button>
-          <Link href={CHECKLISTS_PATH} className={BTN_GHOST_CLASS}>
+          <Link
+            href={kind === "template" ? TEMPLATES_PATH : CHECKLISTS_PATH}
+            className={BTN_GHOST_CLASS}
+          >
             {labels.cancel}
           </Link>
         </div>
