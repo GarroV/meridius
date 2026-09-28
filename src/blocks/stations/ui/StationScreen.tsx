@@ -238,7 +238,7 @@ export async function StationScreen({
                 <UnlinkButton
                   deviceId={tablet.id}
                   open={confirmUnlink === tablet.id}
-                  devicesPath={here}
+                  screenHref={here}
                   // Подписи те же, что в разделе устройств: вопрос про отвязку один
                   // на продукт, и разойтись его формулировки не должны.
                   texts={{
