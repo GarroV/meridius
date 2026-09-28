@@ -50,7 +50,7 @@ const COMPACT_STEP_CLASS =
 const FIGURE_CLASS = "w-full max-w-[220px] self-center";
 const COMPACT_FIGURE_CLASS = "w-[96px] shrink-0";
 const NUMBER_CLASS =
-  "inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[length:var(--fs-meta)] font-semibold text-[var(--ink-inverse)]";
+  "inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[var(--r-pill)] bg-accent text-[length:var(--fs-meta)] font-semibold text-[var(--ink-inverse)]";
 const STEP_TITLE_CLASS =
   "flex items-center gap-[var(--space-4)] text-[length:var(--fs-body)] font-semibold text-ink";
 const STEP_TEXT_CLASS =
