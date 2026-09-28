@@ -68,6 +68,12 @@ export interface ChecklistEditorProps {
   readonly crumbs: string;
   /** Готовая разметка действия кабинета над станцией чек-листа (см. `EditorScreen`). */
   readonly stationAction?: ReactNode;
+  /**
+   * Действия над чек-листом целиком — дублировать, удалить (D162). До мастер-детали они
+   * стояли в строке списка; строка стала обычным выбором, и действия переехали туда,
+   * где открыт сам чек-лист. Приходят готовой разметкой: это серверные формы и ссылки.
+   */
+  readonly headerActions?: ReactNode;
 }
 
 const BUTTON_CLASS =
@@ -201,7 +207,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
   let ordinal = 0;
 
   return (
-    <div className="flex min-w-0 flex-col">
+    <div className="@container flex min-w-0 flex-col">
       <header className="bg-surface flex flex-wrap items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)] max-md:gap-[var(--space-5)] max-md:px-[var(--space-7)]">
         <div className="flex min-w-0 flex-col gap-[var(--space-1)]">
           <div className="text-[length:var(--fs-meta)] text-[var(--ink-3)]">
@@ -220,7 +226,13 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
             saveState={saveState}
             publishState={publishState}
           />
-          <Link className={BUTTON_CLASS} href={props.previewHref}>
+          {/* Предпросмотр открывается панелью справа поверх редактора, а не отдельным
+              экраном (D162): редактор под ней остаётся с несохранённой правкой. */}
+          <Link
+            className={BUTTON_CLASS}
+            href={props.previewHref}
+            scroll={false}
+          >
             {t("screen.preview")}
           </Link>
           <form action={saveAction}>
@@ -261,6 +273,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
                 : t("screen.publish", { number: props.nextVersionNumber })}
             </button>
           </form>
+          {props.headerActions}
         </div>
       </header>
 
@@ -268,7 +281,10 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
         {/* Боковая колонка (версии и библиотека) уходит под содержимое до 1024 px, а
             не до складки 768: замер показал, что рядом с ней строка пункта не влезает и
             на 800 px — документ выходил 921 px при окне 800. */}
-        <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:1fr_268px] max-lg:[grid-template-columns:1fr]">
+        {/* Правая колонка уходит вниз по ширине РАБОЧЕЙ ЗОНЫ, а не окна: с D162 слева
+            стоит колонка чек-листов, и на окне 1280 px секциям при правой колонке
+            оставалось 440 px — длинное название секции обрезалось посреди слова. */}
+        <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:1fr_268px] @max-5xl:[grid-template-columns:1fr]">
           <div>
             <PropertiesCard
               title={title}
@@ -427,7 +443,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
             </div>
           </div>
 
-          <aside className="sticky top-[var(--space-9)] flex w-[268px] flex-col gap-[var(--space-6)] self-start max-lg:static max-lg:w-full">
+          <aside className="sticky top-[var(--space-9)] flex w-[268px] flex-col gap-[var(--space-6)] self-start @max-5xl:static @max-5xl:w-full">
             <VersionsPanel versions={props.versions} />
             <LibraryPanel
               library={props.library}

@@ -44,6 +44,9 @@ function field(form: FormData, name: string): string {
 function backToStation(stationId: string): never {
   const href = stationHref(stationId);
   revalidatePath(href);
+  // Колонка станций живёт в разметке раздела (D163): без сброса разметки строка
+  // держала бы «Нет чек-листа» у станции, которой его только что привязали.
+  revalidatePath(STATIONS_PATH, "layout");
   redirect(href);
 }
 
@@ -90,7 +93,7 @@ export async function submitCopyToStations(form: FormData): Promise<void> {
 
   const outcome = await copyTemplateToStations(templateId, stationIds);
 
-  revalidatePath(STATIONS_PATH);
+  revalidatePath(STATIONS_PATH, "layout");
   // Итог уезжает в адрес, а не в состояние экрана: человек, раскатавший на сорок
   // станций, обязан увидеть, на сколько именно легло и сколько пропущено, — и увидеть
   // это после перезагрузки тоже.

@@ -58,7 +58,7 @@ export async function submitCreateChecklist(
 
   // redirect() бросает исключение управления потоком — он обязан быть вне try/catch,
   // иначе переход будет пойман как отказ и методист останется на пустой форме.
-  revalidatePath(CHECKLISTS_PATH);
+  revalidatePath(CHECKLISTS_PATH, "layout");
   revalidatePath(TEMPLATES_PATH);
   redirect(checklistPath(checklistId));
 }
@@ -74,7 +74,7 @@ export async function submitTakeTemplate(form: FormData): Promise<void> {
 
   const copyId = await takeTemplate(formText(form, "templateId"));
 
-  revalidatePath(CHECKLISTS_PATH);
+  revalidatePath(CHECKLISTS_PATH, "layout");
   redirect(checklistPath(copyId));
 }
 
@@ -91,6 +91,9 @@ export async function submitSaveDraft(
     await updateChecklist(checklistId, checklistInputFrom(form));
     await saveDraft(checklistId, sections);
     revalidatePath(checklistPath(checklistId));
+    // Колонка чек-листов живёт в разметке раздела (D162): без сброса разметки строка
+    // переименованного чек-листа держала бы старое название до ухода из раздела.
+    revalidatePath(CHECKLISTS_PATH, "layout");
     return { status: "saved" };
   } catch (error) {
     return failure(error);
@@ -120,6 +123,7 @@ export async function submitPublish(
     // 11:30, утреннее окно закрылось между ними, и методист об этом нигде не прочитал.
     const closedWindow = await closedWindowNow(checklistId, input.window);
     revalidatePath(checklistPath(checklistId));
+    revalidatePath(CHECKLISTS_PATH, "layout");
     return {
       status: "published",
       ...(version.versionNumber === null
@@ -133,7 +137,7 @@ export async function submitPublish(
 }
 
 /**
- * Дублирование со списка чек-листов: обычное действие формы, без состояния. Успех
+ * Дублирование из рабочей зоны чек-листа: обычное действие формы, без состояния. Успех
  * открывает копию в редакторе — методист попадает сразу туда, где будет её править.
  *
  * Отказ разбора здесь означает одно: исходный чек-лист исчез, пока список был открыт.
@@ -156,7 +160,7 @@ export async function submitDeleteChecklist(form: FormData): Promise<void> {
     console.error("Редактор: удаление не состоялось", error);
   }
 
-  revalidatePath(CHECKLISTS_PATH);
+  revalidatePath(CHECKLISTS_PATH, "layout");
   redirect(CHECKLISTS_PATH);
 }
 
@@ -169,10 +173,10 @@ export async function submitDuplicate(form: FormData): Promise<void> {
   } catch (error) {
     if (!(error instanceof EditorInputError)) throw error;
     console.error("Редактор: дублирование не состоялось", error);
-    revalidatePath(CHECKLISTS_PATH);
+    revalidatePath(CHECKLISTS_PATH, "layout");
     redirect(CHECKLISTS_PATH);
   }
 
-  revalidatePath(CHECKLISTS_PATH);
+  revalidatePath(CHECKLISTS_PATH, "layout");
   redirect(checklistPath(copyId));
 }

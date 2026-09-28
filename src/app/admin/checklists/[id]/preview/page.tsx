@@ -1,8 +1,9 @@
 import { PreviewScreen } from "@/blocks/editor/ui/PreviewScreen";
 
 /**
- * Предпросмотр «как это увидит сотрудник» (T0хх). Экран сам ходит за черновиком
- * (`loadEditor(id)`) и сам решает `notFound()` — странице здесь нечего собирать.
+ * Предпросмотр «как это увидит сотрудник» (T0хх) — выдвижная панель поверх редактора
+ * (D162). Панель сама ходит за черновиком (`loadEditor(id)`) и сама решает
+ * `notFound()` — странице здесь нечего собирать.
  */
 export default async function ChecklistPreviewPage({
   params,

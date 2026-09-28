@@ -1,4 +1,5 @@
-// Удаление чек-листа глазами методиста: кнопка в списке, экран подтверждения, результат.
+// Удаление чек-листа глазами методиста: кнопка в шапке открытого чек-листа, панель
+// подтверждения справа поверх редактора (D162), результат.
 //
 // Заведено просьбой владельца: «не вижу как удалить чек лист». Кнопки не было вовсе —
 // завести чек-лист можно было, а убрать нельзя, и пробные накапливались в списке.
@@ -35,19 +36,29 @@ function rowOf(page: Page, title: string) {
   return page.getByTestId("checklist-row").filter({ hasText: title });
 }
 
+/** Открывает чек-лист из колонки и жмёт «Удалить» в шапке его рабочей зоны. */
+async function askToRemove(page: Page, title: string): Promise<void> {
+  await page.goto(CHECKLISTS_PATH);
+  await rowOf(page, title).click();
+  await expect(page.getByTestId("editor-screen")).toBeVisible();
+  await page.getByTestId("delete-checklist").click();
+}
+
 test.describe("удаление чек-листа", () => {
   test.use({ locale: "ru-RU" });
 
-  test("кнопка есть в строке списка и ведёт на подтверждение с названием", async ({
+  test("кнопка в шапке чек-листа открывает подтверждение панелью поверх редактора", async ({
     page,
   }) => {
     await signIn(page);
     const title = await createChecklist(page);
 
-    await page.goto(CHECKLISTS_PATH);
-    await rowOf(page, title).getByTestId("delete-checklist").click();
+    await askToRemove(page, title);
 
     await expect(page.getByTestId("remove-checklist-screen")).toBeVisible();
+    // Панель, а не переход: под ней остаются и редактор, и колонка чек-листов.
+    await expect(page.getByTestId("editor-screen")).toBeVisible();
+    await expect(rowOf(page, title)).toHaveAttribute("aria-current", "page");
     await expect(page.getByTestId("remove-checklist-title")).toHaveText(title);
     // Пробный чек-лист без заполнений: обещано полное удаление, а не «убрать из работы».
     await expect(
@@ -59,23 +70,25 @@ test.describe("удаление чек-листа", () => {
     await signIn(page);
     const title = await createChecklist(page);
 
-    await page.goto(CHECKLISTS_PATH);
-    await rowOf(page, title).getByTestId("delete-checklist").click();
+    await askToRemove(page, title);
     await page.getByTestId("remove-checklist-confirm").click();
 
     await expect(page).toHaveURL(new RegExp(`${CHECKLISTS_PATH}$`));
     await expect(rowOf(page, title)).toHaveCount(0);
   });
 
-  test("отмена возвращает в список и ничего не удаляет", async ({ page }) => {
+  test("отмена закрывает панель, оставляя чек-лист открытым, и ничего не удаляет", async ({
+    page,
+  }) => {
     await signIn(page);
     const title = await createChecklist(page);
 
-    await page.goto(CHECKLISTS_PATH);
-    await rowOf(page, title).getByTestId("delete-checklist").click();
+    await askToRemove(page, title);
     await page.getByRole("link", { name: "Отмена" }).click();
 
-    await expect(page).toHaveURL(new RegExp(`${CHECKLISTS_PATH}$`));
+    await expect(page).toHaveURL(new RegExp(`${CHECKLISTS_PATH}/[0-9a-f-]+$`));
+    await expect(page.getByTestId("remove-checklist-screen")).toHaveCount(0);
+    await expect(page.getByTestId("editor-screen")).toBeVisible();
     await expect(rowOf(page, title)).toHaveCount(1);
   });
 
@@ -84,6 +97,13 @@ test.describe("удаление чек-листа", () => {
     const context = await browser.newContext({
       javaScriptEnabled: false,
       locale: "ru-RU",
+      // Без JavaScript безголовый браузер не прокручивает кадры анимации: выезд панели
+      // (`drawer-in`) стоит на первом кадре, пока страницу ничто не тронет, и проверка
+      // «элемент неподвижен» перед щелчком не проходит никогда — сценарий падал по
+      // таймауту. Пользователь с выключенным JS этого не видит (его браузер кадры
+      // крутит), поэтому движение снимается у сценария, а не у продукта: панель
+      // уважает `prefers-reduced-motion` (`dodo-ds.css`).
+      reducedMotion: "reduce",
     });
     const page = await context.newPage();
 
@@ -92,9 +112,10 @@ test.describe("удаление чек-листа", () => {
     await page.getByTestId("login-submit").click();
     await expect(page.getByTestId("admin-home")).toBeVisible();
 
+    // Заведение уже привело в рабочую зону чек-листа: без JavaScript каждый шаг —
+    // полная загрузка страницы с колонкой, лишний заход через список не нужен.
     const title = await createChecklist(page);
-    await page.goto(CHECKLISTS_PATH);
-    await rowOf(page, title).getByTestId("delete-checklist").click();
+    await page.getByTestId("delete-checklist").click();
     await page.getByTestId("remove-checklist-confirm").click();
 
     await expect(rowOf(page, title)).toHaveCount(0);
