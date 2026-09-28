@@ -12,20 +12,17 @@ import { chooseLocale } from "./locale-action";
  * сообщает выбор и получает перерисованную страницу. Заодно он работает без JavaScript.
  *
  * Вид взят у переключателя темы, чтобы два переключателя в одном подвале меню не
- * выглядели как две разные вещи: дорожка `--seg-track`, выбранное положение поднято
- * поверхностью и тенью.
+ * выглядели как две разные вещи: подпись слева, выбранное — мягкой заливкой (D164).
  *
  * Язык экрана заполнения этим не трогается — его задаёт пиццерия (D122). Переключатель
  * стоит только в кабинете и меняет язык только кабинета.
  */
-const LABEL_CLASS =
-  "px-[var(--space-7)] pb-[var(--space-3)] text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase max-md:hidden";
-const TRACK_CLASS =
-  "mx-[var(--space-7)] mb-[var(--space-4)] flex gap-[var(--space-1)] rounded-[var(--r-control)] bg-[var(--seg-track)] p-[var(--space-1)] max-md:mx-[var(--space-5)] max-md:mb-0";
+// Компактно, как переключатель темы над ним: код языка моноширинным, текущий — мягкой
+// заливкой. Полное название языка — в подсказке и для чтеца.
 const OPTION_BASE_CLASS =
-  "flex min-h-[var(--control-h-sm)] flex-1 cursor-pointer items-center justify-center rounded-[var(--r-mark)] border-0 px-[var(--space-4)] text-[length:var(--fs-meta)] whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]";
-const OPTION_CLASS = `${OPTION_BASE_CLASS} bg-transparent text-[var(--ink-2)] hover:text-[var(--ink)]`;
-const OPTION_SELECTED_CLASS = `${OPTION_BASE_CLASS} bg-surface text-ink font-medium shadow-[var(--sh-xs)]`;
+  "grid h-7 min-w-7 cursor-pointer place-items-center rounded-[7px] border-0 px-[var(--space-3)] font-mono text-[11px] font-medium uppercase";
+const OPTION_CLASS = `${OPTION_BASE_CLASS} bg-transparent text-[var(--ink-3)] hover:bg-surface hover:text-ink`;
+const OPTION_SELECTED_CLASS = `${OPTION_BASE_CLASS} bg-[var(--accent-soft)] text-accent`;
 
 export function LocaleToggle({
   current,
@@ -36,13 +33,13 @@ export function LocaleToggle({
 }): ReactElement {
   return (
     <form action={chooseLocale} data-testid="locale-toggle">
-      <div className={LABEL_CLASS}>{label}</div>
       {/*
         `role="group"`, а не `radiogroup`: стрелками между положениями здесь не ходят,
         каждое положение — обычная кнопка отправки, и чтец называет её нажатой через
         `aria-pressed`.
       */}
-      <div role="group" aria-label={label} className={TRACK_CLASS}>
+      <div role="group" aria-label={label} className="sidenav__theme">
+        <span className="sidenav__theme-label">{label}</span>
         {LOCALES.map((code) => (
           <button
             key={code}
@@ -52,9 +49,11 @@ export function LocaleToggle({
             lang={code}
             data-testid={`locale-${code}`}
             aria-pressed={code === current}
+            aria-label={LOCALE_NAMES[code]}
+            title={LOCALE_NAMES[code]}
             className={code === current ? OPTION_SELECTED_CLASS : OPTION_CLASS}
           >
-            {LOCALE_NAMES[code]}
+            {code}
           </button>
         ))}
       </div>

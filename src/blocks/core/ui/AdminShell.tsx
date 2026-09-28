@@ -10,9 +10,8 @@
 // живут внутри клиентской формы и обязаны видеть её состояние), берёт только `AdminNav`.
 import type { ReactElement, ReactNode } from "react";
 
-import type { AdminSectionKey } from "../admin-sections";
 import { ADMIN_CONTENT_CLASS, ADMIN_FRAME_CLASS } from "./admin-frame";
-import { AdminNav } from "./AdminNav";
+import { AdminNav, type AdminNavActive } from "./AdminNav";
 import { ADMIN_CONTENT_ID, SkipLink } from "./SkipLink";
 
 const H1_CLASS =
@@ -22,7 +21,7 @@ export interface AdminShellProps {
   /** Тестовый идентификатор корня: у каждого экрана свой. */
   readonly testId: string;
   /** Раздел меню, в котором находится человек. */
-  readonly active?: AdminSectionKey | undefined;
+  readonly active?: AdminNavActive | undefined;
   readonly breadcrumb: ReactNode;
   readonly title: string;
   readonly topbarAction: ReactNode;

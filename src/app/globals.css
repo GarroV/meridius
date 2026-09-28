@@ -42,6 +42,7 @@
   --color-ok: var(--ok);
   --font-ui: var(--font-ui);
   --font-num: var(--font-num);
+  --font-mono: var(--font-mono);
 }
 
 /* Тема (T236). Значений здесь нет ни одного — их объявляет эталон под

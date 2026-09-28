@@ -25,7 +25,8 @@ const PHONE = { width: 375, height: 812 } as const;
 const DESKTOP = { width: 1280, height: 900 } as const;
 
 /** Ширина бокового меню в эталоне. Ниже складки её не должно быть вовсе. */
-const NAV_COLUMN = 208;
+// Ширина панели ядра на широком экране (`.sidenav`, эталон Swarm, D164).
+const NAV_COLUMN = 216;
 
 /**
  * Все пять разделов кабинета плюс главная. Правка каркаса задевает каждый из них,
@@ -185,7 +186,7 @@ test.describe("каркас кабинета на 375 px", () => {
 test.describe("каркас кабинета на настольной ширине", () => {
   test.use({ viewport: DESKTOP, locale: "ru-RU" });
 
-  test("меню остаётся боковой колонкой 208 px", async ({ page }) => {
+  test("меню остаётся боковой колонкой 216 px", async ({ page }) => {
     await signIn(page);
     await page.goto("/admin");
 

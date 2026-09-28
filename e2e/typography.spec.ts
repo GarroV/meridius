@@ -33,10 +33,10 @@ test.describe("типографика по эталону", () => {
       // Первым в списке — само семейство канона, а не запасное. Одного этого мало:
       // имя в токене стоит и тогда, когда файла нет вовсе, — поэтому следующая проверка
       // спрашивает браузер, доехало ли начертание.
-      expect(base.fontFamily).toMatch(/^Manrope,/);
+      expect(base.fontFamily).toMatch(/^"Golos Text",/);
     });
 
-    test(`Manrope на ${screen} действительно загружен, а не только объявлен`, async ({
+    test(`Golos Text на ${screen} действительно загружен, а не только объявлен`, async ({
       page,
     }) => {
       await page.goto(screen);
@@ -51,27 +51,27 @@ test.describe("типографика по эталону", () => {
         }));
       });
 
-      const manrope = faces.filter((face) => face.family.includes("Manrope"));
-      expect(manrope.length).toBeGreaterThan(0);
-      expect(manrope.some((face) => face.status === "loaded")).toBe(true);
+      const golos = faces.filter((face) => face.family.includes("Golos Text"));
+      expect(golos.length).toBeGreaterThan(0);
+      expect(golos.some((face) => face.status === "loaded")).toBe(true);
     });
   }
 
   test("моноширинное семейство эталона подключено и доступно экранам", async ({
     page,
   }) => {
-    // Числа, время и коды станций канон набирает Space Grotesk. Кириллицы у него нет
-    // вовсе — это его работа, и потому проверяется значение токена --font-num, а не
-    // начертание какой-то строки экрана.
+    // Служебное — счётчики, роль, подсказки клавиш — канон набирает IBM Plex Mono
+    // (эталон Swarm, D164). Проверяется значение токена --font-mono, а не начертание
+    // какой-то строки экрана: на входе моноширинного текста может не быть вовсе.
     await page.goto("/");
 
     const family = await page
       .locator("body")
       .evaluate((element) =>
-        globalThis.getComputedStyle(element).getPropertyValue("--font-num"),
+        globalThis.getComputedStyle(element).getPropertyValue("--font-mono"),
       );
 
-    expect(family.trim()).toMatch(/^['"]Space Grotesk['"]/);
+    expect(family.trim()).toMatch(/^['"]IBM Plex Mono['"]/);
   });
 
   test("шрифты раздаёт само приложение, а не чужой домен", async ({ page }) => {
