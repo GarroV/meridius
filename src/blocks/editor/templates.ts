@@ -92,6 +92,21 @@ export async function listTemplates(): Promise<readonly TemplateRow[]> {
     .orderBy(checklists.title);
 }
 
+/**
+ * Опознаватели всех шаблонов в работе — и опубликованных, и ещё нет. Нужны рабочему
+ * месту чек-листов (D162, D165): шаблон правится тем же редактором по адресу чек-листа,
+ * но рисуется без колонки чек-листов и с пунктом «Шаблоны» в меню. Только
+ * опубликованных (`listTemplates`) здесь мало — только что заведённый шаблон открылся
+ * бы в колонке чек-листов, где его нет.
+ */
+export async function listTemplateIds(): Promise<readonly string[]> {
+  const rows = await getDb()
+    .select({ id: checklists.id })
+    .from(checklists)
+    .where(and(eq(checklists.isTemplate, true), isNull(checklists.archivedAt)));
+  return rows.map((row) => row.id);
+}
+
 /** Карточка раздела «Шаблоны»: что это, какого размера и насколько свежее. */
 export interface TemplateCard {
   readonly id: string;

@@ -34,7 +34,11 @@ export async function ChecklistsHome(): Promise<ReactElement> {
       <div className={CARD_CLASS} data-testid="checklists-pick">
         <p className={TITLE_CLASS}>{t("rail.pickTitle")}</p>
         <p className={HINT_CLASS}>{t("rail.pickHint")}</p>
-        <Link href={NEW_CHECKLIST_PATH} className={BTN_PRIMARY_CLASS}>
+        <Link
+          href={NEW_CHECKLIST_PATH}
+          className={BTN_PRIMARY_CLASS}
+          data-testid="checklists-home-new"
+        >
           {t("list.new")}
         </Link>
       </div>

@@ -9,7 +9,7 @@ import { NO_FILTER } from "../filter";
 import { buildFilterCatalog } from "../filter-options";
 import { listChecklists, listStations } from "../listing";
 import { CHECKLISTS_PATH } from "../routes";
-import { listTemplates } from "../templates";
+import { listTemplateIds } from "../templates";
 import { ChecklistRail } from "./ChecklistRail";
 
 /**
@@ -27,10 +27,10 @@ export async function ChecklistsWorkspace({
 }: {
   readonly children: ReactNode;
 }): Promise<ReactElement> {
-  const [rows, stations, templates, locale, messages, t] = await Promise.all([
+  const [rows, stations, templateIds, locale, messages, t] = await Promise.all([
     listChecklists(NO_FILTER),
     listStations(),
-    listTemplates(),
+    listTemplateIds(),
     getLocale(),
     getMessages(),
     getTranslations("editor"),
@@ -60,7 +60,7 @@ export async function ChecklistsWorkspace({
         // Шаблон правится тем же редактором по адресу чек-листа (T309), но в список
         // чек-листов не входит: рядом с ним нет колонки, а меню подсвечивает «Шаблоны».
         wide={{
-          segments: templates.map((template) => template.id),
+          segments: templateIds,
           nav: <AdminNav active="templates" />,
         }}
       >

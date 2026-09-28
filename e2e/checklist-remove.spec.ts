@@ -105,8 +105,11 @@ test.describe("удаление чек-листа", () => {
     await page.getByTestId("login-submit").click();
     await expect(page.getByTestId("admin-home")).toBeVisible();
 
+    // Заведение уже привело в рабочую зону чек-листа: без JavaScript каждый шаг —
+    // полная загрузка страницы с колонкой, и лишний заход через список съедал
+    // таймаут сценария.
     const title = await createChecklist(page);
-    await askToRemove(page, title);
+    await page.getByTestId("delete-checklist").click();
     await page.getByTestId("remove-checklist-confirm").click();
 
     await expect(rowOf(page, title)).toHaveCount(0);

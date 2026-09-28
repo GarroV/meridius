@@ -377,7 +377,7 @@ test.describe("редактор чек-листа", () => {
     // Предпросмотр показывает методисту то же, что увидит сотрудник: границы и
     // единица рядом, одной строкой (D110), а не заведённая единица, потерянная
     // где-то между сохранением и показом.
-    await page.getByRole("link", { name: "Предпросмотр" }).click();
+    await page.getByRole("link", { name: "Предпросмотр", exact: true }).click();
     await expect(page.getByTestId("preview-screen")).toBeVisible();
     // Тире, а не многоточие: эталон (`design/screens/fill.html`) пишет обычный
     // диапазон через тире («160–180 °C»), а многоточие бережёт для диапазона через
@@ -462,7 +462,7 @@ test.describe("редактор чек-листа", () => {
     await expect(page.getByTestId("column-title").nth(1)).toHaveValue("Вес, г");
 
     // Предпросмотр показывает колонки с нормами, а не пустую сетку.
-    await page.getByRole("link", { name: "Предпросмотр" }).click();
+    await page.getByRole("link", { name: "Предпросмотр", exact: true }).click();
     await expect(page.getByTestId("preview-screen")).toBeVisible();
     await expect(page.getByTestId("preview-table")).toHaveText(
       "Журнал: Температура теста (24…26 °C) · Вес, г",
@@ -506,7 +506,7 @@ test.describe("редактор чек-листа", () => {
     await page.reload();
     await expect(page.getByTestId("version-row")).toHaveCount(2);
 
-    await page.getByRole("link", { name: "Предпросмотр" }).click();
+    await page.getByRole("link", { name: "Предпросмотр", exact: true }).click();
     await expect(page.getByTestId("preview-screen")).toBeVisible();
     await expect(page.getByTestId("preview-item")).toHaveCount(PASTED_ITEMS);
     await expect(page.getByTestId("preview-screen")).toContainText(
@@ -807,7 +807,7 @@ test.describe("редактор чек-листа", () => {
     await page.keyboard.type("Включить печь");
     await saveDraft(page);
 
-    await page.getByRole("link", { name: "Предпросмотр" }).click();
+    await page.getByRole("link", { name: "Предпросмотр", exact: true }).click();
     const screen = page.getByTestId("preview-screen");
     await expect(screen).toBeVisible();
 
@@ -993,7 +993,7 @@ test.describe("редактор чек-листа", () => {
 
     await saveDraft(page);
 
-    await page.getByRole("link", { name: "Предпросмотр" }).click();
+    await page.getByRole("link", { name: "Предпросмотр", exact: true }).click();
     await expect(page.getByTestId("preview-screen")).toBeVisible();
 
     // В форме остался один пункт — обычный. Периодический в форму не идёт

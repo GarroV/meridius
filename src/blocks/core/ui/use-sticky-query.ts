@@ -58,6 +58,21 @@ export interface StickyQuery {
   readonly suffix: string;
 }
 
+/**
+ * Сужение в адресе окна прямо сейчас. `undefined` — окна нет (отрисовка на сервере).
+ *
+ * Нужно, чтобы отличить переход от эха собственной записи. После `replaceState` Next
+ * доносит новый адрес до `useSearchParams` не в тот же кадр: между записью и этим
+ * моментом колонка рисуется со СТАРЫМИ параметрами. Подхвати она их — сброс фильтра
+ * тут же отменялся бы старым адресом, а быстро набранная буква пропадала бы. Замечено
+ * сквозным сценарием: «Показать все» не показывало ничего.
+ */
+function locationKey(keys: readonly string[]): string | null | undefined {
+  if (typeof window === "undefined") return undefined;
+  const live = pick(new URLSearchParams(window.location.search), keys);
+  return live === null ? null : querySuffix(live, keys);
+}
+
 export function useStickyQuery(keys: readonly string[]): StickyQuery {
   const params = useSearchParams();
   const fromUrl = pick(params, keys);
@@ -68,8 +83,15 @@ export function useStickyQuery(keys: readonly string[]): StickyQuery {
   // сужением, то есть тот самый скачок (приём «состояние из пропа» React).
   const [seen, setSeen] = useState(urlKey);
   if (urlKey !== seen) {
-    setSeen(urlKey);
-    if (fromUrl !== null) setValues(fromUrl);
+    const live = locationKey(keys);
+    // Параметры отстают от окна — это эхо своей же записи, а не переход: ждём, пока
+    // Next их донесёт, и тогда сверяемся снова.
+    if (live === undefined || live === urlKey) {
+      setSeen(urlKey);
+      if (fromUrl !== null && urlKey !== querySuffix(values, keys)) {
+        setValues(fromUrl);
+      }
+    }
   }
 
   const update = useCallback(
@@ -80,9 +102,6 @@ export function useStickyQuery(keys: readonly string[]): StickyQuery {
       for (const [key, value] of Object.entries(next)) {
         if (value.trim() !== "") url.searchParams.set(key, value);
       }
-      // Свою же запись в адрес подхватывать обратно не нужно: состояние уже новое.
-      const written = pick(url.searchParams, keys);
-      setSeen(written === null ? null : querySuffix(written, keys));
       window.history.replaceState(null, "", url);
     },
     [keys],
