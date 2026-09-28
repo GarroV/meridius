@@ -86,7 +86,10 @@ export function useStickyQuery(keys: readonly string[]): StickyQuery {
     const live = locationKey(keys);
     // Параметры отстают от окна — это эхо своей же записи, а не переход: ждём, пока
     // Next их донесёт, и тогда сверяемся снова.
-    if (live === undefined || live === urlKey) {
+    // Окно ещё на прежнем адресе — это переход, а не эхо: Next меняет адрес окна
+    // уже ПОСЛЕ отрисовки с новыми параметрами. Без этой ветки поиск из левой панели
+    // (`?q=` ссылкой) молча отбрасывался как эхо и колонка не сужалась.
+    if (live === undefined || live === urlKey || live === seen) {
       setSeen(urlKey);
       if (fromUrl !== null && urlKey !== querySuffix(values, keys)) {
         setValues(fromUrl);

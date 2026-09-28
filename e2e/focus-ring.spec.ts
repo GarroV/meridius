@@ -141,9 +141,19 @@ async function referenceRing(page: Page): Promise<string> {
 async function tabTo(
   page: Page,
   target: Locator,
+  start?: Locator,
   limit = 60,
 ): Promise<boolean> {
   await target.waitFor();
+  if (start !== undefined) {
+    // Путь от начала рабочей зоны, а не от верха страницы: перед ней колонка со ВСЕМИ
+    // чек-листами базы (D162), а прогон заводит их десятками — предел шагов отмерял бы
+    // размер базы, а не доступность кнопки.
+    await start.evaluate((node) => {
+      node.setAttribute("tabindex", "-1");
+      (node as HTMLElement).focus();
+    });
+  }
   for (let step = 0; step < limit; step += 1) {
     await page.keyboard.press("Tab");
     if (await target.evaluate((node) => node === document.activeElement)) {
@@ -169,6 +179,7 @@ const ACCENT_BUTTONS = [
     name: "раздел чек-листов, «Новый чек-лист»",
     path: "/admin/checklists",
     testId: "checklists-home-new",
+    from: "checklists-home",
   },
   {
     name: "заведение чек-листа, «Создать»",
@@ -200,8 +211,10 @@ test.describe("акцентная кнопка под фокусом получ�
         await page.goto(button.path);
         const target = page.getByTestId(button.testId);
 
+        const start =
+          "from" in button ? page.getByTestId(button.from) : undefined;
         expect(
-          await tabTo(page, target),
+          await tabTo(page, target, start),
           `до кнопки не дойти табуляцией: ${where}`,
         ).toBe(true);
 
