@@ -517,7 +517,7 @@ test.describe("редактор чек-листа", () => {
     await expect(page.getByTestId("editor-screen")).toBeVisible();
   });
 
-  test("список чек-листов показывает заведённый и дублирует его", async ({
+  test("колонка чек-листов показывает заведённый, а его шапка дублирует его", async ({
     page,
   }) => {
     const title = `Закрытие кухни ${label()}`;
@@ -534,7 +534,11 @@ test.describe("редактор чек-листа", () => {
       .first();
     await expect(row).toBeVisible();
 
-    await row.getByTestId("duplicate-checklist").click();
+    // Действие над чек-листом — в шапке его рабочей зоны, а не в строке колонки (D162):
+    // строка только выбирает.
+    await row.click();
+    await expect(page.getByTestId("editor-screen")).toBeVisible();
+    await page.getByTestId("duplicate-checklist").click();
 
     // Копия открывается сразу в редакторе, с теми же пунктами и своим названием.
     await expect(page.getByTestId("editor-screen")).toBeVisible();

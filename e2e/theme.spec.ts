@@ -548,15 +548,15 @@ test.describe("переключатель темы есть на каждом э
     });
   }
 
-  // Редактор рисует каркас сам и оборачивает его вместе с меню в свой провайдер
-  // словаря — ровно там переключатель печатал `admin.theme.*` (T254).
+  // Редактор стоит под своим провайдером словаря — ровно там переключатель печатал
+  // `admin.theme.*` (T254). С D162 провайдер ставит рабочее место раздела, а строка
+  // колонки чек-листов — сама ссылка, без ссылки внутри.
   test("экран редактора чек-листа", async ({ page }) => {
     const stand = await seedFillStand("тема-редактор");
     await page.goto("/admin/checklists");
     await page
       .getByTestId("checklist-row")
       .filter({ hasText: stand.stationName })
-      .getByRole("link")
       .first()
       .click();
     await expect(page.getByTestId("editor-screen")).toBeVisible();

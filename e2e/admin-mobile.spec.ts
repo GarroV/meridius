@@ -60,9 +60,13 @@ async function frameWidths(page: Page): Promise<{
   widest: string;
 }> {
   return page.evaluate(() => {
-    const main = document.querySelector<HTMLElement>(
-      "[data-testid='admin-main']",
-    );
+    // Колонка содержимого — та, что видна: у разделов мастер-детали (D162) без
+    // выбранного элемента телефон показывает колонку списка, а рабочую зону прячет.
+    const columns = [
+      ...document.querySelectorAll<HTMLElement>(
+        "[data-testid='admin-main'], [data-testid='master-rail']",
+      ),
+    ].map((element) => element.getBoundingClientRect().width);
     const viewport = window.innerWidth;
 
     let widest = "—";
@@ -80,7 +84,7 @@ async function frameWidths(page: Page): Promise<{
     }
 
     return {
-      main: main?.getBoundingClientRect().width ?? 0,
+      main: Math.max(0, ...columns),
       document: document.documentElement.scrollWidth,
       viewport,
       widest,
