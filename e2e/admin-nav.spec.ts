@@ -147,11 +147,10 @@ test.describe("связность разделов кабинета", () => {
 
     await expectMenuLeadsEverywhere(page);
 
-    // Главная — не раздел, поэтому подсвечивать в меню нечего. Это единственный экран
-    // кабинета без выбранного пункта, и каркас обязан его переживать.
-    await expect(
-      page.locator("nav").first().locator("[aria-current]"),
-    ).toHaveCount(0);
+    // С D164 у главной свой пункт меню, как у Swarm: подсвечен ровно он один.
+    const current = page.locator("nav").first().locator("[aria-current]");
+    await expect(current).toHaveCount(1);
+    await expect(current).toHaveAttribute("data-testid", "nav-home");
   });
 
   for (const to of READY) {

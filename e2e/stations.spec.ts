@@ -175,4 +175,52 @@ test.describe("раздел «Станции»", () => {
       "page",
     );
   });
+
+  test("выбор другой станции открывает её карточку рядом, не перерисовывая колонку", async ({
+    page,
+  }) => {
+    // D163: «в станциях меридиуса тоже самое» — мастер-деталь, как у чек-листов.
+    const first = await seedStationWithoutChecklist("колонки-1", "ru");
+    const second = await seedStationWithoutChecklist("колонки-2", "ru");
+
+    await page.goto("/admin/stations?gap=noChecklist");
+    await expect(page.getByTestId("stations-pick")).toBeVisible();
+    await page.evaluate(() => {
+      const rail = document.querySelector('[data-testid="stations-rail"]');
+      if (rail !== null) {
+        (rail as unknown as Record<string, unknown>)["probe"] = "та же";
+      }
+    });
+
+    const rowOf = (name: string) =>
+      page.getByTestId("station-row").filter({ hasText: name });
+
+    await rowOf(first.stationName).getByTestId("station-link").click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: first.stationName }),
+    ).toBeVisible();
+    await rowOf(second.stationName).getByTestId("station-link").click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: second.stationName }),
+    ).toBeVisible();
+    await expect(
+      rowOf(second.stationName).getByTestId("station-link"),
+    ).toHaveAttribute("aria-current", "page");
+
+    const probe = await page.evaluate(() => {
+      const rail = document.querySelector('[data-testid="stations-rail"]');
+      return rail === null
+        ? undefined
+        : (rail as unknown as Record<string, unknown>)["probe"];
+    });
+    expect(
+      probe,
+      "Колонка станций перерисовалась при выборе другой станции.",
+    ).toBe("та же");
+    // Фильтр колонки пережил выбор станции.
+    await expect(page.getByTestId("filter-noChecklist")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
 });

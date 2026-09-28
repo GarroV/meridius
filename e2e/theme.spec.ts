@@ -116,8 +116,6 @@ function tokenRgb(theme: "light" | "dark", name: string): string {
 
 const canvasRgb = (theme: "light" | "dark"): string =>
   tokenRgb(theme, "--canvas");
-const surfaceRgb = (theme: "light" | "dark"): string =>
-  tokenRgb(theme, "--surface");
 
 interface CabinetScreen {
   readonly name: string;
@@ -311,7 +309,7 @@ test.describe("автоматика на публичном экране зап�
 test.describe("поверхность экрана — не только фон страницы", () => {
   test.use({ colorScheme: "dark", signedIn: true });
 
-  test("боковое меню в тёмной теме берёт тёмный --surface, а не светлый", async ({
+  test("боковое меню в тёмной теме берёт тёмный --surface-2, а не светлый", async ({
     page,
   }) => {
     await openScreen(page, HOME_SCREEN);
@@ -321,19 +319,20 @@ test.describe("поверхность экрана — не только фон 
       .first()
       .evaluate((node) => getComputedStyle(node).backgroundColor);
 
-    expect(background).toBe(surfaceRgb("dark"));
+    // Панель — на --surface-2, как левая панель Swarm (D164).
+    expect(background).toBe(tokenRgb("dark", "--surface-2"));
     // Сверка с «правильным» тёмным значением не поймает разъезд эталона — оба берутся
     // из одного файла и разъедутся вместе. Независимый инвариант — фон НЕ светлый:
     // это и есть тот самый дефект («экран взял светлый токен»), ради которого сторож
     // заведён (T236).
-    expect(background).not.toBe(surfaceRgb("light"));
+    expect(background).not.toBe(tokenRgb("light", "--surface-2"));
   });
 });
 
 /**
- * Наведение на пункт бокового меню (T278). Эталон требует фон `--surface-3` и цвет
- * `--ink` (`docs/furca/design/app.css`, `.nav__item:hover`; то же самое в
- * `reference/components.css`, `.appnav__link:hover`).
+ * Наведение на пункт бокового меню (T278). Эталон — левая панель Swarm (D164): панель
+ * на `--surface-2`, пункт под курсором поднимается `--surface`, цвет `--ink`
+ * (`.sidenav__item:hover` в ядре).
  *
  * Проверяется ВЫЧИСЛЕННЫМ стилем, а не исходниками, и это не придирка: сторож
  * `design-reference.test.ts` читает исходники и цвет, проигравший в каскаде, не видит
@@ -374,7 +373,7 @@ test.describe("наведение на пункт меню кабинета да
               target.evaluate((node) => getComputedStyle(node).backgroundColor),
             { message: `фон пункта под курсором: ${where}` },
           )
-          .toBe(tokenRgb(choice, "--surface-3"));
+          .toBe(tokenRgb(choice, "--surface"));
         expect(
           await target.evaluate((node) => getComputedStyle(node).color),
           `цвет пункта под курсором: ${where}`,
@@ -523,19 +522,18 @@ test.describe("«авто» при тёмной системной настро�
 });
 
 /**
- * Переключатель говорит словами словаря, а не ключами. Сверка идёт с самим словарём,
- * а не с литералами: слово поменяют — сценарий не начнёт врать.
+ * Переключатель говорит словами словаря, а не ключами. С D164 положения — иконки, как
+ * в Swarm, и слово живёт в подписи для чтеца и во всплывающей подсказке. Сверка идёт с
+ * самим словарём, а не с литералами: слово поменяют — сценарий не начнёт врать.
  */
 async function expectToggleInWords(page: Page): Promise<void> {
   const toggle = page.getByTestId("theme-toggle");
   await expect(toggle).toBeVisible();
-  await expect(page.getByTestId("theme-system")).toHaveText(
-    en.admin.theme.system,
-  );
-  await expect(page.getByTestId("theme-light")).toHaveText(
-    en.admin.theme.light,
-  );
-  await expect(page.getByTestId("theme-dark")).toHaveText(en.admin.theme.dark);
+  for (const option of ["system", "light", "dark"] as const) {
+    const button = page.getByTestId(`theme-${option}`);
+    await expect(button).toHaveAttribute("aria-label", en.admin.theme[option]);
+    await expect(button).toHaveAttribute("title", en.admin.theme[option]);
+  }
   await expect(toggle).not.toContainText("admin.theme");
 }
 
@@ -550,15 +548,15 @@ test.describe("переключатель темы есть на каждом э
     });
   }
 
-  // Редактор рисует каркас сам и оборачивает его вместе с меню в свой провайдер
-  // словаря — ровно там переключатель печатал `admin.theme.*` (T254).
+  // Редактор стоит под своим провайдером словаря — ровно там переключатель печатал
+  // `admin.theme.*` (T254). С D162 провайдер ставит рабочее место раздела, а строка
+  // колонки чек-листов — сама ссылка, без ссылки внутри.
   test("экран редактора чек-листа", async ({ page }) => {
     const stand = await seedFillStand("тема-редактор");
     await page.goto("/admin/checklists");
     await page
       .getByTestId("checklist-row")
       .filter({ hasText: stand.stationName })
-      .getByRole("link")
       .first()
       .click();
     await expect(page.getByTestId("editor-screen")).toBeVisible();

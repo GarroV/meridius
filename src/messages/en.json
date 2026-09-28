@@ -74,7 +74,9 @@
       "groups": {
         "work": "Work",
         "reference": "Reference"
-      }
+      },
+      "home": "Home",
+      "search": "Find a checklist"
     }
   },
   "catalog": {
@@ -170,15 +172,8 @@
       "title": "Checklists",
       "crumbs": "All countries",
       "new": "+ New checklist",
-      "edit": "Edit",
       "duplicate": "Duplicate",
       "delete": "Delete",
-      "columnTitle": "Title",
-      "columnStation": "Station",
-      "columnWindow": "Window",
-      "columnVersion": "Version",
-      "columnItems": "Items",
-      "columnSubmissions": "Submissions in 7 days",
       "draftTag": "draft",
       "noStation": "no station",
       "noStore": "No store",
@@ -192,6 +187,17 @@
       "filterEmpty": "Nothing matches the filter",
       "filterEmptyHint": "Nothing has been created under the current selection yet. Change it or create the first one.",
       "filterReset": "Show all"
+    },
+    "rail": {
+      "label": "Checklist list",
+      "search": "Find a checklist",
+      "new": "New checklist",
+      "countNarrowed": "{shown} of {total}",
+      "items": "{count, plural, one {# item} other {# items}}",
+      "back": "All checklists",
+      "pickTitle": "Pick a checklist on the left",
+      "pickHint": "It opens right here, next to the list — no need to go to another page.",
+      "close": "Close panel"
     },
     "form": {
       "title": "Title",
@@ -335,7 +341,6 @@
     },
     "preview": {
       "title": "Preview",
-      "back": "Back to the editor",
       "notice": "This is what an employee sees. It only shows: the employee answers and submits on their own phone, opening the checklist by the station QR code.",
       "progress": "{done} of {total}",
       "left": "{count, plural, one {# item left} other {# items left}}",
@@ -372,7 +377,6 @@
       "unknown": "Could not save. Please try again."
     },
     "remove": {
-      "crumbs": "Checklists",
       "title": "Delete this checklist?",
       "name": "Checklist",
       "willDelete": "This checklist has no submissions — it will be deleted completely, together with its draft and versions. This cannot be undone.",
@@ -759,7 +763,7 @@
   "device": {
     "pair": {
       "title": "Pair this tablet",
-      "text": "Ask the manager to open the station checklist in the workspace and press “Pair tablet”. Type the four digits here.",
+      "text": "Ask the manager to open Devices in the workspace, pick this station and press “Pair a tablet”. Type the four digits here.",
       "label": "Pairing code",
       "submit": "Pair",
       "refused": "This code does not work. Ask for a new one: a code lives five minutes and works once.",
@@ -772,8 +776,15 @@
       "again": "Issue a new code",
       "noStation": "This checklist has no station. Pick a station and save: a tablet is paired to a station, not to a checklist.",
       "hint": "The code is valid for {minutes, plural, one {# minute} other {# minutes}} and works once.",
-      "where": "On the tablet, open {path} and type this code.",
-      "failed": "Could not issue a code. Try again."
+      "where": "On the tablet, open {address} and type this code.",
+      "left": "{time} left",
+      "expired": "The code has expired. Issue a new one — nothing breaks.",
+      "failed": {
+        "temporary": "Could not reach the database. Wait a minute and press again.",
+        "stationGone": "This station no longer exists — it was deleted. Refresh the page.",
+        "broken": "A server fault stops the code from being issued, and retrying will not help. Tell whoever runs MERIDIUS: the cause is in the server log.",
+        "offline": "No connection to the server. Check the internet and press again."
+      }
     },
     "tab": {
       "unpaired": {
@@ -800,16 +811,68 @@
     },
     "admin": {
       "title": "Devices",
-      "notice": "A paired tablet survives a station code reissue: only unpairing stops it. A tablet you do not recognise in this list is the way to spot a guessed code.",
-      "empty": "No tablets are paired yet. The code is issued from the station checklist screen.",
+      "notice": "See which station each tablet stands at, and pair or unpair it right here. A paired tablet survives a QR sticker reissue: only unpairing stops it. A tablet you do not recognise in this list is a reason to unpair it.",
+      "empty": "There are no stations in the directory yet. Add the pizzeria and its stations in Directory — then pair tablets here.",
+      "summary": "{stations, plural, one {# station} other {# stations}} · with a tablet {paired} · without {unpaired}",
+      "paired": "Tablet paired",
+      "pairedMany": "{count, plural, one {# tablet} other {# tablets}}",
+      "unpaired": "No tablet",
+      "stale": "Offline for over a day",
       "pairedAt": "Paired {when}",
       "lastSeen": "Last seen {when}",
+      "never": "—",
+      "open": "Open station {station}",
       "unlink": "Unpair",
-      "failed": "Could not unpair. Refresh the page and try again.",
+      "failed": "Could not unpair: the tablet was already unpaired or the station was deleted. Refresh the page.",
       "count": "{count, plural, one {# tablet} other {# tablets}}",
+      "drawer": {
+        "close": "Close panel",
+        "country": "Country",
+        "store": "Pizzeria",
+        "checklists": "Checklists",
+        "checklistCount": "{count, plural, one {# checklist} other {# checklists}}",
+        "noChecklist": "None — the tablet will have nothing to show",
+        "tablets": "Station tablets",
+        "tablet": "Tablet {number}",
+        "noTablet": "No tablet is paired to this station.",
+        "pairTitle": "Pair a tablet",
+        "pairMoreTitle": "Pair another or replace",
+        "pairText": "Issue a code and type it on the tablet that will stand at this station. If the tablet already stands at another station, type the code on it: the old pairing is removed on its own.",
+        "replaceText": "Old tablet broken or lost — unpair it above, then pair the new one.",
+        "guideTitle": "What to do on the tablet",
+        "missing": "This station does not exist: it was deleted or the link is out of date."
+      },
       "confirm": {
         "title": "Unpair the tablet at {station}",
-        "warning": "The tablet stops showing the checklist right away and asks for a new pairing code. A new code is issued from this station's checklist screen."
+        "warning": "The tablet stops opening this station's checklist right away: staff see “This tablet is not paired” and cannot log the shift on it until it is paired again with a new code. The station's QR sticker keeps working for phones."
+      }
+    },
+    "guide": {
+      "title": "How to pair a tablet at a pizzeria",
+      "lead": "Once per tablet, about a minute. You need a tablet with internet and this workspace — on a computer or a phone.",
+      "step1": {
+        "title": "Issue a code",
+        "text": "In the list below, click the station where the tablet will stand, then “Pair a tablet”. Four digits appear."
+      },
+      "step2": {
+        "title": "Open the address on the tablet",
+        "text": "Type this address in the tablet's browser. It helps to add it to the tablet's home screen."
+      },
+      "step3": {
+        "title": "Type the code",
+        "text": "Type the four digits and press “Pair”. The code is valid for {minutes, plural, one {# minute} other {# minutes}} and works once."
+      },
+      "step4": {
+        "title": "Done",
+        "text": "The tablet opens the station checklist right away and keeps opening it on its own — after a restart and without a new code. Here the station gets the “Tablet paired” mark."
+      },
+      "trouble": {
+        "title": "If it did not work",
+        "expired": "The tablet says “This code does not work” — the code expired or was already used. Issue a new one: the old one simply stops working.",
+        "tooOften": "“Too many attempts” — wait, the tablet tells you how many minutes.",
+        "unpaired": "“This tablet is not paired” — it was unpaired here or its station was deleted. Issue a new code and type it.",
+        "nothing": "The tablet is paired but says “Nothing to fill in right now” — the station has no checklist, or it is not its time yet.",
+        "move": "To move a tablet to another station, issue a code for the new station and type it on the same tablet: the old pairing is removed on its own."
       }
     }
   },
@@ -817,6 +880,12 @@
     "title": "Stations",
     "breadcrumb": "Work",
     "intro": "This is where the network's stations live. You can see what covers each one and how it is filled in: by phone from the sticker, or from a paired tablet. A station with no checklist is marked — its sticker opens onto nothing.",
+    "rail": {
+      "label": "Station list",
+      "back": "All stations",
+      "pickTitle": "Pick a station on the left",
+      "pickHint": "Its card opens right here, next to the list: the station's checklist, sticker and tablet."
+    },
     "checklists": "{count, plural, one {# checklist} other {# checklists}}",
     "tabletPaired": "Tablet paired",
     "stickerOnly": "Sticker only",

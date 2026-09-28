@@ -444,6 +444,29 @@ test.describe("доступность: админка", () => {
 
     expectAccessible(await runAxe(page));
   });
+
+  test("раздел «Устройства» с инструкцией и панелью станции с выпущенным кодом без нарушений доступности", async ({
+    page,
+  }) => {
+    // Панель справа и код в ней — отдельные состояния разметки (D163): на закрытом
+    // экране их в DOM нет, и проверка списка про них ничего не говорит.
+    const seeded = await seedStationWithoutChecklist("устройства", "ru");
+    await signIn(page);
+
+    await page.goto("/admin/devices");
+    await page.getByTestId("pair-guide").first().waitFor();
+    expectAccessible(await runAxe(page));
+
+    await page
+      .getByTestId("station-row")
+      .filter({ hasText: seeded.stationName })
+      .click();
+    const drawer = page.getByTestId("station-drawer");
+    await drawer.getByTestId("pair-tablet").click();
+    await drawer.getByTestId("pair-tablet-code").waitFor();
+
+    expectAccessible(await runAxe(page));
+  });
 });
 
 /**
@@ -460,8 +483,8 @@ test.describe("доступность: админка", () => {
  * кнопку выхода — на каждой странице заново.
  *
  * Перебор идёт по разделам, а не по одному экрану: каркас общий, но рисуют его ДВА
- * места (`core/ui/AdminShell` и `editor/ui/EditorScreen` — у редактора своя верхняя
- * полоса), и разъезжались они в этом проекте уже трижды.
+ * места (`core/ui/AdminShell` и `core/ui/MasterDetail` — меню с колонкой списка у
+ * чек-листов и станций, D162), и разъезжались каркасы в этом проекте уже трижды.
  */
 const FRAME_RULES = ["region", "bypass"];
 

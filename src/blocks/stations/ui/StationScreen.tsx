@@ -6,7 +6,7 @@ import { listUnassignedChecklists } from "@/blocks/catalog";
 import type { LocalizedText } from "@/blocks/data";
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 import { asLocale } from "@/blocks/core/locale";
-import { AdminShell } from "@/blocks/core/ui/AdminShell";
+import { AdminPage } from "@/blocks/core/ui/AdminPage";
 import { PairTabletCard } from "@/blocks/device/ui/PairTabletCard";
 import { UnlinkButton } from "@/blocks/device/ui/UnlinkButton";
 
@@ -30,6 +30,9 @@ import { stationHref } from "./view";
  * не украшение: каждый из них уже приводил к тому, что продукт считали сломанным.
  * Код живёт пять минут; перевыпуск наклейки привязку планшета не трогает; планшет
  * остаётся привязанным до отвязки, перезагрузка её не снимает.
+ *
+ * С D163 карточка — рабочая зона справа от колонки станций: меню и список рисует
+ * разметка раздела (`StationsWorkspace`), а карточка — только правую часть.
  */
 
 const CARD_CLASS =
@@ -111,15 +114,11 @@ export async function StationScreen({
   const here = stationHref(station.id);
 
   return (
-    <AdminShell
+    <AdminPage
       testId="station-screen"
-      active="stations"
-      breadcrumb={
-        <>
-          <Link href={ADMIN_SECTIONS.stations.path}>{t("title")}</Link>
-          {` · ${station.countryName} · ${station.storeName}`}
-        </>
-      }
+      // Крошка — просто текст: список станций стоит рядом, в колонке слева (D163), и
+      // синяя ссылка «Станции» над заголовком вела бы туда, где человек уже есть.
+      breadcrumb={`${t("title")} · ${station.countryName} · ${station.storeName}`}
       title={station.name}
       topbarAction={null}
       narrow
@@ -239,7 +238,7 @@ export async function StationScreen({
                 <UnlinkButton
                   deviceId={tablet.id}
                   open={confirmUnlink === tablet.id}
-                  devicesPath={here}
+                  screenHref={here}
                   // Подписи те же, что в разделе устройств: вопрос про отвязку один
                   // на продукт, и разойтись его формулировки не должны.
                   texts={{
@@ -271,6 +270,6 @@ export async function StationScreen({
           <p>{t("pairing.factPersists")}</p>
         </div>
       </Card>
-    </AdminShell>
+    </AdminPage>
   );
 }

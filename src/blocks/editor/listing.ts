@@ -30,6 +30,10 @@ export interface ChecklistRow {
   title: LocalizedText;
   windowStart: string;
   windowEnd: string;
+  /** Опознаватели пути: по ним колонка сужает список сама, без похода в базу (D162). */
+  stationId: string | null;
+  storeId: string | null;
+  countryId: string | null;
   stationName: string | null;
   storeName: string | null;
   countryName: string | null;
@@ -60,6 +64,9 @@ interface ChecklistListRow extends Record<string, unknown> {
   title: LocalizedText;
   window_start: string;
   window_end: string;
+  station_id: string | null;
+  store_id: string | null;
+  country_id: string | null;
   station_name: string | null;
   store_name: string | null;
   country_name: string | null;
@@ -106,8 +113,10 @@ function filterConditions(filter: ChecklistFilter): SQL[] {
 /**
  * Чек-листы, сгруппированные по пути «страна → пиццерия → станция», суженные фильтром.
  *
- * Сужение делает база, а не экран: под фильтром «Кухня Алматы» в браузер незачем
- * привозить всю сеть, а на счётчики строк (пункты, заполнения) уходит по подзапросу.
+ * Сужение умеет и база, но колонка чек-листов (D162) берёт список целиком и сужает его
+ * сама (`rail-filter.ts`): она живёт в разметке сегмента, куда параметры адреса не
+ * доходят, и сужение без похода на сервер не перерисовывает рабочую зону справа. Весь
+ * список сети — сотни строк, а не десятки тысяч; упрётся — сужение вернётся сюда.
  *
  * Пунктов считается столько, сколько их в опубликованной версии, а если её ещё нет —
  * в черновике: методисту нужен размер того, что видит сотрудник, а до первой публикации —
@@ -119,6 +128,7 @@ export async function listChecklists(
   const where = sql.join(filterConditions(filter), sql` and `);
   const rows = await getDb().execute<ChecklistListRow>(sql`
     select c.id::text as id, c.title, c.window_start, c.window_end,
+           st.id::text as station_id, sto.id::text as store_id, co.id::text as country_id,
            st.name as station_name, sto.name as store_name, co.name as country_name,
            (select v.version_number from checklist_versions v
              where v.checklist_id = c.id and v.status = 'published') as published_number,
@@ -159,6 +169,9 @@ export async function listChecklists(
     title: row.title,
     windowStart: row.window_start,
     windowEnd: row.window_end,
+    stationId: row.station_id,
+    storeId: row.store_id,
+    countryId: row.country_id,
     stationName: row.station_name,
     storeName: row.store_name,
     countryName: row.country_name,

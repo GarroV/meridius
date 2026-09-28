@@ -3,11 +3,9 @@ import type { ReactElement } from "react";
 
 import { PUBLIC_PAIR_PATH } from "@/blocks/core/public-routes";
 
-import { PIN_TTL_SECONDS } from "../pin";
 import { issuePinAction } from "./issue-pin-action";
 import { PairTabletButton } from "./PairTabletButton";
-
-const SECONDS_IN_MINUTE = 60;
+import { PairTabletIntl } from "./PairTabletIntl";
 
 // Карточка повторяет боковые панели редактора (`editor/ui/SidePanels.tsx`): она стоит
 // в том же столбце, и свой вид тут читался бы как чужой экран. Эталона у действия нет —
@@ -35,8 +33,14 @@ const BLOCKED_CLASS =
  */
 export async function PairTabletCard({
   stationId,
+  address = PUBLIC_PAIR_PATH,
 }: {
   readonly stationId: string | null;
+  /**
+   * Полный адрес страницы привязки, если экран его знает (`admin/devices/page.tsx`
+   * собирает его из адреса площадки). Без него подсказка называет хотя бы путь.
+   */
+  readonly address?: string;
 }): Promise<ReactElement> {
   const t = await getTranslations("device.issue");
 
@@ -51,16 +55,12 @@ export async function PairTabletCard({
             {t("noStation")}
           </p>
         ) : (
-          <PairTabletButton
-            issue={issuePinAction.bind(null, stationId)}
-            labels={{
-              action: t("action"),
-              again: t("again"),
-              hint: t("hint", { minutes: PIN_TTL_SECONDS / SECONDS_IN_MINUTE }),
-              where: t("where", { path: PUBLIC_PAIR_PATH }),
-              failed: t("failed"),
-            }}
-          />
+          <PairTabletIntl>
+            <PairTabletButton
+              issue={issuePinAction.bind(null, stationId)}
+              address={address}
+            />
+          </PairTabletIntl>
         )}
       </div>
     </div>

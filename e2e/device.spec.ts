@@ -72,6 +72,35 @@ async function answerBool(page: Page, itemId: string): Promise<void> {
     .click();
 }
 
+/**
+ * Отвязка из раздела «Устройства»: строка станции → панель справа → «Отвязать» →
+ * подтверждение. Строка ищется по СТАНЦИИ, а не по порядку: сценарии идут парами, и в
+ * списке кабинета лежат чужие станции.
+ */
+async function unlinkFromDevices(
+  admin: Page,
+  stationId: string,
+): Promise<void> {
+  // С чистого экрана раздела: строка списка под открытой панелью закрыта подложкой.
+  await admin.goto(DEVICES_PATH);
+  const stationRow = admin.locator(
+    `[data-testid="station-row"][data-station-id="${stationId}"]`,
+  );
+  await expect(stationRow).toHaveAttribute("data-paired", "true");
+  await stationRow.click();
+
+  const drawer = admin.getByTestId("station-drawer");
+  const tablet = drawer.getByTestId("device-row");
+  await expect(tablet).toHaveCount(1);
+  await tablet.getByTestId("device-unlink").click();
+  await admin.getByTestId("unlink-confirm").click();
+
+  // Панель осталась открытой на той же станции — и теперь говорит, что планшета нет.
+  await expect(drawer.getByTestId("station-no-tablet")).toBeVisible();
+  await expect(tablet).toHaveCount(0);
+  await expect(stationRow).toHaveAttribute("data-paired", "false");
+}
+
 test.describe("привязанный планшет", () => {
   test("код из кабинета доводит планшет до чек-листа станции, переживает перевыпуск кода и гаснет от отвязки", async ({
     browser,
@@ -142,20 +171,97 @@ test.describe("привязанный планшет", () => {
 
     // Отвязка из кабинета действует тем же мигом: подпись куки без живой строки
     // устройства не значит ничего.
-    await admin.goto(DEVICES_PATH);
-    // Строка ищется по СТАНЦИИ, а не по порядку: сценарии идут парами и в списке
-    // кабинета лежат чужие планшеты.
-    const row = admin.locator(
-      `[data-testid="device-row"][data-station-id="${stand.stationId}"]`,
-    );
-    await expect(row).toHaveCount(1);
-    await row.getByTestId("device-unlink").click();
-    await admin.getByTestId("unlink-confirm").click();
-    await expect(row).toHaveCount(0);
+    await unlinkFromDevices(admin, stand.stationId);
 
     await tablet.goto(STATION_PATH);
     await expect(tablet.getByTestId("tablet-unpaired")).toBeVisible();
     await expect(tablet.getByTestId("fill-screen")).toHaveCount(0);
+
+    await tabletContext.close();
+    await cabinet.close();
+  });
+
+  test("раздел «Устройства»: станция без планшета → код в панели рядом с инструкцией → планшет привязан → отвязка с последствием", async ({
+    browser,
+  }) => {
+    test.slow();
+
+    // Arrange: станция с чек-листом, ни одного планшета.
+    const stand = await seedFillStand("devices-section");
+    const cabinet = await browser.newContext();
+    const admin = await cabinet.newPage();
+    await signIn(admin);
+
+    await admin.goto(DEVICES_PATH);
+
+    // Инструкция видна на самом экране — четыре шага и настоящий адрес привязки.
+    const guide = admin.getByTestId("pair-guide").first();
+    await expect(guide).toBeVisible();
+    await expect(guide.getByTestId("pair-guide-step")).toHaveCount(4);
+    await expect(guide.getByTestId("pair-guide-address")).toHaveText(
+      new RegExp(`^https?://[^/]+.*${PAIR_PATH}$`),
+    );
+
+    // Станция без планшета помечена явно.
+    const stationRow = admin.locator(
+      `[data-testid="station-row"][data-station-id="${stand.stationId}"]`,
+    );
+    await expect(stationRow).toHaveAttribute("data-paired", "false");
+
+    // Act: панель станции открывается поверх списка — список остаётся на месте.
+    await stationRow.click();
+    await expect(admin).toHaveURL(
+      new RegExp(`${DEVICES_PATH}\\?station=${stand.stationId}$`),
+    );
+    const drawer = admin.getByTestId("station-drawer");
+    await expect(drawer).toBeVisible();
+    await expect(stationRow).toBeVisible();
+    await expect(drawer.getByTestId("station-no-tablet")).toBeVisible();
+
+    await drawer.getByTestId("pair-tablet").click();
+    const code = drawer.getByTestId("pair-tablet-code");
+    await expect(code).toBeVisible();
+    const pin = (await code.innerText()).trim();
+    expect(pin).toMatch(/^\d{4}$/);
+    // Рядом с кодом — отсчёт, адрес для планшета и та же инструкция по шагам.
+    await expect(drawer.getByTestId("pair-tablet-left")).toContainText(
+      /\d:\d\d/,
+    );
+    await expect(drawer.getByTestId("pair-tablet-where")).toContainText(
+      PAIR_PATH,
+    );
+    await expect(
+      drawer.getByTestId("pair-guide").getByTestId("pair-guide-step"),
+    ).toHaveCount(4);
+
+    // Планшет: адрес из инструкции, четыре цифры — и он открывает чек-лист станции.
+    const tabletContext = await browser.newContext({ viewport: TABLET });
+    const tablet = await tabletContext.newPage();
+    await tablet.goto(PAIR_PATH);
+    await tablet.getByTestId("pair-code").fill(pin);
+    await tablet.getByTestId("pair-submit").click();
+    await expect(tablet).toHaveURL(new RegExp(`${STATION_PATH}$`));
+    await expect(tablet.getByTestId("fill-screen")).toBeVisible();
+
+    // Assert: в кабинете станция теперь с планшетом, и в панели он виден.
+    await admin.goto(`${DEVICES_PATH}?station=${stand.stationId}`);
+    await expect(stationRow).toHaveAttribute("data-paired", "true");
+    await expect(drawer.getByTestId("device-row")).toHaveCount(1);
+
+    // Вопрос об отвязке называет последствие, а Esc закрывает только вопрос — панель
+    // со станцией остаётся, человек не теряет, с чем работал.
+    await drawer.getByTestId("device-unlink").click();
+    await expect(admin.getByTestId("unlink-dialog")).toContainText(
+      stand.stationName,
+    );
+    await admin.keyboard.press("Escape");
+    await expect(admin.getByTestId("unlink-dialog")).toHaveCount(0);
+    await expect(drawer).toBeVisible();
+
+    await unlinkFromDevices(admin, stand.stationId);
+
+    await tablet.goto(STATION_PATH);
+    await expect(tablet.getByTestId("tablet-unpaired")).toBeVisible();
 
     await tabletContext.close();
     await cabinet.close();

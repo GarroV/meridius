@@ -8,21 +8,20 @@
 // Каркас не решает, какой раздел активен и что стоит в шапке, — это говорит экран
 // пропами. Экран, которому нужна своя верхняя полоса (редактор: кнопки публикации
 // живут внутри клиентской формы и обязаны видеть её состояние), берёт только `AdminNav`.
+// Разделы мастер-детали (D162: чек-листы, станции) держат меню и колонку списка в
+// разметке сегмента (`MasterDetail`), а экран справа берёт только `AdminPage`.
 import type { ReactElement, ReactNode } from "react";
 
-import type { AdminSectionKey } from "../admin-sections";
-import { ADMIN_CONTENT_CLASS, ADMIN_FRAME_CLASS } from "./admin-frame";
-import { AdminNav } from "./AdminNav";
+import { ADMIN_FRAME_CLASS } from "./admin-frame";
+import { AdminNav, type AdminNavActive } from "./AdminNav";
+import { AdminPage } from "./AdminPage";
 import { ADMIN_CONTENT_ID, SkipLink } from "./SkipLink";
-
-const H1_CLASS =
-  "text-[length:var(--fs-display)] leading-[var(--lh-display)] font-semibold";
 
 export interface AdminShellProps {
   /** Тестовый идентификатор корня: у каждого экрана свой. */
   readonly testId: string;
   /** Раздел меню, в котором находится человек. */
-  readonly active?: AdminSectionKey | undefined;
+  readonly active?: AdminNavActive | undefined;
   readonly breadcrumb: ReactNode;
   readonly title: string;
   readonly topbarAction: ReactNode;
@@ -58,27 +57,14 @@ export function AdminShell({
         data-testid="admin-main"
         className="flex min-w-0 flex-col focus:outline-none"
       >
-        {/*
-          Ниже складки верхняя полоса переносит действие на следующую строку, а не сжимает
-          заголовок до нечитаемого: кнопка раздела шире половины экрана на 375 px.
-        */}
-        <header className="bg-surface flex items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)] max-md:flex-wrap max-md:gap-[var(--space-5)] max-md:px-[var(--space-7)]">
-          <div className="flex min-w-0 flex-col gap-[var(--space-1)]">
-            <div className="text-[length:var(--fs-meta)] text-[var(--ink-3)]">
-              {breadcrumb}
-            </div>
-            <h1 className={H1_CLASS}>{title}</h1>
-          </div>
-          <div className="ml-auto flex items-center gap-[var(--space-4)]">
-            {topbarAction}
-          </div>
-        </header>
-
-        <div
-          className={`${ADMIN_CONTENT_CLASS}${narrow ? " max-w-[880px]" : ""}`}
+        <AdminPage
+          breadcrumb={breadcrumb}
+          title={title}
+          topbarAction={topbarAction}
+          narrow={narrow}
         >
           {children}
-        </div>
+        </AdminPage>
       </main>
     </div>
   );

@@ -1,4 +1,6 @@
-// Фильтры списка чек-листов (T075): выбор страны, пиццерии и станции над таблицей.
+// Фильтры колонки чек-листов (T075, с D162 — колонка слева от рабочей зоны): выбор
+// страны, пиццерии и станции, поиск по названию (`?q=`) и то, что выбор чек-листа
+// колонку не перерисовывает.
 //
 // Проверяется настоящим экраном, а не вызовом функции: сужение делают три списка,
 // которые применяются в момент выбора, и доказать это можно только выбором в браузере.
@@ -40,6 +42,28 @@ async function createChecklist(
   await page.getByTestId("create-checklist").click();
   await expect(page.getByTestId("editor-screen")).toBeVisible();
   return title;
+}
+
+/** Метка на узле колонки и на окне: переживёт только то, что не перерисовывалось. */
+async function markRail(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const rail = document.querySelector('[data-testid="checklist-rail"]');
+    if (rail !== null)
+      (rail as unknown as Record<string, unknown>)["probe"] = "та же";
+    (window as unknown as Record<string, unknown>)["probe"] = "жив";
+  });
+}
+
+async function railProbe(page: Page): Promise<unknown[]> {
+  return page.evaluate(() => {
+    const rail = document.querySelector('[data-testid="checklist-rail"]');
+    return [
+      rail === null
+        ? undefined
+        : (rail as unknown as Record<string, unknown>)["probe"],
+      (window as unknown as Record<string, unknown>)["probe"],
+    ];
+  });
 }
 
 function rowOf(page: Page, title: string) {
@@ -199,5 +223,112 @@ test.describe("фильтры списка чек-листов", () => {
 
     await expect(page.getByTestId("checklists-screen")).toBeVisible();
     await expect(rowOf(page, title)).toBeVisible();
+  });
+
+  test("поиск левой панели сужает колонку по названию", async ({ page }) => {
+    // Поиск в левой панели (D164) шлёт `?q=` в раздел чек-листов; до этой правки
+    // параметр никто не читал, и поиск молча показывал весь список.
+    await signIn(page);
+    const station = await seedStation(label());
+    const kept = await createChecklist(page, station);
+    const dropped = await createChecklist(page, station);
+
+    await page.goto(CHECKLISTS_PATH);
+    await page.getByTestId("nav-search").fill(kept);
+    await page.getByTestId("nav-search").press("Enter");
+    await page.waitForURL(/q=/);
+
+    await expect(rowOf(page, kept)).toBeVisible();
+    await expect(rowOf(page, dropped)).toHaveCount(0);
+    // Искомое видно и в поле самой колонки: иначе суженный список не объясняет себя.
+    await expect(page.getByTestId("checklist-search")).toHaveValue(kept);
+  });
+
+  test("поиск в колонке сужает на лету и остаётся в адресе", async ({
+    page,
+  }) => {
+    await signIn(page);
+    const station = await seedStation(label());
+    const kept = await createChecklist(page, station);
+    const dropped = await createChecklist(page, station);
+
+    await page.goto(`${CHECKLISTS_PATH}?station=${station.stationId}`);
+    await expect(
+      page.locator(
+        '[data-testid="checklist-filters"] select[data-live="true"]',
+      ),
+    ).toHaveCount(FILTER_SELECT_COUNT);
+    await page.getByTestId("checklist-search").fill(kept);
+    await page.waitForURL(/q=/);
+
+    await expect(rowOf(page, kept)).toBeVisible();
+    await expect(rowOf(page, dropped)).toHaveCount(0);
+    // Сужение по станции при этом осталось: поиск складывается с фильтром.
+    expect(page.url()).toContain(`station=${station.stationId}`);
+  });
+
+  test("выбор другого чек-листа меняет рабочую зону, не перерисовывая колонку", async ({
+    page,
+  }) => {
+    // Владелец: «чтобы не было скачков через страницу, это раздражает» (D162).
+    await signIn(page);
+    const station = await seedStation(label());
+    const first = await createChecklist(page, station);
+    const second = await createChecklist(page, station);
+
+    await page.goto(`${CHECKLISTS_PATH}?station=${station.stationId}`);
+    await expect(page.getByTestId("checklists-pick")).toBeVisible();
+    await expect(rowOf(page, first)).toBeVisible();
+    await markRail(page);
+
+    await rowOf(page, first).click();
+    await expect(page.getByTestId("checklist-title")).toHaveValue(first);
+    await expect(rowOf(page, first)).toHaveAttribute("aria-current", "page");
+
+    await rowOf(page, second).click();
+    await expect(page.getByTestId("checklist-title")).toHaveValue(second);
+    await expect(rowOf(page, second)).toHaveAttribute("aria-current", "page");
+    await expect(rowOf(page, first)).not.toHaveAttribute("aria-current");
+
+    expect(
+      await railProbe(page),
+      "Колонка чек-листов перерисовалась (или страница перезагрузилась) при выборе " +
+        "другого чек-листа: пропадут прокрутка и набранный поиск.",
+    ).toEqual(["та же", "жив"]);
+    // Сужение пережило выбор: ссылки колонки несут его с собой.
+    await expect(page.getByTestId("checklist-filter-station")).toHaveValue(
+      station.stationId,
+    );
+  });
+
+  test("строка колонки — обычный текст, а не синяя ссылка", async ({
+    page,
+  }) => {
+    // D162: «текст надо сделать адекватнее, не подчеркнутые гиперсылки». Цвет строки
+    // сверяется с заголовком колонки — оба обязаны быть цветом текста `--ink`.
+    await signIn(page);
+    const station = await seedStation(label());
+    const title = await createChecklist(page, station);
+
+    await page.goto(`${CHECKLISTS_PATH}?station=${station.stationId}`);
+    const row = rowOf(page, title);
+    await row.hover();
+    const look = await row.evaluate((element) => {
+      const heading = element
+        .closest('[data-testid="checklist-rail"]')
+        ?.querySelector("h2");
+      const style = getComputedStyle(element);
+      return {
+        color: style.color,
+        ink:
+          heading === null || heading === undefined
+            ? ""
+            : getComputedStyle(heading).color,
+        decoration: style.textDecorationLine,
+      };
+    });
+
+    expect(look.color).toBe(look.ink);
+    expect(look.decoration).toBe("none");
   });
 });

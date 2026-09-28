@@ -13,3 +13,19 @@ export const STATIONS_PATH = ADMIN_SECTIONS.stations.path;
 export function stationHref(stationId: string): string {
   return `${STATIONS_PATH}/${stationId}`;
 }
+
+/** Параметр фильтра колонки станций. Значения совпадают с именами дырок. */
+export const GAP_PARAM = "gap";
+
+/** Какие дырки можно выбрать фильтром колонки, в порядке фишек. */
+export const GAP_FILTERS = ["noChecklist", "silent"] as const;
+
+export type GapFilter = (typeof GAP_FILTERS)[number];
+
+/** Значение из адреса — фильтр или ничего: неизвестное показывает всё, а не пустоту. */
+export function asGapFilter(value: string | undefined): GapFilter | undefined {
+  return GAP_FILTERS.find((name) => name === value);
+}
+
+/** Форма раскатки на экране раздела; галочки колонки ссылаются на неё атрибутом `form`. */
+export const ROLLOUT_FORM_ID = "rollout-form";
