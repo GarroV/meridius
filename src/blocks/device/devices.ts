@@ -1,9 +1,9 @@
-// Привязанные планшеты: опознание по строке, привязка, отвязка и список для кабинета.
+// Привязанные планшеты: опознание по строке, привязка и отвязка; список для кабинета — `station-tablets.ts`.
 //
 // Запросы свои, а не заказаны в блоке `data`: так устроены границы проекта (D024).
-import { and, asc, eq, lte } from "drizzle-orm";
+import { and, eq, lte } from "drizzle-orm";
 
-import { countries, devices, getDb, stations, stores } from "@/blocks/data";
+import { devices, getDb, stations } from "@/blocks/data";
 
 const MILLISECONDS = 1000;
 
@@ -140,43 +140,4 @@ export async function touchDeviceSeen(id: string, now: Date): Promise<void> {
     .update(devices)
     .set({ lastSeenAt: now })
     .where(and(eq(devices.id, id), lte(devices.lastSeenAt, threshold)));
-}
-
-/** Строка списка устройств: планшет и весь путь до него — страна, пиццерия, станция. */
-export interface PairedDeviceRow {
-  readonly deviceId: string;
-  readonly stationId: string;
-  readonly stationName: string;
-  readonly storeName: string;
-  readonly countryName: string;
-  readonly pairedAt: Date;
-  readonly lastSeenAt: Date;
-}
-
-/**
- * Все привязанные планшеты сети. Список нужен не для красоты: привязка переживает
- * перевыпуск кода станции, поэтому чужой планшет в списке — единственный способ заметить
- * подобранный доступ.
- */
-export async function listPairedDevices(): Promise<PairedDeviceRow[]> {
-  return getDb()
-    .select({
-      deviceId: devices.id,
-      stationId: devices.stationId,
-      stationName: stations.name,
-      storeName: stores.name,
-      countryName: countries.name,
-      pairedAt: devices.pairedAt,
-      lastSeenAt: devices.lastSeenAt,
-    })
-    .from(devices)
-    .innerJoin(stations, eq(devices.stationId, stations.id))
-    .innerJoin(stores, eq(stations.storeId, stores.id))
-    .innerJoin(countries, eq(stores.countryId, countries.id))
-    .orderBy(
-      asc(countries.name),
-      asc(stores.name),
-      asc(stations.name),
-      asc(devices.pairedAt),
-    );
 }

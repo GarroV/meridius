@@ -19,7 +19,7 @@ import {
 import { isUuid } from "./devices";
 
 /** Планшет станции: когда привязали и когда он последний раз открывал чек-лист. */
-export interface StationTablet {
+interface StationTablet {
   readonly id: string;
   readonly pairedAt: Date;
   readonly lastSeenAt: Date;
