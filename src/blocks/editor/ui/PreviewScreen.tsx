@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactElement } from "react";
 
+import { Drawer } from "@/blocks/core/ui/Drawer";
 import type { Item, LocalizedText, Section, ShiftMode } from "@/blocks/data";
 import { isShiftMode, sectionsForMode, severityOf } from "@/blocks/data";
 
@@ -10,13 +11,20 @@ import { loadEditor } from "../drafts";
 import { pickEditorText } from "../localized-text";
 import type { PeriodicItemView } from "../preview-items";
 import { splitPeriodic } from "../preview-items";
-import { checklistPath } from "../routes";
+import { checklistPath, checklistPreviewPath } from "../routes";
 import { stepLabel } from "./step-label";
 
 /**
  * Предпросмотр «как это увидит сотрудник» — та же разметка, что первый телефон
  * эталона `docs/furca/design/screens/fill.html` (класс `.fill`), но данные берутся
- * из живого черновика, а не из ответов сотрудника.
+ * из сохранённого черновика, а не из ответов сотрудника.
+ *
+ * С D162 это выдвижная панель справа поверх редактора, а не отдельный экран: телефон
+ * сотрудника шириной 420 px помещается в панель 560 px целиком, а редактор под ней
+ * остаётся открытым — вместе с несохранённой правкой (панель — дочерняя страница
+ * разметки редактора, `src/app/admin/checklists/[id]/layout.tsx`). Режимы смены
+ * переключаются заменой адреса, а не новой записью истории: «назад» закрывает панель,
+ * а не перебирает режимы.
  *
  * Экран — показ, и таким останется: отвечает сотрудник, открыв чек-лист по QR-коду
  * станции (блок `fill`, адрес `/s/<код>`), и ответ принадлежит смене, а не черновику
@@ -304,108 +312,111 @@ export async function PreviewScreen({
   const ts = await getTranslations("editor.schedule");
 
   return (
-    <div
-      data-testid="preview-screen"
-      className="min-h-screen bg-[var(--canvas)]"
+    <Drawer
+      testId="preview-panel"
+      title={t("preview.title")}
+      closeHref={checklistPath(id)}
+      closeLabel={t("rail.close")}
     >
-      <div className="mx-auto max-w-[420px] px-[var(--space-6)] pt-[var(--space-6)]">
-        <div className={NOTICE_CLASS}>
-          <div className="flex-1">{t("preview.notice")}</div>
-          <Link
-            href={checklistPath(id)}
-            className="font-medium whitespace-nowrap"
-          >
-            {t("preview.back")}
-          </Link>
-        </div>
-        <div className={MODE_BAR_CLASS} data-testid="preview-mode-bar">
-          {MODES.map((option) => (
-            <Link
-              key={option}
-              href={`${checklistPath(id)}/preview?mode=${option}`}
-              data-testid={`preview-mode-${option}`}
-              data-selected={option === mode ? "true" : "false"}
-              className={`${MODE_TAB_CLASS} ${option === mode ? MODE_TAB_ON_CLASS : MODE_TAB_OFF_CLASS}`}
-            >
-              {t(`preview.mode.${option}`)}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      <div className={CARD_CLASS}>
-        <header className={HEADER_CLASS}>
-          <div className="text-[length:var(--fs-display)] leading-[var(--lh-display)] font-semibold">
-            {title}
+      <div data-testid="preview-screen" className="flex flex-col">
+        <div className="mx-auto w-full max-w-[420px]">
+          <div className={NOTICE_CLASS}>
+            <div className="flex-1">{t("preview.notice")}</div>
           </div>
-          <div className="mt-[var(--space-2)] text-[length:var(--fs-meta)] text-[var(--ink-3)]">
-            {address}
-          </div>
-          {total > 0 ? <ProgressBar total={total} t={t} /> : null}
-        </header>
-
-        {total === 0 && split.periodic.length === 0 ? (
-          <p className="m-0 p-[var(--space-7)] text-[length:var(--fs-dense)] text-[var(--ink-3)]">
-            {t("preview.empty")}
-          </p>
-        ) : (
-          <>
-            {sections.map((section, sectionIndex) => (
-              <div key={section.id}>
-                {pickEditorText(section.title, locale) === "" ? null : (
-                  <div className={SECTION_TITLE_CLASS}>
-                    {pickEditorText(section.title, locale)}
-                  </div>
-                )}
-                {section.items.map((item, itemIndex) => (
-                  <ItemRow
-                    key={item.id}
-                    item={item}
-                    locale={locale}
-                    t={t}
-                    isFirst={sectionIndex === 0 && itemIndex === 0}
-                  />
-                ))}
-              </div>
+          <div className={MODE_BAR_CLASS} data-testid="preview-mode-bar">
+            {MODES.map((option) => (
+              <Link
+                key={option}
+                href={`${checklistPreviewPath(id)}?mode=${option}`}
+                scroll={false}
+                replace
+                data-testid={`preview-mode-${option}`}
+                data-selected={option === mode ? "true" : "false"}
+                className={`${MODE_TAB_CLASS} ${option === mode ? MODE_TAB_ON_CLASS : MODE_TAB_OFF_CLASS}`}
+              >
+                {t(`preview.mode.${option}`)}
+              </Link>
             ))}
-            {split.periodic.length === 0 ? null : (
-              <div data-testid="preview-rounds" className={ROUNDS_PANEL_CLASS}>
-                <div className={ROUNDS_HEAD_CLASS}>{t("preview.rounds")}</div>
-                {split.periodic.map((view) => (
-                  <PeriodicRow
-                    key={view.item.id}
-                    view={view}
-                    locale={locale}
-                    t={t}
-                    ts={ts}
-                  />
-                ))}
-                <div
-                  className={`${ROUNDS_ROW_CLASS} ${ROUNDS_NOTE_CLASS} mt-0`}
-                  data-testid="preview-rounds-note"
-                >
-                  {t("preview.roundsNote")}
-                </div>
-              </div>
-            )}
+          </div>
+        </div>
 
-            {/* Футер считает пункты формы: обход отмечают не отправкой чек-листа, и
+        <div className={CARD_CLASS}>
+          <header className={HEADER_CLASS}>
+            <div className="text-[length:var(--fs-display)] leading-[var(--lh-display)] font-semibold">
+              {title}
+            </div>
+            <div className="mt-[var(--space-2)] text-[length:var(--fs-meta)] text-[var(--ink-3)]">
+              {address}
+            </div>
+            {total > 0 ? <ProgressBar total={total} t={t} /> : null}
+          </header>
+
+          {total === 0 && split.periodic.length === 0 ? (
+            <p className="m-0 p-[var(--space-7)] text-[length:var(--fs-dense)] text-[var(--ink-3)]">
+              {t("preview.empty")}
+            </p>
+          ) : (
+            <>
+              {sections.map((section, sectionIndex) => (
+                <div key={section.id}>
+                  {pickEditorText(section.title, locale) === "" ? null : (
+                    <div className={SECTION_TITLE_CLASS}>
+                      {pickEditorText(section.title, locale)}
+                    </div>
+                  )}
+                  {section.items.map((item, itemIndex) => (
+                    <ItemRow
+                      key={item.id}
+                      item={item}
+                      locale={locale}
+                      t={t}
+                      isFirst={sectionIndex === 0 && itemIndex === 0}
+                    />
+                  ))}
+                </div>
+              ))}
+              {split.periodic.length === 0 ? null : (
+                <div
+                  data-testid="preview-rounds"
+                  className={ROUNDS_PANEL_CLASS}
+                >
+                  <div className={ROUNDS_HEAD_CLASS}>{t("preview.rounds")}</div>
+                  {split.periodic.map((view) => (
+                    <PeriodicRow
+                      key={view.item.id}
+                      view={view}
+                      locale={locale}
+                      t={t}
+                      ts={ts}
+                    />
+                  ))}
+                  <div
+                    className={`${ROUNDS_ROW_CLASS} ${ROUNDS_NOTE_CLASS} mt-0`}
+                    data-testid="preview-rounds-note"
+                  >
+                    {t("preview.roundsNote")}
+                  </div>
+                </div>
+              )}
+
+              {/* Футер считает пункты формы: обход отмечают не отправкой чек-листа, и
                 «осталось 3 пункта» с ними в счёте обещало бы работу, которой в форме
                 нет. Пустая форма при живом обходе — законное состояние, и футера у неё
                 нет вовсе: заканчивать нечего. */}
-            {total === 0 ? null : (
-              <div className={FOOTER_CLASS}>
-                {/* Показ футера, а не кнопка: нажимать здесь нечего и никогда не будет
+              {total === 0 ? null : (
+                <div className={FOOTER_CLASS}>
+                  {/* Показ футера, а не кнопка: нажимать здесь нечего и никогда не будет
                   (см. объяснение у начала файла). Текст остаётся видимым и читаемым
                   вслух — методист обязан видеть то же, что увидит сотрудник. */}
-                <div data-testid="preview-left" className={FOOTER_NOTE_CLASS}>
-                  {t("preview.left", { count: total })}
+                  <div data-testid="preview-left" className={FOOTER_NOTE_CLASS}>
+                    {t("preview.left", { count: total })}
+                  </div>
                 </div>
-              </div>
-            )}
-          </>
-        )}
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </Drawer>
   );
 }

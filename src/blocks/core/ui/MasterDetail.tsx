@@ -1,0 +1,120 @@
+"use client";
+
+// Каркас раздела «список слева — рабочая зона справа» (D162, D163).
+//
+// Владелец: «слева столбец чеклистов, а справа уже рабочая зона чеклиста. чтобы не было
+// скачков через страницу, это раздражает». Каркас ставится в разметку СЕГМЕНТА
+// (`src/app/admin/<раздел>/layout.tsx`): Next не перерисовывает разметку при переходе
+// между её страницами, поэтому меню и колонка списка остаются теми же узлами DOM —
+// с той же прокруткой и тем же вводом в поиске, — а меняется только `children` справа.
+//
+// Какой элемент открыт, каркас узнаёт по сегменту адреса под собой
+// (`useSelectedLayoutSegment`): разметке сегмента параметров дочерних страниц Next не
+// отдаёт. От этого зависят две вещи.
+// - Ниже складки двум колонкам места нет: без выбранного элемента виден список, с
+//   выбранным — рабочая зона и ссылка назад к списку. Эталон мастер-детали Decimus
+//   (`.mx-rail`) прячет колонку так же.
+// - Сегменты `wide` рисуются без колонки и со своим пунктом меню: шаблон открывается
+//   тем же редактором по адресу чек-листа (T309), но в список чек-листов не входит, и
+//   колонка чек-листов рядом с ним звала бы не туда.
+import Link from "next/link";
+import { useSelectedLayoutSegment } from "next/navigation";
+import type { ReactElement, ReactNode } from "react";
+
+import { Icon } from "./Icon";
+import { ADMIN_CONTENT_ID, SkipLink } from "./SkipLink";
+
+/**
+ * Три колонки: меню (ширину задаёт ядро, `.sidenav`), список, рабочая зона. Ширина
+ * списка — 18rem, как у колонки мастер-детали Decimus: токена ширины колонки в ядре нет,
+ * а одинаковая колонка в двух продуктах линейки — прямое требование D164.
+ */
+const FRAME_CLASS =
+  "grid min-h-screen items-start grid-cols-[auto_18rem_minmax(0,1fr)] max-md:grid-cols-[auto_minmax(0,1fr)]";
+const WIDE_FRAME_CLASS =
+  "grid min-h-screen items-start grid-cols-[auto_minmax(0,1fr)]";
+// Колонка липнет к верху и прокручивается своей прокруткой: длинный список сети не
+// утаскивает за собой рабочую зону, и выбранная строка остаётся там, где её нажали.
+const RAIL_CLASS =
+  "bg-surface sticky top-0 flex h-screen min-w-0 flex-col overflow-y-auto border-r border-[var(--line)]";
+const BACK_CLASS =
+  "bg-surface flex items-center gap-[var(--space-3)] border-b border-[var(--line)] px-[var(--space-7)] py-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] no-underline hover:text-ink md:hidden";
+
+export interface MasterDetailProps {
+  readonly testId: string;
+  /** Меню кабинета с подсвеченным разделом — готовой разметкой с сервера. */
+  readonly nav: ReactNode;
+  /** Колонка списка. */
+  readonly rail: ReactNode;
+  /** Название колонки для чтеца: ориентир между меню и содержимым. */
+  readonly railLabel: string;
+  /** Куда ведёт «назад к списку» ниже складки и как это подписано. */
+  readonly backHref: string;
+  readonly backLabel: string;
+  /** Сегменты, открытые без колонки, и меню для них. */
+  readonly wide?:
+    | { readonly segments: readonly string[]; readonly nav: ReactNode }
+    | undefined;
+  readonly children: ReactNode;
+}
+
+export function MasterDetail({
+  testId,
+  nav,
+  rail,
+  railLabel,
+  backHref,
+  backLabel,
+  wide,
+  children,
+}: MasterDetailProps): ReactElement {
+  const segment = useSelectedLayoutSegment();
+  const hasDetail = segment !== null;
+  const isWide =
+    segment !== null && (wide?.segments.includes(segment) ?? false);
+
+  return (
+    <div
+      data-testid={testId}
+      data-detail={hasDetail ? "open" : "none"}
+      className={isWide ? WIDE_FRAME_CLASS : FRAME_CLASS}
+    >
+      <SkipLink />
+      {isWide ? wide?.nav : nav}
+
+      {isWide ? null : (
+        <aside
+          aria-label={railLabel}
+          data-testid="master-rail"
+          className={`${RAIL_CLASS}${hasDetail ? " max-md:hidden" : ""}`}
+        >
+          {rail}
+        </aside>
+      )}
+
+      {/*
+        `<main>` — рабочая зона, и ссылка-пропуск ведёт сюда, мимо меню и списка: к
+        содержимому, ради которого человек пришёл. `tabIndex={-1}` — чтобы фокус ушёл
+        вслед за прокруткой (см. `AdminShell`).
+      */}
+      <main
+        id={ADMIN_CONTENT_ID}
+        tabIndex={-1}
+        data-testid="admin-main"
+        className={`flex min-w-0 flex-col focus:outline-none${hasDetail || isWide ? "" : " max-md:hidden"}`}
+      >
+        {hasDetail && !isWide ? (
+          <Link
+            href={backHref}
+            className={BACK_CLASS}
+            data-testid="master-back"
+          >
+            <Icon name="cleft" />
+            {backLabel}
+          </Link>
+        ) : null}
+        {children}
+      </main>
+    </div>
+  );
+}

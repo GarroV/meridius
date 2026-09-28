@@ -1,8 +1,8 @@
-import { RemoveChecklistScreen } from "@/blocks/editor/ui/RemoveChecklistScreen";
+import { RemoveChecklistPanel } from "@/blocks/editor/ui/RemoveChecklistPanel";
 
 /**
- * Подтверждение удаления чек-листа. Экран сам читает состояние и сам решает `notFound()` —
- * странице здесь нечего собирать.
+ * Подтверждение удаления чек-листа — выдвижная панель поверх редактора (D162). Панель
+ * сама читает состояние и сама решает `notFound()` — странице здесь нечего собирать.
  */
 export default async function RemoveChecklistPage({
   params,
@@ -10,5 +10,5 @@ export default async function RemoveChecklistPage({
   readonly params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <RemoveChecklistScreen id={id} />;
+  return <RemoveChecklistPanel id={id} />;
 }

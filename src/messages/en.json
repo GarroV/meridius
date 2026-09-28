@@ -195,6 +195,17 @@
       "filterEmptyHint": "Nothing has been created under the current selection yet. Change it or create the first one.",
       "filterReset": "Show all"
     },
+    "rail": {
+      "label": "Checklist list",
+      "search": "Find a checklist",
+      "new": "New checklist",
+      "countNarrowed": "{shown} of {total}",
+      "items": "{count, plural, one {# item} other {# items}}",
+      "back": "All checklists",
+      "pickTitle": "Pick a checklist on the left",
+      "pickHint": "It opens right here, next to the list — no need to go to another page.",
+      "close": "Close panel"
+    },
     "form": {
       "title": "Title",
       "titlePlaceholder": "For example, “Kitchen opening”",

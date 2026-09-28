@@ -68,6 +68,12 @@ export interface ChecklistEditorProps {
   readonly crumbs: string;
   /** Готовая разметка действия кабинета над станцией чек-листа (см. `EditorScreen`). */
   readonly stationAction?: ReactNode;
+  /**
+   * Действия над чек-листом целиком — дублировать, удалить (D162). До мастер-детали они
+   * стояли в строке списка; строка стала обычным выбором, и действия переехали туда,
+   * где открыт сам чек-лист. Приходят готовой разметкой: это серверные формы и ссылки.
+   */
+  readonly headerActions?: ReactNode;
 }
 
 const BUTTON_CLASS =
@@ -220,7 +226,13 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
             saveState={saveState}
             publishState={publishState}
           />
-          <Link className={BUTTON_CLASS} href={props.previewHref}>
+          {/* Предпросмотр открывается панелью справа поверх редактора, а не отдельным
+              экраном (D162): редактор под ней остаётся с несохранённой правкой. */}
+          <Link
+            className={BUTTON_CLASS}
+            href={props.previewHref}
+            scroll={false}
+          >
             {t("screen.preview")}
           </Link>
           <form action={saveAction}>
@@ -261,6 +273,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
                 : t("screen.publish", { number: props.nextVersionNumber })}
             </button>
           </form>
+          {props.headerActions}
         </div>
       </header>
 
