@@ -5,7 +5,7 @@
 // Само окно общее на продукт (`core/ui/ConfirmDialog`), здесь — только то, что у этой
 // кнопки своё: какой планшет, куда ведёт «Отмена» и что сделать с исходом.
 //
-// Вопрос об этом планшете живёт в адресе (`?confirm=<deviceId>`) — тем же правилом, что
+// Вопрос об этом планшете живёт в адресе (`confirm=<deviceId>`) — тем же правилом, что
 // у справочника и листа QR (см. `catalog/ui/CatalogScreen.tsx`, `qr/ui/ReissueConfirm.tsx`):
 // «Отмена» и Esc внутри общего окна меняют адрес (`cancelHref`), а не память компонента,
 // и без этого правила они не закрывали бы ничего.
@@ -38,24 +38,35 @@ interface UnlinkButtonTexts {
 
 export interface UnlinkButtonProps {
   readonly deviceId: string;
-  /** Открыт ли вопрос про ЭТОТ планшет сейчас — решает адрес (`?confirm=<deviceId>`). */
+  /** Открыт ли вопрос про ЭТОТ планшет сейчас — решает адрес (`confirm=<deviceId>`). */
   readonly open: boolean;
-  /** Адрес экрана без параметров — корень для ссылок «открыть», «отмена», «отказ». */
-  readonly devicesPath: string;
+  /**
+   * Адрес экрана, на котором стоит кнопка, — корень для ссылок «открыть», «отмена»,
+   * «отказ». Может уже нести свои параметры: в разделе «Устройства» кнопка живёт в
+   * выдвижной панели (`?station=<id>`), и вопрос обязан открыться поверх неё, а не
+   * закрыть её.
+   */
+  readonly screenHref: string;
   readonly texts: UnlinkButtonTexts;
+}
+
+/** Адрес с ещё одним параметром: `?` или `&` — смотря, есть ли параметры уже. */
+function withParam(href: string, key: string, value: string): string {
+  const joiner = href.includes("?") ? "&" : "?";
+  return `${href}${joiner}${key}=${encodeURIComponent(value)}`;
 }
 
 export function UnlinkButton({
   deviceId,
   open,
-  devicesPath,
+  screenHref,
   texts,
 }: UnlinkButtonProps): ReactElement {
   const router = useRouter();
 
-  const openHref = `${devicesPath}?confirm=${encodeURIComponent(deviceId)}`;
-  const closeHref = devicesPath;
-  const failedHref = `${devicesPath}?failed=1`;
+  const openHref = withParam(screenHref, "confirm", deviceId);
+  const closeHref = screenHref;
+  const failedHref = withParam(screenHref, "failed", "1");
 
   // Обычная асинхронная функция, а не серверное действие: `unlinkDevice` уже отработало
   // и вернуло исход, а куда вести дальше — решает эта кнопка. Из-за этого, в отличие от
@@ -63,7 +74,7 @@ export function UnlinkButton({
   // ничего не подставляемого в `<form action>` как обычный POST тут нет.
   async function handleConfirm(): Promise<void> {
     const outcome = await unlinkDevice(deviceId);
-    router.push(outcome.ok ? closeHref : failedHref);
+    router.push(outcome.ok ? closeHref : failedHref, { scroll: false });
   }
 
   return (
@@ -72,6 +83,7 @@ export function UnlinkButton({
           `?confirm=`, роутером Next, как «Перевыпустить» ведёт на лист печати. */}
       <Link
         href={openHref}
+        scroll={false}
         data-testid="device-unlink"
         className={BTN_GHOST_SM_CLASS}
       >

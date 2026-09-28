@@ -103,7 +103,12 @@ export function ConfirmDialog({
   // живёт в адресе, поэтому закрыть его значит сменить адрес, а не спрятать разметку.
   useEffect(() => {
     function onKey(event: KeyboardEvent): void {
-      if (event.key === "Escape") router.push(cancelHref);
+      if (event.key !== "Escape") return;
+      // Гасим событие: окно может стоять поверх выдвижной панели (`Drawer.tsx`), и её
+      // Esc без этого закрыл бы панель тем же нажатием — человек терял бы и вопрос, и
+      // станцию, с которой работал. Панель пропускает погашенное событие.
+      event.preventDefault();
+      router.push(cancelHref, { scroll: false });
     }
     document.addEventListener("keydown", onKey);
     return () => {

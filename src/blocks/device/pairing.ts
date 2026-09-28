@@ -8,7 +8,9 @@ import { and, eq, gt, isNull, sql } from "drizzle-orm";
 
 import { devicePairings, getDb } from "@/blocks/data";
 
+import { pgErrorCode } from "./pg-error";
 import { PIN_LENGTH, PIN_TTL_SECONDS, isPin } from "./pin";
+import { PinsExhaustedError } from "./pin-errors";
 
 const MILLISECONDS = 1000;
 const PIN_CEILING = 10_000;
@@ -23,20 +25,6 @@ const ISSUE_ATTEMPTS = 3;
 
 /** Нарушение уникальности PostgreSQL: выпало занятое значение кода. */
 const PG_UNIQUE_VIOLATION = "23505";
-
-/**
- * Код ошибки PostgreSQL, если он есть. Drizzle заворачивает ошибку драйвера, поэтому
- * настоящий код лежит в `cause`. Свой разбор, а не общий из `catalog/errors.ts`: границы
- * блоков не дают `device` зависеть от `catalog`, а ради шести строк переносить общий
- * модуль в `core` значит трогать чужой блок ради своей задачи.
- */
-function pgErrorCode(error: unknown): string | undefined {
-  if (typeof error !== "object" || error === null) return undefined;
-  const code: unknown = (error as { code?: unknown }).code;
-  if (typeof code === "string") return code;
-  const cause: unknown = (error as { cause?: unknown }).cause;
-  return cause === undefined ? undefined : pgErrorCode(cause);
-}
 
 /** Выпущенный пин: сам код — чтобы показать его управляющему, срок — чтобы подписать. */
 export interface IssuedPin {
@@ -89,9 +77,7 @@ export async function issuePairingPin(
     }
   }
 
-  throw new Error(
-    "Привязка планшета: свободный код не нашёлся за несколько попыток — живых пинов слишком много",
-  );
+  throw new PinsExhaustedError();
 }
 
 /**

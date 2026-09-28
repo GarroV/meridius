@@ -1,9 +1,10 @@
 "use server";
 
-// Выпуск пина из кабинета: действие экрана чек-листа.
+// Выпуск пина из кабинета: действие карточки станции и панели раздела «Устройства».
 import { requireAdmin } from "@/blocks/auth/guard";
 
 import { isUuid } from "../devices";
+import { classifyIssueFailure, type IssueFailure } from "../issue-failure";
 import { issuePairingPin } from "../pairing";
 import { PIN_TTL_SECONDS } from "../pin";
 
@@ -16,8 +17,14 @@ export type IssuePinOutcome =
       readonly code: string;
       /** Сколько минут живёт код — для подписи под ним; считается здесь, склоняется на экране. */
       readonly minutes: number;
+      /** Когда код перестанет работать — для обратного отсчёта рядом с ним. ISO-строкой. */
+      readonly expiresAt: string;
     }
-  | { readonly kind: "broken" };
+  /**
+   * Отказ с причиной (#162): экран говорит «попробуйте через минуту» только там, где
+   * повтор помогает, а не на любую ошибку базы.
+   */
+  | { readonly kind: "failed"; readonly reason: IssueFailure };
 
 /**
  * Выпускает пин для станции чек-листа.
@@ -29,6 +36,10 @@ export type IssuePinOutcome =
  *
  * Охрана кабинета — первой строкой: тело действия идёт мимо разметки `/admin`,
  * и без неё выпуск пина был бы публичным.
+ *
+ * Сбой базы не бросается дальше, а разбирается: брошенное исключение клиент видит
+ * одной и той же строкой, и отсутствующая таблица на стенде выглядела как «попробуйте
+ * ещё раз» (#162). Подробности уходят в журнал сервера — экрану нужна только причина.
  */
 export async function issuePinAction(
   stationId: string,
@@ -36,14 +47,23 @@ export async function issuePinAction(
   await requireAdmin();
 
   if (typeof stationId !== "string" || !isUuid(stationId)) {
-    return { kind: "broken" };
+    return { kind: "failed", reason: "broken" };
   }
 
-  const pin = await issuePairingPin(stationId, new Date());
-
-  return {
-    kind: "issued",
-    code: pin.code,
-    minutes: PIN_TTL_SECONDS / SECONDS_IN_MINUTE,
-  };
+  try {
+    const pin = await issuePairingPin(stationId, new Date());
+    return {
+      kind: "issued",
+      code: pin.code,
+      minutes: PIN_TTL_SECONDS / SECONDS_IN_MINUTE,
+      expiresAt: pin.expiresAt.toISOString(),
+    };
+  } catch (error) {
+    const reason = classifyIssueFailure(error);
+    console.error(
+      `Привязка планшета: код для станции ${stationId} не выпущен (${reason})`,
+      error,
+    );
+    return { kind: "failed", reason };
+  }
 }

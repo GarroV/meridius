@@ -444,6 +444,29 @@ test.describe("доступность: админка", () => {
 
     expectAccessible(await runAxe(page));
   });
+
+  test("раздел «Устройства» с инструкцией и панелью станции с выпущенным кодом без нарушений доступности", async ({
+    page,
+  }) => {
+    // Панель справа и код в ней — отдельные состояния разметки (D163): на закрытом
+    // экране их в DOM нет, и проверка списка про них ничего не говорит.
+    const seeded = await seedStationWithoutChecklist("устройства", "ru");
+    await signIn(page);
+
+    await page.goto("/admin/devices");
+    await page.getByTestId("pair-guide").first().waitFor();
+    expectAccessible(await runAxe(page));
+
+    await page
+      .getByTestId("station-row")
+      .filter({ hasText: seeded.stationName })
+      .click();
+    const drawer = page.getByTestId("station-drawer");
+    await drawer.getByTestId("pair-tablet").click();
+    await drawer.getByTestId("pair-tablet-code").waitFor();
+
+    expectAccessible(await runAxe(page));
+  });
 });
 
 /**
