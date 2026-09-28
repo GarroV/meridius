@@ -172,15 +172,8 @@
       "title": "Checklists",
       "crumbs": "All countries",
       "new": "+ New checklist",
-      "edit": "Edit",
       "duplicate": "Duplicate",
       "delete": "Delete",
-      "columnTitle": "Title",
-      "columnStation": "Station",
-      "columnWindow": "Window",
-      "columnVersion": "Version",
-      "columnItems": "Items",
-      "columnSubmissions": "Submissions in 7 days",
       "draftTag": "draft",
       "noStation": "no station",
       "noStore": "No store",
@@ -348,7 +341,6 @@
     },
     "preview": {
       "title": "Preview",
-      "back": "Back to the editor",
       "notice": "This is what an employee sees. It only shows: the employee answers and submits on their own phone, opening the checklist by the station QR code.",
       "progress": "{done} of {total}",
       "left": "{count, plural, one {# item left} other {# items left}}",
@@ -385,7 +377,6 @@
       "unknown": "Could not save. Please try again."
     },
     "remove": {
-      "crumbs": "Checklists",
       "title": "Delete this checklist?",
       "name": "Checklist",
       "willDelete": "This checklist has no submissions — it will be deleted completely, together with its draft and versions. This cannot be undone.",
@@ -830,6 +821,12 @@
     "title": "Stations",
     "breadcrumb": "Work",
     "intro": "This is where the network's stations live. You can see what covers each one and how it is filled in: by phone from the sticker, or from a paired tablet. A station with no checklist is marked — its sticker opens onto nothing.",
+    "rail": {
+      "label": "Station list",
+      "back": "All stations",
+      "pickTitle": "Pick a station on the left",
+      "pickHint": "Its card opens right here, next to the list: the station's checklist, sticker and tablet."
+    },
     "checklists": "{count, plural, one {# checklist} other {# checklists}}",
     "tabletPaired": "Tablet paired",
     "stickerOnly": "Sticker only",

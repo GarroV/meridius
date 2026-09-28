@@ -3,7 +3,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactElement } from "react";
 
-import { Drawer } from "@/blocks/core/ui/Drawer";
+import { Drawer, PropertyRow } from "@/blocks/core/ui/Drawer";
 
 import { submitDeleteChecklist } from "../actions";
 import { pickEditorText } from "../localized-text";
@@ -94,17 +94,15 @@ export async function RemoveChecklistPanel({
       }
     >
       <div className="flex flex-col gap-[var(--space-6)]">
-        <div className="flex flex-col gap-[var(--space-2)]">
-          <span className="text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase">
-            {t("remove.name")}
-          </span>
-          <span
-            data-testid="remove-checklist-title"
-            className="text-ink text-[length:var(--fs-lead)] font-medium"
-          >
-            {pickEditorText(preview.title, locale)}
-          </span>
-        </div>
+        <PropertyRow
+          icon="task"
+          label={t("remove.name")}
+          value={
+            <span data-testid="remove-checklist-title">
+              {pickEditorText(preview.title, locale)}
+            </span>
+          }
+        />
 
         {/*
           Последствия необратимого действия эталон говорит ПЛАШКОЙ, а не серым абзацем:
