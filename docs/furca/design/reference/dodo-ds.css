@@ -1,4 +1,4 @@
-/* forma dodo/core/dodo-ds.css sha256:43df7961b4ffd451230f2f3262046834470c2db20c26f8bd0d766074409d2e45 — не править здесь, правка идёт в GarroV/forma */
+/* forma dodo/core/dodo-ds.css sha256:6a6d2b333bd186e1d3ff89544f86fc095bfd5c558b634996877c4b5766c1e845 — не править здесь, правка идёт в GarroV/forma */
 /* ═══════════════════════════════════════════════════════════════════════════
    DODO — ЕДИНАЯ ДИЗАЙН-СИСТЕМА ТРЁХ ПРОДУКТОВ
    Собрана 17.09.2026 из двух источников:
@@ -1014,7 +1014,7 @@ a:hover { color: var(--accent-press); text-decoration: underline; }
 .sidenav__search { padding: var(--space-5) var(--space-4) 0; }
 .sidenav__field { display: flex; align-items: center; gap: var(--space-4); height: 30px; padding: 0 var(--space-5); border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface); color: var(--ink-3); transition: border-color var(--t-state) var(--ease); }
 .sidenav__field:hover { border-color: var(--line-control-2); }
-.sidenav__field:focus-within { border-color: var(--accent); }
+.sidenav__field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-soft); }
 .sidenav__field svg { width: 13px; height: 13px; flex-shrink: 0; }
 .sidenav__field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 12.5px; }
 .sidenav__field input::placeholder { color: var(--ink-3); }

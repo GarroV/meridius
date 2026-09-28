@@ -109,6 +109,9 @@ async function tabThroughFields(
       if (node === null) return null;
       const host = document.querySelector(selector);
       if (host?.contains(node) !== true) return null;
+      // Левая панель рисуется внутри экрана редактора, но её поле поиска — не поле
+      // редактора: фокус у него на рамке (`.sidenav__field`, ядро), а не на самом input.
+      if (node.closest("nav") !== null) return null;
 
       const tag = node.tagName.toLowerCase();
       const type =
@@ -249,7 +252,12 @@ test.describe("поле редактора под фокусом получае�
       ).not.toBe("none");
 
       // Экран целиком: заголовок секции, название пункта, тип, обе границы, единица.
-      await page.locator("body").click({ position: { x: 2, y: 2 } });
+      // Фокус снимается явно, а не щелчком в угол: с D164 в левом верхнем углу стоит
+      // марка продукта, и щелчок в (2, 2) уводил с редактора на главную.
+      await page.evaluate(() => {
+        if (document.activeElement instanceof HTMLElement)
+          document.activeElement.blur();
+      });
       const screen = await tabThroughFields(
         page,
         '[data-testid="editor-screen"]',

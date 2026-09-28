@@ -98,7 +98,11 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
         Марка — ссылка на главную кабинета (T124). Адрес берётся из `admin-sections`, а
         не пишется строкой, — тот же дубль вычищали трижды (T116, T118, T119).
       */}
-      <Link href={ADMIN_HOME.path} className="sidenav__brand" data-testid="nav-brand">
+      <Link
+        href={ADMIN_HOME.path}
+        className="sidenav__brand"
+        data-testid="nav-brand"
+      >
         <span className="sidenav__logo grid place-items-center bg-accent text-[var(--ink-inverse)]">
           <Icon name="check" strokeWidth={2.2} className="size-4" />
         </span>
@@ -108,7 +112,10 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
         </span>
       </Link>
 
-      <NavSearch action={ADMIN_SECTIONS.checklists.path} label={t("nav.search")} />
+      <NavSearch
+        action={ADMIN_SECTIONS.checklists.path}
+        label={t("nav.search")}
+      />
 
       <div className="sidenav__list">
         <NavItem

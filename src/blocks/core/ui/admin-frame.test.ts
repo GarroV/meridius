@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
 import { repositoryRoot } from "../repo-copy";
-import { ADMIN_CONTENT_CLASS, ADMIN_FRAME_CLASS } from "./admin-frame";
+import { ADMIN_CONTENT_CLASS } from "./admin-frame";
 
 const REPO_ROOT = repositoryRoot();
 const SOURCE_ROOT = join(REPO_ROOT, "src");
