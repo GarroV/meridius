@@ -97,6 +97,13 @@ test.describe("удаление чек-листа", () => {
     const context = await browser.newContext({
       javaScriptEnabled: false,
       locale: "ru-RU",
+      // Без JavaScript безголовый браузер не прокручивает кадры анимации: выезд панели
+      // (`drawer-in`) стоит на первом кадре, пока страницу ничто не тронет, и проверка
+      // «элемент неподвижен» перед щелчком не проходит никогда — сценарий падал по
+      // таймауту. Пользователь с выключенным JS этого не видит (его браузер кадры
+      // крутит), поэтому движение снимается у сценария, а не у продукта: панель
+      // уважает `prefers-reduced-motion` (`dodo-ds.css`).
+      reducedMotion: "reduce",
     });
     const page = await context.newPage();
 
@@ -106,8 +113,7 @@ test.describe("удаление чек-листа", () => {
     await expect(page.getByTestId("admin-home")).toBeVisible();
 
     // Заведение уже привело в рабочую зону чек-листа: без JavaScript каждый шаг —
-    // полная загрузка страницы с колонкой, и лишний заход через список съедал
-    // таймаут сценария.
+    // полная загрузка страницы с колонкой, лишний заход через список не нужен.
     const title = await createChecklist(page);
     await page.getByTestId("delete-checklist").click();
     await page.getByTestId("remove-checklist-confirm").click();
