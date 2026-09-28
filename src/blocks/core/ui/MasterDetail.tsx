@@ -109,7 +109,7 @@ export function MasterDetail({
             className={BACK_CLASS}
             data-testid="master-back"
           >
-            <Icon name="cleft" />
+            <Icon name="cleft" className="size-4 flex-none" />
             {backLabel}
           </Link>
         ) : null}
