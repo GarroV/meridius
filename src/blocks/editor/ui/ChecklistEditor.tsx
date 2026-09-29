@@ -74,6 +74,8 @@ export interface ChecklistEditorProps {
    * где открыт сам чек-лист. Приходят готовой разметкой: это серверные формы и ссылки.
    */
   readonly headerActions?: ReactNode;
+  /** Строка происхождения копии шаблона (T336); у своего чек-листа и шаблона её нет. */
+  readonly origin?: ReactNode;
 }
 
 const BUTTON_CLASS =
@@ -286,6 +288,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
             оставалось 440 px — длинное название секции обрезалось посреди слова. */}
         <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:1fr_268px] @max-5xl:[grid-template-columns:1fr]">
           <div>
+            {props.origin}
             <PropertiesCard
               title={title}
               stationId={stationId}

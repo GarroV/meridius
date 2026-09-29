@@ -373,6 +373,8 @@
       "emptyTitle": "The title is empty.",
       "notFound": "Checklist not found.",
       "nothingToPublish": "Nothing to publish: the checklist has no items.",
+      "badSchedule": "The round schedule was not accepted: check the time ranges.",
+      "tooManyColumns": "Too many columns: there can be no more than {limit}.",
       "unknownBlock": "The inserted library block was not found.",
       "unknown": "Could not save. Please try again."
     },
@@ -385,6 +387,25 @@
       "confirmDelete": "Delete completely",
       "confirmArchive": "Take out of service",
       "cancel": "Cancel"
+    },
+    "templateUpdate": {
+      "origin": "Copy of template “{title}”, version {version}",
+      "updated": "Template “{title}” has been updated: version {version}",
+      "updatedHint": "See what changed and take whatever suits you. The copy stays yours.",
+      "view": "See what changed",
+      "dismiss": "Keep as is",
+      "title": "What changed in the template",
+      "intro": "Template “{title}”: version {from} → {to}. Tick what to take — everything else in your copy stays as it was.",
+      "added": "Added",
+      "changed": "Changed",
+      "removed": "Removed",
+      "was": "was: {title}",
+      "section": "Section “{title}”",
+      "none": "No items in the template have changed.",
+      "take": "Take the ticked changes",
+      "takeHint": "They go into the draft — publish once you have looked them over.",
+      "stale": "The template was updated again — the differences below are against its latest version.",
+      "untitled": "Untitled"
     }
   },
   "qr": {

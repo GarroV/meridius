@@ -22,8 +22,14 @@ import { createChecklist, saveDraft, updateChecklist } from "./drafts";
 import { duplicateChecklist } from "./duplicate";
 import { publish } from "./publish";
 import { removeChecklist } from "./removal";
-import { CHECKLISTS_PATH, TEMPLATES_PATH, checklistPath } from "./routes";
+import {
+  CHECKLISTS_PATH,
+  TEMPLATES_PATH,
+  checklistPath,
+  checklistTemplateUpdatePath,
+} from "./routes";
 import { closedWindowNow } from "./station-clock";
+import { dismissTemplateUpdate, takeTemplateChanges } from "./template-updates";
 import { takeTemplate } from "./templates";
 import { EditorInputError } from "./validation";
 
@@ -179,4 +185,52 @@ export async function submitDuplicate(form: FormData): Promise<void> {
 
   revalidatePath(CHECKLISTS_PATH, "layout");
   redirect(checklistPath(copyId));
+}
+
+/** Номер версии шаблона из формы; нечитаемый — `NaN`, и его отвергают сами действия. */
+function versionFrom(form: FormData): number {
+  const raw = formText(form, "version");
+  return /^\d{1,9}$/.test(raw) ? Number(raw) : Number.NaN;
+}
+
+/**
+ * «Оставить как есть» (D154, T336): строка «шаблон обновился» гаснет до следующей версии
+ * шаблона. Содержимое копии не трогается.
+ */
+export async function submitDismissTemplateUpdate(
+  form: FormData,
+): Promise<void> {
+  await requireAdmin();
+
+  const checklistId = formText(form, "checklistId");
+  await dismissTemplateUpdate(checklistId, versionFrom(form));
+
+  revalidatePath(checklistPath(checklistId), "layout");
+  redirect(checklistPath(checklistId));
+}
+
+/**
+ * «Взять отмеченное» (T336): выбранные отличия шаблона — в черновик копии, и назад в её
+ * редактор, где их видно до публикации. Шаблон успел уйти дальше — назад в отличия с
+ * пометкой: переносить то, чего человек не видел, значит решить за него.
+ */
+export async function submitTakeTemplateChanges(form: FormData): Promise<void> {
+  await requireAdmin();
+
+  const checklistId = formText(form, "checklistId");
+  const itemIds = form
+    .getAll("itemId")
+    .filter((value): value is string => typeof value === "string");
+  const outcome = await takeTemplateChanges(
+    checklistId,
+    versionFrom(form),
+    itemIds,
+  );
+
+  revalidatePath(checklistPath(checklistId), "layout");
+  revalidatePath(CHECKLISTS_PATH, "layout");
+  if (outcome === "stale") {
+    redirect(`${checklistTemplateUpdatePath(checklistId)}?stale=1`);
+  }
+  redirect(checklistPath(checklistId));
 }

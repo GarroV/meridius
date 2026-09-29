@@ -57,3 +57,11 @@ export function checklistDeletePath(checklistId: string): string {
 export function libraryBlockPath(blockId: string): string {
   return `${ADMIN_SECTIONS.library.path}?block=${encodeURIComponent(blockId)}`;
 }
+
+/**
+ * «Шаблон обновился — посмотреть отличия» (T336): панель справа поверх редактора копии,
+ * как предпросмотр и удаление (D162), — редактор под ней остаётся с несохранённой правкой.
+ */
+export function checklistTemplateUpdatePath(checklistId: string): string {
+  return `${checklistPath(checklistId)}/template-update`;
+}

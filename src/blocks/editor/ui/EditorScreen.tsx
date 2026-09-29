@@ -9,8 +9,10 @@ import { loadEditor } from "../drafts";
 import { listStations } from "../listing";
 import { pickEditorText } from "../localized-text";
 import { checklistDeletePath, checklistPreviewPath } from "../routes";
+import { loadTemplateOrigin } from "../template-updates";
 import type { WindowValue } from "../window-field";
 import { ChecklistEditor } from "./ChecklistEditor";
+import { TemplateOrigin } from "./TemplateOrigin";
 
 /** Время базы «06:00:00» на экране показывается и правится как «06:00». */
 function toFormTime(value: string): string {
@@ -90,10 +92,11 @@ export async function EditorScreen({
   const state = await loadEditor(checklistId);
   if (state === null) notFound();
 
-  const [locale, stations, t] = await Promise.all([
+  const [locale, stations, t, origin] = await Promise.all([
     getLocale(),
     listStations(),
     getTranslations("editor"),
+    loadTemplateOrigin(checklistId),
   ]);
 
   const highestVersion = state.versions.reduce(
@@ -122,6 +125,10 @@ export async function EditorScreen({
   return (
     <div data-testid="editor-screen" className="flex min-w-0 flex-col">
       <ChecklistEditor
+        // Ключ — версия шаблона, с которой снята копия. «Взять изменения» пишет черновик
+        // на сервере и сдвигает её: без смены ключа редактор остался бы со старыми
+        // пунктами в состоянии и следующим «Сохранить» затёр бы только что взятое.
+        key={state.checklist.sourceVersion ?? 0}
         checklistId={checklistId}
         locale={locale}
         initialTitle={pickEditorText(state.checklist.title, locale)}
@@ -139,6 +146,15 @@ export async function EditorScreen({
         nextVersionNumber={highestVersion + 1}
         previewHref={checklistPreviewPath(checklistId)}
         crumbs={crumbs}
+        origin={
+          origin === null ? null : (
+            <TemplateOrigin
+              checklistId={checklistId}
+              origin={origin}
+              locale={locale}
+            />
+          )
+        }
         stationAction={stationAction?.(state.checklist.stationId ?? null)}
         headerActions={
           isTemplate ? null : (
