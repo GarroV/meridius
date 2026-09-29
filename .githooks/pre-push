@@ -6,4 +6,5 @@ if [ ! -x "$ROOT/scripts/check" ]; then
   echo "pre-push: нет scripts/check — пуш остановлен" >&2
   exit 1
 fi
-exec "$ROOT/scripts/check"
+# Сквозные сценарии здесь не гоняются — их гоняет CI (D168, #173).
+exec "$ROOT/scripts/check" --no-e2e
