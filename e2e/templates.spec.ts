@@ -21,8 +21,8 @@ async function createPublishedTemplate(page: Page, title: string) {
   await page.getByTestId("create-checklist").click();
 
   await expect(page.getByTestId("editor-screen")).toBeVisible();
-  await expect(page.getByTestId("checklist-station")).toHaveCount(0);
-  await expect(page.getByText("Станция не выбрана")).toHaveCount(0);
+  // Подсказки о станции у шаблона нет: вешать его на станцию нельзя (D154).
+  await expect(page.getByTestId("station-notice")).toHaveCount(0);
   await expect(page.getByTestId("nav-templates")).toHaveAttribute(
     "aria-current",
     "page",
@@ -76,9 +76,10 @@ test.describe("раздел «Шаблоны»", () => {
     await card.getByTestId("template-take-alone").click();
 
     await expect(page.getByTestId("editor-screen")).toBeVisible();
-    // Открылась копия, а не сам шаблон: у копии другой адрес и есть поле станции.
+    // Открылась копия, а не сам шаблон: у копии другой адрес и есть подсказка о
+    // станции — копию, в отличие от шаблона, вешают на станцию.
     await expect(page).not.toHaveURL(new RegExp(templateId));
-    await expect(page.getByTestId("checklist-station")).toBeVisible();
+    await expect(page.getByTestId("station-notice")).toBeVisible();
     await expect(page.getByTestId("checklist-title")).toHaveValue(title);
     await expect(page.getByTestId("item-title").first()).toHaveValue(
       "Проверить холодильник",

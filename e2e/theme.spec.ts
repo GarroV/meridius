@@ -144,7 +144,7 @@ const CABINET_SCREENS: readonly CabinetScreen[] = [
     path: "/admin/catalog",
     testId: "catalog-screen",
   },
-  { name: "QR-коды", path: "/admin/qr", testId: "qr-screen" },
+  { name: "станции", path: "/admin/stations", testId: "stations-screen" },
 ];
 
 async function openScreen(page: Page, screen: CabinetScreen): Promise<void> {
@@ -358,7 +358,7 @@ test.describe("наведение на пункт меню кабинета да
         // Пункт, на экране которого человек НЕ стоит: у активного пункта свой вид,
         // и подменять им обычный значило бы проверять не то состояние.
         const target = page.getByTestId(
-          screen.path === "/admin/feed" ? "nav-qr" : "nav-feed",
+          screen.path === "/admin/feed" ? "nav-catalog" : "nav-feed",
         );
         const where = `${screen.name}, тема «${choice}»`;
 

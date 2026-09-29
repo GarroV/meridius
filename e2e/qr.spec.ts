@@ -1,5 +1,10 @@
-// Сквозной сценарий блока QR: лист печати, содержимое самого кода, поведение при
-// печати и экран планшета, который переживает перевыпуск кода без рук.
+// Сквозной сценарий наклеек станций: лист печати, содержимое самого кода, поведение
+// при печати, перевыпуск кода с карточки станции и экран планшета, который переживает
+// перевыпуск без рук.
+//
+// С T312 отдельного экрана «QR-коды» нет: лист пиццерии открывается старым адресом
+// (`/admin/qr?store=`, на него ведёт справочник) и уезжает на лист наклеек раздела
+// «Станции», а перевыпуск и экран кода живут на карточке станции.
 //
 // Код проверяется не по разметке, а чтением картинки обратно — тем же способом,
 // каким его читает камера.
@@ -11,8 +16,6 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { E2E_PUBLIC_BASE_URL } from "./public-base-url";
 import { seedStore, STATION_NAMES } from "./station-fixtures";
 
-const QR_PATH = "/admin/qr";
-
 async function signIn(page: Page): Promise<void> {
   await page.goto("/admin/login");
   await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
@@ -20,50 +23,23 @@ async function signIn(page: Page): Promise<void> {
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }
 
-/** Код первой станции в таблице — по нему видно, что перевыпуск уже доехал. */
-function firstStationCode(page: Page) {
-  return page
-    .getByTestId("qr-stations")
-    .locator("tbody tr td:nth-child(2)")
-    .first();
+/** Лист пиццерии старым адресом — он обязан привести на лист наклеек её станций. */
+async function openStoreSheet(page: Page, storeId: string): Promise<void> {
+  await page.goto(`/admin/qr?store=${storeId}`);
+  await expect(page).toHaveURL(/\/admin\/stations\/stickers\?stationIds=/);
+  await expect(page.getByTestId("qr-sheet").first()).toBeVisible();
 }
 
-/** Название первой станции в таблице — им подписан вопрос о перевыпуске. */
-function firstStationName(page: Page) {
-  return page
-    .getByTestId("qr-stations")
-    .locator("tbody tr td:nth-child(1)")
-    .first();
+function stationCard(stationId: string): string {
+  return `/admin/stations/${stationId}`;
 }
 
-/**
- * Перевыпускает код первой станции и ДОЖИДАЕТСЯ, что он сменился на экране.
- *
- * Шагов два, и это не ритуал: с T266 первое нажатие только задаёт вопрос, а код
- * меняет подтверждение в окне.
- *
- * Ждать появления самого листа бесполезно: он на странице и до нажатия, поэтому
- * проверка проскакивала вперёд перехода и читала прежний код. Поймано руками на
- * живом экране — в базе код менялся уже после того, как сценарий его прочитал.
- */
-async function reissueFirstStation(page: Page): Promise<void> {
-  const code = firstStationCode(page);
-  const before = await code.innerText();
-
-  await page.getByTestId("reissue-code").first().click();
-  await page.getByTestId("reissue-confirm").click();
-  await expect(code).not.toHaveText(before);
-}
-
-/**
- * Код первой станции, каким его показывает лист ПОСЛЕ перезагрузки страницы.
- *
- * Перезагрузка здесь не ритуал: без неё читалась бы разметка, оставшаяся от прошлого
- * показа, и «код не изменился» подтвердилось бы кэшем, а не базой.
- */
-async function codeFromDatabase(page: Page, sheetUrl: string): Promise<string> {
-  await page.goto(sheetUrl);
-  return (await firstStationCode(page).innerText()).trim();
+/** Код станции на её карточке — по нему видно, что перевыпуск уже доехал. */
+async function codeOnCard(page: Page, stationId: string): Promise<string> {
+  // Перезагрузка здесь не ритуал: без неё читалась бы разметка, оставшаяся от
+  // прошлого показа, и «код не изменился» подтвердилось бы кэшем, а не базой.
+  await page.goto(stationCard(stationId));
+  return (await page.getByTestId("station-code").innerText()).trim();
 }
 
 /** Разметка картинки первой наклейки — по ней и читается код. */
@@ -75,18 +51,32 @@ async function firstStickerSvg(page: Page): Promise<string> {
     .evaluate((node) => node.outerHTML);
 }
 
-test.describe("QR-коды станций", () => {
+/**
+ * Перевыпускает код станции с её карточки. Шагов два, и это не ритуал: с T266 первое
+ * нажатие только задаёт вопрос, а код меняет подтверждение в окне. Подтверждённый
+ * перевыпуск уводит на печать новой наклейки этой станции.
+ */
+async function reissueOnCard(page: Page, stationId: string): Promise<void> {
+  await page.goto(stationCard(stationId));
+  await page.getByTestId("reissue-code").click();
+  await page.getByTestId("reissue-confirm").click();
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/stations/stickers\\?stationIds=${stationId}$`),
+  );
+  await expect(page.getByTestId("qr-sticker")).toHaveCount(1);
+}
+
+test.describe("наклейки станций", () => {
   // Эталон и тексты сценария русские, поэтому и браузер русский.
   test.use({ locale: "ru-RU" });
 
-  test("на листе наклейка каждой станции, и в коде — публичный адрес площадки", async ({
+  test("на листе пиццерии наклейка каждой станции, и в коде — публичный адрес площадки", async ({
     page,
   }) => {
     const store = await seedStore();
     await signIn(page);
-    await page.goto(`${QR_PATH}?store=${store.storeId}`);
+    await openStoreSheet(page, store.storeId);
 
-    await expect(page.getByTestId("qr-screen")).toBeVisible();
     await expect(page.getByTestId("qr-sticker")).toHaveCount(
       STATION_NAMES.length,
     );
@@ -113,26 +103,26 @@ test.describe("QR-коды станций", () => {
   }) => {
     const store = await seedStore();
     await signIn(page);
-    await page.goto(`${QR_PATH}?store=${store.storeId}`);
-    await expect(page.getByTestId("qr-sheet")).toBeVisible();
+    await openStoreSheet(page, store.storeId);
 
     await page.emulateMedia({ media: "print" });
 
-    await expect(page.getByTestId("qr-sheet")).toBeVisible();
+    await expect(page.getByTestId("qr-sheet").first()).toBeVisible();
     await expect(page.getByTestId("qr-sticker").first()).toBeVisible();
     await expect(page.locator("nav")).toBeHidden();
     await expect(page.getByTestId("qr-print")).toBeHidden();
-    await expect(page.getByTestId("reissue-code").first()).toBeHidden();
-    await expect(page.getByTestId("qr-stations")).toBeHidden();
   });
 
-  test("перевыпуск кода меняет наклейку станции", async ({ page }) => {
+  test("перевыпуск кода с карточки меняет наклейку станции", async ({
+    page,
+  }) => {
     const store = await seedStore();
+    const stationId = store.stationIds[0] ?? "";
     await signIn(page);
-    await page.goto(`${QR_PATH}?store=${store.storeId}`);
-
+    await page.goto(`/admin/stations/stickers?stationIds=${stationId}`);
     const before = decodeQrSvg(await firstStickerSvg(page));
-    await reissueFirstStation(page);
+
+    await reissueOnCard(page, stationId);
 
     const after = decodeQrSvg(await firstStickerSvg(page));
     expect(after).not.toBe(before);
@@ -142,25 +132,21 @@ test.describe("QR-коды станций", () => {
   // Оба пути обязаны быть здесь (T266). Проверка одного подтверждения была бы
   // зелёной и на экране без вопроса вовсе — нажали, код сменился; а проверка одной
   // «Отмены» — на экране, где кнопка не делает ничего.
-  test("один клик по «Перевыпустить» кода не меняет — лист спрашивает", async ({
+  test("один клик по «Перевыпустить» кода не меняет — карточка спрашивает", async ({
     page,
   }) => {
     const store = await seedStore();
+    const stationId = store.stationIds[0] ?? "";
+    const name = store.stationNames[0] ?? "";
     await signIn(page);
-    const sheetUrl = `${QR_PATH}?store=${store.storeId}`;
-    await page.goto(sheetUrl);
+    const before = await codeOnCard(page, stationId);
 
-    const before = (await firstStationCode(page).innerText()).trim();
-    // Имя берётся из самой строки, а не из фикстуры: станции на листе отсортированы
-    // по имени, и «первая в фикстуре» — не обязательно первая в таблице.
-    const name = (await firstStationName(page).innerText()).trim();
-
-    await page.getByTestId("reissue-code").first().click();
+    await page.getByTestId("reissue-code").click();
 
     const dialog = page.getByTestId("reissue-dialog");
     await expect(dialog).toBeVisible();
-    // Название станции в заголовке — не украшение: на листе станций несколько, и
-    // человек видит, у какой именно он собирается сменить код.
+    // Название станции в заголовке — не украшение: человек видит, у какой именно
+    // станции он собирается сменить код.
     await expect(dialog).toContainText(name);
     await expect(dialog).toContainText("Старая наклейка перестанет работать");
     // Имя окна для экранного диктора — тот же заголовок. Видимый текст его не
@@ -168,32 +154,29 @@ test.describe("QR-коды станций", () => {
     await expect(dialog).toHaveAccessibleName(new RegExp(name));
 
     // Код в базе прежний — именно это и есть суть задачи.
-    expect(await codeFromDatabase(page, sheetUrl)).toBe(before);
+    expect(await codeOnCard(page, stationId)).toBe(before);
   });
 
   test("Esc и «Отмена» закрывают окно, оставляя код прежним", async ({
     page,
   }) => {
     const store = await seedStore();
+    const stationId = store.stationIds[0] ?? "";
     await signIn(page);
-    const sheetUrl = `${QR_PATH}?store=${store.storeId}`;
-    await page.goto(sheetUrl);
+    const before = await codeOnCard(page, stationId);
 
-    const before = (await firstStationCode(page).innerText()).trim();
-
-    await page.getByTestId("reissue-code").first().click();
+    await page.getByTestId("reissue-code").click();
     await expect(page.getByTestId("reissue-dialog")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("reissue-dialog")).toBeHidden();
-    expect(await codeFromDatabase(page, sheetUrl)).toBe(before);
+    expect(await codeOnCard(page, stationId)).toBe(before);
 
-    await page.getByTestId("reissue-code").first().click();
+    await page.getByTestId("reissue-code").click();
     await page.getByTestId("reissue-cancel").click();
     await expect(page.getByTestId("reissue-dialog")).toBeHidden();
-    // Лист остался на экране: «Отмена» возвращает туда, откуда спросили, а не
-    // выбрасывает методиста к выбору пиццерии.
-    await expect(page.getByTestId("qr-sheet")).toBeVisible();
-    expect(await codeFromDatabase(page, sheetUrl)).toBe(before);
+    // Карточка осталась на экране: «Отмена» возвращает туда, откуда спросили.
+    await expect(page.getByTestId("station-sticker-card")).toBeVisible();
+    expect(await codeOnCard(page, stationId)).toBe(before);
   });
 
   test("экран планшета показывает новый код без ручного обновления страницы", async ({
@@ -201,21 +184,21 @@ test.describe("QR-коды станций", () => {
     context,
   }) => {
     const store = await seedStore();
+    const stationId = store.stationIds[0] ?? "";
     await signIn(page);
-    await page.goto(`${QR_PATH}?store=${store.storeId}`);
+    await page.goto(stationCard(stationId));
     await page.getByTestId("qr-open-screen").click();
 
-    await expect(page.getByTestId("station-screen")).toBeVisible();
     const shown = page.getByTestId("station-qr");
+    await expect(shown).toBeVisible();
     const before = await shown.innerHTML();
 
     // Перевыпуск делают в другом окне админки — планшета в этот момент никто не
     // касается. Именно так это и происходит в жизни.
     const admin = await context.newPage();
-    await admin.goto(`${QR_PATH}?store=${store.storeId}`);
     // Окно закрывается только после того, как перевыпуск доехал: закрытая
     // вкладка посреди серверного действия оборвала бы его.
-    await reissueFirstStation(admin);
+    await reissueOnCard(admin, stationId);
     await admin.close();
 
     // Ни перезагрузки, ни нажатий на самом планшете: экран обязан обновиться сам.
@@ -230,20 +213,10 @@ test.describe("QR-коды станций", () => {
     await signIn(page);
 
     // Ссылка собрана руками: пиццерия одна, станция из другой.
-    await page.goto(`${QR_PATH}?store=${store.storeId}`);
-    const alienScreen = await page
-      .getByTestId("qr-open-screen")
-      .getAttribute("href");
-    expect(alienScreen).not.toBeNull();
-
     await page.goto(
-      `/admin/qr/screen?store=${other.storeId}&station=${
-        new URL(alienScreen ?? "", "http://localhost").searchParams.get(
-          "station",
-        ) ?? ""
-      }`,
+      `/admin/qr/screen?store=${other.storeId}&station=${store.stationIds[0] ?? ""}`,
     );
 
-    await expect(page.getByTestId("station-screen")).toHaveCount(0);
+    await expect(page.getByTestId("station-qr")).toHaveCount(0);
   });
 });
