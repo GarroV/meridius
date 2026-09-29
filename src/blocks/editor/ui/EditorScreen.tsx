@@ -5,11 +5,9 @@ import { notFound } from "next/navigation";
 import { Icon } from "@/blocks/core/ui/Icon";
 import { requireChecklistEditable } from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
-import { scopeOf } from "@/blocks/auth/scope";
 
 import { submitDuplicate } from "../actions";
 import { loadEditor } from "../drafts";
-import { listStations } from "../listing";
 import { pickEditorText } from "../localized-text";
 import { checklistDeletePath, checklistPreviewPath } from "../routes";
 import { loadTemplateOrigin } from "../template-updates";
@@ -81,16 +79,8 @@ function ChecklistActions({
  */
 export async function EditorScreen({
   checklistId,
-  stationAction,
 }: {
   readonly checklistId: string;
-  /**
-   * Действие кабинета, которому нужна СОХРАНЁННАЯ станция чек-листа, — сейчас это
-   * «Привязать планшет» блока `device`. Приходит готовой разметкой от страницы, а не
-   * импортом: правило границ не даёт редактору зависеть от блока привязки, а второй
-   * поход в базу за станцией ради одной карточки был бы лишним.
-   */
-  readonly stationAction?: (stationId: string | null) => React.ReactNode;
 }) {
   // Редактор открывается только тому, кто может править: шаблон у партнёра открывается
   // предпросмотром, а не редактором (D149, user-flow §5.2); чужое — «такого нет» (D145).
@@ -99,9 +89,8 @@ export async function EditorScreen({
   const state = await loadEditor(checklistId);
   if (state === null) notFound();
 
-  const [locale, stations, t, origin] = await Promise.all([
+  const [locale, t, origin] = await Promise.all([
     getLocale(),
-    listStations(scopeOf(viewer)),
     getTranslations("editor"),
     loadTemplateOrigin(checklistId),
   ]);
@@ -139,14 +128,12 @@ export async function EditorScreen({
         checklistId={checklistId}
         locale={locale}
         initialTitle={pickEditorText(state.checklist.title, locale)}
-        initialStationId={state.checklist.stationId ?? ""}
         isTemplate={isTemplate}
         initialWindow={windowOf(
           state.checklist.windowStart,
           state.checklist.windowEnd,
         )}
         initialSections={state.sections}
-        stations={stations}
         station={state.station}
         versions={state.versions}
         library={state.library}
@@ -162,7 +149,6 @@ export async function EditorScreen({
             />
           )
         }
-        stationAction={stationAction?.(state.checklist.stationId ?? null)}
         headerActions={
           isTemplate ? null : (
             <ChecklistActions

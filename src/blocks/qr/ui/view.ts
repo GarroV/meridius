@@ -45,7 +45,7 @@ const QR_ERROR_CODES = [
 
 export type QrErrorCode = (typeof QR_ERROR_CODES)[number];
 
-export function isQrErrorCode(value: unknown): value is QrErrorCode {
+function isQrErrorCode(value: unknown): value is QrErrorCode {
   return (QR_ERROR_CODES as readonly string[]).includes(value as string);
 }
 

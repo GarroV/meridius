@@ -11,7 +11,11 @@ import {
   createStation,
 } from "@/blocks/data/testing/fixtures";
 
-import { forgetAllFillHits } from "./rate-limit";
+import {
+  FILL_LIMITS,
+  checkRoundAllowed,
+  forgetAllFillHits,
+} from "./rate-limit";
 import { markRound, parseRoundMark } from "./rounds";
 
 /** 14.09.2026, 09:40 UTC — внутри окна 08:00–23:00, идёт девятичасовой обход. */
@@ -330,18 +334,21 @@ describe("markRound", () => {
       value: true,
     };
 
-    let refused: Awaited<ReturnType<typeof markRound>> | null = null;
-    for (let attempt = 0; attempt < 200; attempt += 1) {
-      const outcome = await markRound(body, NOW);
-      if (outcome.kind === "refused") {
-        refused = outcome;
-        break;
-      }
+    // Первая отметка проходит — предел не отказывает с порога.
+    expect(await markRound(body, NOW)).toMatchObject({ kind: "marked" });
+
+    // Бюджет кода выбирается напрямую, в памяти: 60 полных отметок — это 60 записей в
+    // базу, и по туннелю к серверу разработки тест упирался в таймаут 20 с (#173).
+    // Проверяется то же самое — что отметка спрашивает предел своего кода.
+    for (let hit = 1; hit < FILL_LIMITS.roundPerCode.maxHits; hit += 1) {
+      checkRoundAllowed(target.code, NOW);
     }
+
+    const refused = await markRound(body, NOW);
 
     expect(refused).toMatchObject({ kind: "refused", reason: "rate-limited" });
     expect(
-      refused?.kind === "refused" ? refused.retryAfterSeconds : 0,
+      refused.kind === "refused" ? refused.retryAfterSeconds : 0,
     ).toBeGreaterThan(0);
   });
 });

@@ -38,7 +38,7 @@ const SCREENS = [
   { name: "библиотека блоков", path: "/admin/library" },
   { name: "заполнения", path: "/admin/feed" },
   { name: "справочник", path: "/admin/catalog" },
-  { name: "QR-коды", path: "/admin/qr" },
+  { name: "станции", path: "/admin/stations" },
 ] as const;
 
 async function signIn(page: Page): Promise<void> {
@@ -181,7 +181,13 @@ test.describe("каркас кабинета на 375 px", () => {
     await signIn(page);
     await page.goto("/admin");
 
-    for (const key of ["checklists", "library", "feed", "catalog", "qr"]) {
+    for (const key of [
+      "checklists",
+      "stations",
+      "library",
+      "feed",
+      "catalog",
+    ]) {
       const item = page.getByTestId(`nav-${key}`);
       await expect(item, `пункт меню ${key}`).toBeVisible();
     }

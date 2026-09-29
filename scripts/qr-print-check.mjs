@@ -73,6 +73,7 @@ async function printSheetToPdf({ url, store, password, pdfPath }) {
     await page.getByTestId("login-submit").click();
     await page.getByTestId("admin-home").waitFor();
 
+    // Старый адрес листа пиццерии уводит на лист наклеек её станций (T312).
     await page.goto(`${url}/admin/qr?store=${store}`);
     await page.getByTestId("qr-sheet").waitFor();
     const stickers = await page.getByTestId("qr-sticker").count();

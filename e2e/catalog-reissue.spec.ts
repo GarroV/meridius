@@ -176,18 +176,14 @@ test.describe("перевыпуск кода станции", () => {
     await page.getByTestId("reissue-confirm").click();
 
     // Обещание кнопки — «перевыпустить И открыть печать»: без второго шага методист
-    // уходит со старой наклейкой на станции и новым кодом в базе.
-    await expect(page.getByTestId("qr-screen")).toBeVisible();
-    const url = new URL(page.url());
-    expect(url.searchParams.get("store")).toBe(store.storeId);
-    expect(url.searchParams.get("station")).not.toBeNull();
+    // уходит со старой наклейкой на станции и новым кодом в базе. С T312 печать
+    // наклейки станции живёт на её карточке — туда перевыпуск и приводит.
+    await expect(page).toHaveURL(/\/admin\/stations\/[0-9a-f-]{36}$/);
+    await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+    await expect(page.getByTestId("print-sticker")).toBeVisible();
 
-    // На печати — код именно этой станции и именно новый.
-    const printed = page
-      .getByTestId("qr-stations")
-      .locator("tbody tr")
-      .filter({ hasText: name })
-      .locator("td:nth-child(2)");
+    // На карточке — код именно этой станции и именно новый.
+    const printed = page.getByTestId("station-code");
     await expect(printed).not.toHaveText(before);
     const after = (await printed.innerText()).trim();
     expect(after).not.toBe(before);

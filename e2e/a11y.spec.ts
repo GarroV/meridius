@@ -404,12 +404,13 @@ test.describe("доступность: админка", () => {
     expectAccessible(await runAxe(page));
   });
 
-  test("лист QR-кодов без нарушений доступности", async ({ page }) => {
+  test("лист наклеек пиццерии без нарушений доступности", async ({ page }) => {
     const seed = await seedAdminScreens("qr");
     await signIn(page);
 
+    // Старый адрес листа QR пиццерии ведёт на лист наклеек её станций (T312).
     await page.goto(`/admin/qr?store=${seed.storeId}`);
-    await page.getByTestId("qr-screen").waitFor();
+    await page.getByTestId("stickers-screen").waitFor();
 
     expectAccessible(await runAxe(page));
   });
@@ -446,25 +447,25 @@ test.describe("доступность: админка", () => {
     expectAccessible(await runAxe(page));
   });
 
-  test("раздел «Устройства» с инструкцией и панелью станции с выпущенным кодом без нарушений доступности", async ({
+  test("карточка станции с инструкцией привязки и выпущенным кодом без нарушений доступности", async ({
     page,
   }) => {
-    // Панель справа и код в ней — отдельные состояния разметки (D163): на закрытом
-    // экране их в DOM нет, и проверка списка про них ничего не говорит.
+    // Код привязки — отдельное состояние разметки (D163): до нажатия его в DOM нет, и
+    // проверка карточки без него про него ничего не говорит.
     const seeded = await seedStationWithoutChecklist("устройства", "ru");
     await signIn(page);
 
-    await page.goto("/admin/devices");
-    await page.getByTestId("pair-guide").first().waitFor();
-    expectAccessible(await runAxe(page));
-
+    await page.goto("/admin/stations?gap=noChecklist");
     await page
       .getByTestId("station-row")
       .filter({ hasText: seeded.stationName })
+      .getByTestId("station-link")
       .click();
-    const drawer = page.getByTestId("station-drawer");
-    await drawer.getByTestId("pair-tablet").click();
-    await drawer.getByTestId("pair-tablet-code").waitFor();
+    await page.getByTestId("pair-guide").waitFor();
+    expectAccessible(await runAxe(page));
+
+    await page.getByTestId("pair-tablet").click();
+    await page.getByTestId("pair-tablet-code").waitFor();
 
     expectAccessible(await runAxe(page));
   });
@@ -498,8 +499,6 @@ const CABINET_PATHS = [
   "/admin/library",
   "/admin/feed",
   "/admin/catalog",
-  "/admin/qr",
-  "/admin/devices",
 ] as const;
 
 test.describe("доступность: каркас кабинета", () => {

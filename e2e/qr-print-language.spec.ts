@@ -26,7 +26,21 @@ import {
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { seedStore, type SeededStore } from "./station-fixtures";
 
-const QR_PATH = "/admin/qr";
+/**
+ * Лист наклеек всех станций пиццерии (T312: отдельного экрана QR больше нет, лист
+ * печатают из раздела «Станции»).
+ */
+function sheetPath(store: SeededStore): string {
+  const query = new URLSearchParams(
+    store.stationIds.map((id) => ["stationIds", id]),
+  );
+  return `/admin/stations/stickers?${query.toString()}`;
+}
+
+/** Карточка первой станции пиццерии — с неё открывают экран кода на планшете. */
+function cardPath(store: SeededStore): string {
+  return `/admin/stations/${store.stationIds[0] ?? ""}`;
+}
 
 /** Языки браузера методиста для матрицы — намеренно чужие языку пиццерии. */
 const RU_SHEET_HINT = "отсканируйте камерой";
@@ -75,12 +89,12 @@ async function openCabinet(
  *
  * Граница нужна настоящая, а не «весь документ»: подпись под кодом и надписи кабинета
  * живут на одной странице, и проверка «в документе есть русские буквы» прошла бы и до
- * правки. Конец листа опознаётся по началу следующей карточки — таблицы станций.
+ * правки. Конец листа — конец содержимого страницы (`</main>`): у пиццерии один лист.
  */
 function sheetFragment(html: string): string {
   const start = html.indexOf("data-print-sheet");
   expect(start, "лист печати в отданном документе").toBeGreaterThan(-1);
-  const end = html.indexOf('data-testid="qr-stations"', start);
+  const end = html.indexOf("</main>", start);
   return html.slice(start, end === -1 ? undefined : end);
 }
 
@@ -123,7 +137,7 @@ test.describe("лист печати говорит языком пиццери�
 
     const html = await deliveredHtml(
       context.request,
-      `${QR_PATH}?store=${store.storeId}`,
+      sheetPath(store),
       deviceLanguage,
     );
     const sheet = sheetFragment(html);
@@ -142,7 +156,7 @@ test.describe("лист печати говорит языком пиццери�
     expect(documentLang(html)).toBe("en");
 
     // То же самое глазами человека: он видит обе надписи на одной странице.
-    await page.goto(`${QR_PATH}?store=${store.storeId}`);
+    await page.goto(sheetPath(store));
     await expect(page.getByTestId("qr-sheet")).toContainText(RU_SHEET_HINT);
     await expect(page.getByTestId("qr-print")).toContainText("Print");
 
@@ -162,7 +176,7 @@ test.describe("лист печати говорит языком пиццери�
 
     const html = await deliveredHtml(
       context.request,
-      `${QR_PATH}?store=${store.storeId}`,
+      sheetPath(store),
       deviceLanguage,
     );
     const sheet = sheetFragment(html);
@@ -213,7 +227,7 @@ test.describe("экран планшета — тоже поверхность �
       "ru",
     );
 
-    await page.goto(`${QR_PATH}?store=${store.storeId}`);
+    await page.goto(cardPath(store));
     const screenHref = await page
       .getByTestId("qr-open-screen")
       .getAttribute("href");
@@ -259,7 +273,7 @@ test.describe("экран планшета — тоже поверхность �
       "en",
     );
 
-    await page.goto(`${QR_PATH}?store=${store.storeId}`);
+    await page.goto(cardPath(store));
     const screenHref = await page
       .getByTestId("qr-open-screen")
       .getAttribute("href");

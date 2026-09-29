@@ -22,7 +22,10 @@ import { lastSubmission, seedFillStand } from "./fill-fixtures";
 const PAIR_PATH = "/pair";
 const STATION_PATH = "/station";
 const FEED_PATH = "/admin/feed";
-const DEVICES_PATH = "/admin/devices";
+/** Карточка станции — с T312 единственное место привязки планшета. */
+function stationCard(stationId: string): string {
+  return `/admin/stations/${stationId}`;
+}
 
 /** Планшет — не телефон: экран шире, и вкладка живёт на нём постоянно. */
 const TABLET = { width: 1024, height: 768 } as const;
@@ -36,19 +39,6 @@ async function withPool<T>(work: (pool: Pool) => Promise<T>): Promise<T> {
   }
 }
 
-/** Чек-лист станции: экран кабинета открывается по нему, а фикстура отдаёт станцию. */
-async function checklistOf(stationId: string): Promise<string> {
-  return await withPool(async (pool) => {
-    const { rows } = await pool.query<{ id: string }>(
-      "select id from checklists where station_id = $1 limit 1",
-      [stationId],
-    );
-    const id = rows[0]?.id;
-    if (id === undefined) throw new Error("У станции фикстуры нет чек-листа");
-    return id;
-  });
-}
-
 async function signIn(page: Page): Promise<void> {
   await page.goto("/admin/login");
   // Не по подписи поля: язык кабинета зависит от браузера, а `name` — нет.
@@ -58,9 +48,9 @@ async function signIn(page: Page): Promise<void> {
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }
 
-/** Выпускает код с экрана чек-листа и возвращает его — тем же путём, что и управляющий. */
-async function issuePin(page: Page, checklistId: string): Promise<string> {
-  await page.goto(`/admin/checklists/${checklistId}`);
+/** Выпускает код с карточки станции и возвращает его — тем же путём, что и управляющий. */
+async function issuePin(page: Page, stationId: string): Promise<string> {
+  await page.goto(stationCard(stationId));
   await page.getByTestId("pair-tablet").click();
   const code = page.getByTestId("pair-tablet-code");
   await expect(code).toBeVisible();
@@ -74,32 +64,22 @@ async function answerBool(page: Page, itemId: string): Promise<void> {
 }
 
 /**
- * Отвязка из раздела «Устройства»: строка станции → панель справа → «Отвязать» →
- * подтверждение. Строка ищется по СТАНЦИИ, а не по порядку: сценарии идут парами, и в
- * списке кабинета лежат чужие станции.
+ * Отвязка с карточки станции: «Отвязать» у планшета → подтверждение. Карточка
+ * остаётся на той же станции и говорит, что планшета нет.
  */
-async function unlinkFromDevices(
+async function unlinkFromStation(
   admin: Page,
   stationId: string,
 ): Promise<void> {
-  // С чистого экрана раздела: строка списка под открытой панелью закрыта подложкой.
-  await admin.goto(DEVICES_PATH);
-  const stationRow = admin.locator(
-    `[data-testid="station-row"][data-station-id="${stationId}"]`,
-  );
-  await expect(stationRow).toHaveAttribute("data-paired", "true");
-  await stationRow.click();
-
-  const drawer = admin.getByTestId("station-drawer");
-  const tablet = drawer.getByTestId("device-row");
+  await admin.goto(stationCard(stationId));
+  const tablet = admin.getByTestId("paired-tablet");
   await expect(tablet).toHaveCount(1);
   await tablet.getByTestId("device-unlink").click();
   await admin.getByTestId("unlink-confirm").click();
 
-  // Панель осталась открытой на той же станции — и теперь говорит, что планшета нет.
-  await expect(drawer.getByTestId("station-no-tablet")).toBeVisible();
+  await expect(admin.getByTestId("no-tablet")).toBeVisible();
   await expect(tablet).toHaveCount(0);
-  await expect(stationRow).toHaveAttribute("data-paired", "false");
+  await expect(admin).toHaveURL(new RegExp(`${stationCard(stationId)}$`));
 }
 
 test.describe("привязанный планшет", () => {
@@ -110,7 +90,6 @@ test.describe("привязанный планшет", () => {
 
     // Arrange: станция с опубликованным чек-листом и кабинет управляющего.
     const stand = await seedFillStand("device");
-    const checklistId = await checklistOf(stand.stationId);
 
     const cabinet = await browser.newContext();
     const admin = await cabinet.newPage();
@@ -120,7 +99,7 @@ test.describe("привязанный планшет", () => {
     const tablet = await tabletContext.newPage();
 
     // Act: код из кабинета — и планшет вводит его один раз в жизни.
-    const pin = await issuePin(admin, checklistId);
+    const pin = await issuePin(admin, stand.stationId);
     expect(pin).toMatch(/^\d{4}$/);
 
     await tablet.goto(PAIR_PATH);
@@ -172,7 +151,7 @@ test.describe("привязанный планшет", () => {
 
     // Отвязка из кабинета действует тем же мигом: подпись куки без живой строки
     // устройства не значит ничего.
-    await unlinkFromDevices(admin, stand.stationId);
+    await unlinkFromStation(admin, stand.stationId);
 
     await tablet.goto(STATION_PATH);
     await expect(tablet.getByTestId("tablet-unpaired")).toBeVisible();
@@ -182,7 +161,7 @@ test.describe("привязанный планшет", () => {
     await cabinet.close();
   });
 
-  test("раздел «Устройства»: станция без планшета → код в панели рядом с инструкцией → планшет привязан → отвязка с последствием", async ({
+  test("карточка станции: без планшета → код рядом с инструкцией → планшет привязан → отвязка с последствием", async ({
     browser,
   }) => {
     test.slow();
@@ -193,10 +172,14 @@ test.describe("привязанный планшет", () => {
     const admin = await cabinet.newPage();
     await signIn(admin);
 
-    await admin.goto(DEVICES_PATH);
+    // Старый адрес «Устройств» со станцией ведёт на её карточку (T312).
+    await admin.goto(`/admin/devices?station=${stand.stationId}`);
+    await expect(admin).toHaveURL(
+      new RegExp(`${stationCard(stand.stationId)}$`),
+    );
 
-    // Инструкция видна на самом экране — четыре шага и настоящий адрес привязки.
-    const guide = admin.getByTestId("pair-guide").first();
+    // Инструкция видна на самой карточке — четыре шага и настоящий адрес привязки.
+    const guide = admin.getByTestId("pair-guide");
     await expect(guide).toBeVisible();
     await expect(guide.getByTestId("pair-guide-step")).toHaveCount(4);
     await expect(guide.getByTestId("pair-guide-address")).toHaveText(
@@ -204,36 +187,21 @@ test.describe("привязанный планшет", () => {
     );
 
     // Станция без планшета помечена явно.
-    const stationRow = admin.locator(
-      `[data-testid="station-row"][data-station-id="${stand.stationId}"]`,
-    );
-    await expect(stationRow).toHaveAttribute("data-paired", "false");
+    await expect(admin.getByTestId("no-tablet")).toBeVisible();
 
-    // Act: панель станции открывается поверх списка — список остаётся на месте.
-    await stationRow.click();
-    await expect(admin).toHaveURL(
-      new RegExp(`${DEVICES_PATH}\\?station=${stand.stationId}$`),
-    );
-    const drawer = admin.getByTestId("station-drawer");
-    await expect(drawer).toBeVisible();
-    await expect(stationRow).toBeVisible();
-    await expect(drawer.getByTestId("station-no-tablet")).toBeVisible();
-
-    await drawer.getByTestId("pair-tablet").click();
-    const code = drawer.getByTestId("pair-tablet-code");
+    // Act: код выпускается рядом с инструкцией.
+    await admin.getByTestId("pair-tablet").click();
+    const code = admin.getByTestId("pair-tablet-code");
     await expect(code).toBeVisible();
     const pin = (await code.innerText()).trim();
     expect(pin).toMatch(/^\d{4}$/);
-    // Рядом с кодом — отсчёт, адрес для планшета и та же инструкция по шагам.
-    await expect(drawer.getByTestId("pair-tablet-left")).toContainText(
+    // Рядом с кодом — отсчёт и адрес для планшета.
+    await expect(admin.getByTestId("pair-tablet-left")).toContainText(
       /\d:\d\d/,
     );
-    await expect(drawer.getByTestId("pair-tablet-where")).toContainText(
+    await expect(admin.getByTestId("pair-tablet-where")).toContainText(
       PAIR_PATH,
     );
-    await expect(
-      drawer.getByTestId("pair-guide").getByTestId("pair-guide-step"),
-    ).toHaveCount(4);
 
     // Планшет: адрес из инструкции, четыре цифры — и он открывает чек-лист станции.
     const tabletContext = await browser.newContext({ viewport: TABLET });
@@ -244,22 +212,21 @@ test.describe("привязанный планшет", () => {
     await expect(tablet).toHaveURL(new RegExp(`${STATION_PATH}$`));
     await expect(tablet.getByTestId("fill-screen")).toBeVisible();
 
-    // Assert: в кабинете станция теперь с планшетом, и в панели он виден.
-    await admin.goto(`${DEVICES_PATH}?station=${stand.stationId}`);
-    await expect(stationRow).toHaveAttribute("data-paired", "true");
-    await expect(drawer.getByTestId("device-row")).toHaveCount(1);
+    // Assert: на карточке станции планшет теперь виден.
+    await admin.goto(stationCard(stand.stationId));
+    await expect(admin.getByTestId("paired-tablet")).toHaveCount(1);
 
-    // Вопрос об отвязке называет последствие, а Esc закрывает только вопрос — панель
-    // со станцией остаётся, человек не теряет, с чем работал.
-    await drawer.getByTestId("device-unlink").click();
+    // Вопрос об отвязке называет последствие, а Esc закрывает только вопрос —
+    // карточка станции остаётся, человек не теряет, с чем работал.
+    await admin.getByTestId("device-unlink").click();
     await expect(admin.getByTestId("unlink-dialog")).toContainText(
       stand.stationName,
     );
     await admin.keyboard.press("Escape");
     await expect(admin.getByTestId("unlink-dialog")).toHaveCount(0);
-    await expect(drawer).toBeVisible();
+    await expect(admin.getByTestId("station-tablet-card")).toBeVisible();
 
-    await unlinkFromDevices(admin, stand.stationId);
+    await unlinkFromStation(admin, stand.stationId);
 
     await tablet.goto(STATION_PATH);
     await expect(tablet.getByTestId("tablet-unpaired")).toBeVisible();

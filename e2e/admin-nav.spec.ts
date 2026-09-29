@@ -11,7 +11,10 @@
 import { test, expect, type Page } from "@playwright/test";
 
 import type { AdminSection } from "@/blocks/core/admin-sections";
-import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
+import {
+  ADMIN_REDIRECTED_SECTIONS,
+  ADMIN_SECTIONS,
+} from "@/blocks/core/admin-sections";
 
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 
@@ -33,7 +36,6 @@ const READY = [
     name: "Библиотека блоков",
     screen: "library-screen",
   },
-  { key: "qr", path: "/admin/qr", name: "QR-коды", screen: "qr-screen" },
   {
     key: "feed",
     path: "/admin/feed",
@@ -45,12 +47,6 @@ const READY = [
     path: "/admin/catalog",
     name: "Страны и пиццерии",
     screen: "catalog-screen",
-  },
-  {
-    key: "devices",
-    path: "/admin/devices",
-    name: "Устройства",
-    screen: "devices-screen",
   },
   {
     key: "stations",
@@ -79,9 +75,12 @@ test("перебор сторожа покрывает все готовые р�
   // лишний: следующий раздел заводится неготовым, и тогда он обязан сработать.
   const sections: readonly (readonly [string, AdminSection])[] =
     Object.entries(ADMIN_SECTIONS);
+  // Бывшие разделы, чьи адреса уводят в «Станции» (T312), пункта меню не имеют.
+  const redirected: readonly string[] = ADMIN_REDIRECTED_SECTIONS;
   const ready = sections
     .filter(([, section]) => section.ready)
     .map(([key]) => key)
+    .filter((key) => !redirected.includes(key))
     .sort();
 
   expect(

@@ -15,10 +15,8 @@ const SECTIONS = [
   { name: "Станции", path: "/admin/stations" },
   { name: "Шаблоны", path: "/admin/templates" },
   { name: "Библиотека блоков", path: "/admin/library" },
-  { name: "QR-коды", path: "/admin/qr" },
   { name: "Заполнения", path: "/admin/feed" },
   { name: "Страны и пиццерии", path: "/admin/catalog" },
-  { name: "Устройства", path: "/admin/devices" },
 ] as const;
 
 /**

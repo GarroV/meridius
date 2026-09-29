@@ -174,9 +174,7 @@ function windowMessageKey(verdict: WindowVisibility): string {
  *
  * Время берётся у ПИЦЦЕРИИ (`station.localTime`, счёт PostgreSQL, D026), а не у
  * браузера: методист может сидеть в другом поясе, и «сейчас» у него и у кухни разное.
- * Часы принадлежат той станции, к которой чек-лист УЖЕ привязан: станция, только что
- * выбранная в списке и ещё не сохранённая, привязкой не стала, и подсказка о ней
- * молчит — как молчала о ней и до T275.
+ * Часы принадлежат той станции, на которой чек-лист висит.
  * Посчитано оно при отрисовке страницы и за долгое редактирование устаревает — эту
  * дыру закрывает не эта подсказка, а состояние публикации (`closedWindow`), которое
  * сервер считает в миг нажатия.
@@ -186,12 +184,20 @@ export function StationNotice({
   window,
 }: {
   readonly station: {
+    id: string;
     name: string;
     storeName: string;
     localTime: string | null;
   } | null;
   readonly window: WindowValue;
 }) {
+  // Станцию чек-листа здесь больше не выбирают (T312, D163): подсказка ведёт туда, где
+  // чек-лист вешают на станцию, — на карточку станции или в список станций без чек-листа.
+  const stationsPath = ADMIN_SECTIONS.stations.path;
+  const href =
+    station === null
+      ? `${stationsPath}?gap=noChecklist`
+      : `${stationsPath}/${station.id}`;
   const t = useTranslations("editor.notice");
   const now = station?.localTime ?? null;
   const verdict = now === null ? null : windowVisibility(window, now);
@@ -210,6 +216,13 @@ export function StationNotice({
           ? t("noStation")
           : t("station", { station: station.name, store: station.storeName })}
       </div>
+      <Link
+        href={href}
+        className="text-accent font-medium no-underline hover:underline"
+        data-testid="station-notice-link"
+      >
+        {station === null ? t("attach") : t("openStation")}
+      </Link>
       {verdict === null || now === null ? null : (
         <div data-testid="window-notice">
           {t(windowMessageKey(verdict), {

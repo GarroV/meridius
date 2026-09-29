@@ -1,9 +1,10 @@
-// Сквозной сценарий перехода из справочника в раздел QR (T107).
+// Сквозной сценарий перехода из справочника к наклейкам (T107, T312).
 //
-// Границы модулей запрещают справочнику импортировать блок `qr`, поэтому имена
-// параметров адреса (`store`, `station`) у двух блоков совпадают только по
-// договорённости — типами это не проверить. Держит контракт только настоящий
-// переход в браузере: справочник собирает ссылку, а раздел QR читает её адрес.
+// Границы модулей запрещают справочнику импортировать блоки `qr` и `stations`, поэтому
+// имена параметров адреса (`store`, `station`) совпадают только по договорённости —
+// типами это не проверить. Держит контракт только настоящий переход в браузере:
+// справочник собирает ссылку на старый адрес QR, а тот уводит в «Станции» — на лист
+// наклеек пиццерии или на карточку станции.
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
@@ -42,11 +43,11 @@ async function openStore(page: Page, store: SeededStore): Promise<void> {
   await expect(page).toHaveURL(new RegExp(`[?&]store=${store.storeId}\\b`));
 }
 
-test.describe("переход из справочника в QR", () => {
+test.describe("переход из справочника к наклейкам", () => {
   // Эталон и тексты справочника русские, поэтому и браузер русский.
   test.use({ locale: "ru-RU" });
 
-  test("«QR-коды станций» ведёт на лист кодов выбранной пиццерии", async ({
+  test("«QR-коды станций» ведёт на лист наклеек выбранной пиццерии", async ({
     page,
   }) => {
     const store = await seedStore();
@@ -55,8 +56,10 @@ test.describe("переход из справочника в QR", () => {
 
     await page.getByTestId("catalog-qr-stations").click();
 
-    await expect(page.getByTestId("qr-screen")).toBeVisible();
-    expect(new URL(page.url()).searchParams.get("store")).toBe(store.storeId);
+    await expect(page).toHaveURL(/\/admin\/stations\/stickers\?/);
+    expect(
+      new URL(page.url()).searchParams.getAll("stationIds").sort(),
+    ).toEqual([...store.stationIds].sort());
     await expect(page.getByTestId("qr-sticker")).toHaveCount(
       STATION_NAMES.length,
     );
@@ -65,15 +68,14 @@ test.describe("переход из справочника в QR", () => {
     ).toHaveCount(STATION_NAMES.length);
   });
 
-  test("«QR» в строке станции ведёт на код именно этой станции", async ({
+  test("«QR» в строке станции ведёт на карточку именно этой станции", async ({
     page,
   }) => {
     const store = await seedStore();
     await signIn(page);
     await openStore(page, store);
 
-    // Вторая станция, не первая: без параметра `station` раздел QR молча
-    // выбирает первую станцию списка, и такая потеря прошла бы тест незамеченной.
+    // Вторая станция, не первая: первая могла бы совпасть и по случайности.
     const targetName = store.stationNames[1];
     if (targetName === undefined)
       throw new Error("В фикстуре нет второй станции");
@@ -81,18 +83,13 @@ test.describe("переход из справочника в QR", () => {
     const row = page.getByTestId("station-row").filter({ hasText: targetName });
     await row.getByTestId("catalog-station-qr").click();
 
-    await expect(page.getByTestId("qr-screen")).toBeVisible();
-    const url = new URL(page.url());
-    expect(url.searchParams.get("store")).toBe(store.storeId);
-    expect(url.searchParams.get("station")).not.toBeNull();
-
-    const tablet = page.getByTestId("qr-tablet");
-    await expect(tablet).toContainText(targetName);
-    // Соседняя станция не должна оказаться на карточке планшета — иначе
-    // параметр `station` потерялся молча и выбралась первая станция списка.
-    for (const otherName of store.stationNames) {
-      if (otherName === targetName) continue;
-      await expect(tablet).not.toContainText(otherName);
-    }
+    // Карточка именно этой станции: без параметра `station` старый адрес увёл бы на
+    // лист всей пиццерии, и такая потеря прошла бы тест незамеченной.
+    await expect(page).toHaveURL(
+      new RegExp(`/admin/stations/${store.stationIds[1] ?? ""}$`),
+    );
+    await expect(
+      page.getByRole("heading", { level: 1, name: targetName }),
+    ).toBeVisible();
   });
 });

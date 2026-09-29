@@ -10,7 +10,7 @@
 //
 // Слова берутся из клиентского словаря (`device.issue`): отсчёт склоняется и меняется
 // каждую секунду, собрать его заранее на сервере нельзя. Раздел словаря передаёт
-// провайдером тот, кто рисует кнопку (`PairTabletCard.tsx`, `DevicesScreen.tsx`).
+// провайдером тот, кто рисует кнопку (`PairTabletCard.tsx`).
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 import type { ReactElement } from "react";

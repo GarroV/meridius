@@ -256,12 +256,12 @@ const PROBES: Record<string, Probe> = {
       `/admin/checklists/${world.theirs.checklistId}/template-update`,
     ],
   },
+  // Бывший раздел «Устройства» — перенаправление на карточку станции (T312).
   "/admin/devices": {
     foreign: ({ theirs }) => [
       "/admin/devices",
       `/admin/devices${params({ station: theirs.stationId })}`,
     ],
-    own: ({ mine }) => ({ url: "/admin/devices", text: mine.stationName }),
   },
   "/admin/feed": {
     foreign: ({ theirs }) => [
@@ -282,12 +282,14 @@ const PROBES: Record<string, Probe> = {
     ],
   },
   "/admin/library": { foreign: () => ["/admin/library"] },
+  // Бывший лист QR — теперь перенаправление на карточку станции (T312): чужая
+  // пиццерия и станция в адресе не должны довести до чужой карточки.
   "/admin/qr": {
     foreign: ({ theirs }) => [
       "/admin/qr",
       `/admin/qr${params({ store: theirs.storeId })}`,
+      `/admin/qr${params({ store: theirs.storeId, station: theirs.stationId })}`,
     ],
-    own: ({ mine }) => ({ url: "/admin/qr", text: mine.storeName }),
   },
   "/admin/qr/code": {
     foreign: ({ theirs }) => [
@@ -368,16 +370,18 @@ test.describe("область видимости тенанта на весь к
       if (probe === undefined) continue; // первый сценарий уже упал с именем маршрута
 
       for (const url of probe.foreign(world)) {
-        const response = await page.request.get(url, { maxRedirects: 0 });
+        // Перенаправления проходятся до конца: бывшие /admin/qr и /admin/devices
+        // ведут на карточку станции, и проверяется то, куда они довели.
+        const response = await page.request.get(url);
         const body = await response.text();
+        const landed = response.url();
         // Вход не потерян: заворот на форму входа выглядел бы как изоляция.
-        expect(
-          response.headers()["location"] ?? "",
-          `${url} увёл на вход`,
-        ).not.toMatch(/\/admin\/login/);
+        expect(landed, `${url} увёл на вход`).not.toMatch(/\/admin\/login/);
         // Идентификатор из самого адреса страница вправе повторить (он в данных
         // маршрутизатора): он не утечка, его спросили. Имена и код станции — всегда.
-        for (const marker of markers.filter((m) => !url.includes(m))) {
+        for (const marker of markers.filter(
+          (m) => !url.includes(m) && !landed.includes(m),
+        )) {
           expect(body, `${url} отдал чужое: «${marker}»`).not.toContain(marker);
         }
       }
@@ -403,10 +407,30 @@ test.describe("область видимости тенанта на весь к
       `/admin/stations/${world.theirs.stationId}`,
       `/admin/qr/code${params({ store: world.theirs.storeId, station: world.theirs.stationId })}`,
       "/admin/templates/new",
+      // Бывшие разделы доводят до карточки станции — чужой она быть не может.
+      `/admin/devices${params({ station: world.theirs.stationId })}`,
+      `/admin/qr${params({ store: world.theirs.storeId, station: world.theirs.stationId })}`,
     ]) {
       const response = await page.request.get(url);
       expect(response.status(), url).toBe(404);
     }
+  });
+
+  test("лист наклеек по списку станций печатает только свои", async ({
+    page,
+  }) => {
+    const world = await seedWorld();
+    await signInAs(page, world.login);
+
+    const response = await page.request.get(
+      `/admin/stations/stickers?stationIds=${world.mine.stationId}&stationIds=${world.theirs.stationId}`,
+    );
+    expect(response.status()).toBe(200);
+    const body = await response.text();
+    // Код на наклейке зашит в QR-картинку, а не написан текстом: своё видно по имени.
+    expect(body).toContain(world.mine.stationName);
+    expect(body).not.toContain(world.theirs.stationCode);
+    expect(body).not.toContain(world.theirs.stationName);
   });
 
   test("партнёру не предлагают править шаблоны и заводить страны", async ({
