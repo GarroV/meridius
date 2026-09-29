@@ -167,8 +167,8 @@ async function seed(): Promise<Seeded> {
     // обязана быть СВОЯ тревога, иначе на полосе фильтр станции неотличим от фильтра
     // пиццерии и потеря станции по дороге проходит незамеченной (T126).
     const cashChecklist = await pool.query<{ id: string }>(
-      `insert into checklists (station_id, title, window_start, window_end)
-       values ($1, $2, '00:00', '23:59') returning id`,
+      `insert into checklists (station_id, title, window_start, window_end, tenant_id)
+       values ($1, $2, '00:00', '23:59', (select id from tenants where kind = 'hq')) returning id`,
       [
         cashId,
         JSON.stringify({ ru: `Открытие кассы ${label}`, en: `Cash ${label}` }),

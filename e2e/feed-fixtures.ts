@@ -70,8 +70,8 @@ export async function seedKitchenChecklist(
   const stationId = station.rows[0]?.id;
 
   const checklist = await pool.query<{ id: string }>(
-    `insert into checklists (station_id, title, window_start, window_end)
-     values ($1, $2, '00:00', '23:59') returning id`,
+    `insert into checklists (station_id, title, window_start, window_end, tenant_id)
+     values ($1, $2, '00:00', '23:59', (select id from tenants where kind = 'hq')) returning id`,
     [
       stationId,
       JSON.stringify({

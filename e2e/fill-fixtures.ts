@@ -151,8 +151,8 @@ export async function seedFillStand(
     const checklist = firstId(
       (
         await pool.query<{ id: string }>(
-          `insert into checklists (station_id, title, window_start, window_end)
-           values ($1, $2::jsonb, $3, $4) returning id`,
+          `insert into checklists (station_id, title, window_start, window_end, tenant_id)
+           values ($1, $2::jsonb, $3, $4, (select id from tenants where kind = 'hq')) returning id`,
           [
             station,
             JSON.stringify({ ru: "Открытие кухни", en: "Kitchen opening" }),
@@ -267,8 +267,8 @@ export async function addChecklistToStation(
     const checklistId = firstId(
       (
         await pool.query<{ id: string }>(
-          `insert into checklists (station_id, title, window_start, window_end)
-           values ($1, $2::jsonb, $3, $4) returning id`,
+          `insert into checklists (station_id, title, window_start, window_end, tenant_id)
+           values ($1, $2::jsonb, $3, $4, (select id from tenants where kind = 'hq')) returning id`,
           [
             stationId,
             JSON.stringify(options.title),
