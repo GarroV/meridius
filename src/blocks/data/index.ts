@@ -36,9 +36,10 @@ export type {
   StoreShiftMode,
   Submission,
 } from "./schema";
-export type { Alarm, Check } from "./schema";
+export type { Account, Alarm, Check, Tenant, TenantKind } from "./schema";
 export type { AnswerValue } from "./types";
 export {
+  accounts,
   alarms,
   blocks,
   checklistVersions,
@@ -52,6 +53,8 @@ export {
   storeShiftModes,
   stores,
   submissions,
+  tenantCountries,
+  tenants,
 } from "./schema";
 
 export type { Interval } from "./schedule";

@@ -75,6 +75,7 @@ async function signIn(page: Page): Promise<void> {
   // Не по подписи: вход зовут оба окна сценария T174, а подпись поля у них разная
   // («Пароль» / «Password», D009) — `name="password"` от языка интерфейса не зависит.
   await page.locator('input[name="password"]').fill(E2E_ADMIN_PASSWORD);
+  await page.locator('input[name="login"]').fill("admin");
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }

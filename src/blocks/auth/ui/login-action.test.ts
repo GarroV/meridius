@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { hashPassword } from "../password";
 import { LOGIN_LIMITS, forgetLoginAttempts } from "../rate-limit";
+import { ROOT_LOGIN } from "../accounts";
 import { ADMIN_HOME_PATH, LOGIN_PATH } from "../routes";
 import { SESSION_COOKIE_NAME } from "../session";
 import { submitLogin } from "./login-action";
@@ -52,8 +53,12 @@ const PASSWORD = "пароль-методиста";
 const INITIAL = { failed: false, message: null };
 const REFUSED = { failed: true, message: null };
 
-function formWith(password: FormDataEntryValue): FormData {
+function formWith(
+  password: FormDataEntryValue,
+  login: FormDataEntryValue = ROOT_LOGIN,
+): FormData {
   const form = new FormData();
+  form.append("login", login);
   form.append("password", password);
   return form;
 }
@@ -122,6 +127,28 @@ describe("submitLogin", () => {
     ).resolves.toEqual(REFUSED);
 
     expect(performance.now() - started).toBeLessThan(50);
+  });
+});
+
+describe("поле логина", () => {
+  test("без логина — отказ, хотя пароль верен", async () => {
+    const form = new FormData();
+    form.append("password", PASSWORD);
+    await expect(submitLogin(INITIAL, form)).resolves.toEqual(REFUSED);
+    expect(jar.get(SESSION_COOKIE_NAME)).toBeUndefined();
+  });
+
+  test("чужой логин с паролем УК — отказ", async () => {
+    await expect(
+      submitLogin(INITIAL, formWith(PASSWORD, "someone-else")),
+    ).resolves.toEqual(REFUSED);
+  });
+
+  test("вместо логина файл — отказ на границе", async () => {
+    const file = new File([ROOT_LOGIN], "login.txt", { type: "text/plain" });
+    await expect(
+      submitLogin(INITIAL, formWith(PASSWORD, file)),
+    ).resolves.toEqual(REFUSED);
   });
 });
 

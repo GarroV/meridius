@@ -7,10 +7,11 @@
   "login": {
     "brand": "MERIDIUS",
     "brandMuted": "Dodo",
+    "login": "Login",
     "password": "Password",
     "submit": "Sign in",
     "submitting": "Checking…",
-    "failed": "Wrong password",
+    "failed": "Wrong login or password",
     "throttled": "Too many sign-in attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
     "kitchenHint": "Kitchen staff do not need to sign in: the checklist opens from the station QR code."
   },

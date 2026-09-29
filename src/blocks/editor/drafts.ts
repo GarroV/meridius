@@ -24,6 +24,7 @@ import {
   stations,
   stores,
 } from "@/blocks/data";
+import { hqTenantId } from "@/blocks/auth/accounts";
 
 import type { LibraryEntry } from "./library-links";
 import { listLibrary, resolveLinkedSections } from "./library-links";
@@ -150,12 +151,15 @@ function checklistValues(input: ChecklistInput): {
 export async function createChecklist(
   input: ChecklistInput,
   kind: ChecklistKind = "checklist",
+  ownerTenantId?: string,
 ): Promise<string> {
   const isTemplate = kind === "template";
   const parsed = checklistValues(input);
+  // Хозяин (D145): не задан — УК; экраны кабинета передают тенант вошедшего всегда.
+  const tenantId = ownerTenantId ?? (await hqTenantId());
   const values = isTemplate
-    ? { ...parsed, stationId: null, isTemplate }
-    : parsed;
+    ? { ...parsed, stationId: null, isTemplate, tenantId }
+    : { ...parsed, tenantId };
 
   return getDb().transaction(async (tx) => {
     const inserted = await tx

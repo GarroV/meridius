@@ -8,6 +8,7 @@ import { and, eq } from "drizzle-orm";
 
 import type { Item, LocalizedText, Section } from "@/blocks/data";
 import { checklistVersions, checklists, getDb } from "@/blocks/data";
+import { hqTenantId } from "@/blocks/auth/accounts";
 
 import { EditorInputError, isUuid, parseRequiredText } from "./validation";
 
@@ -16,6 +17,11 @@ export interface DuplicateOptions {
   toStationId?: string | null;
   /** Название копии. По умолчанию — название исходного с суффиксом (см. `titleSuffix`). */
   title?: LocalizedText;
+  /**
+   * Чей будет новый чек-лист (D145). Не задан — УК: так ведут себя проверки и сид, а
+   * экраны кабинета передают тенант вошедшего всегда.
+   */
+  ownerTenantId?: string;
 }
 
 // Суффикс по языку продукта (D009): третий язык добавляется словарём, а не веткой кода,
@@ -139,6 +145,7 @@ export async function duplicateChecklist(
       : parseRequiredText(options.title);
   const sourceSections = await loadSourceSections(checklistId);
   const sections = sourceSections.map(copySection);
+  const tenantId = options?.ownerTenantId ?? (await hqTenantId());
 
   return getDb().transaction(async (tx) => {
     const inserted = await tx
@@ -146,6 +153,7 @@ export async function duplicateChecklist(
       .values({
         title,
         stationId,
+        tenantId,
         windowStart: source.windowStart,
         windowEnd: source.windowEnd,
       })
