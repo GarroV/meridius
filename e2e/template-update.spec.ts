@@ -71,9 +71,7 @@ test.describe("шаблон обновился", () => {
     // Копия раскатки открывается с пунктами шаблона, и обновления пока нет.
     await openCopy(page, title, first.stationName);
     await expect(page.getByTestId("item-title").first()).toHaveValue(OLD_ITEM);
-    await expect(page.getByTestId("template-origin")).toContainText(
-      "версия 1",
-    );
+    await expect(page.getByTestId("template-origin")).toContainText("версия 1");
     await expect(page.getByTestId("template-update")).toHaveCount(0);
 
     // Методист УК правит шаблон: один пункт меняет, второй добавляет.
@@ -106,9 +104,7 @@ test.describe("шаблон обновился", () => {
     await panel.getByTestId("template-update-take").click();
 
     await expect(page.getByTestId("template-update-screen")).toHaveCount(0);
-    await expect(page.getByTestId("template-origin")).toContainText(
-      "версия 2",
-    );
+    await expect(page.getByTestId("template-origin")).toContainText("версия 2");
     await expect(page.getByTestId("item-title")).toHaveCount(1);
     await expect(page.getByTestId("item-title").first()).toHaveValue(NEW_ITEM);
 
@@ -116,9 +112,7 @@ test.describe("шаблон обновился", () => {
     await openCopy(page, title, second.stationName);
     await page.getByTestId("template-update-dismiss").click();
     await expect(page.getByTestId("template-update")).toHaveCount(0);
-    await expect(page.getByTestId("template-origin")).toContainText(
-      "версия 1",
-    );
+    await expect(page.getByTestId("template-origin")).toContainText("версия 1");
     await expect(page.getByTestId("item-title").first()).toHaveValue(OLD_ITEM);
   });
 });
