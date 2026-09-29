@@ -21,12 +21,11 @@ import {
 } from "@/blocks/catalog";
 import { copyTemplateToStations } from "@/blocks/editor/templates";
 
-import { STATIONS_PATH, stationHref } from "./view";
+import { STATION_IDS_PARAM, STATIONS_PATH, stationHref } from "./view";
 
 const STATION_ID = "stationId";
 const CHECKLIST_ID = "checklistId";
 const TEMPLATE_ID = "templateId";
-const STATION_IDS = "stationIds";
 
 function field(form: FormData, name: string): string {
   const value = form.get(name);
@@ -84,7 +83,7 @@ export async function submitCopyToStations(form: FormData): Promise<void> {
 
   const templateId = field(form, TEMPLATE_ID);
   const stationIds = form
-    .getAll(STATION_IDS)
+    .getAll(STATION_IDS_PARAM)
     .flatMap((value) => (typeof value === "string" && value ? [value] : []));
 
   if (templateId === "" || stationIds.length === 0) {

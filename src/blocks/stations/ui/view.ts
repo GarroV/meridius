@@ -27,5 +27,15 @@ export function asGapFilter(value: string | undefined): GapFilter | undefined {
   return GAP_FILTERS.find((name) => name === value);
 }
 
-/** Форма раскатки на экране раздела; галочки колонки ссылаются на неё атрибутом `form`. */
+/**
+ * Форма выбора станций на экране раздела; галочки колонки ссылаются на неё атрибутом
+ * `form`. У неё две кнопки: раскатать шаблон (серверное действие) и напечатать наклейки
+ * (переход на лист печати с теми же галочками в адресе).
+ */
 export const ROLLOUT_FORM_ID = "rollout-form";
+
+/** Имя поля галочки колонки: его читают и раскатка, и лист печати. */
+export const STATION_IDS_PARAM = "stationIds";
+
+/** Лист печати наклеек пачкой (T311). */
+export const STICKERS_PATH = `${STATIONS_PATH}/stickers`;
