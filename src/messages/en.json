@@ -933,6 +933,14 @@
       "hint": "Tick the stations. Each gets its own copy — from then on the country edits it as its own.",
       "noTemplates": "No templates yet. Nothing to roll out.",
       "done": "Done: copies placed — {copied}, skipped (a copy was already there) — {skipped}."
+    },
+    "stickers": {
+      "title": "Stickers for the selected stations",
+      "action": "Print stickers for the selected",
+      "print": "Print",
+      "count": "A4 · {count, plural, one {# sticker} other {# stickers}} · {stores, plural, one {# pizzeria} other {# pizzerias}}",
+      "sheetTitle": "Print sheet",
+      "empty": "No stations selected. Tick them in the column on the left and press “Print stickers for the selected”."
     }
   },
   "templates": {

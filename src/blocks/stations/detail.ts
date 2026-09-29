@@ -30,7 +30,7 @@ import {
  * ссылку теряет (`on delete set null`) и называется местной: назвать её источник больше
  * нечем, а номер версии без названия ни о чём человеку не говорит.
  */
-export type ChecklistOrigin =
+type ChecklistOrigin =
   | { readonly kind: "local" }
   | {
       readonly kind: "copy";
