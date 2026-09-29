@@ -41,6 +41,19 @@ export const ADMIN_HOME: Pick<AdminSection, "path"> = { path: "/admin" };
 
 export type AdminSectionKey = keyof typeof ADMIN_SECTIONS;
 
+/**
+ * Разделы, которых в меню больше нет (T312, D163): наклейка и планшет — свойства
+ * станции, с ними работают на её карточке. Адреса остались — они уводят в «Станции», а
+ * под `/admin/qr` живут экран кода на планшете, его опрос и файл наклейки.
+ *
+ * Сторож связности меню (`e2e/admin-nav.spec.ts`) их не перебирает: пункта у них нет.
+ * Перенаправления держит `e2e/stations-legacy.spec.ts`.
+ */
+export const ADMIN_REDIRECTED_SECTIONS: readonly AdminSectionKey[] = [
+  "qr",
+  "devices",
+];
+
 /** Группа пунктов бокового меню: её заголовок и разделы по порядку. */
 export interface AdminNavGroup {
   readonly key: string;
@@ -64,5 +77,8 @@ export const ADMIN_NAV_GROUPS = [
     key: "work",
     items: ["checklists", "stations", "templates", "library", "feed"],
   },
-  { key: "reference", items: ["catalog", "qr", "devices"] },
+  // «QR-коды» и «Устройства» в меню больше нет (T312, D163): наклейка и планшет —
+  // свойства станции, с ними работают на её карточке. Адреса остались — они уводят в
+  // «Станции», а вложенные адреса QR (экран кода, опрос, файл наклейки) работают.
+  { key: "reference", items: ["catalog"] },
 ] as const satisfies readonly AdminNavGroup[];

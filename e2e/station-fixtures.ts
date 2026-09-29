@@ -21,6 +21,8 @@ export interface SeededStore {
   storeName: string;
   countryName: string;
   stationNames: string[];
+  /** Id станций в порядке `stationNames` — по ним открывают карточку станции. */
+  stationIds: string[];
 }
 
 export interface SeedStoreOptions {
@@ -61,11 +63,16 @@ export async function seedStore(
     if (storeId === undefined)
       throw new Error("Пиццерия для сценария не завелась");
 
+    const stationIds: string[] = [];
     for (const name of STATION_NAMES) {
-      await pool.query(
-        "insert into stations (store_id, name, code) values ($1, $2, $3)",
+      const station = await pool.query<{ id: string }>(
+        "insert into stations (store_id, name, code) values ($1, $2, $3) returning id",
         [storeId, `${name} ${label}`, code()],
       );
+      const stationId = station.rows[0]?.id;
+      if (stationId === undefined)
+        throw new Error("Станция для сценария не завелась");
+      stationIds.push(stationId);
     }
 
     return {
@@ -73,6 +80,7 @@ export async function seedStore(
       storeName: `Пиццерия ${label}`,
       countryName: `Страна ${label}`,
       stationNames: STATION_NAMES.map((name) => `${name} ${label}`),
+      stationIds,
     };
   } finally {
     await pool.end();

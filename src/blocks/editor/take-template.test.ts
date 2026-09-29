@@ -11,7 +11,7 @@ import {
   sampleSections,
 } from "@/blocks/data/testing/fixtures";
 
-import { createChecklist, updateChecklist } from "./drafts";
+import { createChecklist } from "./drafts";
 import { listTemplateCards, takeTemplate } from "./templates";
 
 afterAll(closeTestDb);
@@ -62,25 +62,6 @@ describe("заведение шаблона", () => {
     const row = await checklistRow(id);
     expect(row?.isTemplate).toBe(true);
     expect(row?.stationId).toBeNull();
-  });
-
-  test("правка свойств шаблона станцию ему не вешает", async () => {
-    const station = await createStation();
-    const id = await createChecklist(
-      { stationId: null, title: { ru: "Шаблон до правки" }, window: MORNING },
-      "template",
-    );
-
-    await updateChecklist(id, {
-      stationId: station.stationId,
-      title: { ru: "Шаблон после правки" },
-      window: MORNING,
-    });
-
-    const row = await checklistRow(id);
-    expect(row?.title).toEqual({ ru: "Шаблон после правки" });
-    expect(row?.stationId).toBeNull();
-    expect(row?.isTemplate).toBe(true);
   });
 });
 

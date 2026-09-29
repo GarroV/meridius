@@ -145,7 +145,7 @@ describe("намертво выключенные элементы управл�
       path.join("src", "blocks", "editor", "ui", "SectionCard.tsx"),
       path.join("src", "blocks", "catalog", "ui", "StoreCard.tsx"),
       path.join("src", "blocks", "fill", "ui", "FillScreen.tsx"),
-      path.join("src", "blocks", "qr", "ui", "StationsCard.tsx"),
+      path.join("src", "blocks", "qr", "ui", "PrintSheet.tsx"),
     ]) {
       expect(files).toContain(anchor);
     }

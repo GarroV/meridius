@@ -1,6 +1,6 @@
-// Экраны планшета на 375 px (T330, #145): привязанная вкладка `/station`, раздел
-// «Устройства» и панель станции с выпущенным кодом не едут вбок, а привязанная вкладка
-// не пишет в консоль ошибок.
+// Экраны планшета на 375 px (T330, #145): привязанная вкладка `/station` и карточка
+// станции с выпущенным кодом привязки (с T312 — вместо раздела «Устройства») не едут
+// вбок, а привязанная вкладка не пишет в консоль ошибок.
 //
 // Почему отдельный файл, а не шаг сквозного сценария. Сквозной (`device.spec.ts`) идёт
 // на ширине планшета, и сужать его значило бы проверять цепочку привязки не там, где она
@@ -17,7 +17,6 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { seedFillStand } from "./fill-fixtures";
 
 const PHONE = { width: 375, height: 812 } as const;
-const DEVICES_PATH = "/admin/devices";
 
 /** Куда класть снимки для сверки. Не задан — снимков нет, проверка от них не зависит. */
 const SHOTS_DIR = process.env["DEVICE_SHOTS_DIR"];
@@ -133,7 +132,7 @@ function collectErrors(page: Page): string[] {
 }
 
 test.describe("экраны планшета на 375 px", () => {
-  test("раздел «Устройства», панель станции с кодом и привязанная вкладка не едут вбок; вкладка без ошибок в консоли", async ({
+  test("карточка станции с кодом привязки и привязанная вкладка не едут вбок; вкладка без ошибок в консоли", async ({
     browser,
   }) => {
     test.slow();
@@ -147,22 +146,21 @@ test.describe("экраны планшета на 375 px", () => {
     const admin = await cabinet.newPage();
     await signIn(admin);
 
-    // Раздел целиком: дерево станций и инструкция.
-    await admin.goto(DEVICES_PATH);
-    await expect(admin.getByTestId("pair-guide").first()).toBeVisible();
-    await expectNoOverflow(admin, DEVICES_PATH);
-    await shot(admin, "devices-375");
+    // Карточка станции с инструкцией привязки (T312: отдельного раздела «Устройства»
+    // больше нет).
+    const card = `/admin/stations/${stand.stationId}`;
+    await admin.goto(card);
+    await expect(admin.getByTestId("pair-guide")).toBeVisible();
+    await expectNoOverflow(admin, card);
+    await shot(admin, "station-card-375");
 
-    // Панель станции с выпущенным кодом — самое широкое её состояние.
-    await admin.goto(`${DEVICES_PATH}?station=${stand.stationId}`);
-    const drawer = admin.getByTestId("station-drawer");
-    await expect(drawer).toBeVisible();
-    await drawer.getByTestId("pair-tablet").click();
-    const code = drawer.getByTestId("pair-tablet-code");
+    // Карточка с выпущенным кодом — самое широкое её состояние.
+    await admin.getByTestId("pair-tablet").click();
+    const code = admin.getByTestId("pair-tablet-code");
     await expect(code).toBeVisible();
     const pin = (await code.innerText()).trim();
-    await expectNoOverflow(admin, `${DEVICES_PATH}?station=`);
-    await shot(admin, "devices-drawer-375");
+    await expectNoOverflow(admin, `${card} с кодом`);
+    await shot(admin, "station-card-code-375");
 
     // Act: планшет на телефонной ширине вводит код и попадает на свою вкладку.
     const tabletContext = await browser.newContext({ viewport: PHONE });

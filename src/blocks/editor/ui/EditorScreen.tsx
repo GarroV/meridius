@@ -6,7 +6,6 @@ import { Icon } from "@/blocks/core/ui/Icon";
 
 import { submitDuplicate } from "../actions";
 import { loadEditor } from "../drafts";
-import { listStations } from "../listing";
 import { pickEditorText } from "../localized-text";
 import { checklistDeletePath, checklistPreviewPath } from "../routes";
 import { loadTemplateOrigin } from "../template-updates";
@@ -78,23 +77,14 @@ function ChecklistActions({
  */
 export async function EditorScreen({
   checklistId,
-  stationAction,
 }: {
   readonly checklistId: string;
-  /**
-   * Действие кабинета, которому нужна СОХРАНЁННАЯ станция чек-листа, — сейчас это
-   * «Привязать планшет» блока `device`. Приходит готовой разметкой от страницы, а не
-   * импортом: правило границ не даёт редактору зависеть от блока привязки, а второй
-   * поход в базу за станцией ради одной карточки был бы лишним.
-   */
-  readonly stationAction?: (stationId: string | null) => React.ReactNode;
 }) {
   const state = await loadEditor(checklistId);
   if (state === null) notFound();
 
-  const [locale, stations, t, origin] = await Promise.all([
+  const [locale, t, origin] = await Promise.all([
     getLocale(),
-    listStations(),
     getTranslations("editor"),
     loadTemplateOrigin(checklistId),
   ]);
@@ -132,14 +122,12 @@ export async function EditorScreen({
         checklistId={checklistId}
         locale={locale}
         initialTitle={pickEditorText(state.checklist.title, locale)}
-        initialStationId={state.checklist.stationId ?? ""}
         isTemplate={isTemplate}
         initialWindow={windowOf(
           state.checklist.windowStart,
           state.checklist.windowEnd,
         )}
         initialSections={state.sections}
-        stations={stations}
         station={state.station}
         versions={state.versions}
         library={state.library}
@@ -155,7 +143,6 @@ export async function EditorScreen({
             />
           )
         }
-        stationAction={stationAction?.(state.checklist.stationId ?? null)}
         headerActions={
           isTemplate ? null : (
             <ChecklistActions

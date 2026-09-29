@@ -167,17 +167,17 @@ describe("saveDraft", () => {
 });
 
 describe("updateChecklist", () => {
-  test("меняет название, станцию и окно", async () => {
-    const first = await createStation();
-    const second = await createStation();
+  test("меняет название и окно, а станцию чек-листа не трогает", async () => {
+    // Станцию чек-листа ведёт раздел «Станции» (T312): сохранение свойств на экране
+    // чек-листа не должно снимать его со станции, на которую его повесили там.
+    const station = await createStation();
     const checklistId = await createChecklist({
-      stationId: first.stationId,
+      stationId: station.stationId,
       title: { ru: "Было" },
       window: MORNING,
     });
 
     await updateChecklist(checklistId, {
-      stationId: second.stationId,
       title: { ru: "Стало", en: "Now" },
       window: { start: "20:00", end: "00:00" },
     });
@@ -187,7 +187,7 @@ describe("updateChecklist", () => {
       .from(checklists)
       .where(eq(checklists.id, checklistId));
     expect(row?.title).toStrictEqual({ ru: "Стало", en: "Now" });
-    expect(row?.stationId).toBe(second.stationId);
+    expect(row?.stationId).toBe(station.stationId);
     expect(row?.windowStart).toBe("20:00:00");
     expect(row?.windowEnd).toBe("00:00:00");
   });
@@ -201,7 +201,6 @@ describe("updateChecklist", () => {
     });
 
     await updateChecklist(checklistId, {
-      stationId: null,
       title: { ru: "Всегда" },
       window: { start: "00:00", end: "24:00" },
     });

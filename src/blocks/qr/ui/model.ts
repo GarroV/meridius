@@ -17,7 +17,7 @@ export interface QrStationView {
   readonly screenHref: string;
 }
 
-export interface QrStoreView {
+interface QrStoreView {
   readonly id: string;
   readonly name: string;
   readonly countryName: string;
