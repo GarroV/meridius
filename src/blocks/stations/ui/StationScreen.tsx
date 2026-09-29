@@ -140,8 +140,27 @@ export async function StationScreen({
               >
                 <input type="hidden" name="stationId" value={station.id} />
                 <input type="hidden" name="checklistId" value={checklist.id} />
-                <span className="font-medium">
-                  {localized(checklist.title, locale)}
+                <span className="flex flex-col">
+                  <span className="font-medium">
+                    {localized(checklist.title, locale)}
+                  </span>
+                  {/* Происхождение (T310, D149): копию правят как свою, но человек
+                      обязан видеть, с какого шаблона и какой его версии она снята. */}
+                  <span
+                    className={META_CLASS}
+                    data-testid="checklist-origin"
+                    data-origin={checklist.origin.kind}
+                  >
+                    {checklist.origin.kind === "copy"
+                      ? t("card.originCopy", {
+                          template: localized(
+                            checklist.origin.templateTitle,
+                            locale,
+                          ),
+                          version: checklist.origin.version,
+                        })
+                      : t("card.originLocal")}
+                  </span>
                 </span>
                 <button
                   type="submit"

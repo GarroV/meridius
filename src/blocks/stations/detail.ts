@@ -9,6 +9,7 @@
 // строку и берёт всё. Свести их в одно значило бы либо тащить по сети то, что нужно
 // одной станции, либо не показать на карточке половины.
 import { asc, desc, eq } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import type { LocalizedText } from "@/blocks/data";
 import {
@@ -21,10 +22,38 @@ import {
   submissions,
 } from "@/blocks/data";
 
+/**
+ * Откуда чек-лист на станции (D149, D155): копия шаблона УК или заведён страной сам.
+ *
+ * Версия — та, с которой копия снята, а не нынешняя версия шаблона: копия — хозяйство
+ * страны, и номер лишь отличает свежую копию от отставшей. Копия удалённого шаблона
+ * ссылку теряет (`on delete set null`) и называется местной: назвать её источник больше
+ * нечем, а номер версии без названия ни о чём человеку не говорит.
+ */
+export type ChecklistOrigin =
+  | { readonly kind: "local" }
+  | {
+      readonly kind: "copy";
+      readonly templateTitle: LocalizedText;
+      readonly version: number;
+    };
+
 /** Чек-лист, висящий на станции. */
 interface AttachedChecklist {
   readonly id: string;
   readonly title: LocalizedText;
+  readonly origin: ChecklistOrigin;
+}
+
+/** Шаблон-источник копии: та же таблица, поэтому соединение идёт через псевдоним. */
+const sourceTemplate = alias(checklists, "source_template");
+
+function originOf(
+  templateTitle: LocalizedText | null,
+  version: number | null,
+): ChecklistOrigin {
+  if (templateTitle === null || version === null) return { kind: "local" };
+  return { kind: "copy", templateTitle, version };
 }
 
 /** Привязанный планшет. Их может быть несколько: две точки входа на одной станции. */
@@ -89,8 +118,17 @@ export async function getStationDetail(
   // Здесь это дороже, чем в списке, ровно на два запроса — но строка одна.
   const [attached, tablets, [latest]] = await Promise.all([
     db
-      .select({ id: checklists.id, title: checklists.title })
+      .select({
+        id: checklists.id,
+        title: checklists.title,
+        templateTitle: sourceTemplate.title,
+        version: checklists.sourceVersion,
+      })
       .from(checklists)
+      .leftJoin(
+        sourceTemplate,
+        eq(checklists.sourceChecklistId, sourceTemplate.id),
+      )
       .where(eq(checklists.stationId, id))
       .orderBy(asc(checklists.title)),
     db
@@ -112,7 +150,10 @@ export async function getStationDetail(
 
   return {
     ...row,
-    checklists: attached,
+    checklists: attached.map(({ templateTitle, version, ...checklist }) => ({
+      ...checklist,
+      origin: originOf(templateTitle, version),
+    })),
     tablets,
     lastSubmissionAt: latest?.submittedAt ?? null,
   };

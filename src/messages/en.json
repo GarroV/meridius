@@ -907,6 +907,8 @@
       "attachLabel": "Put a checklist on it",
       "attach": "Put on",
       "nothingToAttach": "No free checklists — they are all on stations already.",
+      "originCopy": "Copy of the “{template}” template, version {version}",
+      "originLocal": "Local: made here, not copied from a template",
       "sticker": "Sticker",
       "stickerWhat": "People scan the sticker with their own phone. Nothing needs pairing for that.",
       "print": "Print",
