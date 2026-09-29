@@ -10,6 +10,8 @@ import type { QrStationView } from "@/blocks/qr/ui/model";
 import { PrintButton } from "@/blocks/qr/ui/PrintButton";
 import { PrintSheet } from "@/blocks/qr/ui/PrintSheet";
 import { qrScreenHref } from "@/blocks/qr/ui/view";
+import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 
 import { listStickerStations, type StickerStation } from "../stickers";
 import { STATIONS_PATH } from "./view";
@@ -122,7 +124,8 @@ export async function StickerSheetScreen(
   props: StickerSheetScreenProps,
 ): Promise<ReactElement> {
   const t = await getTranslations("stations");
-  const rows = await listStickerStations(props.stationIds);
+  const viewer = await requireAdmin();
+  const rows = await listStickerStations(props.stationIds, scopeOf(viewer));
   const sheets = bySheet(rows, props);
 
   return (

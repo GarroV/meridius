@@ -12,6 +12,8 @@ import { PIN_TTL_SECONDS } from "@/blocks/device/pin";
 import { PairGuide } from "@/blocks/device/ui/PairGuide";
 import { PairTabletCard } from "@/blocks/device/ui/PairTabletCard";
 import { UnlinkButton } from "@/blocks/device/ui/UnlinkButton";
+import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 import { qrScreenHref, qrStickerHref } from "@/blocks/qr/ui/view";
 
 import { getStationDetail } from "../detail";
@@ -154,14 +156,15 @@ export async function StationScreen({
   unlinkFailed = false,
   pairAddress,
 }: StationScreenProps): Promise<ReactElement | null> {
-  const station = await getStationDetail(stationId);
+  const viewer = await requireAdmin();
+  const station = await getStationDetail(stationId, scopeOf(viewer));
   if (station === null) return null;
 
   const t = await getTranslations("stations");
   const tDevice = await getTranslations("device");
   const tCatalog = await getTranslations("catalog");
   const locale = asLocale(await getLocale());
-  const free = await listUnassignedChecklists();
+  const free = await listUnassignedChecklists(viewer);
   const here = stationHref(station.id);
   const ref = { storeId: station.storeId, stationId: station.id };
 

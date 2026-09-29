@@ -69,6 +69,7 @@ async function printSheetToPdf({ url, store, password, pdfPath }) {
 
     await page.goto(`${url}/admin/login`);
     await page.getByLabel("Пароль").fill(password);
+    await page.locator('input[name="login"]').fill("admin");
     await page.getByTestId("login-submit").click();
     await page.getByTestId("admin-home").waitFor();
 

@@ -10,6 +10,7 @@ import {
   countries,
   stations,
   stores,
+  tenants,
 } from "../schema";
 import type { Section } from "../types";
 import { getTestDb } from "./db";
@@ -88,6 +89,20 @@ export interface ChecklistOptions {
   windowStart?: string;
   windowEnd?: string;
   title?: Record<string, string>;
+  /** Хозяин чек-листа (D145). Без него — УК: до тенантов кабинет был только у неё. */
+  tenantId?: string;
+  isTemplate?: boolean;
+}
+
+/** Тенант УК: его строку заводит миграция 0016, и она ровно одна. */
+export async function hqTenant(): Promise<string> {
+  return firstRow(
+    await getTestDb()
+      .select({ id: tenants.id })
+      .from(tenants)
+      .where(eq(tenants.kind, "hq")),
+    "tenants",
+  ).id;
 }
 
 export async function createChecklist(
@@ -100,6 +115,8 @@ export async function createChecklist(
       .insert(checklists)
       .values({
         stationId: options.stationId ?? null,
+        tenantId: options.tenantId ?? (await hqTenant()),
+        isTemplate: options.isTemplate ?? false,
         title: options.title ?? {
           ru: `Чек-лист ${suffix}`,
           en: `Checklist ${suffix}`,

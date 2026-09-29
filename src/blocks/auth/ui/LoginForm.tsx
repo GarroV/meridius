@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { submitLogin, type LoginFormState } from "./login-action";
 
 export interface LoginLabels {
+  readonly login: string;
   readonly password: string;
   readonly submit: string;
   readonly submitting: string;
@@ -14,6 +15,7 @@ export interface LoginLabels {
 
 const INITIAL_STATE: LoginFormState = { failed: false, message: null };
 
+const LOGIN_FIELD_ID = "admin-login";
 const FIELD_ID = "admin-password";
 const ERROR_ID = "admin-password-error";
 
@@ -28,6 +30,28 @@ export function LoginForm({ labels }: { readonly labels: LoginLabels }) {
     <form action={action} className="flex flex-col gap-[var(--space-6)]">
       <div className="flex flex-col gap-[var(--space-3)]">
         <label
+          htmlFor={LOGIN_FIELD_ID}
+          className="text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase"
+        >
+          {labels.login}
+        </label>
+        <input
+          id={LOGIN_FIELD_ID}
+          name="login"
+          type="text"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          autoFocus
+          required
+          aria-invalid={state.failed}
+          aria-describedby={state.failed ? ERROR_ID : undefined}
+          className="bg-surface text-ink h-[var(--control-h)] w-full rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-5)] text-[length:var(--fs-lead)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none"
+        />
+      </div>
+
+      <div className="flex flex-col gap-[var(--space-3)]">
+        <label
           htmlFor={FIELD_ID}
           className="text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase"
         >
@@ -38,7 +62,6 @@ export function LoginForm({ labels }: { readonly labels: LoginLabels }) {
           name="password"
           type="password"
           autoComplete="current-password"
-          autoFocus
           required
           aria-invalid={state.failed}
           aria-describedby={state.failed ? ERROR_ID : undefined}

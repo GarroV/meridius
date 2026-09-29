@@ -10,6 +10,7 @@ import { describe, expect, test } from "vitest";
 import { checklists } from "@/blocks/data";
 import { getTestDb } from "@/blocks/data/testing/db";
 import { createChecklist, createStation } from "@/blocks/data/testing/fixtures";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 import { getStationDetail } from "./detail";
 
@@ -38,7 +39,7 @@ describe("карточка станции: происхождение чек-л�
       .where(eq(checklists.id, copyId));
     const localId = await createChecklist({ stationId });
 
-    const detail = await getStationDetail(stationId);
+    const detail = await getStationDetail(stationId, WHOLE_NETWORK);
     const copy = detail?.checklists.find((one) => one.id === copyId);
     const local = detail?.checklists.find((one) => one.id === localId);
 
@@ -61,7 +62,7 @@ describe("карточка станции: происхождение чек-л�
       .set({ sourceChecklistId: null, sourceVersion: TEMPLATE_VERSION })
       .where(eq(checklists.id, orphanId));
 
-    const detail = await getStationDetail(stationId);
+    const detail = await getStationDetail(stationId, WHOLE_NETWORK);
 
     expect(detail?.checklists[0]?.origin).toEqual({ kind: "local" });
   });

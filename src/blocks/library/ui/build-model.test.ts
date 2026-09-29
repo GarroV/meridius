@@ -8,6 +8,7 @@ import { createStation } from "@/blocks/data/testing/fixtures";
 import { createChecklist, saveDraft } from "@/blocks/editor/drafts";
 import { publish } from "@/blocks/editor/publish";
 import { checklistPath } from "@/blocks/editor/routes";
+import { hqViewer } from "@/blocks/auth/testing/viewers";
 
 import { createBlock, saveBlock } from "../blocks";
 import { buildLibraryModel, pickText, usageLabel } from "./build-model";
@@ -88,7 +89,11 @@ describe("модель экрана библиотеки", () => {
   test("открывается блок из адреса, он же помечен выбранным в списке", async () => {
     const wanted = await newBlock("Санитария", [item("санитария")]);
 
-    const model = await buildLibraryModel({ blockId: wanted }, "ru");
+    const model = await buildLibraryModel(
+      { blockId: wanted },
+      "ru",
+      await hqViewer(),
+    );
 
     expect(model.selection?.id).toBe(wanted);
     const row = model.blocks.find((block) => block.id === wanted);
@@ -103,6 +108,7 @@ describe("модель экрана библиотеки", () => {
     const model = await buildLibraryModel(
       { blockId: "9d3f6f2a-0f1e-4a8b-8c2d-1f2b3c4d5e6f" },
       "ru",
+      await hqViewer(),
     );
 
     expect(model.selection).not.toBeNull();
@@ -127,7 +133,7 @@ describe("модель экрана библиотеки", () => {
     ]);
     await publish(checklistId);
 
-    const model = await buildLibraryModel({ blockId }, "ru");
+    const model = await buildLibraryModel({ blockId }, "ru", await hqViewer());
 
     const usage = model.selection?.usages[0];
     expect(model.selection?.usages).toHaveLength(1);

@@ -181,6 +181,7 @@ function heading(text) {
 async function signIn(page) {
   await page.goto(`${BASE_URL}/admin/login`, { waitUntil: "domcontentloaded" });
   await page.getByLabel("Password").fill(PASSWORD);
+  await page.locator('input[name="login"]').fill("admin");
   await page.getByTestId("login-submit").click();
   await page.getByTestId("admin-home").waitFor({ timeout: STEP_TIMEOUT });
 }

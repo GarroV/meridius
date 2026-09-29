@@ -22,6 +22,7 @@ import {
   createStation as createStationFixture,
   sampleSections,
 } from "@/blocks/data/testing/fixtures";
+import { hqViewer } from "@/blocks/auth/testing/viewers";
 
 import { STATION_CODE_ALPHABET, STATION_CODE_LENGTH } from "./station-code";
 import {
@@ -228,7 +229,7 @@ describe("привязка чек-листа к станции (T017)", () => {
 
     const [row] = await listStations(storeId);
     expect(row?.checklists).toStrictEqual([]);
-    const free = await listUnassignedChecklists();
+    const free = await listUnassignedChecklists(await hqViewer());
     expect(free.map((item) => item.id)).toContain(checklistId);
   });
 
@@ -239,7 +240,9 @@ describe("привязка чек-листа к станции (T017)", () => {
     const free = await createChecklist();
     await assignChecklist(created.id, taken);
 
-    const ids = (await listUnassignedChecklists()).map((item) => item.id);
+    const ids = (await listUnassignedChecklists(await hqViewer())).map(
+      (item) => item.id,
+    );
 
     expect(ids).toContain(free);
     expect(ids).not.toContain(taken);
@@ -276,7 +279,9 @@ describe("привязка чек-листа к станции (T017)", () => {
 
     await deleteStation(created.id);
 
-    const ids = (await listUnassignedChecklists()).map((item) => item.id);
+    const ids = (await listUnassignedChecklists(await hqViewer())).map(
+      (item) => item.id,
+    );
     expect(ids).not.toContain(archived);
     // Рабочий чек-лист, наоборот, обязан вернуться в свободные: его привязывают заново.
     expect(ids).toContain(working);

@@ -5,9 +5,10 @@
 // раздел QR по пиццерии. Язык наклейки — язык страны пиццерии (D122), поэтому вместе со
 // станцией читается и он: пачка из двух стран печатается на двух языках, каждая наклейка
 // на своём.
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { countries, getDb, stations, stores } from "@/blocks/data";
+import { countryCondition, type Scope } from "@/blocks/auth/scope";
 
 export interface StickerStation {
   readonly id: string;
@@ -31,6 +32,7 @@ const UUID_PATTERN =
  */
 export async function listStickerStations(
   ids: readonly string[],
+  scope: Scope,
 ): Promise<readonly StickerStation[]> {
   const wanted = [...new Set(ids.filter((id) => UUID_PATTERN.test(id)))];
   if (wanted.length === 0) return [];
@@ -49,7 +51,13 @@ export async function listStickerStations(
       .from(stations)
       .innerJoin(stores, eq(stations.storeId, stores.id))
       .innerJoin(countries, eq(stores.countryId, countries.id))
-      .where(inArray(stations.id, wanted))
+      // Чужая станция в списке адреса не печатается, как и удалённая (D145).
+      .where(
+        and(
+          inArray(stations.id, wanted),
+          countryCondition(scope, stores.countryId),
+        ),
+      )
       // `stores.id` вслед за именем: пиццерии-тёзки не перемешивают станции, и лист
       // одной пиццерии собирается подряд.
       .orderBy(

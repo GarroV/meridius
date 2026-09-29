@@ -15,9 +15,11 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   time,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -85,6 +87,77 @@ export const countries = pgTable(
       "countries_locale",
       sql`locale in (${sql.raw(LOCALES.map((code) => `'${code}'`).join(", "))})`,
     ),
+  ],
+);
+
+/**
+ * Тенант — область видимости кабинета (D145, миграция 0016). УК одна и видит все
+ * страны; партнёр видит только страны из `tenant_countries`. Сам расчёт области —
+ * `src/blocks/auth/scope.ts`, здесь только форма данных.
+ */
+export const TENANT_KINDS = ["hq", "partner"] as const;
+export type TenantKind = (typeof TENANT_KINDS)[number];
+
+export const tenants = pgTable(
+  "tenants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").$type<TenantKind>().notNull(),
+    name: text("name").notNull(),
+    createdAt: serverTimestamp(CREATED_AT),
+  },
+  (table) => [
+    check("tenants_kind", sql`kind in ('hq', 'partner')`),
+    check("tenants_name_length", sql`length(btrim(name)) between 1 and 120`),
+    // УК ровно одна: вторая «УК» видела бы всю сеть, и никто бы этого не заметил.
+    uniqueIndex("tenants_single_hq")
+      .on(table.kind)
+      .where(sql`kind = 'hq'`),
+  ],
+);
+
+/** Страны партнёра. У УК строк нет: «все страны» — это отсутствие фильтра. */
+export const tenantCountries = pgTable(
+  "tenant_countries",
+  {
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    countryId: uuid("country_id")
+      .notNull()
+      .references(() => countries.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({
+      name: "tenant_countries_pk",
+      columns: [table.tenantId, table.countryId],
+    }),
+    index("tenant_countries_country_idx").on(table.countryId),
+  ],
+);
+
+/**
+ * Учётная запись кабинета. Логин `admin` занят учёткой УК из окружения площадки
+ * (`ADMIN_PASSWORD_HASH`) и в базе запрещён — один логин не открывает две учётки.
+ */
+export const accounts = pgTable(
+  "accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    login: text("login").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    createdAt: serverTimestamp(CREATED_AT),
+    disabledAt: timestamp("disabled_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique("accounts_login_unique").on(table.login),
+    check("accounts_login_shape", sql`login ~ '^[a-z0-9._-]{3,64}$'`),
+    check("accounts_login_not_root", sql`login <> 'admin'`),
+    check("accounts_password_hash_shape", sql`password_hash ~ '^scrypt[.]'`),
+    index("accounts_tenant_idx").on(table.tenantId),
   ],
 );
 
@@ -161,10 +234,16 @@ export const checklists = pgTable(
     // видела и отклонила. Строка «шаблон обновился» гаснет до следующей версии, а
     // `source_version` не сдвигается: содержимое копии по-прежнему снято с неё.
     sourceSeenVersion: integer("source_seen_version"),
+    // Хозяин чек-листа (D145, миграция 0016): без него чек-лист без станции не лежит ни
+    // в одной стране, и «мой» (D148) не отличить от чужого.
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
     createdAt: serverTimestamp(CREATED_AT),
   },
   (table) => [
     index("checklists_station_idx").on(table.stationId),
+    index("checklists_tenant_idx").on(table.tenantId),
     index("checklists_source_idx").on(table.sourceChecklistId),
     check(
       "checklists_template_has_no_station",
@@ -552,6 +631,8 @@ export const loginAttempts = pgTable(
 );
 
 export type Country = typeof countries.$inferSelect;
+export type Tenant = typeof tenants.$inferSelect;
+export type Account = typeof accounts.$inferSelect;
 export type Store = typeof stores.$inferSelect;
 export type Station = typeof stations.$inferSelect;
 export type Checklist = typeof checklists.$inferSelect;

@@ -13,6 +13,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import {
+  requireChecklistEditable,
+  requireStations,
+  requireVisible,
+} from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
 import {
   assignChecklist,
@@ -60,15 +65,21 @@ function backToStation(stationId: string): never {
 }
 
 export async function submitAssignChecklist(form: FormData): Promise<void> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
   const stationId = field(form, STATION_ID);
-  await assignChecklist(stationId, field(form, CHECKLIST_ID));
+  const checklistId = field(form, CHECKLIST_ID);
+  // Станция и чек-лист приходят из формы: чужие отвечают как несуществующие (D145).
+  await requireVisible(viewer, "station", stationId);
+  await requireChecklistEditable(viewer, checklistId);
+  await assignChecklist(stationId, checklistId);
   backToStation(stationId);
 }
 
 export async function submitDetachChecklist(form: FormData): Promise<void> {
-  await requireAdmin();
-  await detachChecklist(field(form, CHECKLIST_ID));
+  const viewer = await requireAdmin();
+  const checklistId = field(form, CHECKLIST_ID);
+  await requireChecklistEditable(viewer, checklistId);
+  await detachChecklist(checklistId);
   backToStation(field(form, STATION_ID));
 }
 
@@ -85,8 +96,10 @@ export async function submitDetachChecklist(form: FormData): Promise<void> {
  * журнал, а не тихим возвратом «как будто вышло».
  */
 export async function submitReissueCode(form: FormData): Promise<void> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
   const stationId = field(form, STATION_ID);
+  // Чужая станция из формы — «такой нет» (D145): код не перевыпускается.
+  await requireVisible(viewer, "station", stationId);
 
   const decision = decideReissue({
     stationId,
@@ -114,7 +127,7 @@ export async function submitReissueCode(form: FormData): Promise<void> {
  * выбрано» обязано означать «ничего не делать», а не «сделать со всеми».
  */
 export async function submitCopyToStations(form: FormData): Promise<void> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const templateId = field(form, TEMPLATE_ID);
   const stationIds = form
@@ -125,7 +138,14 @@ export async function submitCopyToStations(form: FormData): Promise<void> {
     redirect(STATIONS_PATH);
   }
 
-  const outcome = await copyTemplateToStations(templateId, stationIds);
+  // Одна чужая станция в списке — отказ целиком, а не раскатка «на часть» (D145).
+  await requireStations(viewer, stationIds);
+  const outcome = await copyTemplateToStations(
+    templateId,
+    stationIds,
+    new Date(),
+    viewer.tenantId,
+  );
 
   revalidatePath(STATIONS_PATH, "layout");
   // Итог уезжает в адрес, а не в состояние экрана: человек, раскатавший на сорок

@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import { getDb, stations } from "@/blocks/data";
 import { createChecklist, createStation } from "@/blocks/data/testing/fixtures";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 import { pairDevice, unpairDevice } from "./devices";
 import { findStationTablets, listStationTablets } from "./station-tablets";
@@ -20,7 +21,7 @@ function later(seconds: number): Date {
 }
 
 async function entryOf(stationId: string) {
-  const all = await listStationTablets();
+  const all = await listStationTablets(WHOLE_NETWORK);
   return all.filter((entry) => entry.stationId === stationId);
 }
 
@@ -103,7 +104,7 @@ describe("одна станция для панели", () => {
     const { stationId } = await createStation();
     const tablet = await pairDevice({ stationId }, NOW);
 
-    const entry = await findStationTablets(stationId);
+    const entry = await findStationTablets(stationId, WHOLE_NETWORK);
 
     expect(entry?.stationId).toBe(stationId);
     expect(entry?.tablets.map((row) => row.id)).toEqual([tablet.id]);
@@ -113,11 +114,11 @@ describe("одна станция для панели", () => {
     const { stationId } = await createStation();
     await getDb().delete(stations).where(eq(stations.id, stationId));
 
-    expect(await findStationTablets(stationId)).toBeNull();
+    expect(await findStationTablets(stationId, WHOLE_NETWORK)).toBeNull();
   });
 
   it("не падает на мусоре из адреса: параметр панели пишет кто угодно", async () => {
-    expect(await findStationTablets("не uuid")).toBeNull();
-    expect(await findStationTablets("")).toBeNull();
+    expect(await findStationTablets("не uuid", WHOLE_NETWORK)).toBeNull();
+    expect(await findStationTablets("", WHOLE_NETWORK)).toBeNull();
   });
 });

@@ -21,6 +21,7 @@ import {
   storeShiftModes,
   stores,
   submissions,
+  tenants,
 } from "@/blocks/data";
 
 import { DEMO } from "./dataset";
@@ -374,10 +375,19 @@ async function insertContour(
       })),
     );
   }
+  // Демо-контур — хозяйство УК (D145): тенант берётся из той же транзакции.
+  const [hq] = await tx
+    .select({ id: tenants.id })
+    .from(tenants)
+    .where(eq(tenants.kind, "hq"));
+  if (hq === undefined) {
+    throw new Error("В базе нет тенанта УК: миграция 0016 не накатана");
+  }
   await tx.insert(checklists).values(
     data.checklists.map((checklist) => ({
       id: checklist.id,
       stationId: checklist.stationId,
+      tenantId: hq.id,
       title: checklist.title,
       windowStart: checklist.window.start,
       windowEnd: checklist.window.end,

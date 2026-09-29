@@ -18,6 +18,13 @@ import {
   listSubmissions,
   severityOf,
 } from "@/blocks/data";
+import { canSee } from "@/blocks/auth/access";
+import {
+  scopeOf as scopeOfViewer,
+  visibleCountryIds,
+  type Scope,
+  type Viewer,
+} from "@/blocks/auth/scope";
 
 import type { AlarmList } from "../alarms";
 import type { FeedScope } from "../scope";
@@ -63,12 +70,21 @@ const FEED_LIMIT = 200;
 const ALARM_STRIP_LIMIT = 6;
 
 /** Фильтры экрана в том виде, в каком их принимают запросы: незаданное не передаётся. */
-function scopeOf(selection: FeedSelection): FeedScope {
+function scopeOf(selection: FeedSelection, visible: Scope): FeedScope {
   return {
+    visible,
     ...(selection.countryId === null ? {} : { countryId: selection.countryId }),
     ...(selection.storeId === null ? {} : { storeId: selection.storeId }),
     ...(selection.stationId === null ? {} : { stationId: selection.stationId }),
   };
+}
+
+/** Фильтр ленты: выбор экрана плюс область видимости страной (D145). */
+function submissionScope(selection: FeedSelection, visible: Scope) {
+  const { visible: _unused, ...filters } = scopeOf(selection, visible);
+  void _unused;
+  const countryIds = visibleCountryIds(visible);
+  return countryIds === null ? filters : { ...filters, countryIds };
 }
 
 /** Пояс площадки: последнее слово, когда пояс пиццерии выяснить неоткуда. */
@@ -83,15 +99,17 @@ function platformTimeZone(): string {
 export async function buildFeedModel(
   view: FeedView,
   locale: Locale,
+  viewer: Viewer,
   now: Date = new Date(),
 ): Promise<FeedModel> {
-  const catalog = await loadFeedCatalog();
+  const visible = scopeOfViewer(viewer);
+  const catalog = await loadFeedCatalog(visible);
   const selection = resolveSelection(view, catalog);
   const timeZone = screenTimeZone(selection);
   const { from, to } = resolvePeriod(selection.period, now, timeZone);
 
   const rows = await listSubmissions({
-    ...scopeOf(selection),
+    ...submissionScope(selection, visible),
     from,
     to,
     limit: FEED_LIMIT,
@@ -99,7 +117,7 @@ export async function buildFeedModel(
 
   // Тревоги берутся своим запросом и без периода: полоса обязана показывать
   // состояние на сейчас, а не выборку, суженную фильтром периода (D053).
-  const alarms = await listAlarms(scopeOf(selection), now);
+  const alarms = await listAlarms(scopeOf(selection, visible), now);
 
   const feedRows = rows.map((row) =>
     toFeedRow(row, {
@@ -124,7 +142,7 @@ export async function buildFeedModel(
     emptyKind:
       feedRows.length > 0
         ? null
-        : await emptyKindOf(selection, catalog.stations.length),
+        : await emptyKindOf(selection, visible, catalog.stations.length),
   };
 }
 
@@ -159,12 +177,13 @@ function toFeedAlarms(list: AlarmList, locale: Locale): FeedAlarms {
  */
 async function emptyKindOf(
   selection: FeedSelection,
+  visible: Scope,
   stationCount: number,
 ): Promise<FeedEmptyKind> {
   if (stationCount === 0) return "no-stations";
 
   const ever = await listSubmissions({
-    ...scopeOf(selection),
+    ...submissionScope(selection, visible),
     limit: 1,
   });
 
@@ -215,7 +234,10 @@ export async function buildSubmissionModel(
   id: string,
   locale: Locale,
   backHref: string,
+  viewer: Viewer,
 ): Promise<SubmissionModel | null> {
+  // Чужое заполнение — «такого нет», как и несуществующее (D145).
+  if (!(await canSee(viewer, "submission", id))) return null;
   const detail = await getSubmission(id);
   if (detail === null) return null;
 

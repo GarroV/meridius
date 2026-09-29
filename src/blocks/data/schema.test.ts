@@ -22,6 +22,7 @@ import {
   createChecklist,
   createPublishedVersion,
   createStation,
+  hqTenant,
   sampleSections,
   uniqueStationCode,
 } from "./testing/fixtures";
@@ -175,6 +176,7 @@ describe("окно времени чек-листа", () => {
     // молча не открывается ни на одной станции. Отказ базы вместо недели поисков.
     const code = await dbErrorCode(
       db.insert(checklists).values({
+        tenantId: await hqTenant(),
         stationId: null,
         title: { ru: "Окно в ноль", en: "Zero window" },
         windowStart: "08:00:00",
@@ -190,6 +192,7 @@ describe("окно времени чек-листа", () => {
     // вечерней смены, и запретить конец раньше начала было бы поломкой продукта.
     await expect(
       db.insert(checklists).values({
+        tenantId: await hqTenant(),
         stationId: null,
         title: { ru: "Ночное окно", en: "Night window" },
         windowStart: "22:00:00",
@@ -443,6 +446,7 @@ describe("шаблон и его копии", () => {
     const copy = await db
       .insert(checklists)
       .values({
+        tenantId: await hqTenant(),
         title: { ru: "Копия", en: "Copy" },
         windowStart: "06:00:00",
         windowEnd: "12:00:00",
@@ -476,6 +480,7 @@ describe("шаблон и его копии", () => {
     const { stationId } = await createStation();
     const code = await dbErrorCode(
       db.insert(checklists).values({
+        tenantId: await hqTenant(),
         title: { ru: "Шаблон на станции", en: "Template on station" },
         windowStart: "06:00:00",
         windowEnd: "12:00:00",

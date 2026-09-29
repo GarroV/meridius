@@ -3,6 +3,8 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { Icon } from "@/blocks/core/ui/Icon";
+import { requireChecklistEditable } from "@/blocks/auth/access";
+import { requireAdmin } from "@/blocks/auth/guard";
 
 import { submitDuplicate } from "../actions";
 import { loadEditor } from "../drafts";
@@ -80,6 +82,10 @@ export async function EditorScreen({
 }: {
   readonly checklistId: string;
 }) {
+  // Редактор открывается только тому, кто может править: шаблон у партнёра открывается
+  // предпросмотром, а не редактором (D149, user-flow §5.2); чужое — «такого нет» (D145).
+  const viewer = await requireAdmin();
+  await requireChecklistEditable(viewer, checklistId);
   const state = await loadEditor(checklistId);
   if (state === null) notFound();
 

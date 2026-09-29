@@ -18,6 +18,7 @@ import {
   createPublishedVersion,
   createStation,
 } from "@/blocks/data/testing/fixtures";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 import type { Alarm } from "./alarms";
 import type { FeedScope } from "./scope";
@@ -133,7 +134,10 @@ describe("провал критичного пункта — тревога", ()
       answer("i-tables", true, MORNING),
     ]);
 
-    const alarms = await alarmsOf({ storeId }, AFTERNOON);
+    const alarms = await alarmsOf(
+      { visible: WHOLE_NETWORK, storeId },
+      AFTERNOON,
+    );
 
     expect(alarms).toHaveLength(1);
     expect(alarms[0]).toMatchObject({ kind: "criticalFailed", itemCount: 1 });
@@ -148,7 +152,9 @@ describe("провал критичного пункта — тревога", ()
       answer("i-tables", false, MORNING),
     ]);
 
-    expect(await alarmsOf({ storeId }, AFTERNOON)).toStrictEqual([]);
+    expect(
+      await alarmsOf({ visible: WHOLE_NETWORK, storeId }, AFTERNOON),
+    ).toStrictEqual([]);
   });
 
   test("критичный пункт оставили без ответа — своя тревога, а не тишина", async () => {
@@ -158,7 +164,10 @@ describe("провал критичного пункта — тревога", ()
     const { storeId, versionId } = await prepare();
     await fill(versionId, MORNING, [answer("i-tables", true, MORNING)]);
 
-    const alarms = await alarmsOf({ storeId }, AFTERNOON);
+    const alarms = await alarmsOf(
+      { visible: WHOLE_NETWORK, storeId },
+      AFTERNOON,
+    );
 
     expect(alarms).toHaveLength(1);
     expect(alarms[0]).toMatchObject({
@@ -192,7 +201,10 @@ describe("провал критичного пункта — тревога", ()
     ]);
     await fill(versionId, MORNING, [answer("i-gas", false, MORNING)]);
 
-    const alarms = await alarmsOf({ storeId: station.storeId }, AFTERNOON);
+    const alarms = await alarmsOf(
+      { visible: WHOLE_NETWORK, storeId: station.storeId },
+      AFTERNOON,
+    );
 
     // Провал впереди молчания, и каждая тревога говорит про своё одной строкой.
     expect(alarms.map((alarm) => alarm.kind)).toStrictEqual([
@@ -207,7 +219,10 @@ describe("провал критичного пункта — тревога", ()
       answer("i-gas", false, new Date("2026-09-05T09:00:00Z")),
     ]);
 
-    const alarms = await alarmsOf({ storeId }, AFTERNOON);
+    const alarms = await alarmsOf(
+      { visible: WHOLE_NETWORK, storeId },
+      AFTERNOON,
+    );
 
     // Осталась только тревога о незаполненном сегодня чек-листе — но не вчерашний провал.
     expect(alarms.map((alarm) => alarm.kind)).toStrictEqual(["missed"]);
@@ -225,7 +240,9 @@ describe("критичный пункт без ответа — по закры�
     const { storeId, versionId } = await prepare();
     await fill(versionId, MORNING, [answer("i-tables", true, MORNING)]);
 
-    expect(await alarmsOf({ storeId }, MORNING)).toStrictEqual([]);
+    expect(
+      await alarmsOf({ visible: WHOLE_NETWORK, storeId }, MORNING),
+    ).toStrictEqual([]);
   });
 
   test("окно закрылось: тревога поднялась", async () => {
@@ -234,7 +251,10 @@ describe("критичный пункт без ответа — по закры�
       answer("i-tables", true, MORNING),
     ]);
 
-    const alarms = await alarmsOf({ storeId }, AFTERNOON);
+    const alarms = await alarmsOf(
+      { visible: WHOLE_NETWORK, storeId },
+      AFTERNOON,
+    );
 
     expect(alarms).toHaveLength(1);
     expect(alarms[0]).toMatchObject({
@@ -251,7 +271,7 @@ describe("критичный пункт без ответа — по закры�
     const { storeId, versionId } = await prepare();
     await fill(versionId, MORNING, [answer("i-gas", false, MORNING)]);
 
-    const alarms = await alarmsOf({ storeId }, MORNING);
+    const alarms = await alarmsOf({ visible: WHOLE_NETWORK, storeId }, MORNING);
 
     expect(alarms.map((alarm) => alarm.kind)).toStrictEqual(["criticalFailed"]);
   });
@@ -268,7 +288,7 @@ describe("критичный пункт без ответа — по закры�
     await fill(versionId, evening, [answer("i-tables", true, evening)]);
 
     const alarms = await alarmsOf(
-      { storeId },
+      { visible: WHOLE_NETWORK, storeId },
       new Date("2026-09-06T00:30:00Z"),
     );
 
@@ -286,7 +306,7 @@ describe("критичный пункт без ответа — по закры�
     await fill(versionId, evening, [answer("i-tables", true, evening)]);
 
     const alarms = await alarmsOf(
-      { storeId },
+      { visible: WHOLE_NETWORK, storeId },
       new Date("2026-09-05T23:00:00Z"),
     );
 
@@ -301,7 +321,10 @@ describe("незаполненный чек-лист — тревога", () => 
   test("окно закрылось, заполнения нет: пропущен", async () => {
     const { storeId, stationId, checklistId } = await prepare();
 
-    const alarms = await alarmsOf({ storeId }, AFTERNOON);
+    const alarms = await alarmsOf(
+      { visible: WHOLE_NETWORK, storeId },
+      AFTERNOON,
+    );
 
     expect(alarms).toHaveLength(1);
     expect(alarms[0]).toMatchObject({
@@ -315,7 +338,9 @@ describe("незаполненный чек-лист — тревога", () => 
   test("окно ещё открыто: не пропущен", async () => {
     const { storeId } = await prepare();
 
-    expect(await alarmsOf({ storeId }, MORNING)).toStrictEqual([]);
+    expect(
+      await alarmsOf({ visible: WHOLE_NETWORK, storeId }, MORNING),
+    ).toStrictEqual([]);
   });
 
   test("заполнили внутри окна: не пропущен", async () => {
@@ -325,7 +350,9 @@ describe("незаполненный чек-лист — тревога", () => 
       answer("i-tables", true, MORNING),
     ]);
 
-    expect(await alarmsOf({ storeId }, AFTERNOON)).toStrictEqual([]);
+    expect(
+      await alarmsOf({ visible: WHOLE_NETWORK, storeId }, AFTERNOON),
+    ).toStrictEqual([]);
   });
 
   test("вчерашнее заполнение сегодняшнее окно не закрывает", async () => {
@@ -333,7 +360,10 @@ describe("незаполненный чек-лист — тревога", () => 
     const yesterday = new Date("2026-09-05T09:00:00Z");
     await fill(versionId, yesterday, [answer("i-gas", true, yesterday)]);
 
-    const alarms = await alarmsOf({ storeId }, AFTERNOON);
+    const alarms = await alarmsOf(
+      { visible: WHOLE_NETWORK, storeId },
+      AFTERNOON,
+    );
 
     expect(alarms.map((alarm) => alarm.kind)).toStrictEqual(["missed"]);
   });
@@ -345,7 +375,9 @@ describe("незаполненный чек-лист — тревога", () => 
       .set({ archivedAt: new Date() })
       .where(eq(checklists.id, checklistId));
 
-    expect(await alarmsOf({ storeId }, AFTERNOON)).toStrictEqual([]);
+    expect(
+      await alarmsOf({ visible: WHOLE_NETWORK, storeId }, AFTERNOON),
+    ).toStrictEqual([]);
   });
 
   test("чек-лист без опубликованной версии не пропущен: заполнять было нечего", async () => {
@@ -357,7 +389,10 @@ describe("незаполненный чек-лист — тревога", () => 
     });
 
     expect(
-      await alarmsOf({ storeId: station.storeId }, AFTERNOON),
+      await alarmsOf(
+        { visible: WHOLE_NETWORK, storeId: station.storeId },
+        AFTERNOON,
+      ),
     ).toStrictEqual([]);
   });
 });
@@ -374,7 +409,10 @@ describe("на станции несколько чек-листов (#60)", () 
     });
     await createPublishedVersion(roundId, sections([GAS]));
 
-    const alarms = await alarmsOf({ stationId: morning.stationId }, AFTERNOON);
+    const alarms = await alarmsOf(
+      { visible: WHOLE_NETWORK, stationId: morning.stationId },
+      AFTERNOON,
+    );
     const missed = alarms.filter((alarm) => alarm.kind === "missed");
     expect(missed.map((alarm) => alarm.checklistId).sort()).toEqual(
       [morning.checklistId, roundId].sort(),
@@ -392,7 +430,10 @@ describe("на станции несколько чек-листов (#60)", () 
 
     await fill(morning.versionId, MORNING, [answer("i-gas", true, MORNING)]);
 
-    const alarms = await alarmsOf({ stationId: morning.stationId }, AFTERNOON);
+    const alarms = await alarmsOf(
+      { visible: WHOLE_NETWORK, stationId: morning.stationId },
+      AFTERNOON,
+    );
     const missed = alarms.filter((alarm) => alarm.kind === "missed");
     expect(missed.map((alarm) => alarm.checklistId)).toEqual([roundId]);
   });
@@ -406,7 +447,7 @@ describe("окно через полночь", () => {
     });
 
     const alarms = await alarmsOf(
-      { storeId },
+      { visible: WHOLE_NETWORK, storeId },
       new Date("2026-09-06T01:00:00Z"),
     );
 
@@ -422,7 +463,10 @@ describe("окно через полночь", () => {
     await fill(versionId, evening, [answer("i-gas", true, evening)]);
 
     expect(
-      await alarmsOf({ storeId }, new Date("2026-09-06T01:00:00Z")),
+      await alarmsOf(
+        { visible: WHOLE_NETWORK, storeId },
+        new Date("2026-09-06T01:00:00Z"),
+      ),
     ).toStrictEqual([]);
   });
 });
@@ -435,11 +479,13 @@ describe("часовой пояс пиццерии решает, закрыло�
     const at = new Date("2026-09-06T08:00:00Z");
 
     expect(
-      (await alarmsOf({ storeId: almaty.storeId }, at)).map(
-        (alarm) => alarm.kind,
-      ),
+      (
+        await alarmsOf({ visible: WHOLE_NETWORK, storeId: almaty.storeId }, at)
+      ).map((alarm) => alarm.kind),
     ).toStrictEqual(["missed"]);
-    expect(await alarmsOf({ storeId: utc.storeId }, at)).toStrictEqual([]);
+    expect(
+      await alarmsOf({ visible: WHOLE_NETWORK, storeId: utc.storeId }, at),
+    ).toStrictEqual([]);
   });
 });
 
@@ -450,7 +496,9 @@ describe("режим смены отменяет чек-лист вместе с
     const { storeId } = await prepare({ items: [TABLES] });
     await setShiftMode({ storeId, mode: "critical" }, MORNING);
 
-    expect(await alarmsOf({ storeId }, AFTERNOON)).toStrictEqual([]);
+    expect(
+      await alarmsOf({ visible: WHOLE_NETWORK, storeId }, AFTERNOON),
+    ).toStrictEqual([]);
   });
 
   test("в критичную смену чек-лист с критичным пунктом всё равно пропущен", async () => {
@@ -458,7 +506,9 @@ describe("режим смены отменяет чек-лист вместе с
     await setShiftMode({ storeId, mode: "critical" }, MORNING);
 
     expect(
-      (await alarmsOf({ storeId }, AFTERNOON)).map((a) => a.kind),
+      (await alarmsOf({ visible: WHOLE_NETWORK, storeId }, AFTERNOON)).map(
+        (a) => a.kind,
+      ),
     ).toStrictEqual(["missed"]);
   });
 
@@ -467,7 +517,9 @@ describe("режим смены отменяет чек-лист вместе с
     await setShiftMode({ storeId, mode: "reduced" }, MORNING);
 
     expect(
-      (await alarmsOf({ storeId }, AFTERNOON)).map((a) => a.kind),
+      (await alarmsOf({ visible: WHOLE_NETWORK, storeId }, AFTERNOON)).map(
+        (a) => a.kind,
+      ),
     ).toStrictEqual(["missed"]);
   });
 });
@@ -477,7 +529,10 @@ describe("область видимости", () => {
     const mine = await prepare();
     await prepare();
 
-    const alarms = await alarmsOf({ storeId: mine.storeId }, AFTERNOON);
+    const alarms = await alarmsOf(
+      { visible: WHOLE_NETWORK, storeId: mine.storeId },
+      AFTERNOON,
+    );
 
     expect(alarms).toHaveLength(1);
     expect(alarms[0]?.storeId).toBe(mine.storeId);
@@ -499,7 +554,10 @@ describe("область видимости", () => {
     });
     await createPublishedVersion(second, sections([GAS]));
 
-    const alarms = await alarmsOf({ stationId: station.stationId }, AFTERNOON);
+    const alarms = await alarmsOf(
+      { visible: WHOLE_NETWORK, stationId: station.stationId },
+      AFTERNOON,
+    );
 
     expect(alarms).toHaveLength(1);
     expect(alarms[0]?.stationId).toBe(station.stationId);
@@ -509,7 +567,10 @@ describe("область видимости", () => {
     const mine = await prepare();
     await prepare();
 
-    const alarms = await alarmsOf({ countryId: mine.countryId }, AFTERNOON);
+    const alarms = await alarmsOf(
+      { visible: WHOLE_NETWORK, countryId: mine.countryId },
+      AFTERNOON,
+    );
 
     expect(alarms).toHaveLength(1);
     expect(alarms[0]?.storeId).toBe(mine.storeId);
@@ -527,7 +588,10 @@ describe("сломанный часовой пояс не снимает над�
       .set({ timezone: TYPO })
       .where(eq(stores.id, broken.storeId));
 
-    const list = await listAlarms({ countryId: broken.countryId }, AFTERNOON);
+    const list = await listAlarms(
+      { visible: WHOLE_NETWORK, countryId: broken.countryId },
+      AFTERNOON,
+    );
 
     expect(list.alarms).toStrictEqual([]);
     expect(list.unknownTimezoneStores).toBe(1);
@@ -543,7 +607,10 @@ describe("сломанный часовой пояс не снимает над�
       .set({ timezone: TYPO })
       .where(eq(stores.id, broken.storeId));
 
-    const list = await listAlarms({ countryId: mine.countryId }, AFTERNOON);
+    const list = await listAlarms(
+      { visible: WHOLE_NETWORK, countryId: mine.countryId },
+      AFTERNOON,
+    );
 
     expect(list.alarms.map((alarm) => alarm.kind)).toStrictEqual(["missed"]);
     expect(list.unknownTimezoneStores).toBe(0);

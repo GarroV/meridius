@@ -75,6 +75,7 @@ function expectAccessible(results: AxeResults): void {
 async function signIn(page: Page): Promise<void> {
   await page.goto("/admin/login");
   await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+  await page.locator('input[name="login"]').fill("admin");
   await page.getByTestId("login-submit").click();
   await page.getByTestId("admin-home").waitFor();
 
@@ -181,8 +182,8 @@ async function seedAdminScreens(label: string): Promise<AdminSeed> {
     const checklist = firstId(
       (
         await pool.query<{ id: string }>(
-          `insert into checklists (station_id, title, window_start, window_end)
-           values ($1, $2::jsonb, '00:00:00', '23:59:00') returning id`,
+          `insert into checklists (station_id, title, window_start, window_end, tenant_id)
+           values ($1, $2::jsonb, '00:00:00', '23:59:00', (select id from tenants where kind = 'hq')) returning id`,
           [
             station,
             JSON.stringify({

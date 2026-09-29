@@ -8,6 +8,7 @@ import { afterAll, describe, expect, test } from "vitest";
 import { getDb, stores } from "@/blocks/data";
 import { closeTestDb } from "@/blocks/data/testing/db";
 import { createChecklist } from "@/blocks/data/testing/fixtures";
+import { hqViewer } from "@/blocks/auth/testing/viewers";
 
 import { createCountry } from "../countries";
 import { assignChecklist, createStation } from "../stations";
@@ -58,6 +59,7 @@ describe("что показывает экран справочника", () => 
     const model = await buildCatalogModel(
       { countryId: fixture.countryId },
       "ru",
+      await hqViewer(),
     );
 
     expect(model.countryId).toBe(fixture.countryId);
@@ -79,6 +81,7 @@ describe("что показывает экран справочника", () => 
     const model = await buildCatalogModel(
       { countryId: mine.countryId, storeId: alien.firstStoreId },
       "ru",
+      await hqViewer(),
     );
 
     expect(model.storeId).toBe(mine.firstStoreId);
@@ -95,6 +98,7 @@ describe("что показывает экран справочника", () => 
         focus: "station",
       },
       "ru",
+      await hqViewer(),
     );
 
     expect(model.stationId).toBeNull();
@@ -114,6 +118,7 @@ describe("что показывает экран справочника", () => 
         focus: "station",
       },
       "ru",
+      await hqViewer(),
     );
 
     expect(model.focus).toBe("station");
@@ -129,6 +134,7 @@ describe("что показывает экран справочника", () => 
     const model = await buildCatalogModel(
       { countryId: fixture.countryId, storeId: fixture.firstStoreId },
       "ru",
+      await hqViewer(),
     );
 
     expect(model.stations[0]?.checklists).toStrictEqual([]);
@@ -145,10 +151,12 @@ describe("что показывает экран справочника", () => 
     const russian = await buildCatalogModel(
       { countryId: fixture.countryId, storeId: fixture.firstStoreId },
       "ru",
+      await hqViewer(),
     );
     const english = await buildCatalogModel(
       { countryId: fixture.countryId, storeId: fixture.firstStoreId },
       "en",
+      await hqViewer(),
     );
 
     expect(russian.stations[0]?.checklists[0]?.title).toBe(
@@ -163,6 +171,7 @@ describe("что показывает экран справочника", () => 
     const withStore = await buildCatalogModel(
       { countryId: fixture.countryId, storeId: fixture.firstStoreId },
       "ru",
+      await hqViewer(),
     );
     const withStation = await buildCatalogModel(
       {
@@ -172,6 +181,7 @@ describe("что показывает экран справочника", () => 
         focus: "station",
       },
       "ru",
+      await hqViewer(),
     );
 
     expect(withStore.timezones.length).toBeGreaterThan(100);
@@ -184,6 +194,7 @@ describe("что показывает экран справочника", () => 
     const model = await buildCatalogModel(
       { countryId: fixture.countryId },
       "ru",
+      await hqViewer(),
     );
 
     expect(model.countries.find((item) => item.selected)?.href).toBe(
@@ -202,6 +213,7 @@ describe("что показывает экран справочника", () => 
     const model = await buildCatalogModel(
       { countryId: fixture.countryId, storeId: fixture.firstStoreId },
       "ru",
+      await hqViewer(),
     );
 
     expect(model.hrefs.qrStations).toBe(
@@ -259,6 +271,7 @@ describe("пиццерия с непризнаваемым поясом видн
     const model = await buildCatalogModel(
       { countryId, storeId, focus: "store" },
       "ru",
+      await hqViewer(),
     );
 
     expect(model.store?.timezone).toBe(TYPO);
@@ -275,6 +288,7 @@ describe("пиццерия с непризнаваемым поясом видн
         focus: "store",
       },
       "ru",
+      await hqViewer(),
     );
 
     expect(model.store?.timezone).toBe(TIMEZONE);
@@ -287,6 +301,7 @@ describe("пиццерия с непризнаваемым поясом видн
     const model = await buildCatalogModel(
       { countryId, storeId, focus: "store" },
       "ru",
+      await hqViewer(),
     );
 
     expect(model.timezones.map((zone) => zone.name)).not.toContain(TYPO);
@@ -306,6 +321,7 @@ describe("пиццерия с непризнаваемым поясом видн
       const model = await buildCatalogModel(
         { countryId, storeId, focus: "store" },
         "ru",
+        await hqViewer(),
       );
 
       expect(Intl.supportedValuesOf("timeZone")).not.toContain(timezone);

@@ -46,6 +46,7 @@ test.describe("имя продукта на экране", () => {
       await page
         .getByLabel(locale === "ru-RU" ? "Пароль" : "Password")
         .fill(E2E_ADMIN_PASSWORD);
+      await page.locator('input[name="login"]').fill("admin");
       await page.getByTestId("login-submit").click();
       await expect(page.getByTestId("admin-home")).toBeVisible();
 

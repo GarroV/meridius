@@ -1,6 +1,7 @@
 // Сборка модели экрана: один поход в базу и один расчёт выбора на запрос.
 // Выбор «что показано» решается здесь, потому что он один на весь экран: три
 // колонки, карточка внизу и адрес обязаны показывать одно и то же состояние.
+import { scopeOf, type Viewer } from "@/blocks/auth/scope";
 import type { Locale } from "@/blocks/core/locale";
 
 import { listCountries } from "../countries";
@@ -50,8 +51,11 @@ function focusOf(
 export async function buildCatalogModel(
   view: CatalogView,
   locale: Locale,
+  viewer: Viewer,
 ): Promise<CatalogModel> {
-  const countries = await listCountries();
+  // Пиццерии и станции берутся только из выбранного ЗДЕСЬ, а выбор — только из видимых
+  // стран: чужой идентификатор в адресе молча заменяется первым своим (D145).
+  const countries = await listCountries(scopeOf(viewer));
   const countryId = pick(
     view.countryId,
     countries.map((country) => country.id),
@@ -171,7 +175,7 @@ export async function buildCatalogModel(
     errorCode: view.error ?? null,
     timezones: needsTimezones ? await listTimezones() : [],
     freeChecklists: needsChecklists
-      ? (await listUnassignedChecklists()).map((checklist) => ({
+      ? (await listUnassignedChecklists(viewer)).map((checklist) => ({
           id: checklist.id,
           title: localized(checklist.title, locale),
         }))

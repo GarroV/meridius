@@ -39,6 +39,11 @@ const CORE_FILES = [
   "src/blocks/auth/password.ts",
   "src/blocks/auth/rate-limit.ts",
   "src/blocks/auth/attempt-store.ts",
+  // Область видимости тенанта (D145): кто вошёл, что ему видно, чья это запись.
+  "src/blocks/auth/scope.ts",
+  "src/blocks/auth/accounts.ts",
+  "src/blocks/auth/access.ts",
+  "src/blocks/auth/provision.ts",
 
   // Что засчитано и когда просрочено.
   "src/blocks/fill/answers.ts",

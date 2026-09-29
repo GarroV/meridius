@@ -8,6 +8,12 @@ import { asc, sql, type SQL } from "drizzle-orm";
 import { LOCALES } from "@/blocks/core/locale";
 import type { LocalizedText } from "@/blocks/data";
 import { countries, getDb, stations, stores } from "@/blocks/data";
+import {
+  checklistVisibleSql,
+  countryCondition,
+  type Scope,
+  type Viewer,
+} from "@/blocks/auth/scope";
 
 import type { ChecklistFilter } from "./filter";
 import { isUuid } from "./validation";
@@ -111,6 +117,16 @@ function filterConditions(filter: ChecklistFilter): SQL[] {
 }
 
 /**
+ * Правило `canSeeChecklist` (`auth/scope.ts`) в виде условия этого запроса: партнёру —
+ * свои чек-листы и те, что висят на станциях его стран; УК — все (D145). Шаблонов
+ * список не показывает вовсе, поэтому ветка шаблона здесь не нужна.
+ */
+function visibleTo(viewer: Viewer): SQL[] {
+  const condition = checklistVisibleSql(viewer, sql`c.tenant_id`, sql`co.id`);
+  return condition === null ? [] : [condition];
+}
+
+/**
  * Чек-листы, сгруппированные по пути «страна → пиццерия → станция», суженные фильтром.
  *
  * Сужение умеет и база, но колонка чек-листов (D162) берёт список целиком и сужает его
@@ -124,8 +140,12 @@ function filterConditions(filter: ChecklistFilter): SQL[] {
  */
 export async function listChecklists(
   filter: ChecklistFilter,
+  viewer: Viewer,
 ): Promise<ChecklistRow[]> {
-  const where = sql.join(filterConditions(filter), sql` and `);
+  const where = sql.join(
+    [...filterConditions(filter), ...visibleTo(viewer)],
+    sql` and `,
+  );
   const rows = await getDb().execute<ChecklistListRow>(sql`
     select c.id::text as id, c.title, c.window_start, c.window_end,
            st.id::text as station_id, sto.id::text as store_id, co.id::text as country_id,
@@ -183,7 +203,7 @@ export async function listChecklists(
 }
 
 /** Станции для выбора в свойствах чек-листа, в порядке «страна → пиццерия → станция». */
-export async function listStations(): Promise<StationOption[]> {
+export async function listStations(scope: Scope): Promise<StationOption[]> {
   return await getDb()
     .select({
       id: stations.id,
@@ -196,5 +216,7 @@ export async function listStations(): Promise<StationOption[]> {
     .from(stations)
     .innerJoin(stores, sql`${stores.id} = ${stations.storeId}`)
     .innerJoin(countries, sql`${countries.id} = ${stores.countryId}`)
+    // Выбор станции — только из видимых стран (D145).
+    .where(countryCondition(scope, stores.countryId))
     .orderBy(asc(countries.name), asc(stores.name), asc(stations.name));
 }

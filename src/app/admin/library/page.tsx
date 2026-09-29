@@ -17,11 +17,11 @@ export default async function LibraryPage({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const view = parseLibraryView(await searchParams);
   const locale = await getLocale();
-  const model = await buildLibraryModel(view, locale);
+  const model = await buildLibraryModel(view, locale, viewer);
 
   return <LibraryScreen model={model} locale={locale} />;
 }

@@ -8,7 +8,7 @@
 // потому не может позволить себе ни одного лишнего столбца, а карточка читает одну
 // строку и берёт всё. Свести их в одно значило бы либо тащить по сети то, что нужно
 // одной станции, либо не показать на карточке половины.
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import type { LocalizedText } from "@/blocks/data";
@@ -21,6 +21,7 @@ import {
   stores,
   submissions,
 } from "@/blocks/data";
+import { countryCondition, type Scope } from "@/blocks/auth/scope";
 
 /**
  * Откуда чек-лист на станции (D149, D155): копия шаблона УК или заведён страной сам.
@@ -89,6 +90,7 @@ const UUID_PATTERN =
  */
 export async function getStationDetail(
   id: string,
+  scope: Scope,
 ): Promise<StationDetail | null> {
   if (!UUID_PATTERN.test(id)) return null;
 
@@ -108,7 +110,8 @@ export async function getStationDetail(
     .from(stations)
     .innerJoin(stores, eq(stations.storeId, stores.id))
     .innerJoin(countries, eq(stores.countryId, countries.id))
-    .where(eq(stations.id, id))
+    // Чужая станция — «такой нет», как и несуществующая (D145).
+    .where(and(eq(stations.id, id), countryCondition(scope, stores.countryId)))
     .limit(1);
 
   if (row === undefined) return null;

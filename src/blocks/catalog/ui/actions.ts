@@ -6,7 +6,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import {
+  requireChecklistEditable,
+  requireCountry,
+  requireHqViewer,
+  requireVisible,
+} from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
+import type { Viewer } from "@/blocks/auth/scope";
 
 import { createCountry, deleteCountry, updateCountry } from "../countries";
 import { CatalogError } from "../errors";
@@ -44,13 +51,16 @@ const CONFIRMED = "confirmed";
  * неотличима от успеха.
  */
 async function perform<T>(
+  // Область видимости (D145): идентификаторы из формы приходят снаружи, и чужой должен
+  // отвечать тем же, что и несуществующий, — до того, как действие его тронет.
+  allowed: (viewer: Viewer) => Promise<void> | void,
   action: () => Promise<T>,
   // Строкой — когда успех уводит с экрана вовсе: так делает один перевыпуск кода,
   // он заканчивается печатью наклейки, а не справочником.
   onSuccess: (result: T) => CatalogView | string,
   onFailure: (error: CatalogError) => CatalogView,
 ): Promise<void> {
-  await requireAdmin();
+  await allowed(await requireAdmin());
 
   // Отказ всегда возвращает в справочник: показать его больше негде.
   let target: CatalogView | string;
@@ -73,6 +83,8 @@ function backTo(view: CatalogView) {
 
 export async function submitCreateCountry(form: FormData): Promise<void> {
   await perform(
+    // Страны — граница тенантов, поэтому сеть меняет только УК.
+    requireHqViewer,
     () =>
       createCountry({
         name: formField(form, NAME),
@@ -86,6 +98,7 @@ export async function submitCreateCountry(form: FormData): Promise<void> {
 export async function submitUpdateCountry(form: FormData): Promise<void> {
   const countryId = formField(form, ID);
   await perform(
+    requireHqViewer,
     () =>
       updateCountry(countryId, {
         name: formField(form, NAME),
@@ -117,6 +130,7 @@ export async function submitDeleteCountry(form: FormData): Promise<void> {
   }
 
   await perform(
+    requireHqViewer,
     () => deleteCountry(countryId),
     () => ({}),
     backTo({ countryId, focus: "country" }),
@@ -126,6 +140,9 @@ export async function submitDeleteCountry(form: FormData): Promise<void> {
 export async function submitCreateStore(form: FormData): Promise<void> {
   const countryId = formField(form, COUNTRY_ID);
   await perform(
+    (viewer) => {
+      requireCountry(viewer, countryId);
+    },
     () =>
       createStore({
         countryId,
@@ -141,6 +158,7 @@ export async function submitUpdateStore(form: FormData): Promise<void> {
   const countryId = formField(form, COUNTRY_ID);
   const storeId = formField(form, ID);
   await perform(
+    (viewer) => requireVisible(viewer, "store", storeId),
     () =>
       updateStore(storeId, {
         name: formField(form, NAME),
@@ -163,6 +181,7 @@ export async function submitDeleteStore(form: FormData): Promise<void> {
   const confirmed = formField(form, CONFIRMED) === "1";
 
   await perform(
+    (viewer) => requireVisible(viewer, "store", storeId),
     () => deleteStore(storeId, { confirmed }),
     () => ({ countryId }),
     (error) =>
@@ -174,6 +193,7 @@ export async function submitCreateStation(form: FormData): Promise<void> {
   const countryId = formField(form, COUNTRY_ID);
   const storeId = formField(form, STORE_ID);
   await perform(
+    (viewer) => requireVisible(viewer, "store", storeId),
     () => createStation({ storeId, name: formField(form, NAME) }),
     (created) => ({
       countryId,
@@ -190,6 +210,7 @@ export async function submitUpdateStation(form: FormData): Promise<void> {
   const storeId = formField(form, STORE_ID);
   const stationId = formField(form, ID);
   await perform(
+    (viewer) => requireVisible(viewer, "station", stationId),
     () => updateStation(stationId, { name: formField(form, NAME) }),
     () => ({ countryId, storeId, stationId, focus: "station" }),
     backTo({ countryId, storeId, stationId, focus: "station" }),
@@ -218,6 +239,7 @@ export async function submitDeleteStation(form: FormData): Promise<void> {
   }
 
   await perform(
+    (viewer) => requireVisible(viewer, "station", stationId),
     () => deleteStation(stationId),
     () => ({ countryId, storeId, focus: "store" }),
     backTo({ countryId, storeId, stationId, focus: "station" }),
@@ -244,6 +266,7 @@ export async function submitReissueCode(form: FormData): Promise<void> {
   }
 
   await perform(
+    (viewer) => requireVisible(viewer, "station", outcome.stationId),
     () => reissueStationCode(outcome.stationId),
     () => outcome.doneHref,
     backTo(outcome.failView),
@@ -254,8 +277,13 @@ export async function submitAssignChecklist(form: FormData): Promise<void> {
   const countryId = formField(form, COUNTRY_ID);
   const storeId = formField(form, STORE_ID);
   const stationId = formField(form, STATION_ID);
+  const checklistId = formField(form, CHECKLIST_ID);
   await perform(
-    () => assignChecklist(stationId, formField(form, CHECKLIST_ID)),
+    async (viewer) => {
+      await requireVisible(viewer, "station", stationId);
+      await requireChecklistEditable(viewer, checklistId);
+    },
+    () => assignChecklist(stationId, checklistId),
     () => ({ countryId, storeId, stationId, focus: "station" }),
     backTo({ countryId, storeId, stationId, focus: "station" }),
   );
@@ -265,8 +293,12 @@ export async function submitDetachChecklist(form: FormData): Promise<void> {
   const countryId = formField(form, COUNTRY_ID);
   const storeId = formField(form, STORE_ID);
   const stationId = formField(form, STATION_ID);
+  const checklistId = formField(form, CHECKLIST_ID);
   await perform(
-    () => detachChecklist(formField(form, CHECKLIST_ID)),
+    async (viewer) => {
+      await requireChecklistEditable(viewer, checklistId);
+    },
+    () => detachChecklist(checklistId),
     () => ({ countryId, storeId, stationId, focus: "station" }),
     backTo({ countryId, storeId, stationId, focus: "station" }),
   );

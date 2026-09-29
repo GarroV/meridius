@@ -14,6 +14,7 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 export async function signIn(page: Page): Promise<void> {
   await page.goto("/admin/login");
   await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+  await page.locator('input[name="login"]').fill("admin");
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }
@@ -69,8 +70,8 @@ export async function seedKitchenChecklist(
   const stationId = station.rows[0]?.id;
 
   const checklist = await pool.query<{ id: string }>(
-    `insert into checklists (station_id, title, window_start, window_end)
-     values ($1, $2, '00:00', '23:59') returning id`,
+    `insert into checklists (station_id, title, window_start, window_end, tenant_id)
+     values ($1, $2, '00:00', '23:59', (select id from tenants where kind = 'hq')) returning id`,
     [
       stationId,
       JSON.stringify({

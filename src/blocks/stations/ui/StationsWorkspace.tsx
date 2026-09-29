@@ -4,6 +4,8 @@ import type { ReactElement, ReactNode } from "react";
 
 import { AdminNav } from "@/blocks/core/ui/AdminNav";
 import { MasterDetail } from "@/blocks/core/ui/MasterDetail";
+import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 
 import { countGaps, listNetworkStations } from "../overview";
 import { StationsRail, type StationRailRow } from "./StationsRail";
@@ -20,8 +22,9 @@ export async function StationsWorkspace({
 }: {
   readonly children: ReactNode;
 }): Promise<ReactElement> {
+  const viewer = await requireAdmin();
   const [stations, locale, messages, t] = await Promise.all([
-    listNetworkStations(),
+    listNetworkStations(scopeOf(viewer)),
     getLocale(),
     getMessages(),
     getTranslations("stations"),

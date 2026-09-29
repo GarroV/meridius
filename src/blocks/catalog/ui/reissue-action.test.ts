@@ -30,7 +30,14 @@ vi.mock("next/cache", () => ({
 vi.mock("@/blocks/auth/guard", () => ({
   requireAdmin: () => {
     calls.admin += 1;
-    return Promise.resolve();
+    return Promise.resolve({
+      accountId: null,
+      login: "admin",
+      tenantId: "00000000-0000-4000-8000-000000000000",
+      tenantKind: "hq",
+      tenantName: "УК",
+      countryIds: [],
+    });
   },
 }));
 

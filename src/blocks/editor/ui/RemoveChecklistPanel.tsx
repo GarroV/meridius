@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import type { ReactElement } from "react";
 
 import { Drawer, PropertyRow } from "@/blocks/core/ui/Drawer";
+import { requireChecklistEditable } from "@/blocks/auth/access";
+import { requireAdmin } from "@/blocks/auth/guard";
 
 import { submitDeleteChecklist } from "../actions";
 import { pickEditorText } from "../localized-text";
@@ -41,6 +43,7 @@ export async function RemoveChecklistPanel({
 }: {
   readonly id: string;
 }): Promise<ReactElement> {
+  await requireChecklistEditable(await requireAdmin(), id);
   const preview = await (async () => {
     try {
       return await previewRemoval(id);

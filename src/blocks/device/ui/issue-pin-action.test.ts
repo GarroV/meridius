@@ -18,7 +18,16 @@ import { issuePinAction } from "./issue-pin-action";
 const BARE_SCHEMA = "device_bare_t319";
 
 vi.mock("@/blocks/auth/guard", () => ({
-  requireAdmin: vi.fn(() => Promise.resolve()),
+  requireAdmin: vi.fn(() =>
+    Promise.resolve({
+      accountId: null,
+      login: "admin",
+      tenantId: "00000000-0000-4000-8000-000000000000",
+      tenantKind: "hq",
+      tenantName: "УК",
+      countryIds: [],
+    }),
+  ),
 }));
 
 function withBareSearchPath(address: string | undefined): string {

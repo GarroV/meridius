@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/blocks/auth/guard";
+import { requireHqViewer } from "@/blocks/auth/access";
 
 import { blockInputFrom, failureState, formText } from "./action-input";
 import type { LibraryActionState } from "./action-state";
@@ -34,7 +35,8 @@ function failure(error: unknown): LibraryActionState {
  * потом, а лишний экран стоил бы методисту двух касаний на каждом блоке (принцип 5).
  */
 export async function submitCreateBlock(form: FormData): Promise<void> {
-  await requireAdmin();
+  // Блок общий на всю сеть: правка доезжает до черновиков всех стран — только УК (D145).
+  requireHqViewer(await requireAdmin());
 
   let blockId: string;
   try {
@@ -63,7 +65,8 @@ export async function submitSaveBlock(
   _previous: LibraryActionState,
   form: FormData,
 ): Promise<LibraryActionState> {
-  await requireAdmin();
+  // Блок общий на всю сеть: правка доезжает до черновиков всех стран — только УК (D145).
+  requireHqViewer(await requireAdmin());
 
   try {
     const blockId = formText(form, "blockId");

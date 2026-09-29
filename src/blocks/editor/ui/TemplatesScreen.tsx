@@ -3,6 +3,7 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
+import { requireAdmin } from "@/blocks/auth/guard";
 
 import { submitTakeTemplate } from "../actions";
 import { pickEditorText } from "../localized-text";
@@ -48,8 +49,11 @@ const EMPTY_CLASS =
 
 async function TemplateCardView({
   card,
+  canEdit,
 }: {
   readonly card: TemplateCard;
+  /** Править шаблон может только УК: у страны кнопки нет вовсе (user-flow §5.2, D149). */
+  readonly canEdit: boolean;
 }): Promise<ReactElement> {
   const t = await getTranslations("templates");
   const locale = await getLocale();
@@ -109,13 +113,15 @@ async function TemplateCardView({
         >
           {t("preview")}
         </Link>
-        <Link
-          href={checklistPath(card.id)}
-          className={BTN_GHOST_SM_CLASS}
-          data-testid="template-edit"
-        >
-          {t("edit")}
-        </Link>
+        {canEdit ? (
+          <Link
+            href={checklistPath(card.id)}
+            className={BTN_GHOST_SM_CLASS}
+            data-testid="template-edit"
+          >
+            {t("edit")}
+          </Link>
+        ) : null}
       </div>
     </article>
   );
@@ -124,6 +130,7 @@ async function TemplateCardView({
 export async function TemplatesScreen(): Promise<ReactElement> {
   const t = await getTranslations("templates");
   const cards = await listTemplateCards();
+  const canEdit = (await requireAdmin()).tenantKind === "hq";
 
   return (
     <AdminShell
@@ -132,13 +139,15 @@ export async function TemplatesScreen(): Promise<ReactElement> {
       breadcrumb={t("breadcrumb")}
       title={t("title")}
       topbarAction={
-        <Link
-          href={NEW_TEMPLATE_PATH}
-          data-testid="new-template"
-          className={BTN_PRIMARY_CLASS}
-        >
-          {t("new")}
-        </Link>
+        canEdit ? (
+          <Link
+            href={NEW_TEMPLATE_PATH}
+            data-testid="new-template"
+            className={BTN_PRIMARY_CLASS}
+          >
+            {t("new")}
+          </Link>
+        ) : null
       }
     >
       {/* D152 и D154: раздел объясняет себя сам — и тоном приглашения, а не приказа. */}
@@ -151,7 +160,7 @@ export async function TemplatesScreen(): Promise<ReactElement> {
       ) : (
         <div className={GRID_CLASS} data-testid="template-list">
           {cards.map((card) => (
-            <TemplateCardView key={card.id} card={card} />
+            <TemplateCardView key={card.id} card={card} canEdit={canEdit} />
           ))}
         </div>
       )}

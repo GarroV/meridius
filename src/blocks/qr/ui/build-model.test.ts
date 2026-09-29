@@ -7,6 +7,7 @@ import { afterAll, describe, expect, test } from "vitest";
 
 import { createCountry, createStation, createStore } from "@/blocks/catalog";
 import { closeTestDb } from "@/blocks/data/testing/db";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 import { buildQrModel, buildScreenModel } from "./build-model";
 import { CONFIRM_REISSUE } from "./view";
@@ -68,7 +69,7 @@ describe("что показывает лист печати", () => {
 
     const model = await buildQrModel(
       { storeId: data.storeId },
-      { origin: ORIGIN },
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
     );
 
     expect(model.scanOrigin).toBe(ORIGIN);
@@ -91,7 +92,7 @@ describe("что показывает лист печати", () => {
 
     const model = await buildQrModel(
       { storeId: data.storeId },
-      { origin: ORIGIN },
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
     );
     const [first, second] = model.stations;
 
@@ -104,11 +105,11 @@ describe("что показывает лист печати", () => {
 
     const auto = await buildQrModel(
       { storeId: data.storeId },
-      { origin: ORIGIN },
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
     );
     const picked = await buildQrModel(
       { storeId: data.storeId, stationId: last },
-      { origin: ORIGIN },
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
     );
 
     expect(auto.selected?.name).toBe(data.sortedNames[0]);
@@ -124,7 +125,7 @@ describe("что показывает лист печати", () => {
 
     const model = await buildQrModel(
       { storeId: data.storeId, stationId: alien.id },
-      { origin: ORIGIN },
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
     );
 
     expect(model.selected?.id).not.toBe(alien.id);
@@ -134,7 +135,10 @@ describe("что показывает лист печати", () => {
   test("без пиццерии в адресе экран предлагает выбрать её из списка", async () => {
     const data = await fixture();
 
-    const model = await buildQrModel({}, { origin: ORIGIN });
+    const model = await buildQrModel(
+      {},
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
+    );
 
     expect(model.store).toBeNull();
     expect(model.stations).toHaveLength(0);
@@ -148,7 +152,7 @@ describe("что показывает лист печати", () => {
   test("выдуманная пиццерия в адресе не подставляет чужую", async () => {
     const model = await buildQrModel(
       { storeId: randomUUID() },
-      { origin: ORIGIN },
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
     );
 
     expect(model.store).toBeNull();
@@ -158,7 +162,7 @@ describe("что показывает лист печати", () => {
   test("код отказа из адреса доходит до экрана", async () => {
     const model = await buildQrModel(
       { error: "codeCollision" },
-      { origin: ORIGIN },
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
     );
 
     expect(model.errorCode).toBe("codeCollision");
@@ -171,7 +175,7 @@ describe("что показывает лист печати", () => {
 
     const model = await buildQrModel(
       { storeId: data.storeId, stationId: target, confirm: CONFIRM_REISSUE },
-      { origin: ORIGIN },
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
     );
 
     expect(
@@ -186,7 +190,7 @@ describe("что показывает лист печати", () => {
 
     const model = await buildQrModel(
       { storeId: data.storeId, stationId: target },
-      { origin: ORIGIN },
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
     );
 
     expect(model.confirming).toBeNull();
@@ -205,7 +209,7 @@ describe("что показывает лист печати", () => {
         stationId: alien.id,
         confirm: CONFIRM_REISSUE,
       },
-      { origin: ORIGIN },
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
     );
 
     expect(
@@ -230,7 +234,7 @@ describe("что показывает экран планшета", () => {
 
     const model = await buildScreenModel(
       { storeId: data.storeId, stationId: station.id },
-      { origin: ORIGIN },
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
     );
 
     expect(model?.storeName).toBe(data.storeName);
@@ -249,7 +253,7 @@ describe("что показывает экран планшета", () => {
 
     const model = await buildScreenModel(
       { storeId: data.storeId, stationId: alien.id },
-      { origin: ORIGIN },
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
     );
 
     expect(model).toBeNull();

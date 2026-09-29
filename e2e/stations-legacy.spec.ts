@@ -31,6 +31,7 @@ async function checklistOf(stationId: string): Promise<string> {
 async function signIn(page: Page): Promise<void> {
   await page.goto("/admin/login");
   await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+  await page.locator('input[name="login"]').fill("admin");
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }

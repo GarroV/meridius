@@ -6,6 +6,8 @@ import type { ReactElement } from "react";
 import { Drawer } from "@/blocks/core/ui/Drawer";
 import type { Item, LocalizedText, Section, ShiftMode } from "@/blocks/data";
 import { isShiftMode, sectionsForMode, severityOf } from "@/blocks/data";
+import { requireChecklistVisible } from "@/blocks/auth/access";
+import { requireAdmin } from "@/blocks/auth/guard";
 
 import { loadEditor } from "../drafts";
 import { pickEditorText } from "../localized-text";
@@ -309,6 +311,7 @@ export async function PreviewScreen({
   /** Режим смены, в котором смотрят предпросмотр; по умолчанию полная смена. */
   readonly mode?: string | undefined;
 }): Promise<ReactElement> {
+  await requireChecklistVisible(await requireAdmin(), id);
   const state = await loadEditor(id);
   if (state === null) notFound();
 

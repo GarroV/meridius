@@ -1,6 +1,7 @@
 "use server";
 
 // Выпуск пина из кабинета: действие карточки станции и панели раздела «Устройства».
+import { canSee } from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
 
 import { isUuid } from "../devices";
@@ -44,9 +45,13 @@ export type IssuePinOutcome =
 export async function issuePinAction(
   stationId: string,
 ): Promise<IssuePinOutcome> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   if (typeof stationId !== "string" || !isUuid(stationId)) {
+    return { kind: "failed", reason: "broken" };
+  }
+  // Чужая станция — тот же отказ, что и станция не того вида (D145): код не выпускается.
+  if (!(await canSee(viewer, "station", stationId))) {
     return { kind: "failed", reason: "broken" };
   }
 

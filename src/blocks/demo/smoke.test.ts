@@ -32,6 +32,7 @@ import {
   submissions,
 } from "@/blocks/data";
 import { getTestDb, closeTestDb } from "@/blocks/data/testing/db";
+import { hqTenant } from "@/blocks/data/testing/fixtures";
 
 import { DEMO } from "./dataset";
 import type { DemoDataset } from "./model";
@@ -118,6 +119,7 @@ async function seedRun(names: {
     await db
       .insert(checklists)
       .values({
+        tenantId: await hqTenant(),
         stationId,
         title: { en: names.checklist },
         windowStart: "06:00",

@@ -26,6 +26,7 @@ test.describe("вход в админку", () => {
     await expect(page).toHaveURL(new RegExp(`${LOGIN_PATH}$`));
 
     await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+    await page.locator('input[name="login"]').fill("admin");
     await page.getByTestId("login-submit").click();
 
     await expect(page).toHaveURL(new RegExp(`${ADMIN_PATH}$`));
@@ -47,6 +48,7 @@ test.describe("вход в админку", () => {
   test("сессия держится после перезагрузки страницы", async ({ page }) => {
     await page.goto(LOGIN_PATH);
     await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+    await page.locator('input[name="login"]').fill("admin");
     await page.getByTestId("login-submit").click();
     await expect(page.getByTestId("admin-home")).toBeVisible();
 
@@ -62,6 +64,7 @@ test.describe("вход в админку", () => {
     await page.goto(LOGIN_PATH);
 
     await page.getByLabel("Пароль").fill("подобранный-пароль");
+    await page.locator('input[name="login"]').fill("admin");
     await page.getByTestId("login-submit").click();
 
     await expect(page.getByTestId("login-error")).toBeVisible();
@@ -76,6 +79,7 @@ test.describe("вход в админку", () => {
   }) => {
     await page.goto(LOGIN_PATH);
     await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+    await page.locator('input[name="login"]').fill("admin");
     await page.getByTestId("login-submit").click();
     await expect(page.getByTestId("admin-home")).toBeVisible();
 
@@ -98,6 +102,7 @@ test.describe("вход в админку", () => {
   }) => {
     await page.goto(LOGIN_PATH);
     await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+    await page.locator('input[name="login"]').fill("admin");
     await page.getByTestId("login-submit").click();
     await expect(page.getByTestId("admin-home")).toBeVisible();
 
@@ -153,6 +158,7 @@ test.describe("вход в админку", () => {
 
     await page.goto(LOGIN_PATH);
     await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+    await page.locator('input[name="login"]').fill("admin");
     await page.getByTestId("login-submit").click();
 
     await expect(page.getByTestId("admin-home")).toBeVisible();
@@ -176,6 +182,7 @@ test.describe("вход в админку", () => {
     for (let attempt = 0; attempt < ATTEMPTS_BEFORE_LOCK; attempt++) {
       await page.goto(LOGIN_PATH);
       await page.getByLabel("Пароль").fill("подобранный-пароль");
+      await page.locator('input[name="login"]').fill("admin");
       await page.getByTestId("login-submit").click();
       await expect(page.getByTestId("login-error")).toBeVisible();
     }
@@ -183,6 +190,7 @@ test.describe("вход в админку", () => {
     // Дальше не пускают даже с верным паролем — и говорят, через сколько повторить.
     await page.goto(LOGIN_PATH);
     await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+    await page.locator('input[name="login"]').fill("admin");
     await page.getByTestId("login-submit").click();
 
     await expect(page.getByTestId("login-error")).toHaveText(
