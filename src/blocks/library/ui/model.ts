@@ -36,6 +36,11 @@ export interface LibrarySelection {
 }
 
 export interface LibraryModel {
+  /**
+   * Может ли вошедший менять библиотеку. Блок общий на всю сеть, и правка доезжает до
+   * черновиков всех стран, поэтому правит только УК (D145).
+   */
+  canEdit: boolean;
   blocks: LibraryBlockRow[];
   /** `null` — в библиотеке ещё нет ни одного блока. */
   selection: LibrarySelection | null;

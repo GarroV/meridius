@@ -19,6 +19,7 @@ import {
   createStation,
   uniqueStationCode,
 } from "@/blocks/data/testing/fixtures";
+import { hqViewer } from "@/blocks/auth/testing/viewers";
 
 import { FEED_PATH } from "../routes";
 import { parseFeedView } from "../view";
@@ -151,6 +152,7 @@ describe("buildFeedModel — фильтры", () => {
         period: "today",
       },
       "ru",
+      await hqViewer(),
       NOW,
     );
 
@@ -182,11 +184,13 @@ describe("buildFeedModel — фильтры", () => {
     const todayOnly = await buildFeedModel(
       { stationId: today.stationId, period: "today" },
       "ru",
+      await hqViewer(),
       NOW,
     );
     const week = await buildFeedModel(
       { stationId: today.stationId, period: "week" },
       "ru",
+      await hqViewer(),
       NOW,
     );
 
@@ -215,6 +219,7 @@ describe("buildFeedModel — фильтры", () => {
     const model = await buildFeedModel(
       { countryId: mine.countryId, storeId: alien.storeId, period: "today" },
       "ru",
+      await hqViewer(),
       NOW,
     );
 
@@ -285,11 +290,13 @@ describe("buildFeedModel — полоса тревог и фильтры", () =>
     const wholeStore = await buildFeedModel(
       parseFeedView({ store: mine.storeId }),
       "ru",
+      await hqViewer(),
       NOW,
     );
     const oneStation = await buildFeedModel(
       parseFeedView({ store: mine.storeId, station: mine.stationId }),
       "ru",
+      await hqViewer(),
       NOW,
     );
 
@@ -338,6 +345,7 @@ describe("buildFeedModel — показатели и результат стро
     const model = await buildFeedModel(
       { stationId: first.stationId, period: "week" },
       "ru",
+      await hqViewer(),
       NOW,
     );
 
@@ -367,6 +375,7 @@ describe("buildFeedModel — показатели и результат стро
     const model = await buildFeedModel(
       { stationId: seeded.stationId, period: "today" },
       "ru",
+      await hqViewer(),
       NOW,
     );
 
@@ -385,6 +394,7 @@ describe("buildFeedModel — показатели и результат стро
     const model = await buildFeedModel(
       { stationId: seeded.stationId, period: "today" },
       "ru",
+      await hqViewer(),
       NOW,
     );
 
@@ -403,6 +413,7 @@ describe("buildFeedModel — показатели и результат стро
     const model = await buildFeedModel(
       { stationId: seeded.stationId, period: "today" },
       "ru",
+      await hqViewer(),
       NOW,
     );
 
@@ -423,6 +434,7 @@ describe("buildFeedModel — показатели и результат стро
     const model = await buildFeedModel(
       { stationId: station.stationId, period: "month" },
       "ru",
+      await hqViewer(),
       NOW,
     );
 
@@ -441,6 +453,7 @@ describe("buildFeedModel — показатели и результат стро
     const model = await buildFeedModel(
       { stationId: seeded.stationId, period: "week" },
       "ru",
+      await hqViewer(),
       NOW,
     );
 
@@ -469,6 +482,7 @@ describe("buildSubmissionModel", () => {
       seeded.submissionId,
       "ru",
       FEED_PATH,
+      await hqViewer(),
     );
 
     expect(card).not.toBeNull();
@@ -510,6 +524,7 @@ describe("buildSubmissionModel", () => {
       seeded.submissionId,
       "ru",
       FEED_PATH,
+      await hqViewer(),
     );
     const untouched = card?.sections[1]?.items[0];
 
@@ -530,6 +545,7 @@ describe("buildSubmissionModel", () => {
       seeded.submissionId,
       "ru",
       FEED_PATH,
+      await hqViewer(),
     );
 
     await getDb()
@@ -541,6 +557,7 @@ describe("buildSubmissionModel", () => {
       seeded.submissionId,
       "ru",
       FEED_PATH,
+      await hqViewer(),
     );
 
     expect(after?.sections).toStrictEqual(before?.sections);
@@ -559,6 +576,7 @@ describe("buildSubmissionModel", () => {
       seeded.submissionId,
       "en",
       FEED_PATH,
+      await hqViewer(),
     );
 
     expect(card?.sections[0]?.items[0]?.title).toBe("Turn the oven on");
@@ -570,9 +588,12 @@ describe("buildSubmissionModel", () => {
         "00000000-0000-4000-8000-000000000000",
         "ru",
         FEED_PATH,
+        await hqViewer(),
       ),
     ).toBeNull();
-    expect(await buildSubmissionModel("не-uuid", "ru", FEED_PATH)).toBeNull();
+    expect(
+      await buildSubmissionModel("не-uuid", "ru", FEED_PATH, await hqViewer()),
+    ).toBeNull();
   });
 });
 
@@ -640,6 +661,7 @@ describe("buildSubmissionModel — табличный ответ (D074)", () => 
       seeded.submissionId,
       "ru",
       FEED_PATH,
+      await hqViewer(),
     );
     const item = card?.sections[0]?.items[0];
 
@@ -667,6 +689,7 @@ describe("buildSubmissionModel — табличный ответ (D074)", () => 
       seeded.submissionId,
       "ru",
       FEED_PATH,
+      await hqViewer(),
     );
     const item = card?.sections[0]?.items[0];
 
@@ -691,6 +714,7 @@ describe("buildSubmissionModel — табличный ответ (D074)", () => 
       seeded.submissionId,
       "ru",
       FEED_PATH,
+      await hqViewer(),
     );
     const item = card?.sections[0]?.items[0];
 
@@ -710,6 +734,7 @@ describe("buildSubmissionModel — табличный ответ (D074)", () => 
       seeded.submissionId,
       "ru",
       FEED_PATH,
+      await hqViewer(),
     );
     const item = card?.sections[0]?.items[0];
 
@@ -733,6 +758,7 @@ describe("предел выдачи ленты", () => {
     const model = await buildFeedModel(
       { stationId: seeded.stationId, period: "today" },
       "ru",
+      await hqViewer(),
       NOW,
     );
 

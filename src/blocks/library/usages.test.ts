@@ -12,6 +12,7 @@ import { closeTestDb, getTestDb } from "@/blocks/data/testing/db";
 import { createStation } from "@/blocks/data/testing/fixtures";
 import { createChecklist, saveDraft } from "@/blocks/editor/drafts";
 import { publish } from "@/blocks/editor/publish";
+import { hqViewer } from "@/blocks/auth/testing/viewers";
 
 import { createBlock, saveBlock } from "./blocks";
 import { listUsages, usageImpact } from "./usages";
@@ -78,7 +79,7 @@ describe("где используется", () => {
   test("блок, не вставленный никуда, не используется нигде", async () => {
     const blockId = await newBlockWithItems("Одинокий");
 
-    const usages = await listUsages(blockId);
+    const usages = await listUsages(blockId, await hqViewer());
 
     expect(usages).toStrictEqual([]);
     expect(usageImpact(usages)).toStrictEqual({
@@ -94,7 +95,7 @@ describe("где используется", () => {
     const { checklistId } = await newChecklist(title);
     await saveDraft(checklistId, [linkedSection(blockId)]);
 
-    const usages = await listUsages(blockId);
+    const usages = await listUsages(blockId, await hqViewer());
 
     expect(usages).toHaveLength(1);
     expect(usages[0]).toMatchObject({
@@ -113,7 +114,7 @@ describe("где используется", () => {
     await saveDraft(checklistId, [linkedSection(blockId), ownSection("свой")]);
     await publish(checklistId);
 
-    const usages = await listUsages(blockId);
+    const usages = await listUsages(blockId, await hqViewer());
 
     // Черновик остаётся после публикации — правка блока придёт и в него.
     expect(usages[0]).toMatchObject({
@@ -139,21 +140,21 @@ describe("где используется", () => {
     await saveDraft(checklistId, [ownSection("вместо блока")]);
     await publish(checklistId);
 
-    expect(await listUsages(blockId)).toStrictEqual([]);
+    expect(await listUsages(blockId, await hqViewer())).toStrictEqual([]);
   });
 
   test("снятый с работы чек-лист из списка использования уходит", async () => {
     const blockId = await newBlockWithItems("Снятый");
     const { checklistId } = await newChecklist(uniqueTitle("Старый чек-лист"));
     await saveDraft(checklistId, [linkedSection(blockId)]);
-    expect(await listUsages(blockId)).toHaveLength(1);
+    expect(await listUsages(blockId, await hqViewer())).toHaveLength(1);
 
     await db
       .update(checklists)
       .set({ archivedAt: new Date() })
       .where(eq(checklists.id, checklistId));
 
-    expect(await listUsages(blockId)).toStrictEqual([]);
+    expect(await listUsages(blockId, await hqViewer())).toStrictEqual([]);
   });
 
   test("сводка правки: сколько черновиков и сколько опубликованных версий", async () => {
@@ -165,7 +166,7 @@ describe("где используется", () => {
     await publish(opened.checklistId);
     await saveDraft(drafted.checklistId, [linkedSection(blockId)]);
 
-    const usages = await listUsages(blockId);
+    const usages = await listUsages(blockId, await hqViewer());
 
     expect(usages).toHaveLength(2);
     expect(usageImpact(usages)).toStrictEqual({
@@ -176,6 +177,6 @@ describe("где используется", () => {
   });
 
   test("опознаватель не uuid не доезжает до запроса", async () => {
-    expect(await listUsages("' or 1=1 --")).toStrictEqual([]);
+    expect(await listUsages("' or 1=1 --", await hqViewer())).toStrictEqual([]);
   });
 });

@@ -99,11 +99,11 @@ describe("запись по идентификатору", () => {
     expect(await canSee(viewer, "device", theirDevice?.id ?? "")).toBe(false);
   });
 
-  test("УК видит любую запись; несуществующую и мусор — никто", async () => {
+  test("УК видит любую запись, не спрашивая базу; партнёру несуществующая и мусор не видны", async () => {
     const station = await createStation();
-    const viewer = await hq();
 
-    expect(await canSee(viewer, "station", station.stationId)).toBe(true);
+    expect(await canSee(await hq(), "station", station.stationId)).toBe(true);
+    const viewer = partner(await partnerTenant(), [station.countryId]);
     expect(await canSee(viewer, "station", randomUUID())).toBe(false);
     expect(await canSee(viewer, "station", "не-uuid")).toBe(false);
   });

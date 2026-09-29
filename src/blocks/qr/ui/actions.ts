@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { CatalogError, reissueStationCode } from "@/blocks/catalog";
+import { requireVisible } from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
 
 import { reissueOutcome } from "./outcomes";
@@ -34,7 +35,7 @@ function field(form: FormData, name: string): string {
  * окна в вебе бесплатна и никакой кнопки не касается.
  */
 export async function submitReissueCode(form: FormData): Promise<void> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const outcome = reissueOutcome({
     storeId: field(form, STORE_ID),
@@ -44,6 +45,9 @@ export async function submitReissueCode(form: FormData): Promise<void> {
 
   // redirect бросает исключение — до перевыпуска выполнение отсюда не доходит.
   if (outcome.kind === "confirm") redirect(qrHref(outcome.view));
+
+  // Чужая станция из формы — «такой нет» (D145): код не перевыпускается.
+  await requireVisible(viewer, "station", outcome.stationId);
 
   let error: QrErrorCode | null = null;
   try {

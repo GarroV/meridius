@@ -102,3 +102,24 @@ export function canEditChecklist(
  * Экраны кабинета её не берут: у них область всегда от вошедшего (`scopeOf`).
  */
 export const WHOLE_NETWORK: Scope = { kind: "all" };
+
+/**
+ * Правило `canSeeChecklist` условием запроса — для запросов, написанных сырым SQL с
+ * псевдонимами таблиц (`c.tenant_id`, `co.id`). null — условия нет (УК). Шаблоны сюда
+ * не входят: запросы, которые его зовут, шаблонов не показывают.
+ */
+export function checklistVisibleSql(
+  viewer: Viewer,
+  tenantColumn: SQL,
+  countryColumn: SQL,
+): SQL | null {
+  if (viewer.tenantKind === "hq") return null;
+  const inCountries =
+    viewer.countryIds.length === 0
+      ? sql`false`
+      : sql`${countryColumn} in (${sql.join(
+          viewer.countryIds.map((id) => sql`${id}::uuid`),
+          sql`, `,
+        )})`;
+  return sql`(${tenantColumn} = ${viewer.tenantId}::uuid or ${inCountries})`;
+}

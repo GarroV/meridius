@@ -2,7 +2,7 @@
 // Снимок пунктов и станция фиксируются в момент заполнения (принцип 3, D002) —
 // правка чек-листа или перенос его на другую станцию не должны переписывать
 // историю задним числом.
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
 import type { Database } from "./client";
@@ -41,6 +41,11 @@ export interface SaveSubmissionInput {
 }
 
 export interface SubmissionFilter {
+  /**
+   * Область видимости вошедшего (D145): только эти страны. Не задано — вся сеть (УК);
+   * пустой список — ничего. Фильтр экрана (`countryId`) её сужает, но не расширяет.
+   */
+  countryIds?: readonly string[];
   countryId?: string;
   storeId?: string;
   stationId?: string;
@@ -176,6 +181,14 @@ function clampLimit(limit: number | undefined): number {
 
 function buildFilterConditions(filter: SubmissionFilter): SQL[] {
   const conditions: SQL[] = [];
+  if (filter.countryIds !== undefined) {
+    // Пустой список — ложь, а не пропуск условия: иначе «ничего» молча стало бы «всё».
+    conditions.push(
+      filter.countryIds.length === 0
+        ? sql`false`
+        : inArray(countries.id, [...filter.countryIds]),
+    );
+  }
   if (filter.countryId !== undefined) {
     conditions.push(eq(countries.id, filter.countryId));
   }

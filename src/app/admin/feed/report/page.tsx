@@ -19,11 +19,11 @@ export default async function RoundsReportPage({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const view = parseFeedView(await searchParams);
   const locale = (await getLocale()) as Locale;
-  const model = await buildRoundsModel(view, locale);
+  const model = await buildRoundsModel(view, locale, viewer);
 
   return <RoundsReportScreen model={model} />;
 }

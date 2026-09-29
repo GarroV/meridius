@@ -110,12 +110,17 @@ const COUNTRY_OF: Record<Kind, (id: string) => Promise<string | undefined>> = {
   device: countryOfDevice,
 };
 
-/** Видна ли запись. Несуществующая не видна никому. */
+/**
+ * Видна ли запись. УК видит всю сеть, и за ней в базу не ходим: есть ли такая запись
+ * вообще, решает само действие — как решало до тенантов. Партнёру несуществующая
+ * запись не видна так же, как чужая.
+ */
 export async function canSee(
   viewer: Viewer,
   kind: Kind,
   id: string,
 ): Promise<boolean> {
+  if (viewer.tenantKind === "hq") return true;
   const countryId = await COUNTRY_OF[kind](id);
   return countryId !== undefined && canSeeCountry(scopeOf(viewer), countryId);
 }
@@ -142,7 +147,7 @@ export async function requireStations(
   viewer: Viewer,
   stationIds: readonly string[],
 ): Promise<void> {
-  if (stationIds.length === 0) return;
+  if (stationIds.length === 0 || viewer.tenantKind === "hq") return;
   if (!stationIds.every(isId)) notFound();
   const unique = [...new Set(stationIds)];
   const rows = await getDb()

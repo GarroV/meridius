@@ -6,6 +6,7 @@
 // экран показывал бы список из одного, а число из другого.
 import type { LocalizedText } from "@/blocks/data";
 import { checklistPath } from "@/blocks/editor/routes";
+import type { Viewer } from "@/blocks/auth/scope";
 
 import { getBlock, listBlocks } from "../blocks";
 import { libraryBlockPath } from "../routes";
@@ -40,11 +41,12 @@ function usageRow(usage: BlockUsage, locale: string): LibraryUsageRow {
 async function buildSelection(
   blockId: string,
   locale: string,
+  viewer: Viewer,
 ): Promise<LibrarySelection | null> {
   const block = await getBlock(blockId);
   if (block === null) return null;
 
-  const usages = await listUsages(blockId);
+  const usages = await listUsages(blockId, viewer);
   return {
     id: block.id,
     title: pickText(block.title, locale),
@@ -62,6 +64,7 @@ async function buildSelection(
 export async function buildLibraryModel(
   view: LibraryView,
   locale: string,
+  viewer: Viewer,
 ): Promise<LibraryModel> {
   const blocks = await listBlocks();
 
@@ -72,9 +75,12 @@ export async function buildLibraryModel(
       : blocks[0]?.id;
 
   const selection =
-    requested === undefined ? null : await buildSelection(requested, locale);
+    requested === undefined
+      ? null
+      : await buildSelection(requested, locale, viewer);
 
   return {
+    canEdit: viewer.tenantKind === "hq",
     blocks: blocks.map((block) => ({
       id: block.id,
       title: pickText(block.title, locale),

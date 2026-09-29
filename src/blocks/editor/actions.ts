@@ -8,7 +8,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import {
+  requireChecklistEditable,
+  requireChecklistVisible,
+  requireHqViewer,
+  requireVisible,
+} from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
+import type { Viewer } from "@/blocks/auth/scope";
 
 import {
   checklistInputFrom,
@@ -45,18 +52,32 @@ function failure(error: unknown): EditorActionState {
   return failureState(error);
 }
 
+/**
+ * Станция из формы — в области видимости (D145): чужая отвечает как несуществующая, а
+ * чек-лист на неё не вешается. Пустое поле — «без станции», проверять нечего.
+ */
+async function requireStationOf(viewer: Viewer, form: FormData): Promise<void> {
+  const stationId = formText(form, "stationId");
+  if (stationId !== "") await requireVisible(viewer, "station", stationId);
+}
+
 /** Заведение чек-листа с экрана «Новый чек-лист». Успех уводит сразу в редактор. */
 export async function submitCreateChecklist(
   _previous: EditorActionState,
   form: FormData,
 ): Promise<EditorActionState> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
+  const kind = checklistKindFrom(form);
+  // Шаблоны — общие для всех стран, их заводит только УК (D149, D145).
+  if (kind === "template") requireHqViewer(viewer);
+  await requireStationOf(viewer, form);
 
   let checklistId: string;
   try {
     checklistId = await createChecklist(
       checklistInputFrom(form),
-      checklistKindFrom(form),
+      kind,
+      viewer.tenantId,
     );
   } catch (error) {
     return failure(error);
@@ -76,9 +97,11 @@ export async function submitCreateChecklist(
  * экран ошибки, а не проглатывается.
  */
 export async function submitTakeTemplate(form: FormData): Promise<void> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
+  const templateId = formText(form, "templateId");
+  await requireChecklistVisible(viewer, templateId);
 
-  const copyId = await takeTemplate(formText(form, "templateId"));
+  const copyId = await takeTemplate(templateId, viewer.tenantId);
 
   revalidatePath(CHECKLISTS_PATH, "layout");
   redirect(checklistPath(copyId));
@@ -89,10 +112,13 @@ export async function submitSaveDraft(
   _previous: EditorActionState,
   form: FormData,
 ): Promise<EditorActionState> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
+  const checklistId = formText(form, "checklistId");
+  // Чужой чек-лист и чужая станция из формы — «такого нет» (D145), до любой записи.
+  await requireChecklistEditable(viewer, checklistId);
+  await requireStationOf(viewer, form);
 
   try {
-    const checklistId = formText(form, "checklistId");
     const sections = sectionsFrom(form);
     await updateChecklist(checklistId, checklistInputFrom(form));
     await saveDraft(checklistId, sections);
@@ -114,10 +140,13 @@ export async function submitPublish(
   _previous: EditorActionState,
   form: FormData,
 ): Promise<EditorActionState> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
+  const checklistId = formText(form, "checklistId");
+  // Чужой чек-лист и чужая станция из формы — «такого нет» (D145), до любой записи.
+  await requireChecklistEditable(viewer, checklistId);
+  await requireStationOf(viewer, form);
 
   try {
-    const checklistId = formText(form, "checklistId");
     const sections = sectionsFrom(form);
     const input = checklistInputFrom(form);
     await updateChecklist(checklistId, input);
@@ -157,10 +186,12 @@ export async function submitPublish(
  * на его редактор — значит показать ему 404.
  */
 export async function submitDeleteChecklist(form: FormData): Promise<void> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
+  const checklistId = formText(form, "checklistId");
+  await requireChecklistEditable(viewer, checklistId);
 
   try {
-    await removeChecklist(formText(form, "checklistId"));
+    await removeChecklist(checklistId);
   } catch (error) {
     if (!(error instanceof EditorInputError)) throw error;
     console.error("Редактор: удаление не состоялось", error);
@@ -171,11 +202,16 @@ export async function submitDeleteChecklist(form: FormData): Promise<void> {
 }
 
 export async function submitDuplicate(form: FormData): Promise<void> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
+  const sourceId = formText(form, "checklistId");
+  // Дублировать можно то, что видно; копия — хозяйство вошедшего (D145).
+  await requireChecklistVisible(viewer, sourceId);
 
   let copyId: string;
   try {
-    copyId = await duplicateChecklist(formText(form, "checklistId"));
+    copyId = await duplicateChecklist(sourceId, {
+      ownerTenantId: viewer.tenantId,
+    });
   } catch (error) {
     if (!(error instanceof EditorInputError)) throw error;
     console.error("Редактор: дублирование не состоялось", error);
@@ -200,9 +236,10 @@ function versionFrom(form: FormData): number {
 export async function submitDismissTemplateUpdate(
   form: FormData,
 ): Promise<void> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const checklistId = formText(form, "checklistId");
+  await requireChecklistEditable(viewer, checklistId);
   await dismissTemplateUpdate(checklistId, versionFrom(form));
 
   revalidatePath(checklistPath(checklistId), "layout");
@@ -215,9 +252,10 @@ export async function submitDismissTemplateUpdate(
  * пометкой: переносить то, чего человек не видел, значит решить за него.
  */
 export async function submitTakeTemplateChanges(form: FormData): Promise<void> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const checklistId = formText(form, "checklistId");
+  await requireChecklistEditable(viewer, checklistId);
   const itemIds = form
     .getAll("itemId")
     .filter((value): value is string => typeof value === "string");

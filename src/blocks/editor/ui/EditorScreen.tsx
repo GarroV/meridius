@@ -3,6 +3,9 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { Icon } from "@/blocks/core/ui/Icon";
+import { requireChecklistEditable } from "@/blocks/auth/access";
+import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 
 import { submitDuplicate } from "../actions";
 import { loadEditor } from "../drafts";
@@ -89,12 +92,16 @@ export async function EditorScreen({
    */
   readonly stationAction?: (stationId: string | null) => React.ReactNode;
 }) {
+  // Редактор открывается только тому, кто может править: шаблон у партнёра открывается
+  // предпросмотром, а не редактором (D149, user-flow §5.2); чужое — «такого нет» (D145).
+  const viewer = await requireAdmin();
+  await requireChecklistEditable(viewer, checklistId);
   const state = await loadEditor(checklistId);
   if (state === null) notFound();
 
   const [locale, stations, t, origin] = await Promise.all([
     getLocale(),
-    listStations(),
+    listStations(scopeOf(viewer)),
     getTranslations("editor"),
     loadTemplateOrigin(checklistId),
   ]);

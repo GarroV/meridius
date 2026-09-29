@@ -18,11 +18,11 @@ export default async function FeedPage({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const view = parseFeedView(await searchParams);
   const locale = (await getLocale()) as Locale;
-  const model = await buildFeedModel(view, locale);
+  const model = await buildFeedModel(view, locale, viewer);
 
   return <FeedScreen model={model} />;
 }

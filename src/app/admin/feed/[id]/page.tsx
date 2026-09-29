@@ -21,12 +21,12 @@ export default async function SubmissionPage({
   readonly params: Promise<{ id: string }>;
   readonly searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const { id } = await params;
   const locale = (await getLocale()) as Locale;
   const backHref = feedHref(parseFeedView(await searchParams));
-  const model = await buildSubmissionModel(id, locale, backHref);
+  const model = await buildSubmissionModel(id, locale, backHref, viewer);
 
   // Ссылка на несуществующее заполнение — это именно «не найдено», а не пустая
   // карточка со статусом 200: объяснение рисует not-found.tsx рядом.

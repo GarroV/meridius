@@ -211,17 +211,19 @@ export async function LibraryScreen({
       breadcrumb={t("crumbs")}
       title={t("title")}
       topbarAction={
-        <form action={submitCreateBlock}>
-          <input type="hidden" name="locale" value={locale} />
-          <input type="hidden" name="title" value={t("newTitle")} />
-          <button
-            type="submit"
-            data-testid="new-block"
-            className={BTN_PRIMARY_CLASS}
-          >
-            {t("new")}
-          </button>
-        </form>
+        model.canEdit ? (
+          <form action={submitCreateBlock}>
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="title" value={t("newTitle")} />
+            <button
+              type="submit"
+              data-testid="new-block"
+              className={BTN_PRIMARY_CLASS}
+            >
+              {t("new")}
+            </button>
+          </form>
+        ) : null
       }
     >
       <div className={NOTICE_CLASS}>

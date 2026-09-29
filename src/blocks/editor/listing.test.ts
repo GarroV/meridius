@@ -17,6 +17,8 @@ import {
   createStation,
   sampleSections,
 } from "@/blocks/data/testing/fixtures";
+import { hqViewer, partnerViewer } from "@/blocks/auth/testing/viewers";
+import { WHOLE_NETWORK, scopeOf } from "@/blocks/auth/scope";
 
 import { createChecklist, saveDraft } from "./drafts";
 import { NO_FILTER } from "./filter";
@@ -26,6 +28,61 @@ import { publish } from "./publish";
 afterAll(closeTestDb);
 
 const MORNING = { start: "06:00", end: "11:00" };
+
+function input(stationId: string | null, ru: string) {
+  return { stationId, title: { ru, en: ru }, window: MORNING };
+}
+
+describe("listChecklists — область видимости (D145)", () => {
+  test("партнёр видит свои и висящие на его станциях, чужие — нет; станции — только свои", async () => {
+    const mine = await createStation();
+    const theirs = await createStation();
+    const partner = await partnerViewer([mine.countryId]);
+    const stranger = await partnerViewer([theirs.countryId]);
+
+    const ownUnassigned = await createChecklist(
+      input(null, "Свой без станции"),
+      "checklist",
+      partner.tenantId,
+    );
+    const hqOnMyStation = await createChecklist(
+      input(mine.stationId, "УК на моей станции"),
+    );
+    const hqElsewhere = await createChecklist(
+      input(theirs.stationId, "УК в чужой стране"),
+    );
+    const strangersUnassigned = await createChecklist(
+      input(null, "Чужой без станции"),
+      "checklist",
+      stranger.tenantId,
+    );
+
+    const ids = (await listChecklists(NO_FILTER, partner)).map((row) => row.id);
+    expect(ids).toContain(ownUnassigned);
+    expect(ids).toContain(hqOnMyStation);
+    expect(ids).not.toContain(hqElsewhere);
+    expect(ids).not.toContain(strangersUnassigned);
+
+    const stationIds = (await listStations(scopeOf(partner))).map(
+      (row) => row.id,
+    );
+    expect(stationIds).toContain(mine.stationId);
+    expect(stationIds).not.toContain(theirs.stationId);
+  });
+
+  test("партнёр без стран видит только свои чек-листы без станции", async () => {
+    const somewhere = await createStation();
+    const partner = await partnerViewer([]);
+    const onStation = await createChecklist({
+      stationId: somewhere.stationId,
+      title: { ru: "На станции", en: "On station" },
+      window: MORNING,
+    });
+    const ids = (await listChecklists(NO_FILTER, partner)).map((row) => row.id);
+    expect(ids).not.toContain(onStation);
+    expect(await listStations(scopeOf(partner))).toEqual([]);
+  });
+});
 
 describe("listChecklists", () => {
   test("строка списка отвечает на вопросы экрана: где, когда, какая версия, сколько пунктов", async () => {
@@ -47,7 +104,7 @@ describe("listChecklists", () => {
       startedAt: Date.now(),
     });
 
-    const row = (await listChecklists(NO_FILTER)).find(
+    const row = (await listChecklists(NO_FILTER, await hqViewer())).find(
       (entry) => entry.id === checklistId,
     );
 
@@ -73,7 +130,7 @@ describe("listChecklists", () => {
       window: MORNING,
     });
 
-    const row = (await listChecklists(NO_FILTER)).find(
+    const row = (await listChecklists(NO_FILTER, await hqViewer())).find(
       (entry) => entry.id === checklistId,
     );
 
@@ -96,7 +153,7 @@ describe("listChecklists", () => {
       window: MORNING,
     });
 
-    const mine = (await listChecklists(NO_FILTER))
+    const mine = (await listChecklists(NO_FILTER, await hqViewer()))
       .filter((entry) => entry.id === first || entry.id === second)
       .map((entry) => entry.id);
 
@@ -119,7 +176,7 @@ async function publishedChecklist(title: string): Promise<string> {
 
 /** Горит ли метка «черновик» у этого чек-листа на экране списка. */
 async function draftLabelOf(checklistId: string): Promise<boolean | undefined> {
-  return (await listChecklists(NO_FILTER)).find(
+  return (await listChecklists(NO_FILTER, await hqViewer())).find(
     (entry) => entry.id === checklistId,
   )?.hasUnpublishedChanges;
 }
@@ -215,7 +272,9 @@ describe("listChecklists и снятые с работы", () => {
       .set({ archivedAt: new Date() })
       .where(eq(checklists.id, removed));
 
-    const ids = (await listChecklists(NO_FILTER)).map((row) => row.id);
+    const ids = (await listChecklists(NO_FILTER, await hqViewer())).map(
+      (row) => row.id,
+    );
     expect(ids).toContain(kept);
     expect(ids).not.toContain(removed);
   });
@@ -236,7 +295,9 @@ describe("listChecklists и шаблоны (T309)", () => {
       "template",
     );
 
-    const ids = (await listChecklists(NO_FILTER)).map((row) => row.id);
+    const ids = (await listChecklists(NO_FILTER, await hqViewer())).map(
+      (row) => row.id,
+    );
     expect(ids).toContain(plain);
     expect(ids).not.toContain(template);
   });
@@ -258,7 +319,10 @@ describe("listChecklists под фильтром", () => {
     });
 
     const ids = (
-      await listChecklists({ ...NO_FILTER, countryId: mine.countryId })
+      await listChecklists(
+        { ...NO_FILTER, countryId: mine.countryId },
+        await hqViewer(),
+      )
     ).map((row) => row.id);
 
     expect(ids).toContain(kept);
@@ -280,7 +344,10 @@ describe("listChecklists под фильтром", () => {
     });
 
     const ids = (
-      await listChecklists({ ...NO_FILTER, storeId: mine.storeId })
+      await listChecklists(
+        { ...NO_FILTER, storeId: mine.storeId },
+        await hqViewer(),
+      )
     ).map((row) => row.id);
 
     expect(ids).toStrictEqual([kept]);
@@ -312,7 +379,10 @@ describe("listChecklists под фильтром", () => {
     });
 
     const ids = (
-      await listChecklists({ ...NO_FILTER, stationId: station.stationId })
+      await listChecklists(
+        { ...NO_FILTER, stationId: station.stationId },
+        await hqViewer(),
+      )
     ).map((row) => row.id);
 
     expect(ids).toStrictEqual([kept]);
@@ -329,7 +399,10 @@ describe("listChecklists под фильтром", () => {
     });
 
     const ids = (
-      await listChecklists({ ...NO_FILTER, countryId: station.countryId })
+      await listChecklists(
+        { ...NO_FILTER, countryId: station.countryId },
+        await hqViewer(),
+      )
     ).map((row) => row.id);
 
     expect(ids).not.toContain(homeless);
@@ -346,11 +419,14 @@ describe("listChecklists под фильтром", () => {
       window: MORNING,
     });
 
-    const rows = await listChecklists({
-      countryId: first.countryId,
-      storeId: second.storeId,
-      stationId: null,
-    });
+    const rows = await listChecklists(
+      {
+        countryId: first.countryId,
+        storeId: second.storeId,
+        stationId: null,
+      },
+      await hqViewer(),
+    );
 
     expect(rows).toStrictEqual([]);
   });
@@ -366,7 +442,10 @@ describe("listChecklists под фильтром", () => {
     });
 
     const ids = (
-      await listChecklists({ ...NO_FILTER, countryId: "Казахстан" })
+      await listChecklists(
+        { ...NO_FILTER, countryId: "Казахстан" },
+        await hqViewer(),
+      )
     ).map((row) => row.id);
 
     expect(ids).toContain(checklistId);
@@ -377,7 +456,7 @@ describe("listStations", () => {
   test("станция приходит вместе с пиццерией и страной: в списке их различают по адресу", async () => {
     const station = await createStation();
 
-    const option = (await listStations()).find(
+    const option = (await listStations(WHOLE_NETWORK)).find(
       (entry) => entry.id === station.stationId,
     );
 
@@ -389,7 +468,7 @@ describe("listStations", () => {
   test("вместе с названиями приходят идентификаторы: из них строится справочник фильтра", async () => {
     const station = await createStation();
 
-    const option = (await listStations()).find(
+    const option = (await listStations(WHOLE_NETWORK)).find(
       (entry) => entry.id === station.stationId,
     );
 
@@ -414,7 +493,7 @@ describe("listStations", () => {
       ])
       .returning({ id: stations.id, name: stations.name });
 
-    const all = await listStations();
+    const all = await listStations(WHOLE_NETWORK);
     const mine = all
       .filter((entry) => inserted.some((row) => row.id === entry.id))
       .map((entry) => entry.name);

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import type { ReactElement } from "react";
 
 import { Drawer } from "@/blocks/core/ui/Drawer";
+import { requireChecklistEditable } from "@/blocks/auth/access";
+import { requireAdmin } from "@/blocks/auth/guard";
 
 import {
   submitDismissTemplateUpdate,
@@ -82,6 +84,7 @@ export async function TemplateUpdatePanel({
   readonly id: string;
   readonly stale: boolean;
 }): Promise<ReactElement> {
+  await requireChecklistEditable(await requireAdmin(), id);
   const update = await loadTemplateUpdate(id);
   if (update === null) notFound();
 

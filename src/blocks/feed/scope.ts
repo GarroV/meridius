@@ -9,9 +9,12 @@ import type { SQL } from "drizzle-orm";
 import { and, countDistinct, eq, isNull, sql } from "drizzle-orm";
 
 import { getDb, stations, stores, timezoneNames } from "@/blocks/data";
+import { countryCondition, type Scope } from "@/blocks/auth/scope";
 
 /** Фильтры экрана в том виде, в каком их принимают запросы: незаданное не передаётся. */
 export interface FeedScope {
+  /** Область видимости вошедшего (D145). Фильтры ниже её сужают, но не расширяют. */
+  readonly visible: Scope;
   readonly countryId?: string;
   readonly storeId?: string;
   readonly stationId?: string;
@@ -19,6 +22,8 @@ export interface FeedScope {
 
 export function scopeConditions(scope: FeedScope): SQL[] {
   const conditions: SQL[] = [];
+  const visible = countryCondition(scope.visible, stores.countryId);
+  if (visible !== undefined) conditions.push(visible);
   if (scope.countryId !== undefined) {
     conditions.push(eq(stores.countryId, scope.countryId));
   }
