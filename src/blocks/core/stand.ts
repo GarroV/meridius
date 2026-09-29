@@ -19,8 +19,12 @@
 // проблему целиком. Метка отвечает на сам вопрос — «чья это база» — и отвечает одинаково
 // при любом способе туда попасть.
 //
-// Метка живёт в служебной базе `postgres` того же сервера: она общая для всех баз стенда,
-// поэтому один и тот же признак виден и рабочей базе, и тестовой, и базе сценариев.
+// Метка живёт в служебной базе `postgres` того же сервера, по строке на базу. Сначала
+// она была одна на весь сервер, но с 25.09.2026 сервер разработки один на все копии
+// (туннель на MUSPELHEIM), и такая метка отказывала любой второй копии — параллельная
+// волна блоков не могла прогнать ни одного теста. Делить сервер можно, делить базу —
+// нет: каждой копии своя рабочая база в `DATABASE_URL`, и метка сторожит именно её.
+// Прежняя таблица `stand.marker` больше не читается.
 // Хранится в отдельной схеме `stand` — среди таблиц продукта ей не место, и `drop schema
 // public cascade` из подготовки прогона её не задевает. Снимается вместе с томом:
 // `docker compose down -v` возвращает стенд в состояние «ничей», и следующий подъём
@@ -53,10 +57,8 @@ export type StandCheck =
 
 const CREATE_SCHEMA = "create schema if not exists stand";
 
-// Единственная строка обеспечивается первичным ключом по константе: `check (only_row)`
-// разрешает в колонке только `true`, а первичный ключ — только одно `true`.
-const CREATE_TABLE = `create table if not exists stand.marker (
-  only_row boolean primary key default true check (only_row),
+const CREATE_TABLE = `create table if not exists stand.claim (
+  database text primary key,
   copy_id text not null,
   root text not null,
   claimed_at timestamptz not null default now()
@@ -65,9 +67,9 @@ const CREATE_TABLE = `create table if not exists stand.marker (
 // `returning` отвечает на вопрос «метку поставили мы или она уже была»: строка приходит
 // только тому, чья вставка прошла. При гонке двух подъёмов её получает ровно один.
 const CLAIM =
-  "insert into stand.marker (copy_id, root) values ($1, $2) on conflict do nothing returning copy_id";
+  "insert into stand.claim (database, copy_id, root) values ($1, $2, $3) on conflict do nothing returning copy_id";
 
-const READ = "select copy_id, root from stand.marker";
+const READ = "select copy_id, root from stand.claim where database = $1";
 
 function asMarker(row: unknown): StandOwner | undefined {
   if (typeof row !== "object" || row === null) return undefined;
@@ -82,7 +84,7 @@ export function ownStand(): StandOwner {
 }
 
 /**
- * Метит стенд своим и говорит, чей он на самом деле.
+ * Метит базу своей и говорит, чья она на самом деле.
  *
  * Ничего не сносит и ничего не переписывает: чужая метка остаётся чужой, решение
  * принимает тот, кто позвал. Ничейный стенд становится своим — поэтому уже поднятый
@@ -90,14 +92,15 @@ export function ownStand(): StandOwner {
  */
 export async function claimStand(
   store: StandStore,
+  database: string,
   own: StandOwner = ownStand(),
 ): Promise<StandCheck> {
   await store.query(CREATE_SCHEMA);
   await store.query(CREATE_TABLE);
-  const claim = await store.query(CLAIM, [own.copyId, own.root]);
+  const claim = await store.query(CLAIM, [database, own.copyId, own.root]);
   const claimed = claim.rows.length === 1;
 
-  const { rows } = await store.query(READ);
+  const { rows } = await store.query(READ, [database]);
   const marker = asMarker(rows[0]);
 
   // Метки нет там, где её только что поставили, — значит, кто-то её снял между двумя
@@ -114,23 +117,27 @@ export async function claimStand(
   return { kind: "foreign", copyId: marker.copyId, root: marker.root };
 }
 
-/** Отказ словами: чей стенд, куда подключились и что с этим делать. */
+/** Отказ словами: чья база, куда подключились и что с этим делать. */
 export function foreignStandMessage(
   check: Extract<StandCheck, { kind: "foreign" }>,
-  context: { readonly target: string; readonly own: StandOwner },
+  context: {
+    readonly target: string;
+    readonly database: string;
+    readonly own: StandOwner;
+  },
 ): string {
   return [
-    `База по адресу ${context.target} принадлежит другой копии репозитория.`,
-    `  чужой стенд: ${check.root} (метка ${check.copyId})`,
+    `База ${context.database} на ${context.target} принадлежит другой копии репозитория.`,
+    `  чужая копия: ${check.root} (метка ${check.copyId})`,
     `  эта копия:   ${context.own.root} (метка ${context.own.copyId})`,
     "",
     "Это не сбой подключения, а защита: миграции и сид этой копии ушли бы в чужую базу,",
-    "и заметить это было бы нечем — чужой стенд отвечает так же, как свой.",
+    "и заметить это было бы нечем — чужая база отвечает так же, как своя.",
     "",
-    "Что делать: поднимите свой стенд на своём порту — задайте в .env свой DB_PORT",
-    "и тот же порт в DATABASE_URL, затем `docker compose -p <имя-стенда> up -d db`.",
+    "Что делать: задайте этой копии свою базу в DATABASE_URL (например meridius_<блок>);",
+    "сервер делить можно, базу — нет.",
     "",
-    "Если сервер делится осознанно, снимите метку на нём и повторите:",
-    "  psql <адрес сервера>/postgres -c 'delete from stand.marker'",
+    "Если базу делите осознанно, снимите метку и повторите:",
+    `  psql <адрес сервера>/postgres -c "delete from stand.claim where database = '${context.database}'"`,
   ].join("\n");
 }
