@@ -104,7 +104,8 @@ Next.js (App Router) на TypeScript, PostgreSQL через Drizzle, Tailwind п
 ## Проверки
 
 ```bash
-./scripts/check
+./scripts/check            # весь набор, как в CI
+./scripts/check --no-e2e   # без сквозных сценариев — так зовёт хук pre-push (D168)
 ```
 
 Один список команд на всех: его зовёт приёмка, хук `pre-push` и CI — три
