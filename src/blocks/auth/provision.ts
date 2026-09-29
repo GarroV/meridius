@@ -39,7 +39,7 @@ export interface PartnerInput {
   readonly password: string;
 }
 
-export type ProvisionRefusal =
+type ProvisionRefusal =
   | "tenant-name"
   | "hq-tenant"
   | "no-countries"
