@@ -9,6 +9,8 @@ import { asLocale } from "@/blocks/core/locale";
 import { AdminPage } from "@/blocks/core/ui/AdminPage";
 import { PairTabletCard } from "@/blocks/device/ui/PairTabletCard";
 import { UnlinkButton } from "@/blocks/device/ui/UnlinkButton";
+import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 
 import { getStationDetail } from "../detail";
 import {
@@ -17,8 +19,6 @@ import {
   submitReissueCode,
 } from "./actions";
 import { stationHref } from "./view";
-import { requireAdmin } from "@/blocks/auth/guard";
-import { scopeOf } from "@/blocks/auth/scope";
 
 /**
  * Карточка станции — место, где чек-лист, наклейка и планшет наконец встречаются.

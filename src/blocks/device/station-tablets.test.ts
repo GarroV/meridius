@@ -8,10 +8,10 @@ import { describe, expect, it } from "vitest";
 
 import { getDb, stations } from "@/blocks/data";
 import { createChecklist, createStation } from "@/blocks/data/testing/fixtures";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 import { pairDevice, unpairDevice } from "./devices";
 import { findStationTablets, listStationTablets } from "./station-tablets";
-import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 const NOW = new Date("2026-09-28T10:00:00Z");
 const SECOND = 1000;

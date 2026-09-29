@@ -10,11 +10,11 @@ import type { QrStationView } from "@/blocks/qr/ui/model";
 import { PrintButton } from "@/blocks/qr/ui/PrintButton";
 import { PrintSheet } from "@/blocks/qr/ui/PrintSheet";
 import { qrScreenHref } from "@/blocks/qr/ui/view";
+import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 
 import { listStickerStations, type StickerStation } from "../stickers";
 import { STATIONS_PATH } from "./view";
-import { requireAdmin } from "@/blocks/auth/guard";
-import { scopeOf } from "@/blocks/auth/scope";
 
 /**
  * Наклейки на станции, отмеченные в колонке (T311), — печать пачкой.

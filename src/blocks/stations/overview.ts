@@ -19,9 +19,9 @@ import {
   stores,
   submissions,
 } from "@/blocks/data";
+import { countryCondition, type Scope } from "@/blocks/auth/scope";
 
 import { type StationGap, gapsOf } from "./gaps";
-import { countryCondition, type Scope } from "@/blocks/auth/scope";
 
 /** Станция сети со всем, что про неё нужно знать списку. */
 export interface NetworkStation {

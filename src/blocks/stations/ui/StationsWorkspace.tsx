@@ -4,12 +4,12 @@ import type { ReactElement, ReactNode } from "react";
 
 import { AdminNav } from "@/blocks/core/ui/AdminNav";
 import { MasterDetail } from "@/blocks/core/ui/MasterDetail";
+import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 
 import { countGaps, listNetworkStations } from "../overview";
 import { StationsRail, type StationRailRow } from "./StationsRail";
 import { STATIONS_PATH } from "./view";
-import { requireAdmin } from "@/blocks/auth/guard";
-import { scopeOf } from "@/blocks/auth/scope";
 
 /**
  * Рабочее место раздела «Станции» (D163): меню, колонка станций и карточка выбранной.

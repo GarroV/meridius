@@ -10,9 +10,9 @@ import { describe, expect, test } from "vitest";
 import { checklists } from "@/blocks/data";
 import { getTestDb } from "@/blocks/data/testing/db";
 import { createChecklist, createStation } from "@/blocks/data/testing/fixtures";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 import { getStationDetail } from "./detail";
-import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 const TEMPLATE_VERSION = 3;
 

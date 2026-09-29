@@ -16,9 +16,9 @@ import {
   createStation,
   sampleSections,
 } from "@/blocks/data/testing/fixtures";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 import { listNetworkStations } from "./overview";
-import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 describe("список станций сети", () => {
   test("станция без чек-листа приходит нулём-числом и попадает в разрыв", async () => {

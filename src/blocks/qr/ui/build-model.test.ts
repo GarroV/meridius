@@ -7,10 +7,10 @@ import { afterAll, describe, expect, test } from "vitest";
 
 import { createCountry, createStation, createStore } from "@/blocks/catalog";
 import { closeTestDb } from "@/blocks/data/testing/db";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 import { buildQrModel, buildScreenModel } from "./build-model";
 import { CONFIRM_REISSUE } from "./view";
-import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 afterAll(closeTestDb);
 
@@ -135,7 +135,10 @@ describe("что показывает лист печати", () => {
   test("без пиццерии в адресе экран предлагает выбрать её из списка", async () => {
     const data = await fixture();
 
-    const model = await buildQrModel({}, { origin: ORIGIN, scope: WHOLE_NETWORK });
+    const model = await buildQrModel(
+      {},
+      { origin: ORIGIN, scope: WHOLE_NETWORK },
+    );
 
     expect(model.store).toBeNull();
     expect(model.stations).toHaveLength(0);

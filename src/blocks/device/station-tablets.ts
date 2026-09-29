@@ -15,9 +15,9 @@ import {
   stations,
   stores,
 } from "@/blocks/data";
+import { countryCondition, type Scope } from "@/blocks/auth/scope";
 
 import { isUuid } from "./devices";
-import { countryCondition, type Scope } from "@/blocks/auth/scope";
 
 /** Планшет станции: когда привязали и когда он последний раз открывал чек-лист. */
 interface StationTablet {
@@ -134,14 +134,14 @@ export async function listStationTablets(
   const rows = await selectRows()
     .where(countryCondition(scope, stores.countryId))
     .orderBy(
-    asc(countries.name),
-    asc(countries.id),
-    asc(stores.name),
-    asc(stores.id),
-    asc(stations.name),
-    asc(stations.id),
-    asc(devices.pairedAt),
-  );
+      asc(countries.name),
+      asc(countries.id),
+      asc(stores.name),
+      asc(stores.id),
+      asc(stations.name),
+      asc(stations.id),
+      asc(devices.pairedAt),
+    );
   return foldRows(rows);
 }
 
@@ -159,7 +159,10 @@ export async function findStationTablets(
   // Чужая станция — «станции нет», как и удалённая (D145).
   const rows = await selectRows()
     .where(
-      and(eq(stations.id, stationId), countryCondition(scope, stores.countryId)),
+      and(
+        eq(stations.id, stationId),
+        countryCondition(scope, stores.countryId),
+      ),
     )
     .orderBy(asc(devices.pairedAt));
   return foldRows(rows)[0] ?? null;
