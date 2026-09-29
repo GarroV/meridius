@@ -279,6 +279,31 @@ describe("ограничение частоты попыток", () => {
     expect(passed).toHaveLength(1);
   });
 
+  test("одновременные входы с верным паролем с одного клиента проходят все", async () => {
+    // Разбор #170: место занималось до проверки пароля и снималось только после успеха,
+    // поэтому шестеро, нажавшие «Войти» в одну секунду из одного офиса, занимали шесть
+    // мест раньше, чем хоть один успевал снять счёт, — шестой получал отказ с верным
+    // паролем. Считаться должны промахи, а не стуки в дверь.
+    const crowd = LOGIN_LIMITS.perClient.maxAttempts + 1;
+
+    const burst = await Promise.all(
+      Array.from({ length: crowd }, () => signIn(ROOT_LOGIN, PASSWORD)),
+    );
+
+    expect(burst).toEqual(
+      Array.from({ length: crowd }, () => ({ status: "ok" })),
+    );
+  });
+
+  test("залп неверных паролей с чистого счёта доходит до пароля ровно пять раз", async () => {
+    const burst = await Promise.all(
+      Array.from({ length: BURST }, () => signIn(ROOT_LOGIN, "не тот пароль")),
+    );
+
+    const checked = burst.filter((result) => result.status === "rejected");
+    expect(checked).toHaveLength(LOGIN_LIMITS.perClient.maxAttempts);
+  });
+
   test("в списке адресов берётся первый — тот, что ближе к клиенту", async () => {
     requestHeaders.set(CLIENT_HEADER, `${CLIENT}, 10.0.0.1, 10.0.0.2`);
     await exhaust();
