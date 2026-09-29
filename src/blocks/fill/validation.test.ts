@@ -352,3 +352,40 @@ describe("табличный пункт: журнал в теле отправк
     expect(parsed).toStrictEqual({ ok: false, reason: "malformed" });
   });
 });
+
+function alarmItem(): Item {
+  return item("al", {
+    type: "alarm",
+    severity: "normal",
+    alarm: { afterMinutes: 30 },
+  });
+}
+
+describe("пункт-будильник: ответ — время, на которое поставлен (D156, T317)", () => {
+  it("время будильника принимается", () => {
+    const parsed = matchAnswersToSnapshot(snapshot(alarmItem()), [
+      { itemId: "al", value: "14:30", at: AT },
+    ]);
+
+    expect(parsed.ok).toBe(true);
+  });
+
+  it.each(["вынести тесто", "", "25:00", "7:30"])(
+    "ответ %j вместо времени — отказ: пункт закрывается будильником, а не текстом",
+    (value) => {
+      const parsed = matchAnswersToSnapshot(snapshot(alarmItem()), [
+        { itemId: "al", value, at: AT },
+      ]);
+
+      expect(parsed).toStrictEqual({ ok: false, reason: "malformed" });
+    },
+  );
+
+  it("«да» вместо времени — отказ", () => {
+    const parsed = matchAnswersToSnapshot(snapshot(alarmItem()), [
+      { itemId: "al", value: true, at: AT },
+    ]);
+
+    expect(parsed).toStrictEqual({ ok: false, reason: "malformed" });
+  });
+});

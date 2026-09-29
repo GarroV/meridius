@@ -301,6 +301,14 @@ export async function copyTemplateToStations(
         sections: [...template.sections],
         publishedAt: now,
       });
+      // И черновик с тем же содержимым — как после любой публикации (`publishVersion`
+      // черновик не удаляет). Редактор правит черновик, и копия без него открывалась
+      // пустой: страна видела чек-лист без единого пункта, хотя на станции он полон.
+      await tx.insert(checklistVersions).values({
+        checklistId: copy.id,
+        status: "draft",
+        sections: [...template.sections],
+      });
     }
   });
 

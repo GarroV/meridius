@@ -25,6 +25,7 @@ import type { ShiftModeOutcome } from "../shift-mode";
 import type { SubmitOutcome } from "../submit";
 import { filledRows } from "../table-journal";
 import { formatStationTime } from "../station-time";
+import { AlarmItem } from "./AlarmItem";
 import { AlarmsPanel } from "./AlarmsPanel";
 import { RoundsPanel } from "./RoundsPanel";
 import type { ShiftState } from "./ShiftModeBar";
@@ -136,6 +137,11 @@ export interface FillFormProps {
   /** Серверные действия будильника: тот же адрес `/s/<код>`. */
   readonly addAlarm: (input: unknown) => Promise<AlarmOutcome>;
   readonly dropAlarm: (input: unknown) => Promise<AlarmOutcome>;
+  /**
+   * Серверное «сейчас» на момент выдачи экрана, мс. От него пункт-будильник (D156)
+   * считает «через N минут»: часам планшета продукт не верит.
+   */
+  readonly serverNow: number;
 }
 
 type Translate = ReturnType<typeof useTranslations>;
@@ -258,6 +264,7 @@ export function FillForm({
   alarms,
   addAlarm,
   dropAlarm,
+  serverNow,
 }: FillFormProps): ReactElement {
   const t = useTranslations("fill");
   // Язык экрана, а не язык телефона: его посчитала цепочка `storeLocales` и
@@ -266,6 +273,9 @@ export function FillForm({
   const locale = asLocale(useLocale());
   const [draft, setDraft] = useState<FillDraft>(emptyDraft);
   const [phase, setPhase] = useState<Phase>({ kind: "filling" });
+  // Список будильников станции живёт здесь, а не только в панели: пункт-будильник
+  // (D156) ставит будильник тем же действием, и панель обязана показать его сразу.
+  const [alarmList, setAlarmList] = useState<readonly AlarmView[]>(alarms);
   // Пункты для счёта: те же правила провала, что у ленты управляющего (`isFailed`).
   const sections = useMemo(() => gradingSections(view), [view]);
   const itemsById = useMemo(() => gradingItemsById(view), [view]);
@@ -456,6 +466,25 @@ export function FillForm({
                   </div>
                 )}
 
+                {item.type === "alarm" && item.alarm !== undefined ? (
+                  <AlarmItem
+                    itemId={item.id}
+                    title={item.title}
+                    alarm={item.alarm}
+                    code={code}
+                    setAt={
+                      typeof entry?.value === "string" ? entry.value : null
+                    }
+                    serverNow={serverNow}
+                    timeZone={timeZone}
+                    add={addAlarm}
+                    onSet={(time, list) => {
+                      setEntry(item.id, { value: time });
+                      setAlarmList(list);
+                    }}
+                  />
+                ) : null}
+
                 {item.type === "number" ? (
                   <div className="mx-[var(--space-7)] mb-[var(--space-6)] flex items-center gap-[var(--space-4)]">
                     {commentOpen ? (
@@ -572,7 +601,7 @@ export function FillForm({
       />
 
       <AlarmsPanel
-        alarms={alarms}
+        alarms={alarmList}
         code={code}
         add={addAlarm}
         drop={dropAlarm}

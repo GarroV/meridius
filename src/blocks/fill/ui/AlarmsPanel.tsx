@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 
 import { ALARM_LIMITS } from "../alarm-limits";
+import { alarmRefusalText } from "./alarm-refusal";
 import { beep } from "./beep";
 import type { AlarmOutcome, AlarmRefusal, AlarmView } from "../alarms";
 
@@ -27,7 +28,6 @@ import type { AlarmOutcome, AlarmRefusal, AlarmView } from "../alarms";
  * одного планшета.
  */
 
-const MINUTE_SECONDS = 60;
 const MS = 1000;
 
 const PANEL_CLASS = "border-t-[6px] border-[var(--surface-3)]";
@@ -165,40 +165,9 @@ export function AlarmsPanel({
     };
   }, [list]);
 
-  /**
-   * Текст отказа. Часы берутся ИЗ САМОГО ОТКАЗА, а не из шапки экрана: шапка знает окно
-   * одного чек-листа, а граница вынесена по всем открытым разом. Отказ без часов
-   * означает, что на станции сейчас не открыт ни один чек-лист, — называть нечего.
-   */
+  // Текст отказа общий с пунктом-будильником чек-листа (D156): `./alarm-refusal`.
   const refusalText = useCallback(
-    (outcome: AlarmRefusal): string => {
-      switch (outcome.reason) {
-        case "rate-limited": {
-          return t("refused.tooOften", {
-            minutes: Math.max(
-              1,
-              Math.ceil(outcome.retryAfterSeconds / MINUTE_SECONDS),
-            ),
-          });
-        }
-        case "past-time": {
-          return t("refused.pastTime");
-        }
-        case "outside-window": {
-          return outcome.hours === undefined
-            ? t("refused.checklistClosed")
-            : t("refused.outsideWindow", { window: outcome.hours });
-        }
-        case "too-many": {
-          return t("refused.tooMany", {
-            count: ALARM_LIMITS.maxPerStationPerWindow,
-          });
-        }
-        default: {
-          return t("refused.broken");
-        }
-      }
-    },
+    (outcome: AlarmRefusal): string => alarmRefusalText(outcome, t),
     [t],
   );
 

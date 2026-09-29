@@ -22,6 +22,7 @@ const LIMIT_BY_CODE: Partial<Record<EditorErrorCode, number>> = {
   tooManySections: LIMITS.sections,
   tooManyItems: LIMITS.items,
   textTooLong: LIMITS.textLength,
+  tooManyColumns: LIMITS.columns,
 };
 
 export function formText(form: FormData, field: string): string {

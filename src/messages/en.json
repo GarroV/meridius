@@ -258,6 +258,7 @@
       "typeNumber": "Number",
       "typeText": "Text",
       "typeTable": "Table",
+      "typeAlarm": "Alarm",
       "critical": "Critical",
       "from": "from",
       "to": "to",
@@ -271,6 +272,16 @@
       "normal": "Normal",
       "major": "Major",
       "severityLabel": "How critical the item is"
+    },
+    "alarm": {
+      "label": "Alarm label",
+      "labelPlaceholder": "For example: take the dough out",
+      "when": "When",
+      "modeAfter": "A delay after opening",
+      "modeAt": "At a set time",
+      "at": "At",
+      "after": "In",
+      "minutes": "min"
     },
     "table": {
       "columns": "Log columns",
@@ -340,6 +351,9 @@
       "windowClosedTomorrow": "Window {start}–{end}: it is {now} at the store and the window is closed — the employee will see the published version tomorrow from {opensAt}."
     },
     "preview": {
+      "alarm": "Alarm “{label}” — {when}",
+      "alarmAt": "at {time}",
+      "alarmAfter": "{minutes} min after opening",
       "title": "Preview",
       "notice": "This is what an employee sees. It only shows: the employee answers and submits on their own phone, opening the checklist by the station QR code.",
       "progress": "{done} of {total}",
@@ -373,6 +387,9 @@
       "emptyTitle": "The title is empty.",
       "notFound": "Checklist not found.",
       "nothingToPublish": "Nothing to publish: the checklist has no items.",
+      "badSchedule": "The round schedule was not accepted: check the time ranges.",
+      "tooManyColumns": "Too many columns: there can be no more than {limit}.",
+      "badAlarm": "The alarm needs a time: an hour or a number of minutes.",
       "unknownBlock": "The inserted library block was not found.",
       "unknown": "Could not save. Please try again."
     },
@@ -385,6 +402,25 @@
       "confirmDelete": "Delete completely",
       "confirmArchive": "Take out of service",
       "cancel": "Cancel"
+    },
+    "templateUpdate": {
+      "origin": "Copy of template “{title}”, version {version}",
+      "updated": "Template “{title}” has been updated: version {version}",
+      "updatedHint": "See what changed and take whatever suits you. The copy stays yours.",
+      "view": "See what changed",
+      "dismiss": "Keep as is",
+      "title": "What changed in the template",
+      "intro": "Template “{title}”: version {from} → {to}. Tick what to take — everything else in your copy stays as it was.",
+      "added": "Added",
+      "changed": "Changed",
+      "removed": "Removed",
+      "was": "was: {title}",
+      "section": "Section “{title}”",
+      "none": "No items in the template have changed.",
+      "take": "Take the ticked changes",
+      "takeHint": "They go into the draft — publish once you have looked them over.",
+      "stale": "The template was updated again — the differences below are against its latest version.",
+      "untitled": "Untitled"
     }
   },
   "qr": {
@@ -559,6 +595,8 @@
       "labelLabel": "What for",
       "labelPlaceholder": "For example: take out the dough",
       "add": "Set",
+      "itemAdd": "Set the alarm",
+      "itemSet": "The alarm is set for {time} — it is in the alarms panel below.",
       "drop": "Remove the alarm «{label}»",
       "ringing": "Alarm for {time}",
       "acknowledge": "Got it",

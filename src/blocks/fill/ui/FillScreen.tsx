@@ -243,6 +243,7 @@ export async function FillScreen({
           alarms={alarms}
           addAlarm={setAlarmAction}
           dropAlarm={dropAlarmAction}
+          serverNow={now.getTime()}
         />
       </NextIntlClientProvider>
     </div>

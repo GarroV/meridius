@@ -6,6 +6,7 @@
 // а не слой данных.
 import type {
   Item,
+  ItemAlarm,
   ItemColumn,
   ItemType,
   LocalizedText,
@@ -17,6 +18,7 @@ import { assertValidSchedule, isSeverity, parseLocalTime } from "@/blocks/data";
 import { LOCALES } from "@/blocks/core/locale";
 
 import { isRemindOption, MAX_SEGMENTS, REMIND_OPTIONS } from "./schedule-field";
+import { ALARM_TIME_PATTERN, MAX_ALARM_DELAY_MINUTES } from "./alarm-field";
 import { MAX_COLUMNS } from "./table-field";
 
 export type EditorErrorCode =
@@ -27,6 +29,7 @@ export type EditorErrorCode =
   | "textTooLong"
   | "badRange"
   | "badSchedule"
+  | "badAlarm"
   | "emptyWindow"
   | "emptyTitle"
   | "notFound"
@@ -78,7 +81,13 @@ export const LIMITS = {
 // свой список здесь был копией, которая про третий язык узнала бы последней (T268).
 // Всё, что не из этого списка, до базы по-прежнему не доезжает.
 
-const ITEM_TYPES: readonly ItemType[] = ["bool", "number", "text", "table"];
+const ITEM_TYPES: readonly ItemType[] = [
+  "bool",
+  "number",
+  "text",
+  "table",
+  "alarm",
+];
 
 // Время из формы приходит как "HH:MM"; 24:00 — законное значение time в PostgreSQL
 // и единственный способ записать окно «без ограничения» там, где равные границы запрещены.
@@ -308,6 +317,45 @@ function parseColumns(input: unknown): ItemColumn[] | undefined {
   return columns.length === 0 ? undefined : columns;
 }
 
+/**
+ * Будильник пункта (D156): подпись и КОГДА звонить — в час или через сколько минут от
+ * открытия пункта, ровно одно из двух. Будильник без времени — отказ, а не пункт-заглушка:
+ * на станции он показал бы кнопку «Поставить», которой нечего подставить. Пустая подпись
+ * полем не становится — на станции её подпишет название пункта.
+ */
+function parseAlarm(input: unknown): ItemAlarm {
+  if (!isRecord(input)) fail("badAlarm", "У будильника нет времени");
+
+  const label = parseLocalizedText(input["label"] ?? {});
+  const at = input["at"];
+  const after = input["afterMinutes"];
+  const hasAt = at !== undefined && at !== null;
+  const hasAfter = after !== undefined && after !== null;
+  if (hasAt === hasAfter) {
+    fail("badAlarm", "У будильника должно быть ровно одно: час или отсрочка");
+  }
+
+  const text = isEmptyText(label) ? {} : { label };
+  if (hasAt) {
+    if (typeof at !== "string" || !ALARM_TIME_PATTERN.test(at)) {
+      fail("badAlarm", `Непонятный час будильника: ${JSON.stringify(at)}`);
+    }
+    return { ...text, at };
+  }
+  if (
+    typeof after !== "number" ||
+    !Number.isInteger(after) ||
+    after < 1 ||
+    after > MAX_ALARM_DELAY_MINUTES
+  ) {
+    fail(
+      "badAlarm",
+      `Непонятная отсрочка будильника: ${JSON.stringify(after)}`,
+    );
+  }
+  return { ...text, afterMinutes: after };
+}
+
 function parseItem(input: unknown): Item | null {
   if (!isRecord(input)) fail("badFormat", "Пункт должен быть объектом");
 
@@ -338,6 +386,7 @@ function parseItem(input: unknown): Item | null {
   // разбора, тем же приёмом, что у границ диапазона.
   const unit = parseLocalizedText(input["unit"] ?? {});
   const isTable = item.type === "table";
+  const isAlarm = item.type === "alarm";
   const schedule = parseSchedule(input["schedule"]);
   // Табличный пункт обходом не бывает: журнал заводят строками за смену, а у обхода
   // свой учёт отметками по часам (D076), и показать в нём таблицу нечем. Отказ, а не
@@ -345,11 +394,17 @@ function parseItem(input: unknown): Item | null {
   if (isTable && schedule !== undefined) {
     fail("badSchedule", "У табличного пункта расписания обхода не бывает");
   }
+  // Будильник — тоже: его ставят один раз, когда пункт открыли (D070 — регулярности у
+  // будильника нет и не будет), а обход отмечают по часам.
+  if (isAlarm && schedule !== undefined) {
+    fail("badSchedule", "У будильника расписания обхода не бывает");
+  }
   const remind = parseRemind(
     input["remindEveryMinutes"],
     schedule !== undefined,
   );
   const columns = isTable ? parseColumns(input["columns"]) : undefined;
+  const alarm = isAlarm ? parseAlarm(input["alarm"]) : undefined;
 
   return {
     ...item,
@@ -360,6 +415,7 @@ function parseItem(input: unknown): Item | null {
     ...(schedule === undefined ? {} : { schedule }),
     ...(remind === undefined ? {} : { remindEveryMinutes: remind }),
     ...(columns === undefined ? {} : { columns }),
+    ...(alarm === undefined ? {} : { alarm }),
   };
 }
 

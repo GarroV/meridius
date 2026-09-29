@@ -649,3 +649,106 @@ describe("табличный пункт: колонки с нормами (T141)
     ).toThrow(expect.objectContaining({ code: "badSchedule" }) as unknown);
   });
 });
+
+function withAlarm(item: Record<string, unknown>): unknown[] {
+  return [
+    {
+      id: "section-1",
+      title: { ru: "Тесто", en: "Dough" },
+      source: "own",
+      items: [
+        {
+          id: "item-1",
+          title: {
+            ru: "Поставить будильник на тесто",
+            en: "Set the dough alarm",
+          },
+          type: "alarm",
+          severity: "normal",
+          ...item,
+        },
+      ],
+    },
+  ];
+}
+
+function alarmOf(item: Record<string, unknown>) {
+  return parseSections(withAlarm(item))[0]?.items[0]?.alarm;
+}
+
+describe("будильник как пункт чек-листа (D156, T317)", () => {
+  const LABEL = { ru: "Вынести тесто", en: "Take the dough out" };
+
+  test("подпись и час доезжают до базы", () => {
+    expect(alarmOf({ alarm: { label: LABEL, at: "14:30" } })).toStrictEqual({
+      label: LABEL,
+      at: "14:30",
+    });
+  });
+
+  test("отсрочка от открытия пункта доезжает минутами", () => {
+    expect(
+      alarmOf({ alarm: { label: LABEL, afterMinutes: 90 } }),
+    ).toStrictEqual({ label: LABEL, afterMinutes: 90 });
+  });
+
+  test("пустая подпись полем не становится: на станции подпишет название пункта", () => {
+    expect(
+      alarmOf({ alarm: { label: { ru: " " }, at: "06:15" } }),
+    ).toStrictEqual({ at: "06:15" });
+  });
+
+  test("без времени будильник не сохраняется — звонить было бы не во сколько", () => {
+    expect(() => parseSections(withAlarm({ alarm: { label: LABEL } }))).toThrow(
+      expect.objectContaining({ code: "badAlarm" }),
+    );
+    expect(() => parseSections(withAlarm({}))).toThrow(
+      expect.objectContaining({ code: "badAlarm" }),
+    );
+  });
+
+  test("час и отсрочка сразу — отказ: какой из них имели в виду, не угадать", () => {
+    expect(() =>
+      parseSections(
+        withAlarm({ alarm: { label: LABEL, at: "14:30", afterMinutes: 30 } }),
+      ),
+    ).toThrow(expect.objectContaining({ code: "badAlarm" }));
+  });
+
+  test.each(["24:00", "7:30", "14:60", "", 1430])(
+    "час %j не принимается: у будильника суток без границы нет",
+    (at) => {
+      expect(() =>
+        parseSections(withAlarm({ alarm: { label: LABEL, at } })),
+      ).toThrow(expect.objectContaining({ code: "badAlarm" }));
+    },
+  );
+
+  test.each([0, -5, 1.5, 721, "30"])(
+    "отсрочка %j не принимается",
+    (afterMinutes) => {
+      expect(() =>
+        parseSections(withAlarm({ alarm: { label: LABEL, afterMinutes } })),
+      ).toThrow(expect.objectContaining({ code: "badAlarm" }));
+    },
+  );
+
+  test("у пункта другого рода поле будильника не хранится", () => {
+    // Невидимое на экране значение, уехавшее в JSONB, остаётся там навсегда.
+    const [section] = parseSections(
+      withAlarm({ type: "bool", alarm: { label: LABEL, at: "14:30" } }),
+    );
+    expect(section?.items[0]).not.toHaveProperty("alarm");
+  });
+
+  test("будильник обходом не бывает", () => {
+    expect(() =>
+      parseSections(
+        withAlarm({
+          alarm: { label: LABEL, at: "14:30" },
+          schedule: [{ from: "08:00", to: "12:00", everyMinutes: 60 }],
+        }),
+      ),
+    ).toThrow(expect.objectContaining({ code: "badSchedule" }));
+  });
+});

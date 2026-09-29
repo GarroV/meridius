@@ -157,6 +157,10 @@ export const checklists = pgTable(
       { onDelete: "set null" },
     ),
     sourceVersion: integer("source_version"),
+    // «Оставить как есть» (D154, T336): до какой версии шаблона страна обновление уже
+    // видела и отклонила. Строка «шаблон обновился» гаснет до следующей версии, а
+    // `source_version` не сдвигается: содержимое копии по-прежнему снято с неё.
+    sourceSeenVersion: integer("source_seen_version"),
     createdAt: serverTimestamp(CREATED_AT),
   },
   (table) => [

@@ -5,6 +5,7 @@ export type {
   Answer,
   ChecklistWindow,
   Item,
+  ItemAlarm,
   ItemColumn,
   ItemType,
   LocalizedText,
