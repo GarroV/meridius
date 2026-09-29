@@ -13,6 +13,8 @@ import type {
   Section,
 } from "@/blocks/data";
 
+import { DEFAULT_ALARM_DELAY_MINUTES } from "./alarm-field";
+
 /** Новый опознаватель. `crypto` есть и в браузере, и в Node — импорт не нужен. */
 function newId(): string {
   return crypto.randomUUID();
@@ -177,6 +179,26 @@ function withColumnsByType(item: Item): Item {
   return withoutColumns;
 }
 
+/**
+ * Будильник по типу пункта (D156). Пункт-будильник заводится сразу со временем — отсрочкой
+ * от открытия, самой безопасной из двух: её не надо сверять с окном чек-листа, — и без
+ * расписания обхода: будильник ставят один раз, а разбор обход у него отвергнет. У
+ * остальных родов поле снимается: невидимое значение, уехав в JSONB, останется навсегда.
+ */
+function withAlarmByType(item: Item): Item {
+  if (item.type === "alarm") {
+    const { schedule, remindEveryMinutes, ...once } = item;
+    void schedule;
+    void remindEveryMinutes;
+    return item.alarm === undefined
+      ? { ...once, alarm: { afterMinutes: DEFAULT_ALARM_DELAY_MINUTES } }
+      : once;
+  }
+  const { alarm, ...withoutAlarm } = item;
+  void alarm;
+  return withoutAlarm;
+}
+
 /** Правка полей пункта. Смена типа на «да/нет» и «текст» снимает границы диапазона. */
 export function updateItem(
   sections: readonly Section[],
@@ -186,7 +208,7 @@ export function updateItem(
   return mapItems(sections, (items) =>
     items.map((item) => {
       if (item.id !== itemId) return item;
-      const merged = withColumnsByType({ ...item, ...patch });
+      const merged = withAlarmByType(withColumnsByType({ ...item, ...patch }));
       if (merged.type === "number") return merged;
       // Границы и единица измерения у нечислового пункта не видны на экране и не
       // правятся: оставить их значит увезти в базу невидимое значение (D110 — то же

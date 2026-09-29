@@ -7,6 +7,7 @@ import type { Item, LocalizedText, Section } from "@/blocks/data";
 
 import { pickFillText } from "./locale";
 import type {
+  FillAlarmView,
   FillChoiceOption,
   FillChoiceView,
   FillColumnView,
@@ -124,6 +125,20 @@ function buildColumnViews(
   });
 }
 
+/**
+ * Будильник пункта (D156). Без подписи составителя будильник подписан названием пункта:
+ * звонок без слов не говорит, зачем звонит (то же правило, что у ручного, D070). Без
+ * времени (старая или чужая разметка) экран подставит ближайшее — поле всё равно правят.
+ */
+function buildAlarmView(item: Item, locales: readonly Locale[]): FillAlarmView {
+  const label = pickFillText(item.alarm?.label ?? {}, locales);
+  return {
+    label: label === "" ? pickFillText(item.title, locales) : label,
+    at: item.alarm?.at ?? null,
+    afterMinutes: item.alarm?.afterMinutes ?? null,
+  };
+}
+
 function buildItemView(
   item: Item,
   locales: readonly Locale[],
@@ -143,6 +158,7 @@ function buildItemView(
     ...(item.type === "table"
       ? { columns: buildColumnViews(item, locales) }
       : {}),
+    ...(item.type === "alarm" ? { alarm: buildAlarmView(item, locales) } : {}),
   };
 }
 
