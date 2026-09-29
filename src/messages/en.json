@@ -852,7 +852,8 @@
       "lead": "Once per tablet, about a minute. You need a tablet with internet and this workspace — on a computer or a phone.",
       "step1": {
         "title": "Issue a code",
-        "text": "In the list below, click the station where the tablet will stand, then “Pair a tablet”. Four digits appear."
+        "text": "In the list below, click the station where the tablet will stand, then “Pair a tablet”. Four digits appear.",
+        "drawerText": "Press “Pair a tablet” above — four digits appear."
       },
       "step2": {
         "title": "Open the address on the tablet",

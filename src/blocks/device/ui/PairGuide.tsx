@@ -64,6 +64,12 @@ const TROUBLE_TITLE_CLASS =
 const TROUBLE_LIST_CLASS =
   "flex list-disc flex-col gap-[var(--space-3)] pl-[var(--space-8)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)] text-[var(--ink-2)]";
 
+// В панели станции списка станций нет — станция уже выбрана, а кнопка стоит выше
+// инструкции. Поэтому первый шаг там свой, иначе он отсылает «в список ниже», которого нет.
+function stepTextKey(key: (typeof STEPS)[number]["key"], compact: boolean) {
+  return compact && key === "step1" ? "step1.drawerText" : `${key}.text`;
+}
+
 export interface PairGuideProps {
   /** Что набрать на планшете: полный адрес страницы привязки. */
   readonly address: string;
@@ -97,7 +103,7 @@ export async function PairGuide({
               {t(`${key}.title`)}
             </span>
             <span className={STEP_TEXT_CLASS}>
-              {t(`${key}.text`, { minutes })}
+              {t(stepTextKey(key, compact), { minutes })}
             </span>
             {key === "step2" ? (
               <code data-testid="pair-guide-address" className={ADDRESS_CLASS}>
