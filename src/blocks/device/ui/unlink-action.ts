@@ -12,6 +12,7 @@
 // «confirmed», как у перевыпуска кода в справочнике: отвязка выполняется сразу.
 import { revalidatePath } from "next/cache";
 
+import { canSee } from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 
@@ -28,7 +29,10 @@ export interface UnlinkOutcome {
  * через JavaScript, потому что решение «показать отказ» принимает кнопка, а не адрес.
  */
 export async function unlinkDevice(id: string): Promise<UnlinkOutcome> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
+  // Чужой планшет отвечает как уже отвязанный — тем же отказом, что и несуществующий
+  // (D145): кнопка покажет «обновите страницу», а сам планшет не тронут.
+  if (!(await canSee(viewer, "device", id))) return { ok: false };
 
   const ok = await unpairDevice(id);
   revalidatePath(ADMIN_SECTIONS.devices.path);

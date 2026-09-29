@@ -16,6 +16,7 @@ import {
   listCountries,
   updateCountry,
 } from "./countries";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 const db = getTestDb();
 
@@ -31,18 +32,18 @@ describe("createCountry / listCountries / updateCountry / deleteCountry", () => 
     const name = uniqueName("Италия");
     const id = await createCountry({ name, locale: "ru" });
 
-    const created = (await listCountries()).find((row) => row.id === id);
+    const created = (await listCountries(WHOLE_NETWORK)).find((row) => row.id === id);
     expect(created?.name).toBe(name);
     expect(created?.locale).toBe("ru");
 
     const newName = uniqueName("Италия правленая");
     await updateCountry(id, { name: newName, locale: "en" });
-    const updated = (await listCountries()).find((row) => row.id === id);
+    const updated = (await listCountries(WHOLE_NETWORK)).find((row) => row.id === id);
     expect(updated?.name).toBe(newName);
     expect(updated?.locale).toBe("en");
 
     await deleteCountry(id);
-    expect((await listCountries()).some((row) => row.id === id)).toBe(false);
+    expect((await listCountries(WHOLE_NETWORK)).some((row) => row.id === id)).toBe(false);
   });
 
   test("страна с пиццерией не удаляется: countryNotEmpty", async () => {
@@ -101,7 +102,7 @@ describe("createCountry / listCountries / updateCountry / deleteCountry", () => 
       name: uniqueName("Пустая страна"),
       locale: "ru",
     });
-    const empty = (await listCountries()).find((row) => row.id === emptyId);
+    const empty = (await listCountries(WHOLE_NETWORK)).find((row) => row.id === emptyId);
     expect(empty?.storeCount).toBe(0);
 
     const withStoresId = await createCountry({
@@ -120,7 +121,7 @@ describe("createCountry / listCountries / updateCountry / deleteCountry", () => 
         timezone: "UTC",
       },
     ]);
-    const withStores = (await listCountries()).find(
+    const withStores = (await listCountries(WHOLE_NETWORK)).find(
       (row) => row.id === withStoresId,
     );
     expect(withStores?.storeCount).toBe(2);

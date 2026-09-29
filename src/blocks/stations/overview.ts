@@ -21,6 +21,7 @@ import {
 } from "@/blocks/data";
 
 import { type StationGap, gapsOf } from "./gaps";
+import { countryCondition, type Scope } from "@/blocks/auth/scope";
 
 /** Станция сети со всем, что про неё нужно знать списку. */
 export interface NetworkStation {
@@ -84,6 +85,7 @@ const lastSubmissionAt = sql<Date | null>`(
  * на каждой отрисовке и разъезжалось между экраном и печатью наклеек.
  */
 export async function listNetworkStations(
+  scope: Scope,
   now: Date = new Date(),
 ): Promise<readonly NetworkStation[]> {
   const rows = await getDb()
@@ -103,6 +105,8 @@ export async function listNetworkStations(
     .from(stations)
     .innerJoin(stores, eq(stations.storeId, stores.id))
     .innerJoin(countries, eq(stores.countryId, countries.id))
+    // Область видимости (D145): партнёр видит станции своих стран, УК — всю сеть.
+    .where(countryCondition(scope, stores.countryId))
     .orderBy(asc(countries.name), asc(stores.name), asc(stations.name));
 
   return rows.map(({ createdAt, ...row }) => ({

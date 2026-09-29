@@ -96,3 +96,9 @@ export function canEditChecklist(
   if (checklist.isTemplate) return false;
   return canSeeChecklist(viewer, checklist);
 }
+
+/**
+ * Область «вся сеть» — явно, для сида, проверок и команд площадки, где вошедшего нет.
+ * Экраны кабинета её не берут: у них область всегда от вошедшего (`scopeOf`).
+ */
+export const WHOLE_NETWORK: Scope = { kind: "all" };

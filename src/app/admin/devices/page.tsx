@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 
 import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 import { PUBLIC_PAIR_PATH } from "@/blocks/core/public-routes";
 import {
   findStationTablets,
@@ -59,13 +60,14 @@ export default async function DevicesPage({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
+  const scope = scopeOf(viewer);
 
   const params = await searchParams;
   const stationId = single(params[STATION]);
   const [stations, selected] = await Promise.all([
-    listStationTablets(),
-    stationId === undefined ? undefined : findStationTablets(stationId),
+    listStationTablets(scope),
+    stationId === undefined ? undefined : findStationTablets(stationId, scope),
   ]);
 
   return (

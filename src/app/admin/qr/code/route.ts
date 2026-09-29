@@ -1,4 +1,5 @@
 import { listStations } from "@/blocks/catalog";
+import { canSee } from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
 import { parseStationRef, type SearchParams } from "@/blocks/qr/ui/view";
 
@@ -14,7 +15,7 @@ import { parseStationRef, type SearchParams } from "@/blocks/qr/ui/view";
  * ни чего-либо о пиццерии.
  */
 export async function GET(request: Request): Promise<Response> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const params: SearchParams = Object.fromEntries(
     new URL(request.url).searchParams,
@@ -22,6 +23,11 @@ export async function GET(request: Request): Promise<Response> {
   const ref = parseStationRef(params);
   if (ref === null) {
     return Response.json({ error: "badRequest" }, { status: 400 });
+  }
+
+  // Чужая пиццерия отвечает тем же, что и несуществующая (D145).
+  if (!(await canSee(viewer, "store", ref.storeId))) {
+    return Response.json({ error: "notFound" }, { status: 404 });
   }
 
   const stations = await listStations(ref.storeId);

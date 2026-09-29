@@ -17,6 +17,8 @@ import {
   submitReissueCode,
 } from "./actions";
 import { stationHref } from "./view";
+import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 
 /**
  * Карточка станции — место, где чек-лист, наклейка и планшет наконец встречаются.
@@ -103,14 +105,15 @@ export async function StationScreen({
   stationId,
   confirmUnlink,
 }: StationScreenProps): Promise<ReactElement | null> {
-  const station = await getStationDetail(stationId);
+  const viewer = await requireAdmin();
+  const station = await getStationDetail(stationId, scopeOf(viewer));
   if (station === null) return null;
 
   const t = await getTranslations("stations");
   const tDevice = await getTranslations("device");
   const tCatalog = await getTranslations("catalog");
   const locale = asLocale(await getLocale());
-  const free = await listUnassignedChecklists();
+  const free = await listUnassignedChecklists(viewer);
   const here = stationHref(station.id);
 
   return (

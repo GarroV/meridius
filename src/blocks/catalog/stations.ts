@@ -3,6 +3,7 @@
 // в нём не собирается (решение D024).
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
+import type { Viewer } from "@/blocks/auth/scope";
 import type { LocalizedText } from "@/blocks/data";
 import { checklists, getDb, stations } from "@/blocks/data";
 
@@ -271,10 +272,19 @@ export async function detachChecklist(checklistId: string): Promise<void> {
  * никто не видит: у методиста в его списке их нет, а справочник предлагал привязать их
  * заново — то есть вернуть в работу снятое.
  */
-export async function listUnassignedChecklists(): Promise<StationChecklist[]> {
+export async function listUnassignedChecklists(
+  viewer: Viewer,
+): Promise<StationChecklist[]> {
+  // Чек-лист без станции не лежит ни в одной стране: партнёру виден только свой (D145).
+  const own =
+    viewer.tenantKind === "hq"
+      ? undefined
+      : eq(checklists.tenantId, viewer.tenantId);
   return getDb()
     .select({ id: checklists.id, title: checklists.title })
     .from(checklists)
-    .where(and(isNull(checklists.stationId), isNull(checklists.archivedAt)))
+    .where(
+      and(isNull(checklists.stationId), isNull(checklists.archivedAt), own),
+    )
     .orderBy(asc(checklists.createdAt));
 }

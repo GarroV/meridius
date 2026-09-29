@@ -13,6 +13,7 @@ import { createCountry } from "../countries";
 import { assignChecklist, createStation } from "../stations";
 import { createStore } from "../stores";
 import { buildCatalogModel } from "./build-model";
+import { hqViewer } from "@/blocks/auth/testing/viewers";
 
 afterAll(closeTestDb);
 
@@ -57,8 +58,7 @@ describe("что показывает экран справочника", () => 
 
     const model = await buildCatalogModel(
       { countryId: fixture.countryId },
-      "ru",
-    );
+      "ru", await hqViewer());
 
     expect(model.countryId).toBe(fixture.countryId);
     expect(model.storeId).toBe(fixture.firstStoreId);
@@ -78,8 +78,7 @@ describe("что показывает экран справочника", () => 
 
     const model = await buildCatalogModel(
       { countryId: mine.countryId, storeId: alien.firstStoreId },
-      "ru",
-    );
+      "ru", await hqViewer());
 
     expect(model.storeId).toBe(mine.firstStoreId);
   });
@@ -94,8 +93,7 @@ describe("что показывает экран справочника", () => 
         stationId: mine.stationId,
         focus: "station",
       },
-      "ru",
-    );
+      "ru", await hqViewer());
 
     expect(model.stationId).toBeNull();
     expect(model.station).toBeNull();
@@ -113,8 +111,7 @@ describe("что показывает экран справочника", () => 
         stationId: fixture.stationId,
         focus: "station",
       },
-      "ru",
-    );
+      "ru", await hqViewer());
 
     expect(model.focus).toBe("station");
     expect(model.station?.code).toHaveLength(10);
@@ -128,8 +125,7 @@ describe("что показывает экран справочника", () => 
 
     const model = await buildCatalogModel(
       { countryId: fixture.countryId, storeId: fixture.firstStoreId },
-      "ru",
-    );
+      "ru", await hqViewer());
 
     expect(model.stations[0]?.checklists).toStrictEqual([]);
   });
@@ -144,12 +140,10 @@ describe("что показывает экран справочника", () => 
 
     const russian = await buildCatalogModel(
       { countryId: fixture.countryId, storeId: fixture.firstStoreId },
-      "ru",
-    );
+      "ru", await hqViewer());
     const english = await buildCatalogModel(
       { countryId: fixture.countryId, storeId: fixture.firstStoreId },
-      "en",
-    );
+      "en", await hqViewer());
 
     expect(russian.stations[0]?.checklists[0]?.title).toBe(
       `Открытие ${suffix}`,
@@ -162,8 +156,7 @@ describe("что показывает экран справочника", () => 
 
     const withStore = await buildCatalogModel(
       { countryId: fixture.countryId, storeId: fixture.firstStoreId },
-      "ru",
-    );
+      "ru", await hqViewer());
     const withStation = await buildCatalogModel(
       {
         countryId: fixture.countryId,
@@ -171,8 +164,7 @@ describe("что показывает экран справочника", () => 
         stationId: fixture.stationId,
         focus: "station",
       },
-      "ru",
-    );
+      "ru", await hqViewer());
 
     expect(withStore.timezones.length).toBeGreaterThan(100);
     expect(withStation.timezones).toStrictEqual([]);
@@ -183,8 +175,7 @@ describe("что показывает экран справочника", () => 
 
     const model = await buildCatalogModel(
       { countryId: fixture.countryId },
-      "ru",
-    );
+      "ru", await hqViewer());
 
     expect(model.countries.find((item) => item.selected)?.href).toBe(
       `/admin/catalog?country=${fixture.countryId}&focus=country`,
@@ -201,8 +192,7 @@ describe("что показывает экран справочника", () => 
 
     const model = await buildCatalogModel(
       { countryId: fixture.countryId, storeId: fixture.firstStoreId },
-      "ru",
-    );
+      "ru", await hqViewer());
 
     expect(model.hrefs.qrStations).toBe(
       `/admin/qr?store=${fixture.firstStoreId}`,
@@ -258,8 +248,7 @@ describe("пиццерия с непризнаваемым поясом видн
 
     const model = await buildCatalogModel(
       { countryId, storeId, focus: "store" },
-      "ru",
-    );
+      "ru", await hqViewer());
 
     expect(model.store?.timezone).toBe(TYPO);
     expect(model.store?.timezoneKnown).toBe(false);
@@ -274,8 +263,7 @@ describe("пиццерия с непризнаваемым поясом видн
         storeId: fixture.firstStoreId,
         focus: "store",
       },
-      "ru",
-    );
+      "ru", await hqViewer());
 
     expect(model.store?.timezone).toBe(TIMEZONE);
     expect(model.store?.timezoneKnown).toBe(true);
@@ -286,8 +274,7 @@ describe("пиццерия с непризнаваемым поясом видн
 
     const model = await buildCatalogModel(
       { countryId, storeId, focus: "store" },
-      "ru",
-    );
+      "ru", await hqViewer());
 
     expect(model.timezones.map((zone) => zone.name)).not.toContain(TYPO);
   });
@@ -305,8 +292,7 @@ describe("пиццерия с непризнаваемым поясом видн
 
       const model = await buildCatalogModel(
         { countryId, storeId, focus: "store" },
-        "ru",
-      );
+        "ru", await hqViewer());
 
       expect(Intl.supportedValuesOf("timeZone")).not.toContain(timezone);
       expect(model.store?.timezoneKnown).toBe(true);

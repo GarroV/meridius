@@ -13,6 +13,8 @@ import { qrScreenHref } from "@/blocks/qr/ui/view";
 
 import { listStickerStations, type StickerStation } from "../stickers";
 import { STATIONS_PATH } from "./view";
+import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 
 /**
  * Наклейки на станции, отмеченные в колонке (T311), — печать пачкой.
@@ -122,7 +124,8 @@ export async function StickerSheetScreen(
   props: StickerSheetScreenProps,
 ): Promise<ReactElement> {
   const t = await getTranslations("stations");
-  const rows = await listStickerStations(props.stationIds);
+  const viewer = await requireAdmin();
+  const rows = await listStickerStations(props.stationIds, scopeOf(viewer));
   const sheets = bySheet(rows, props);
 
   return (

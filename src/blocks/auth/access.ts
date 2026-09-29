@@ -178,3 +178,11 @@ export async function requireChecklistEditable(
   if (!canEditChecklist(viewer, ownership)) notFound();
   return ownership;
 }
+
+/**
+ * Требует учётку УК — для того, что меняет саму сеть (страны) или общее для всех
+ * (шаблоны). Партнёру — «такого нет», как и на любой чужой адрес.
+ */
+export function requireHqViewer(viewer: Viewer): void {
+  if (viewer.tenantKind !== "hq") notFound();
+}

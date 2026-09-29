@@ -8,6 +8,8 @@ import { MasterDetail } from "@/blocks/core/ui/MasterDetail";
 import { countGaps, listNetworkStations } from "../overview";
 import { StationsRail, type StationRailRow } from "./StationsRail";
 import { STATIONS_PATH } from "./view";
+import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 
 /**
  * Рабочее место раздела «Станции» (D163): меню, колонка станций и карточка выбранной.
@@ -20,8 +22,9 @@ export async function StationsWorkspace({
 }: {
   readonly children: ReactNode;
 }): Promise<ReactElement> {
+  const viewer = await requireAdmin();
   const [stations, locale, messages, t] = await Promise.all([
-    listNetworkStations(),
+    listNetworkStations(scopeOf(viewer)),
     getLocale(),
     getMessages(),
     getTranslations("stations"),

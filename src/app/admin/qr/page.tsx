@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 
 import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 import { buildQrModel } from "@/blocks/qr/ui/build-model";
 import { publicBasePath } from "@/blocks/qr/sticker-origin";
 import { scanOrigin } from "@/blocks/qr/ui/origin";
@@ -19,11 +20,12 @@ export default async function QrPage({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const view = parseQrView(await searchParams);
   const requestHeaders = await headers();
   const model = await buildQrModel(view, {
+    scope: scopeOf(viewer),
     origin: scanOrigin(requestHeaders, process.env),
     basePath: publicBasePath(process.env),
     // Язык устройства методиста — не ответ о языке листа, а только последнее звено

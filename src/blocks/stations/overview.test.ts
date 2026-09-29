@@ -18,12 +18,13 @@ import {
 } from "@/blocks/data/testing/fixtures";
 
 import { listNetworkStations } from "./overview";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 describe("список станций сети", () => {
   test("станция без чек-листа приходит нулём-числом и попадает в разрыв", async () => {
     const { stationId } = await createStation();
 
-    const stations = await listNetworkStations(new Date());
+    const stations = await listNetworkStations(WHOLE_NETWORK, new Date());
     const station = stations.find((one) => one.id === stationId);
 
     expect(
@@ -57,7 +58,7 @@ describe("список станций сети", () => {
       startedAt: new Date(),
     });
 
-    const stations = await listNetworkStations(new Date());
+    const stations = await listNetworkStations(WHOLE_NETWORK, new Date());
     const station = stations.find((one) => one.id === stationId);
 
     expect(station?.lastSubmissionAt).toBeInstanceOf(Date);
