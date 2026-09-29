@@ -62,6 +62,8 @@ const CORE_FILES = [
   "src/blocks/editor/schedule-field.ts",
   "src/blocks/editor/table-field.ts",
   "src/blocks/editor/window-field.ts",
+  "src/blocks/editor/template-diff.ts",
+  "src/blocks/editor/template-updates.ts",
 
   "src/blocks/library/blocks.ts",
   "src/blocks/library/parsing.ts",
