@@ -345,7 +345,9 @@
     },
     "notice": {
       "station": "The checklist is attached to station “{station}” of store “{store}”. Its QR code opens the version published at the moment of scanning.",
-      "noStation": "No station selected: until the checklist is attached to one, its QR code opens nothing.",
+      "noStation": "The checklist is not on a station: until it is, its QR code opens nothing. Checklists are put on stations in the Stations section.",
+      "openStation": "The station, its sticker and its tablet are in Stations",
+      "attach": "Put on a station",
       "windowOpen": "Window {start}–{end}: it is {now} at the store and the window is open — the employee will see the published version right away.",
       "windowClosedToday": "Window {start}–{end}: it is {now} at the store and the window is closed — the employee will see the published version today from {opensAt}.",
       "windowClosedTomorrow": "Window {start}–{end}: it is {now} at the store and the window is closed — the employee will see the published version tomorrow from {opensAt}."
@@ -890,7 +892,7 @@
       "lead": "Once per tablet, about a minute. You need a tablet with internet and this workspace — on a computer or a phone.",
       "step1": {
         "title": "Issue a code",
-        "text": "In the list below, click the station where the tablet will stand, then “Pair a tablet”. Four digits appear."
+        "text": "In Stations, open the station where the tablet will stand and press “Pair a tablet”. Four digits appear."
       },
       "step2": {
         "title": "Open the address on the tablet",
@@ -902,7 +904,7 @@
       },
       "step4": {
         "title": "Done",
-        "text": "The tablet opens the station checklist right away and keeps opening it on its own — after a restart and without a new code. Here the station gets the “Tablet paired” mark."
+        "text": "The tablet opens the station checklist right away and keeps opening it on its own — after a restart and without a new code. The paired tablet appears on the station card."
       },
       "trouble": {
         "title": "If it did not work",
@@ -955,15 +957,13 @@
       "tablet": "Tablet",
       "tabletWhat": "A tablet is paired once and then simply stays on the station.",
       "noTablet": "No tablet paired.",
-      "pairedAt": "Paired {at, date, short}"
+      "pairedAt": "Paired {at, date, short}",
+      "lastSeen": "Last seen {at, date, short}",
+      "download": "Download",
+      "openScreen": "Open the code on a tablet"
     },
     "pairing": {
-      "step1": "Press “Pair a tablet” — a four-digit code appears.",
-      "step2": "On the tablet, open the pairing address shown next to the code.",
-      "step3": "Enter the code. The tablet is now bound to this station and opens it by itself.",
-      "factTtl": "The code lives five minutes and works once. Missed it — issue a new one, that breaks nothing.",
-      "factReissue": "Reissuing the QR sticker does not touch the tablet pairing. They are different things: the sticker is an address for phones, the pairing is the tablet itself.",
-      "factPersists": "The tablet stays paired until you unpair it. A reboot, a lost network and a closed tab do not undo it."
+      "factReissue": "Reissuing the QR sticker does not touch the tablet pairing. They are different things: the sticker is an address for phones, the pairing is the tablet itself."
     },
     "rollout": {
       "label": "Roll out a template",

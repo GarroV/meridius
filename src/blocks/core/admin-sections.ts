@@ -64,5 +64,8 @@ export const ADMIN_NAV_GROUPS = [
     key: "work",
     items: ["checklists", "stations", "templates", "library", "feed"],
   },
-  { key: "reference", items: ["catalog", "qr", "devices"] },
+  // «QR-коды» и «Устройства» в меню больше нет (T312, D163): наклейка и планшет —
+  // свойства станции, с ними работают на её карточке. Адреса остались — они уводят в
+  // «Станции», а вложенные адреса QR (экран кода, опрос, файл наклейки) работают.
+  { key: "reference", items: ["catalog"] },
 ] as const satisfies readonly AdminNavGroup[];

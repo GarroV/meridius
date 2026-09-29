@@ -19,13 +19,23 @@ import {
   detachChecklist,
   reissueStationCode,
 } from "@/blocks/catalog";
+import { decideReissue } from "@/blocks/core/reissue-confirmation";
 import { copyTemplateToStations } from "@/blocks/editor/templates";
 
-import { STATION_IDS_PARAM, STATIONS_PATH, stationHref } from "./view";
+import {
+  CONFIRM_REISSUE,
+  STATION_IDS_PARAM,
+  STATIONS_PATH,
+  stationConfirmHref,
+  stationHref,
+  stickersHref,
+} from "./view";
 
 const STATION_ID = "stationId";
 const CHECKLIST_ID = "checklistId";
 const TEMPLATE_ID = "templateId";
+/** Поле подтверждения, которое добавляет окно `core/ui/ConfirmDialog`. */
+const CONFIRMED = "confirmed";
 
 function field(form: FormData, name: string): string {
   const value = form.get(name);
@@ -62,11 +72,36 @@ export async function submitDetachChecklist(form: FormData): Promise<void> {
   backToStation(field(form, STATION_ID));
 }
 
+/**
+ * Перевыпуск кода станции — только после подтверждения (T266, T312).
+ *
+ * Правило общее с листом QR и справочником (`core/reissue-confirmation.ts`): первое
+ * нажатие ничего не меняет, а открывает на карточке окно с именем станции и
+ * предупреждением, что старая наклейка умрёт сразу. Подтверждённый перевыпуск ведёт
+ * на печать новой наклейки этой станции: без неё человек ушёл бы со старой наклейкой
+ * на станции и новым кодом в базе.
+ *
+ * Отказ справочника (станции нет) не глотается: он уходит пятисоткой с записью в
+ * журнал, а не тихим возвратом «как будто вышло».
+ */
 export async function submitReissueCode(form: FormData): Promise<void> {
   await requireAdmin();
   const stationId = field(form, STATION_ID);
-  await reissueStationCode(stationId);
-  backToStation(stationId);
+
+  const decision = decideReissue({
+    stationId,
+    confirmed: field(form, CONFIRMED) === "1",
+    ask: stationConfirmHref(stationId, CONFIRM_REISSUE),
+    doneHref: stickersHref([stationId]),
+    fail: stationHref(stationId),
+  });
+
+  // redirect бросает исключение — до перевыпуска выполнение отсюда не доходит.
+  if (decision.kind === "confirm") redirect(decision.view);
+
+  await reissueStationCode(decision.stationId);
+  revalidatePath(stationHref(stationId));
+  redirect(decision.doneHref);
 }
 
 /**

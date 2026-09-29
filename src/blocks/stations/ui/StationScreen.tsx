@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 import { listUnassignedChecklists } from "@/blocks/catalog";
 import type { LocalizedText } from "@/blocks/data";
-import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 import { asLocale } from "@/blocks/core/locale";
 import { AdminPage } from "@/blocks/core/ui/AdminPage";
+import { formActionPath } from "@/blocks/core/base-path";
+import { ConfirmDialog } from "@/blocks/core/ui/ConfirmDialog";
+import { PIN_TTL_SECONDS } from "@/blocks/device/pin";
+import { PairGuide } from "@/blocks/device/ui/PairGuide";
 import { PairTabletCard } from "@/blocks/device/ui/PairTabletCard";
 import { UnlinkButton } from "@/blocks/device/ui/UnlinkButton";
+import { qrScreenHref, qrStickerHref } from "@/blocks/qr/ui/view";
 
 import { getStationDetail } from "../detail";
 import {
@@ -16,7 +20,7 @@ import {
   submitDetachChecklist,
   submitReissueCode,
 } from "./actions";
-import { stationHref } from "./view";
+import { CONFIRM_REISSUE, stationHref, stickersHref } from "./view";
 
 /**
  * Карточка станции — место, где чек-лист, наклейка и планшет наконец встречаются.
@@ -55,8 +59,14 @@ const SELECT_CLASS =
   "bg-surface text-ink h-[var(--control-h)] min-w-[220px] rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-4)] text-[length:var(--fs-body)]";
 const CODE_CLASS =
   "font-[family-name:var(--font-mono,monospace)] text-[length:var(--fs-title)] tracking-[0.08em]";
-const STEPS_CLASS =
-  "flex list-decimal flex-col gap-[var(--space-3)] pl-[var(--space-7)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)]";
+const FAILED_CLASS =
+  "text-err rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-6)] py-[var(--space-5)] text-[length:var(--fs-dense)]";
+const SECONDS_IN_MINUTE = 60;
+
+/** Сколько минут живёт код привязки — из `device/pin.ts`, а не из текста. */
+function pinMinutes(): number {
+  return PIN_TTL_SECONDS / SECONDS_IN_MINUTE;
+}
 const FACTS_CLASS =
   "flex flex-col gap-[var(--space-3)] rounded-[var(--r-control)] bg-[var(--surface-2)] px-[var(--space-6)] py-[var(--space-5)] text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--ink-2)]";
 
@@ -81,7 +91,7 @@ function Card({
 }: {
   readonly testId: string;
   readonly title: string;
-  readonly children: ReactElement | readonly ReactElement[];
+  readonly children: ReactNode;
 }): ReactElement {
   return (
     <section className={CARD_CLASS} data-testid={testId}>
@@ -93,15 +103,56 @@ function Card({
   );
 }
 
+/**
+ * Вопрос «перевыпустить код станции?» на карточке (T266, T312). Окно общее на продукт
+ * (`core/ui/ConfirmDialog`), тексты — справочника (`catalog.confirm.*`): вопрос один и
+ * тот же с любого экрана, и две редакции предупреждения разошлись бы молча.
+ */
+async function ReissueDialog({
+  open,
+  stationId,
+  stationName,
+  cancelHref,
+}: {
+  readonly open: boolean;
+  readonly stationId: string;
+  readonly stationName: string;
+  readonly cancelHref: string;
+}): Promise<ReactElement | null> {
+  if (!open) return null;
+  const t = await getTranslations("catalog");
+  return (
+    <ConfirmDialog
+      name="reissue"
+      action={submitReissueCode}
+      fields={{ stationId }}
+      title={t("confirm.reissueTitle", { name: stationName })}
+      warning={t("confirm.reissueBody")}
+      confirmLabel={t("actions.confirmReissue")}
+      cancelLabel={t("actions.cancel")}
+      cancelHref={cancelHref}
+    />
+  );
+}
+
 export interface StationScreenProps {
   readonly stationId: string;
-  /** Отвязка какого планшета сейчас подтверждается. Решает адрес, а не состояние. */
-  readonly confirmUnlink?: string | undefined;
+  /**
+   * Какой вопрос открыт на карточке — решает адрес, а не состояние: `reissue` —
+   * перевыпуск кода, id планшета — его отвязка (`?confirm=`).
+   */
+  readonly confirm?: string | undefined;
+  /** Отвязка не удалась (`?failed=1`, ставит `device/ui/UnlinkButton`). */
+  readonly unlinkFailed?: boolean;
+  /** Полный адрес страницы привязки, который набирают на планшете (D167). */
+  readonly pairAddress: string;
 }
 
 export async function StationScreen({
   stationId,
-  confirmUnlink,
+  confirm,
+  unlinkFailed = false,
+  pairAddress,
 }: StationScreenProps): Promise<ReactElement | null> {
   const station = await getStationDetail(stationId);
   if (station === null) return null;
@@ -112,6 +163,7 @@ export async function StationScreen({
   const locale = asLocale(await getLocale());
   const free = await listUnassignedChecklists();
   const here = stationHref(station.id);
+  const ref = { storeId: station.storeId, stationId: station.id };
 
   return (
     <AdminPage
@@ -216,11 +268,31 @@ export async function StationScreen({
             {station.code}
           </span>
           <Link
-            href={`${ADMIN_SECTIONS.qr.path}?store=${station.storeId}`}
+            href={stickersHref([station.id])}
             className={BUTTON_CLASS}
             data-testid="print-sticker"
           >
             {t("card.print")}
+          </Link>
+          {/* Файл наклейки и экран кода живут под старым адресом QR (T312): туда ведут
+              только эти две ссылки, сам лист QR уводит в «Станции».
+              Файл — обычной ссылкой с `download`, а не `<Link>`: его отдаёт маршрут, и
+              браузер идёт ровно по написанному адресу, как с нативной формой, —
+              поэтому базовый путь площадки приставляется тем же правилом. */}
+          <a
+            href={formActionPath(qrStickerHref(ref))}
+            className={BUTTON_CLASS}
+            data-testid="download-sticker"
+            download
+          >
+            {t("card.download")}
+          </a>
+          <Link
+            href={qrScreenHref(ref)}
+            className={BUTTON_CLASS}
+            data-testid="qr-open-screen"
+          >
+            {t("card.openScreen")}
           </Link>
         </p>
         <form action={submitReissueCode} className={ROW_CLASS}>
@@ -239,6 +311,12 @@ export async function StationScreen({
       <Card testId="station-tablet-card" title={t("card.tablet")}>
         <p className={META_CLASS}>{t("card.tabletWhat")}</p>
 
+        {unlinkFailed ? (
+          <p className={FAILED_CLASS} role="alert" data-testid="unlink-failed">
+            {tDevice("admin.failed")}
+          </p>
+        ) : null}
+
         {station.tablets.length === 0 ? (
           <p className={META_CLASS} data-testid="no-tablet">
             {t("card.noTablet")}
@@ -250,16 +328,22 @@ export async function StationScreen({
                 key={tablet.id}
                 className={ROW_CLASS}
                 data-testid="paired-tablet"
+                data-station-id={station.id}
               >
-                <span className="font-medium">
-                  {t("card.pairedAt", { at: tablet.pairedAt })}
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="font-medium">
+                    {t("card.pairedAt", { at: tablet.pairedAt })}
+                  </span>
+                  <span className={META_CLASS}>
+                    {t("card.lastSeen", { at: tablet.lastSeenAt })}
+                  </span>
                 </span>
                 <UnlinkButton
                   deviceId={tablet.id}
-                  open={confirmUnlink === tablet.id}
+                  open={confirm === tablet.id}
                   screenHref={here}
-                  // Подписи те же, что в разделе устройств: вопрос про отвязку один
-                  // на продукт, и разойтись его формулировки не должны.
+                  // Подписи те же, что были в разделе устройств: вопрос про отвязку
+                  // один на продукт, и разойтись его формулировки не должны.
                   texts={{
                     unlink: tDevice("admin.unlink"),
                     title: tDevice("admin.confirm.title", {
@@ -272,23 +356,30 @@ export async function StationScreen({
                 />
               </div>
             ))}
+            {/* Перепривязки отдельной кнопкой нет (D167): код этой станции, введённый
+                на планшете, сам снимает его прежнюю привязку. */}
+            <p className={META_CLASS}>{tDevice("admin.drawer.replaceText")}</p>
           </>
         )}
 
-        <PairTabletCard stationId={station.id} />
+        <PairTabletCard stationId={station.id} address={pairAddress} />
 
-        {/* D152 и просьба владельца: «дать инструкцию, как привязывать планшет». */}
-        <ol className={STEPS_CLASS} data-testid="pair-steps">
-          <li>{t("pairing.step1")}</li>
-          <li>{t("pairing.step2")}</li>
-          <li>{t("pairing.step3")}</li>
-        </ol>
-        <div className={FACTS_CLASS} data-testid="pair-facts">
-          <p>{t("pairing.factTtl")}</p>
-          <p>{t("pairing.factReissue")}</p>
-          <p>{t("pairing.factPersists")}</p>
-        </div>
+        {/* D152 и просьба владельца: «дать инструкцию, как привязывать планшет».
+            Шаги — общие с продуктом (`device/ui/PairGuide`), с настоящим адресом
+            страницы привязки (D167). Факт про перевыпуск наклейки — свой у карточки:
+            наклейка и планшет стоят на ней рядом, и их путают. */}
+        <PairGuide address={pairAddress} minutes={pinMinutes()} compact />
+        <p className={FACTS_CLASS} data-testid="pair-facts">
+          {t("pairing.factReissue")}
+        </p>
       </Card>
+
+      <ReissueDialog
+        open={confirm === CONFIRM_REISSUE}
+        stationId={station.id}
+        stationName={station.name}
+        cancelHref={here}
+      />
     </AdminPage>
   );
 }

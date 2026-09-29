@@ -28,10 +28,8 @@ const SECTIONS = [
   { key: "stations", section: ADMIN_SECTIONS.stations },
   { key: "templates", section: ADMIN_SECTIONS.templates },
   { key: "library", section: ADMIN_SECTIONS.library },
-  { key: "qr", section: ADMIN_SECTIONS.qr },
   { key: "feed", section: ADMIN_SECTIONS.feed },
   { key: "catalog", section: ADMIN_SECTIONS.catalog },
-  { key: "devices", section: ADMIN_SECTIONS.devices },
 ] as const;
 
 const CARD_CLASS =
