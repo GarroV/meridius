@@ -41,6 +41,11 @@ export interface Budget {
   readonly everyone?: Limit;
 }
 
+/** Бюджет ввода кода: общий предел на сеть у него обязателен, а не по желанию. */
+export interface PairBudget extends Budget {
+  readonly everyone: Limit;
+}
+
 const FIVE_MINUTES = 5 * 60;
 
 /**
@@ -53,7 +58,7 @@ const FIVE_MINUTES = 5 * 60;
  *   пина перебор пробует шестьдесят значений из десяти тысяч — шанс попасть меньше
  *   процента. Настоящей кухне столько не нужно: привязка бывает раз в год.
  */
-export const PAIR_BUDGET: Budget = {
+export const PAIR_BUDGET: PairBudget = {
   name: "pair",
   perClient: { maxAttempts: 10, windowSeconds: FIVE_MINUTES },
   everyone: { maxAttempts: 60, windowSeconds: FIVE_MINUTES },
@@ -176,12 +181,11 @@ async function spend(
 export async function checkPairAllowed(
   client: string | null,
   now: Date,
-  budget: Budget = PAIR_BUDGET,
+  budget: PairBudget = PAIR_BUDGET,
 ): Promise<RateVerdict> {
-  const counts: [string, string, Limit][] = [];
-  if (budget.everyone !== undefined) {
-    counts.push([EVERYONE_SCOPE, "", budget.everyone]);
-  }
+  const counts: [string, string, Limit][] = [
+    [EVERYONE_SCOPE, "", budget.everyone],
+  ];
   if (client !== null) {
     counts.push([CLIENT_SCOPE, bucketOf(client), budget.perClient]);
   }

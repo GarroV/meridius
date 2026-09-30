@@ -17,12 +17,12 @@ import {
   checkPairAllowed,
   pairClientKey,
 } from "./rate-limit";
-import type { Budget } from "./rate-limit";
+import type { Budget, PairBudget } from "./rate-limit";
 
 const SECOND = 1000;
 const NOW = new Date();
 
-function own(budget: Budget): Budget {
+function own<B extends Budget>(budget: B): B {
   return { ...budget, name: `${budget.name}-${randomUUID()}` };
 }
 
@@ -31,7 +31,7 @@ function later(seconds: number): Date {
 }
 
 async function spendPair(
-  budget: Budget,
+  budget: PairBudget,
   client: string | null,
   times: number,
   at: Date = NOW,
@@ -218,7 +218,7 @@ describe("выпуск кода в кабинете — отдельный бю�
 
   test("выбранный выпуск не трогает ввод: планшет с выданным кодом привязывается", async () => {
     const issue = own(ISSUE_BUDGET);
-    const pair: Budget = { ...PAIR_BUDGET, name: issue.name };
+    const pair: PairBudget = { ...PAIR_BUDGET, name: issue.name };
     const account = randomUUID();
     for (let attempt = 0; attempt < 11; attempt++) {
       await checkIssueAllowed(account, NOW, issue);
