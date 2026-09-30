@@ -1,13 +1,11 @@
 // Загрузка данных для экранов QR. Справочник берётся только через публичный вход
 // блока `catalog`: в таблицы блок qr не ходит (контракт блоков, docs/furca/plan.md).
 import {
-  listCountries,
+  findStoreInScope,
   listStations,
-  listStores,
-  type StoreRow,
+  listStoresInScope,
 } from "@/blocks/catalog";
 import type { Scope } from "@/blocks/auth/scope";
-import type { Locale } from "@/blocks/core/locale";
 import { storeLocale } from "@/blocks/core/store-locale";
 
 import { stationQrSvg } from "../svg";
@@ -26,13 +24,6 @@ import {
   type QrView,
   type StationRef,
 } from "./view";
-
-interface FoundStore {
-  readonly store: StoreRow;
-  readonly countryName: string;
-  /** Язык страны пиццерии как он лежит в справочнике — сырьё для `storeLocale`. */
-  readonly countryLocale: Locale;
-}
 
 /**
  * Что о запросе знает страница и не должен узнавать сам слой.
@@ -61,49 +52,19 @@ export interface QrRequest {
 }
 
 /**
- * Пиццерия и страна, которой она принадлежит.
- *
- * Справочник умеет отдавать пиццерии страны, но не пиццерию по её идентификатору,
- * поэтому страны перебираются. Перебор идёт по справочнику сети (десятки строк),
- * а не по станциям, и происходит один раз на открытие экрана — опрос планшета
- * сюда не заходит.
+ * Все пиццерии видимых стран (D145) с их странами — список выбора, когда пиццерия
+ * не задана. Справочник отдаёт их одним запросом: перебор стран запросом на каждую
+ * рос вместе с сетью (T347).
  */
-async function findStore(
-  storeId: string,
-  scope: Scope,
-): Promise<FoundStore | null> {
-  // Перебор идёт по ВИДИМЫМ странам (D145): чужая пиццерия не находится вовсе.
-  for (const country of await listCountries(scope)) {
-    const stores = await listStores(country.id);
-    const store = stores.find((candidate) => candidate.id === storeId);
-    if (store !== undefined) {
-      return {
-        store,
-        countryName: country.name,
-        countryLocale: country.locale,
-      };
-    }
-  }
-  return null;
-}
-
-/** Все пиццерии сети с их странами — список выбора, когда пиццерия не задана. */
 async function listAllStores(scope: Scope): Promise<QrStoreOption[]> {
-  const options: QrStoreOption[] = [];
-
-  for (const country of await listCountries(scope)) {
-    for (const store of await listStores(country.id)) {
-      options.push({
-        id: store.id,
-        name: store.name,
-        countryName: country.name,
-        stationCount: store.stationCount,
-        href: qrHref({ storeId: store.id }),
-      });
-    }
-  }
-
-  return options;
+  const found = await listStoresInScope(scope);
+  return found.map(({ store, countryName }) => ({
+    id: store.id,
+    name: store.name,
+    countryName,
+    stationCount: store.stationCount,
+    href: qrHref({ storeId: store.id }),
+  }));
 }
 
 /** Экран без выбранной пиццерии: список пиццерий вместо листа. */
@@ -158,7 +119,8 @@ export async function buildQrModel(
     return chooseStore(origin, errorCode, request.scope);
   }
 
-  const found = await findStore(storeId, request.scope);
+  // Чужая пиццерия не находится вовсе (D145), как и несуществующая.
+  const found = await findStoreInScope(storeId, request.scope);
   // Пиццерии с таким идентификатором нет: показываем выбор, а не пустой лист
   // с чужой шапкой.
   if (found === null) return chooseStore(origin, errorCode, request.scope);
@@ -197,7 +159,7 @@ export async function buildScreenModel(
   request: QrRequest,
 ): Promise<QrScreenModel | null> {
   const { origin, basePath = "" } = request;
-  const found = await findStore(ref.storeId, request.scope);
+  const found = await findStoreInScope(ref.storeId, request.scope);
   if (found === null) return null;
 
   const station = (await listStations(ref.storeId)).find(
