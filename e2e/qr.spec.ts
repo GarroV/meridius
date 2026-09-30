@@ -180,6 +180,38 @@ test.describe("наклейки станций", () => {
     expect(await codeOnCard(page, stationId)).toBe(before);
   });
 
+  // Esc, нажатый в первый же кадр окна (T341). Проверка выше жмёт Esc «когда-нибудь
+  // после появления» и потому ловила гонку лишь под нагрузкой CI: окно на экране, а
+  // слушатель клавиш ещё не подключён. Здесь нажатие приходит ровно в момент вставки
+  // окна в страницу — самая ранняя точка, где его может нажать человек.
+  test("Esc закрывает окно с первого кадра, а не после того, как оно «догрузится»", async ({
+    page,
+  }) => {
+    const store = await seedStore();
+    await signIn(page);
+    await page.goto(stationCard(store.stationIds[0] ?? ""));
+    await page.evaluate(() => {
+      const observer = new MutationObserver(() => {
+        if (document.querySelector('[data-testid="reissue-dialog"]') === null)
+          return;
+        observer.disconnect();
+        document.body.dataset["dialogSeen"] = "1";
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
+      });
+      observer.observe(document.body, { subtree: true, childList: true });
+    });
+
+    await page.getByTestId("reissue-code").click();
+    // Окно действительно открывалось: без этой отметки «скрыто» прошло бы и на
+    // кнопке, которая ничего не открывает. Адрес `confirm=reissue` для этого не
+    // годится — закрытое сразу окно уводит с него раньше, чем проверка успеет его увидеть.
+    await expect(page.locator("body")).toHaveAttribute("data-dialog-seen", "1");
+    await expect(page.getByTestId("reissue-dialog")).toBeHidden();
+    await expect(page).not.toHaveURL(/[?&]confirm=reissue\b/);
+  });
+
   test("экран планшета показывает новый код без ручного обновления страницы", async ({
     page,
     context,
