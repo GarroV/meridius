@@ -19,6 +19,7 @@ export const CATALOG_ERROR_CODES = [
   "confirmationRequired",
   "notFound",
   "codeCollision",
+  "storeCodeTaken",
 ] as const;
 
 export type CatalogErrorCode = (typeof CATALOG_ERROR_CODES)[number];
