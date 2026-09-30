@@ -5,6 +5,7 @@ import type { ReactElement } from "react";
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
 
 import type { FeedModel } from "../model";
+import { statsHref } from "../stats-view";
 import { roundsReportHref, toFeedView } from "../view";
 import { AlarmStrip } from "./AlarmStrip";
 import { FeedEmpty } from "./FeedEmpty";
@@ -101,6 +102,13 @@ export async function FeedScreen({
             className={REPORT_LINK_CLASS}
           >
             {t("report.link")}
+          </Link>
+          <Link
+            href={statsHref(model.selection)}
+            data-testid="feed-stats-link"
+            className={REPORT_LINK_CLASS}
+          >
+            {t("stats.link")}
           </Link>
         </TopbarActions>
       }

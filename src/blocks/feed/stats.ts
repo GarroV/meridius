@@ -29,9 +29,7 @@ import type { LocalizedText } from "@/blocks/data";
 
 import { scopeConditions, type FeedScope } from "./scope";
 import { itemCriticalSql, itemFailedSql } from "./stats-grading";
-
-export const STATS_PERIOD_DAYS = [7, 30] as const;
-export type StatsPeriodDays = (typeof STATS_PERIOD_DAYS)[number];
+import type { StatsPeriodDays } from "./stats-view";
 
 /** Сколько пунктов в списке чаще всего проваливаемых (D170). */
 export const TOP_FAILED_LIMIT = 5;
