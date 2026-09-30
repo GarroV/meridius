@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 
 import { AdminNav } from "@/blocks/core/ui/AdminNav";
 import { MasterDetail } from "@/blocks/core/ui/MasterDetail";
+import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 import { requireAdmin } from "@/blocks/auth/guard";
 import { scopeOf } from "@/blocks/auth/scope";
 
@@ -60,6 +61,7 @@ export async function ChecklistsWorkspace({
         railLabel={t("rail.label")}
         backHref={CHECKLISTS_PATH}
         backLabel={t("rail.back")}
+        intro={<SectionIntro section="checklists" />}
         // Шаблон правится тем же редактором по адресу чек-листа (T309), но в список
         // чек-листов не входит: рядом с ним нет колонки, а меню подсвечивает «Шаблоны».
         wide={{

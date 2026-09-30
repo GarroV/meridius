@@ -3,6 +3,7 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
+import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 import { requireAdmin } from "@/blocks/auth/guard";
 
 import { submitTakeTemplate } from "../actions";
@@ -25,8 +26,6 @@ import { listTemplateCards, type TemplateCard } from "../templates";
  * которая кончится отказом, у него нет.
  */
 
-const INTRO_CLASS =
-  "rounded-[var(--r-block)] border border-[var(--line-strong)] bg-[var(--surface-2)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)] text-[var(--ink-2)]";
 const GRID_CLASS =
   "grid gap-[var(--space-6)] [grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))]";
 const CARD_CLASS =
@@ -151,7 +150,7 @@ export async function TemplatesScreen(): Promise<ReactElement> {
       }
     >
       {/* D152 и D154: раздел объясняет себя сам — и тоном приглашения, а не приказа. */}
-      <p className={INTRO_CLASS}>{t("intro")}</p>
+      <SectionIntro section="templates" />
 
       {cards.length === 0 ? (
         <div className={EMPTY_CLASS} data-testid="templates-empty">

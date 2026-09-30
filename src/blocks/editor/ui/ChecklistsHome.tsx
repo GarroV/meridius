@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { AdminPage } from "@/blocks/core/ui/AdminPage";
+import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 
 import { NEW_CHECKLIST_PATH } from "../routes";
 
@@ -31,6 +32,9 @@ export async function ChecklistsHome(): Promise<ReactElement> {
       title={t("list.title")}
       topbarAction={null}
     >
+      {/* D152. Ниже складки этой зоны не видно — там блок стоит над колонкой списка
+          (`ChecklistsWorkspace`). */}
+      <SectionIntro section="checklists" />
       <div className={CARD_CLASS} data-testid="checklists-pick">
         <p className={TITLE_CLASS}>{t("rail.pickTitle")}</p>
         <p className={HINT_CLASS}>{t("rail.pickHint")}</p>

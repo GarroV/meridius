@@ -50,21 +50,13 @@
     "signOut": "Sign out",
     "sections": {
       "checklists": "Checklists",
-      "checklistsHint": "Create a checklist and publish a version",
       "stations": "Stations",
-      "stationsHint": "Put a checklist on a station and pair a tablet",
       "templates": "Templates",
-      "templatesHint": "Take a head-office template and adapt it",
       "qr": "QR codes",
-      "qrHint": "Print station stickers",
       "feed": "Submissions",
-      "feedHint": "See what stations submitted",
       "catalog": "Countries and pizzerias",
-      "catalogHint": "Add a pizzeria and its stations",
       "library": "Block library",
-      "libraryHint": "Create a block and insert it into checklists",
-      "devices": "Devices",
-      "devicesHint": "See paired tablets and unpair them"
+      "devices": "Devices"
     },
     "nav": {
       "brand": "MERIDIUS",
@@ -802,7 +794,6 @@
     "title": "Block library",
     "new": "+ New block",
     "newTitle": "New block",
-    "notice": "A block is created once and inserted into any number of checklists. Editing a block reaches every draft it sits in; already published checklist versions never change.",
     "listTitle": "Blocks",
     "items": "{count, plural, one {# item} other {# items}}",
     "usedIn": "in {count}",
@@ -955,7 +946,6 @@
   "stations": {
     "title": "Stations",
     "breadcrumb": "Work",
-    "intro": "This is where the network's stations live. You can see what covers each one and how it is filled in: by phone from the sticker, or from a paired tablet. A station with no checklist is marked — its sticker opens onto nothing.",
     "rail": {
       "label": "Station list",
       "back": "All stations",
@@ -1021,7 +1011,6 @@
     "title": "Templates",
     "breadcrumb": "Work",
     "new": "New template",
-    "intro": "This is how we see the ideal shift. Take a template and adapt it: your copy lives its own life, and the template prescribes nothing.",
     "empty": "No templates yet. Create the first one — every country will be able to take it.",
     "untitled": "Untitled",
     "items": "{count, plural, one {# item} other {# items}}",
@@ -1048,5 +1037,38 @@
     "emptyTitle": "You have no checklists yet",
     "emptyText": "Start from a head-office template: take a copy, adjust it to your pizzerias and put it on your stations.",
     "emptyAction": "Make one from a template"
+  },
+  "sectionIntro": {
+    "label": "About this section",
+    "checklists": {
+      "why": "A checklist is what a team member checks at a station during a shift.",
+      "what": "This is where checklists are created and edited: items, the shift window, blocks from the library. The kitchen sees only the published version, so a draft is safe to edit.",
+      "next": "Once published, the checklist opens from its station's QR sticker, and what gets filled in shows up in Submissions."
+    },
+    "stations": {
+      "why": "A station is the place in the kitchen where a checklist is filled in: by phone from the sticker, or from a paired tablet.",
+      "what": "Here you can see what covers each station. A station with no checklist is marked — its sticker opens onto nothing. Tick stations in the column to roll out a copy of a template to them or to print their stickers in one go.",
+      "next": "Open a station to find its checklist, its sticker and tablet pairing."
+    },
+    "templates": {
+      "why": "A template is how we see the ideal shift. It prescribes nothing.",
+      "what": "Take a template and adapt it: your copy lives its own life. When the template is updated, your copy shows what changed, and you take what fits.",
+      "next": "A template you have taken is rolled out to stations in Stations."
+    },
+    "library": {
+      "why": "A block is a set of items that repeats across checklists.",
+      "what": "A block's items are edited here, in one place, and the change appears in every draft the block is inserted into. Published versions do not change.",
+      "next": "Insert the block into a checklist in the editor and publish a version — that is when the change reaches the kitchen."
+    },
+    "feed": {
+      "why": "This is where you see what was actually filled in at the stations.",
+      "what": "A feed of submissions by country and pizzeria: failed items, comments, alarms. Any submission opens as a card; a 7- and 30-day summary is behind the Statistics link.",
+      "next": "Found a weak spot? Fix the checklist in Checklists or look into the station in Stations."
+    },
+    "catalog": {
+      "why": "The network directory: countries, pizzerias and their stations. Everything else relies on it.",
+      "what": "Add a pizzeria and its stations. Head office edits the whole network; a partner edits the pizzerias and stations of their own countries.",
+      "next": "A new station appears in Stations: put a checklist on it and print its sticker."
+    }
   }
 }

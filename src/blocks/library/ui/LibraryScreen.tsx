@@ -5,6 +5,7 @@ import { getMessages, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
+import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 
 import { submitCreateBlock } from "../actions";
 import { BlockEditor } from "./BlockEditor";
@@ -40,8 +41,6 @@ const CARD_HEAD_CLASS =
   "flex items-center gap-[var(--space-6)] rounded-t-[var(--r-block)] border-b border-[var(--line)] bg-[var(--surface-3)] px-[var(--space-7)] py-[var(--space-6)]";
 const CARD_TITLE_CLASS =
   "text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold";
-const NOTICE_CLASS =
-  "flex gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--line-strong)] bg-[var(--surface-2)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)]";
 const ROW_CLASS =
   "flex items-center gap-[var(--space-4)] border-b border-[var(--line)] px-[var(--space-6)] py-[var(--space-5)] text-ink no-underline hover:bg-[var(--surface-2)]";
 const ROW_SELECTED_CLASS =
@@ -226,9 +225,7 @@ export async function LibraryScreen({
         ) : null
       }
     >
-      <div className={NOTICE_CLASS}>
-        <div>{t("notice")}</div>
-      </div>
+      <SectionIntro section="library" />
 
       {model.selection === null ? (
         <EmptyLibrary t={t} />
