@@ -88,10 +88,7 @@ export type { Database } from "./client";
 export { getDb } from "./client";
 export { pingDatabase } from "./health";
 
-export type {
-  BindChecklistResult,
-  VersionWithChecklist,
-} from "./checklists";
+export type { BindChecklistResult, VersionWithChecklist } from "./checklists";
 export {
   bindChecklistToStation,
   getDraft,

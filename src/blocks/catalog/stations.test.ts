@@ -309,24 +309,24 @@ describe("привязка чек-листа к станции (T017)", () => {
   });
 });
 
+/** Версии чек-листа по номеру — чтобы видеть, что привязка выпустила и что оставила. */
+async function versionsOf(checklistId: string) {
+  return db
+    .select({
+      status: checklistVersions.status,
+      versionNumber: checklistVersions.versionNumber,
+      stationId: checklistVersions.stationId,
+    })
+    .from(checklistVersions)
+    .where(eq(checklistVersions.checklistId, checklistId))
+    .orderBy(checklistVersions.versionNumber);
+}
+
 describe("привязка уже опубликованного чек-листа (T348)", () => {
   // Версия замораживает станцию в момент публикации (T056), а с T312 чек-лист вешают
   // на станцию только на её карточке — то есть ПОСЛЕ публикации. Привязка, не
   // переопубликовавшая версию для станции, оставляла QR на «заполнять нечего»: главный
   // путь продукта не проходил, и заметил это только сквозной смоук.
-
-  async function versionsOf(checklistId: string) {
-    return db
-      .select({
-        status: checklistVersions.status,
-        versionNumber: checklistVersions.versionNumber,
-        stationId: checklistVersions.stationId,
-        sections: checklistVersions.sections,
-      })
-      .from(checklistVersions)
-      .where(eq(checklistVersions.checklistId, checklistId))
-      .orderBy(checklistVersions.versionNumber);
-  }
 
   test("чек-лист, опубликованный без станции, после привязки открывается по её коду", async () => {
     const { stationId, stationCode } = await createStationFixture();
