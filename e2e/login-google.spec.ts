@@ -30,16 +30,17 @@ test.describe("вход через Google", () => {
   test("нажатие кнопки доводит браузер до Google, политика безопасности не мешает", async ({
     page,
   }) => {
-    // Сам Google не нужен: запрос к нему перехватывается, важно, что браузер его отправил.
-    await page.route("https://accounts.google.com/**", (route) =>
-      route.fulfill({ status: 200, contentType: "text/html", body: "google" }),
-    );
+    // Запрос к Google после перенаправления Playwright не перехватывает — ждём сам
+    // запрос: важно, что браузер его отправил, а не что ответил выдуманному клиенту Google.
     await page.goto(LOGIN_PATH);
 
+    const toGoogle = page.waitForRequest((request) =>
+      request.url().startsWith("https://accounts.google.com/o/oauth2/v2/auth?"),
+    );
     await page.getByTestId("login-google").click();
 
-    await expect(page).toHaveURL(
-      /^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?/,
+    expect(new URL((await toGoogle).url()).searchParams.get("client_id")).toBe(
+      E2E_GOOGLE_CLIENT_ID,
     );
   });
 
