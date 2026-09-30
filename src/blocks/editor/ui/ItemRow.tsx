@@ -107,7 +107,7 @@ export function itemInputId(itemId: string): string {
  * ниже): строка становится выше, а не шире экрана.
  */
 const ROW_CLASS =
-  "grid grid-cols-[28px_minmax(0,1fr)] items-center gap-[var(--space-5)] px-[var(--space-6)] py-[var(--space-4)] xl:grid-cols-[28px_minmax(320px,1fr)_minmax(0,auto)]";
+  "grid grid-cols-[28px_minmax(0,1fr)] items-center gap-[var(--space-5)] px-[var(--space-6)] py-[var(--space-4)] xl:grid-cols-[28px_minmax(240px,1fr)_minmax(0,auto)]";
 /** Линия под строкой. У табличного пункта она уезжает под панель колонок: панель —
     продолжение той же строки, а не соседняя. */
 const ROW_LINE_CLASS = "border-b border-[var(--line)]";
@@ -279,10 +279,13 @@ export function ItemRow({
           onPaste={onPaste}
         />
 
-        {/* Управление переносится, а не сжимает название: у чипа регулярности и
-          переключателя уровня свои неделимые ширины, и в одну строку они влезают
-          не всегда. Ниже складки колонка своя, во всю ширину строки. */}
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-[var(--space-4)] max-xl:col-span-2 max-xl:justify-start">
+        {/* На широком экране управление держится в одну строку: перенос делал строки
+          разной высоты в зависимости от длины регулярности — «×» уезжал вниз у
+          «08:00–23:00, каждый час» и оставался на месте у «Один раз». Место отдаёт
+          только чип регулярности: он один умеет сжиматься и обрезается многоточием
+          (полный текст — в подсказке). Ниже складки колонка своя, во всю ширину
+          строки, и там перенос остаётся. */}
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-[var(--space-4)] max-xl:col-span-2 max-xl:justify-start xl:flex-nowrap">
           <select
             data-testid="item-type"
             className={`${SELECT_CLASS} pr-[var(--space-8)]`}
