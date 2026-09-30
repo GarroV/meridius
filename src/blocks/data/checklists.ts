@@ -286,13 +286,6 @@ export async function bindChecklistToStation(
       return "bound";
     }
 
-    const [numbers] = await tx
-      .select({
-        highest: sql<number | null>`max(${checklistVersions.versionNumber})`,
-      })
-      .from(checklistVersions)
-      .where(eq(checklistVersions.checklistId, checklistId));
-
     await tx
       .update(checklistVersions)
       .set({ status: "archived" })
@@ -300,7 +293,9 @@ export async function bindChecklistToStation(
     await tx.insert(checklistVersions).values({
       checklistId,
       status: "published",
-      versionNumber: (numbers?.highest ?? 0) + 1,
+      // Следующий номер считает сама вставка: строка чек-листа заблокирована выше, и
+      // номер между чтением и записью не уйдёт никому другому.
+      versionNumber: sql<number>`(select coalesce(max(${checklistVersions.versionNumber}), 0) + 1 from ${checklistVersions} where ${checklistVersions.checklistId} = ${checklistId})`,
       stationId,
       sections: published.sections,
       publishedAt: sql`now()`,
