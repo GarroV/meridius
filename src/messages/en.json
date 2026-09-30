@@ -27,7 +27,7 @@
     "code": "Error code"
   },
   "admin": {
-    "home": "Admin",
+    "home": "Home",
     "theme": {
       "label": "Theme",
       "system": "Auto",
@@ -996,5 +996,22 @@
     "takeAlone": "Take without a station",
     "preview": "Preview",
     "edit": "Edit"
+  },
+  "adminHome": {
+    "gapTitle": "{count, plural, one {# station has no checklist} other {# stations have no checklist}}",
+    "gapText": "Their QR sticker opens nothing: staff scan it and find no checklist.",
+    "gapAction": "Show these stations",
+    "checklistsTitle": "My checklists",
+    "checklistsAll": "All checklists ({count})",
+    "noStation": "Not on a station",
+    "version": "Version {number}",
+    "changed": "unpublished changes",
+    "unpublished": "Not published",
+    "submissionsTitle": "Recent submissions",
+    "submissionsAll": "All submissions",
+    "submissionsEmpty": "No checklist has been submitted yet.",
+    "emptyTitle": "You have no checklists yet",
+    "emptyText": "Start from a head-office template: take a copy, adjust it to your pizzerias and put it on your stations.",
+    "emptyAction": "Make one from a template"
   }
 }
