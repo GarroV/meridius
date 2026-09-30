@@ -121,7 +121,16 @@ docker compose -f deploy/compose.yaml logs --tail 30 app
 
 То же для справочника сети (`npm run import:network -- <путь>`).
 
-Шаблоны из пилотных чек-листов (`npm run templates:from-store -- "<пиццерия>"`, D174) запускаются так же — с машины с клоном и доступом к базе площадки. Сначала без `--apply`: скрипт печатает план и ничего не меняет.
+Шаблоны из пилотных чек-листов (`npm run templates:from-store -- "<пиццерия>"`, D174) — тоже разовый скрипт. Сначала без `--apply`: скрипт печатает план и ничего не меняет; повторный прогон с `--apply` ничего не делает. База наружу не открыта, поэтому на сервере его гоняют из стадии `build` образа (после `up --build` она в кэше, исходники и зависимости там есть) в сети проекта, собирая `DATABASE_URL` из `POSTGRES_*` окружения внутри контейнера:
+
+```sh
+docker build -q --target build -t meridius-tools .
+docker run --rm --network meridius_default --env-file deploy/.env meridius-tools \
+  sh -c 'export DATABASE_URL="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@db:5432/$POSTGRES_DB"; node scripts/templates-from-store.mjs "<пиццерия>"'
+docker image rm meridius-tools
+```
+
+На проде прогнан 30.09.2026 для «Demoland, Pilot»: 9 шаблонов.
 
 ## Откат
 
