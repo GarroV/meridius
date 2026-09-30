@@ -8,6 +8,7 @@ import { createStation } from "@/blocks/data/testing/fixtures";
 import { createChecklist, saveDraft } from "@/blocks/editor/drafts";
 import { publish } from "@/blocks/editor/publish";
 import { checklistPath } from "@/blocks/editor/routes";
+import { hqViewer, partnerViewer } from "@/blocks/auth/testing/viewers";
 
 import { createBlock, saveBlock } from "../blocks";
 import { buildLibraryModel, pickText, usageLabel } from "./build-model";
@@ -88,7 +89,11 @@ describe("модель экрана библиотеки", () => {
   test("открывается блок из адреса, он же помечен выбранным в списке", async () => {
     const wanted = await newBlock("Санитария", [item("санитария")]);
 
-    const model = await buildLibraryModel({ blockId: wanted }, "ru");
+    const model = await buildLibraryModel(
+      { blockId: wanted },
+      "ru",
+      await hqViewer(),
+    );
 
     expect(model.selection?.id).toBe(wanted);
     const row = model.blocks.find((block) => block.id === wanted);
@@ -97,12 +102,32 @@ describe("модель экрана библиотеки", () => {
     expect(row?.href).toContain(wanted);
   });
 
+  test("партнёру блок не открывается: ни редактора, ни ссылки на него в списке", async () => {
+    // Блок общий на всю сеть, правит его только УК (D145, D169): редактор партнёру не
+    // показывается вовсе, а не показывается с сохранением, которое ответит 404 (T338).
+    const wanted = await newBlock("Санитария", [item("санитария")]);
+
+    const model = await buildLibraryModel(
+      { blockId: wanted },
+      "ru",
+      await partnerViewer([]),
+    );
+
+    expect(model.canEdit).toBe(false);
+    expect(model.selection).toBeNull();
+    const row = model.blocks.find((block) => block.id === wanted);
+    expect(row).toBeDefined();
+    expect(row?.href).toBeNull();
+    expect(row?.selected).toBe(false);
+  });
+
   test("блока из адреса больше нет — открывается первый в списке, а не пустота", async () => {
     await newBlock("Первый", [item("первый")]);
 
     const model = await buildLibraryModel(
       { blockId: "9d3f6f2a-0f1e-4a8b-8c2d-1f2b3c4d5e6f" },
       "ru",
+      await hqViewer(),
     );
 
     expect(model.selection).not.toBeNull();
@@ -127,7 +152,7 @@ describe("модель экрана библиотеки", () => {
     ]);
     await publish(checklistId);
 
-    const model = await buildLibraryModel({ blockId }, "ru");
+    const model = await buildLibraryModel({ blockId }, "ru", await hqViewer());
 
     const usage = model.selection?.usages[0];
     expect(model.selection?.usages).toHaveLength(1);

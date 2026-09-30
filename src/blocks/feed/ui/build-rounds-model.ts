@@ -3,6 +3,11 @@
 // Фильтры те же, что у ленты, и берутся тем же кодом: разъехавшийся разбор адреса
 // означал бы, что одна и та же ссылка открывает на двух экранах разные части сети.
 import type { Locale } from "@/blocks/core/locale";
+import {
+  scopeOf as scopeOfViewer,
+  type Scope,
+  type Viewer,
+} from "@/blocks/auth/scope";
 
 import type { FeedSelection } from "../model";
 import { loadFeedCatalog } from "../options";
@@ -28,8 +33,9 @@ import { pickText } from "../text";
 import type { FeedView } from "../view";
 
 /** Фильтры экрана в том виде, в каком их принимают запросы: незаданное не передаётся. */
-function scopeOf(selection: FeedSelection): FeedScope {
+function scopeOf(selection: FeedSelection, visible: Scope): FeedScope {
   return {
+    visible,
     ...(selection.countryId === null ? {} : { countryId: selection.countryId }),
     ...(selection.storeId === null ? {} : { storeId: selection.storeId }),
     ...(selection.stationId === null ? {} : { stationId: selection.stationId }),
@@ -91,15 +97,21 @@ function emptyKindOf(
 export async function buildRoundsModel(
   view: FeedView,
   locale: Locale,
+  viewer: Viewer,
   now: Date = new Date(),
 ): Promise<RoundsReportModel> {
-  const catalog = await loadFeedCatalog();
+  const visible = scopeOfViewer(viewer);
+  const catalog = await loadFeedCatalog(visible);
   const selection = resolveSelection(view, catalog);
   const timeZone = screenTimeZone(selection);
   const { from, to } = resolvePeriod(selection.period, now, timeZone);
 
   const dayCount = periodDayCount(selection.period);
-  const source = await loadRoundsSource(scopeOf(selection), dayCount, now);
+  const source = await loadRoundsSource(
+    scopeOf(selection, visible),
+    dayCount,
+    now,
+  );
 
   const days = buildRoundsDays({
     checklists: source.checklists,

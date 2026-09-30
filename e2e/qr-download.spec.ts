@@ -14,15 +14,19 @@ import { seedStore } from "./station-fixtures";
 async function signIn(page: Page): Promise<void> {
   await page.goto("/admin/login");
   await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+  await page.locator('input[name="login"]').fill("admin");
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }
 
-/** Своя пиццерия со станциями и её лист кодов: чужие данные прогонов сюда не примешиваются. */
-async function openOwnStations(page: Page): Promise<void> {
+/**
+ * Своя станция и её карточка: чужие данные прогонов сюда не примешиваются. С T312
+ * наклейку скачивают с карточки станции — отдельного экрана QR больше нет.
+ */
+async function openOwnStation(page: Page): Promise<void> {
   const store = await seedStore();
-  await page.goto(`/admin/qr?store=${store.storeId}`);
-  await expect(page.getByTestId("qr-stations")).toBeVisible();
+  await page.goto(`/admin/stations/${store.stationIds[0] ?? ""}`);
+  await expect(page.getByTestId("station-sticker-card")).toBeVisible();
 }
 
 test.describe("наклейка станции файлом", () => {
@@ -32,9 +36,9 @@ test.describe("наклейка станции файлом", () => {
     page,
   }) => {
     await signIn(page);
-    await openOwnStations(page);
+    await openOwnStation(page);
 
-    const download = page.getByTestId("download-sticker").first();
+    const download = page.getByTestId("download-sticker");
     await expect(download).toBeVisible();
 
     const started = page.waitForEvent("download");
@@ -60,16 +64,15 @@ test.describe("наклейка станции файлом", () => {
     page,
   }) => {
     await signIn(page);
-    await openOwnStations(page);
+    await openOwnStation(page);
 
-    // Код станции виден в таблице; тот же код обязан быть в имени файла, иначе
+    // Код станции виден на карточке; тот же код обязан быть в имени файла, иначе
     // управляющий наклеит на станцию чужую наклейку.
-    const row = page.getByTestId("qr-stations").locator("tbody tr").first();
-    const code = ((await row.locator("td").nth(1).innerText()) || "").trim();
+    const code = (await page.getByTestId("station-code").innerText()).trim();
     expect(code).not.toBe("");
 
     const started = page.waitForEvent("download");
-    await row.getByTestId("download-sticker").click();
+    await page.getByTestId("download-sticker").click();
     const file = await started;
 
     // Имя несёт и станцию, и её код: по нему видно, куда клеить, и наклейки не путают.

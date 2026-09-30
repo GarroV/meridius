@@ -7,6 +7,7 @@ import { afterAll, describe, expect, test } from "vitest";
 import { countries, stations, stores } from "@/blocks/data";
 import { closeTestDb, getTestDb } from "@/blocks/data/testing/db";
 import { createStation } from "@/blocks/data/testing/fixtures";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 import { loadFeedCatalog } from "./options";
 
@@ -18,7 +19,7 @@ describe("loadFeedCatalog", () => {
   test("отдаёт страну, пиццерию и станцию, связанные между собой", async () => {
     const fixture = await createStation({ timezone: "Asia/Almaty" });
 
-    const catalog = await loadFeedCatalog();
+    const catalog = await loadFeedCatalog(WHOLE_NETWORK);
 
     const country = catalog.countries.find(
       (row) => row.id === fixture.countryId,
@@ -37,7 +38,7 @@ describe("loadFeedCatalog", () => {
   test("пиццерия несёт свой часовой пояс: в нём считается «сегодня» и время строк", async () => {
     const fixture = await createStation({ timezone: "Europe/Berlin" });
 
-    const catalog = await loadFeedCatalog();
+    const catalog = await loadFeedCatalog(WHOLE_NETWORK);
 
     expect(
       catalog.stores.find((row) => row.id === fixture.storeId)?.timezone,
@@ -51,7 +52,7 @@ describe("loadFeedCatalog", () => {
       .values({ name, locale: "ru" })
       .returning({ id: countries.id });
 
-    const catalog = await loadFeedCatalog();
+    const catalog = await loadFeedCatalog(WHOLE_NETWORK);
 
     expect(catalog.countries.some((row) => row.id === country?.id)).toBe(true);
     expect(catalog.stores.some((row) => row.countryId === country?.id)).toBe(
@@ -65,7 +66,7 @@ describe("loadFeedCatalog", () => {
     const first = await createStation();
     const second = await createStation();
 
-    const catalog = await loadFeedCatalog();
+    const catalog = await loadFeedCatalog(WHOLE_NETWORK);
     const ownerIds = new Set(
       catalog.stations
         .filter(

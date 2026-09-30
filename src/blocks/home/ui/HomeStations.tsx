@@ -2,8 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
-import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 import type { FeedPeriod } from "@/blocks/feed/period";
+import { stationHref } from "@/blocks/stations/ui/view";
 
 import type { HomeStation, StationStatus, StoreSummary } from "../summary";
 import { homeHref } from "../view";
@@ -31,8 +31,8 @@ const STATUS_CLASS: Readonly<Record<StationStatus, string>> = {
 
 /**
  * Станции пиццерии: чек-лист, планшет и когда был на связи, последнее заполнение.
- * Строка ведёт в выдвижную панель станции раздела «Устройства» (`?station=<id>`) —
- * там привязка и отвязка; своей копии панели у главной нет.
+ * Строка ведёт на карточку станции в «Станциях» — там чек-лист, наклейка, привязка и
+ * отвязка планшета; своей копии карточки у главной нет.
  */
 export async function StationsTable({
   stations,
@@ -71,10 +71,7 @@ export async function StationsTable({
                 data-testid="home-station"
               >
                 <td className={TD_CLASS}>
-                  <Link
-                    href={`${ADMIN_SECTIONS.devices.path}?station=${station.id}`}
-                    className={LINK_CLASS}
-                  >
+                  <Link href={stationHref(station.id)} className={LINK_CLASS}>
                     {station.name}
                   </Link>
                   <div className={META_CLASS}>{station.storeName}</div>

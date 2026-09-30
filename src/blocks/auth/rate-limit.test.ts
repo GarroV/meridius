@@ -7,7 +7,13 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { AttemptCount, AttemptKey } from "./attempt-store";
-import { LOGIN_LIMITS, bucketOf, verdictFor } from "./rate-limit";
+import {
+  LOGIN_LIMITS,
+  MAX_TURN_QUEUE,
+  bucketOf,
+  inClientTurn,
+  verdictFor,
+} from "./rate-limit";
 
 const store = vi.hoisted(() => ({
   countAttempt: vi.fn(),
@@ -265,5 +271,66 @@ describe("корзина клиента", () => {
     );
 
     expect(neighbours.size).toBeGreaterThan(8);
+  });
+});
+
+/** Попытка, которая кончается, только когда её отпустят. */
+function latch(): {
+  readonly done: Promise<unknown>;
+  readonly release: () => void;
+} {
+  const { promise, resolve } = Promise.withResolvers();
+  return {
+    done: promise,
+    release: () => {
+      resolve(null);
+    },
+  };
+}
+
+describe("очередь клиента", () => {
+  test("попытки одной корзины идут по одной", async () => {
+    const order: string[] = [];
+    const hold = latch();
+    const first = inClientTurn("198.51.100.20", async () => {
+      order.push("первая началась");
+      await hold.done;
+      order.push("первая кончилась");
+    });
+    const second = inClientTurn("198.51.100.20", () => {
+      order.push("вторая началась");
+      return Promise.resolve();
+    });
+
+    await Promise.resolve();
+    hold.release();
+    await Promise.all([first, second]);
+
+    expect(order).toEqual([
+      "первая началась",
+      "первая кончилась",
+      "вторая началась",
+    ]);
+  });
+
+  test("залп сверх глубины очереди не ждёт в ней: он не держит того, кто пришёл позже", async () => {
+    // Разбор безопасности T313: без предела глубины залп в одну корзину выстраивал
+    // очередь без края, и честный вход ждал бы весь залп. Сверх глубины попытка идёт
+    // сразу — предел в базе от этого не слабеет, он не держится на очереди.
+    const client = "198.51.100.21";
+    const hold = latch();
+    const queued = Array.from({ length: MAX_TURN_QUEUE }, () =>
+      inClientTurn(client, () => hold.done),
+    );
+
+    let overflowRan = false;
+    await inClientTurn(client, () => {
+      overflowRan = true;
+      return Promise.resolve();
+    });
+
+    expect(overflowRan).toBe(true);
+    hold.release();
+    await Promise.all(queued);
   });
 });

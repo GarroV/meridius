@@ -7,6 +7,7 @@ import { eq, sql } from "drizzle-orm";
 import { afterAll, describe, expect, test } from "vitest";
 
 import {
+  checklistVersions,
   checklists,
   countries,
   getDb,
@@ -18,10 +19,12 @@ import {
 import { closeTestDb } from "@/blocks/data/testing/db";
 import {
   createChecklist,
+  createDraft,
   createPublishedVersion,
   createStation as createStationFixture,
   sampleSections,
 } from "@/blocks/data/testing/fixtures";
+import { hqViewer, partnerViewer } from "@/blocks/auth/testing/viewers";
 
 import { STATION_CODE_ALPHABET, STATION_CODE_LENGTH } from "./station-code";
 import {
@@ -181,6 +184,25 @@ describe("привязка чек-листа к станции (T017)", () => {
     expect(row?.checklists).toStrictEqual([{ id: checklistId, title }]);
   });
 
+  test("чек-лист виден только у своей станции, соседняя по пиццерии остаётся пустой", async () => {
+    // Список станций собирает чек-листы одним запросом на всю пиццерию и раскладывает
+    // их сам: ошибка раскладки молча показывала бы чужой чек-лист соседней станции (T350).
+    const storeId = await emptyStore();
+    const kitchen = await createStation({ storeId, name: "А кухня" });
+    const counter = await createStation({ storeId, name: "Б касса" });
+    const checklistId = await createChecklist();
+    await assignChecklist(kitchen.id, checklistId);
+
+    const rows = await listStations(storeId);
+
+    expect(
+      rows.map((row) => [row.id, row.checklists.map((item) => item.id)]),
+    ).toStrictEqual([
+      [kitchen.id, [checklistId]],
+      [counter.id, []],
+    ]);
+  });
+
   test("два чек-листа станции идут в порядке дня, а не в порядке привязки", async () => {
     // Порядок дня не зависит от языка интерфейса: сортировать по названию значило бы
     // выбрать язык прямо в запросе и получить разный порядок в ru и en.
@@ -228,7 +250,7 @@ describe("привязка чек-листа к станции (T017)", () => {
 
     const [row] = await listStations(storeId);
     expect(row?.checklists).toStrictEqual([]);
-    const free = await listUnassignedChecklists();
+    const free = await listUnassignedChecklists(await hqViewer());
     expect(free.map((item) => item.id)).toContain(checklistId);
   });
 
@@ -239,7 +261,9 @@ describe("привязка чек-листа к станции (T017)", () => {
     const free = await createChecklist();
     await assignChecklist(created.id, taken);
 
-    const ids = (await listUnassignedChecklists()).map((item) => item.id);
+    const ids = (await listUnassignedChecklists(await hqViewer())).map(
+      (item) => item.id,
+    );
 
     expect(ids).toContain(free);
     expect(ids).not.toContain(taken);
@@ -276,7 +300,9 @@ describe("привязка чек-листа к станции (T017)", () => {
 
     await deleteStation(created.id);
 
-    const ids = (await listUnassignedChecklists()).map((item) => item.id);
+    const ids = (await listUnassignedChecklists(await hqViewer())).map(
+      (item) => item.id,
+    );
     expect(ids).not.toContain(archived);
     // Рабочий чек-лист, наоборот, обязан вернуться в свободные: его привязывают заново.
     expect(ids).toContain(working);
@@ -299,6 +325,155 @@ describe("привязка чек-листа к станции (T017)", () => {
       .from(checklists)
       .where(eq(checklists.id, archived));
     expect(row?.stationId).toBeNull();
+  });
+});
+
+/** Версии чек-листа по номеру — чтобы видеть, что привязка выпустила и что оставила. */
+async function versionsOf(checklistId: string) {
+  return db
+    .select({
+      status: checklistVersions.status,
+      versionNumber: checklistVersions.versionNumber,
+      stationId: checklistVersions.stationId,
+    })
+    .from(checklistVersions)
+    .where(eq(checklistVersions.checklistId, checklistId))
+    .orderBy(checklistVersions.versionNumber);
+}
+
+describe("привязка уже опубликованного чек-листа (T348)", () => {
+  // Версия замораживает станцию в момент публикации (T056), а с T312 чек-лист вешают
+  // на станцию только на её карточке — то есть ПОСЛЕ публикации. Привязка, не
+  // переопубликовавшая версию для станции, оставляла QR на «заполнять нечего»: главный
+  // путь продукта не проходил, и заметил это только сквозной смоук.
+
+  test("чек-лист, опубликованный без станции, после привязки открывается по её коду", async () => {
+    const { stationId, stationCode } = await createStationFixture();
+    const checklistId = await createChecklist();
+    const sections = sampleSections("до привязки");
+    await createPublishedVersion(checklistId, sections);
+
+    await assignChecklist(stationId, checklistId);
+
+    const served = await getPublishedVersionForStation(
+      stationCode,
+      INSIDE_WINDOW,
+    );
+    expect(served?.checklist.id).toBe(checklistId);
+    expect(served?.version.stationId).toBe(stationId);
+    expect(served?.version.sections).toStrictEqual(sections);
+  });
+
+  test("на станцию уходит опубликованное содержимое, а не неопубликованный черновик", async () => {
+    const { stationId, stationCode } = await createStationFixture();
+    const checklistId = await createChecklist();
+    const published = sampleSections("опубликовано");
+    await createPublishedVersion(checklistId, published);
+    await createDraft(checklistId, sampleSections("черновик"));
+
+    await assignChecklist(stationId, checklistId);
+
+    const served = await getPublishedVersionForStation(
+      stationCode,
+      INSIDE_WINDOW,
+    );
+    expect(served?.version.sections).toStrictEqual(published);
+  });
+
+  test("перенос на другую станцию: новая отдаёт чек-лист, прежняя версия остаётся за прежней", async () => {
+    const first = await createStationFixture();
+    const second = await createStationFixture();
+    const checklistId = await createChecklist({ stationId: first.stationId });
+    await createPublishedVersion(checklistId, sampleSections("перенос"));
+
+    await assignChecklist(second.stationId, checklistId);
+
+    expect(
+      await getPublishedVersionForStation(first.stationCode, INSIDE_WINDOW),
+    ).toBeNull();
+    expect(
+      (await getPublishedVersionForStation(second.stationCode, INSIDE_WINDOW))
+        ?.version.stationId,
+    ).toBe(second.stationId);
+    // История не переписана: прежняя версия осталась со своей станцией, только в архиве.
+    expect(
+      (await versionsOf(checklistId)).map((row) => [
+        row.status,
+        row.versionNumber,
+        row.stationId,
+      ]),
+    ).toStrictEqual([
+      ["archived", 1, first.stationId],
+      ["published", 2, second.stationId],
+    ]);
+  });
+
+  test("повторная привязка к той же станции новой версии не выпускает", async () => {
+    const { stationId } = await createStationFixture();
+    const checklistId = await createChecklist({ stationId });
+    await createPublishedVersion(checklistId, sampleSections("та же"));
+
+    await assignChecklist(stationId, checklistId);
+
+    expect(
+      (await versionsOf(checklistId)).map((row) => row.versionNumber),
+    ).toStrictEqual([1]);
+  });
+
+  test("неопубликованный чек-лист привязывается без версии: публиковать нечего", async () => {
+    const { stationId } = await createStationFixture();
+    const checklistId = await createChecklist();
+    await createDraft(checklistId, sampleSections("только черновик"));
+
+    await assignChecklist(stationId, checklistId);
+
+    expect(
+      (await versionsOf(checklistId)).map((row) => row.status),
+    ).toStrictEqual(["draft"]);
+  });
+});
+
+describe("отказы справочника станций, которые иначе молчат (T350)", () => {
+  // Мусорный идентификатор из адреса или формы отвечает так же, как несуществующий:
+  // иначе ошибка синтаксиса uuid из базы уходила бы пятисоткой, и перебор отличал бы
+  // «такого нет» от «такого не бывает» (D021, D145).
+  const GARBAGE = "не-uuid";
+
+  test.each([
+    ["createStation", () => createStation({ storeId: GARBAGE, name: "Кухня" })],
+    ["updateStation", () => updateStation(GARBAGE, { name: "Кухня" })],
+    ["deleteStation", () => deleteStation(GARBAGE)],
+    ["reissueStationCode", () => reissueStationCode(GARBAGE)],
+    ["assignChecklist, станция", () => assignChecklist(GARBAGE, randomUUID())],
+    ["assignChecklist, чек-лист", () => assignChecklist(randomUUID(), GARBAGE)],
+    ["detachChecklist", () => detachChecklist(GARBAGE)],
+  ])("%s: мусорный идентификатор — «не найдено»", async (_name, call) => {
+    await expect(call()).rejects.toMatchObject({ code: "notFound" });
+  });
+
+  test("отвязка несуществующего чек-листа не выдаёт себя за удачу", async () => {
+    await expect(detachChecklist(randomUUID())).rejects.toMatchObject({
+      code: "notFound",
+    });
+  });
+
+  test("партнёру в свободных — только его чек-листы, УК — все", async () => {
+    // Чек-лист без станции не лежит ни в одной стране, и отбор по тенанту — единственное,
+    // что не даёт партнёру привязать к своей станции чужой (D145).
+    const partner = await partnerViewer([]);
+    const own = await createChecklist({ tenantId: partner.tenantId });
+    const foreign = await createChecklist();
+
+    const partnerIds = (await listUnassignedChecklists(partner)).map(
+      (item) => item.id,
+    );
+    const hqIds = (await listUnassignedChecklists(await hqViewer())).map(
+      (item) => item.id,
+    );
+
+    expect(partnerIds).toContain(own);
+    expect(partnerIds).not.toContain(foreign);
+    expect(hqIds).toEqual(expect.arrayContaining([own, foreign]));
   });
 });
 

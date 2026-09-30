@@ -1,5 +1,6 @@
 import { getLocale } from "next-intl/server";
 
+import { requireHqViewer } from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
 import { buildLibraryModel } from "@/blocks/library/ui/build-model";
 import { LibraryScreen } from "@/blocks/library/ui/LibraryScreen";
@@ -17,11 +18,15 @@ export default async function LibraryPage({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const view = parseLibraryView(await searchParams);
+  // Открыть блок в редакторе — правка библиотеки, а её ведёт только УК (D145, T338):
+  // партнёру адрес редактора отвечает тем же, что несуществующая запись. Сам список
+  // ему виден — без ссылок и без редактора (`buildLibraryModel`).
+  if (view.blockId !== undefined) requireHqViewer(viewer);
   const locale = await getLocale();
-  const model = await buildLibraryModel(view, locale);
+  const model = await buildLibraryModel(view, locale, viewer);
 
   return <LibraryScreen model={model} locale={locale} />;
 }

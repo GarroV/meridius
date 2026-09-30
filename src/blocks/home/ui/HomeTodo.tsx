@@ -2,9 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
-import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 import { CHECKLISTS_PATH } from "@/blocks/editor/routes";
-import { feedHref, type FeedView } from "@/blocks/feed/view";
+import { GAP_PARAM, STATIONS_PATH } from "@/blocks/stations/ui/view";
 
 import { CARD_CLASS, HEAD_CLASS, TITLE_CLASS } from "./style";
 
@@ -28,23 +27,22 @@ interface TodoRow {
 export async function HomeTodo({
   gaps,
   drafts,
-  view,
 }: {
   readonly gaps: { readonly noChecklist: number; readonly silent: number };
   readonly drafts: number;
-  readonly view: FeedView;
 }): Promise<ReactElement | null> {
   const t = await getTranslations("adminHome.todo");
   const rows: readonly TodoRow[] = [
     {
       key: "noChecklist" as const,
       count: gaps.noChecklist,
-      href: ADMIN_SECTIONS.stations.path,
+      // «Станции» сразу отфильтрованные по этой дырке — те самые, что посчитаны здесь.
+      href: `${STATIONS_PATH}?${GAP_PARAM}=noChecklist`,
     },
     {
       key: "silent" as const,
       count: gaps.silent,
-      href: feedHref({ ...view, period: "today" }),
+      href: `${STATIONS_PATH}?${GAP_PARAM}=silent`,
     },
     { key: "drafts" as const, count: drafts, href: CHECKLISTS_PATH },
   ].filter((row) => row.count > 0);

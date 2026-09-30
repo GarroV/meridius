@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, test } from "vitest";
 
 import {
+  ROOT_SUBJECT,
   SESSION_MAX_AGE_SECONDS,
   createSessionToken,
   readSessionToken,
@@ -11,6 +12,7 @@ import {
 const SECRET = "секрет-подписи-сессии-достаточной-длины-для-проверки";
 const OTHER_SECRET = "другой-секрет-подписи-сессии-такой-же-длины-хватит-";
 const NOW = new Date("2026-09-06T10:00:00.000Z");
+const SUBJECT = "0f0f0f0f-0f0f-4f0f-8f0f-0f0f0f0f0f0f";
 
 function laterBy(seconds: number): Date {
   return new Date(NOW.getTime() + seconds * 1000);
@@ -19,7 +21,7 @@ function laterBy(seconds: number): Date {
 describe("createSessionToken", () => {
   test("выдаёт сессию на 30 дней", () => {
     const session = readSessionToken(
-      createSessionToken(SECRET, NOW),
+      createSessionToken(SUBJECT, SECRET, NOW),
       SECRET,
       NOW,
     );
@@ -32,7 +34,7 @@ describe("createSessionToken", () => {
   });
 
   test("не кладёт секрет подписи внутрь самой куки", () => {
-    const token = createSessionToken(SECRET, NOW);
+    const token = createSessionToken(SUBJECT, SECRET, NOW);
 
     expect(token).not.toContain(SECRET);
     expect(Buffer.from(token, "base64url").toString("utf8")).not.toContain(
@@ -52,12 +54,12 @@ function signedToken(rawPayload: string): string {
 describe("readSessionToken", () => {
   test("принимает свою же куку", () => {
     expect(
-      readSessionToken(createSessionToken(SECRET, NOW), SECRET, NOW),
+      readSessionToken(createSessionToken(SUBJECT, SECRET, NOW), SECRET, NOW),
     ).not.toBeNull();
   });
 
   test("принимает куку за секунду до истечения срока", () => {
-    const token = createSessionToken(SECRET, NOW);
+    const token = createSessionToken(SUBJECT, SECRET, NOW);
 
     expect(
       readSessionToken(token, SECRET, laterBy(SESSION_MAX_AGE_SECONDS - 1)),
@@ -65,7 +67,7 @@ describe("readSessionToken", () => {
   });
 
   test("отвергает куку, у которой истёк срок", () => {
-    const token = createSessionToken(SECRET, NOW);
+    const token = createSessionToken(SUBJECT, SECRET, NOW);
 
     expect(
       readSessionToken(token, SECRET, laterBy(SESSION_MAX_AGE_SECONDS + 1)),
@@ -73,13 +75,15 @@ describe("readSessionToken", () => {
   });
 
   test("отвергает куку, подписанную другим секретом", () => {
-    const token = createSessionToken(OTHER_SECRET, NOW);
+    const token = createSessionToken(SUBJECT, OTHER_SECRET, NOW);
 
     expect(readSessionToken(token, SECRET, NOW)).toBeNull();
   });
 
   test("отвергает подделанный срок жизни: подпись считается по содержимому", () => {
-    const [payload, signature] = createSessionToken(SECRET, NOW).split(".");
+    const [payload, signature] = createSessionToken(SUBJECT, SECRET, NOW).split(
+      ".",
+    );
     const forged = JSON.parse(
       Buffer.from(payload ?? "", "base64url").toString("utf8"),
     ) as {
@@ -92,7 +96,7 @@ describe("readSessionToken", () => {
   });
 
   test("отвергает подделанную подпись", () => {
-    const [payload] = createSessionToken(SECRET, NOW).split(".");
+    const [payload] = createSessionToken(SUBJECT, SECRET, NOW).split(".");
     const tampered = `${payload ?? ""}.${Buffer.from("подпись-из-головы").toString("base64url")}`;
 
     expect(readSessionToken(tampered, SECRET, NOW)).toBeNull();
@@ -108,8 +112,8 @@ describe("readSessionToken", () => {
       "%%%.%%%",
       `${Buffer.from("не json").toString("base64url")}.${Buffer.from("x").toString("base64url")}`,
       `${Buffer.from(JSON.stringify({ exp: "скоро" })).toString("base64url")}.x`,
-      createSessionToken(SECRET, NOW).replace(".", "-"),
-      `${createSessionToken(SECRET, NOW)}.лишнее`,
+      createSessionToken(SUBJECT, SECRET, NOW).replace(".", "-"),
+      `${createSessionToken(SUBJECT, SECRET, NOW)}.лишнее`,
     ];
 
     for (const token of garbage) {
@@ -130,12 +134,49 @@ describe("readSessionToken", () => {
   });
 
   test("со своей подписью, но нечисловым сроком — отказ", () => {
-    const wrong = JSON.stringify({ v: 1, iat: "вчера", exp: "завтра" });
+    const wrong = JSON.stringify({
+      v: 2,
+      sub: SUBJECT,
+      iat: "вчера",
+      exp: "завтра",
+    });
 
     expect(readSessionToken(signedToken(wrong), SECRET, NOW)).toBeNull();
   });
 
   test("отвергает пустую строку вместо куки, даже когда секрет пустой", () => {
     expect(readSessionToken("", "", NOW)).toBeNull();
+  });
+
+  test("несёт учётную запись, которой выдана", () => {
+    const token = createSessionToken(SUBJECT, SECRET, NOW);
+    expect(readSessionToken(token, SECRET, NOW)?.subject).toBe(SUBJECT);
+    const root = createSessionToken(ROOT_SUBJECT, SECRET, NOW);
+    expect(readSessionToken(root, SECRET, NOW)?.subject).toBe(ROOT_SUBJECT);
+  });
+
+  test("кука прежнего формата без учётной записи — отказ: её нельзя отнести ни к одному тенанту", () => {
+    const legacy = JSON.stringify({
+      v: 1,
+      iat: 1_789_000_000,
+      exp: 4_000_000_000,
+    });
+    expect(readSessionToken(signedToken(legacy), SECRET, NOW)).toBeNull();
+  });
+
+  test("учётная запись не того вида — отказ", () => {
+    for (const sub of [42, "", "не-uuid", null]) {
+      const wrong = JSON.stringify({
+        v: 2,
+        sub,
+        iat: 1_789_000_000,
+        exp: 4_000_000_000,
+      });
+      expect(readSessionToken(signedToken(wrong), SECRET, NOW)).toBeNull();
+    }
+  });
+
+  test("выпустить куку на учётку не того вида нельзя", () => {
+    expect(() => createSessionToken("не-uuid", SECRET, NOW)).toThrow();
   });
 });

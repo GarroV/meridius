@@ -6,8 +6,9 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { getDb, stations } from "@/blocks/data";
+import { checklists, getDb, stations } from "@/blocks/data";
 import { createChecklist, createStation } from "@/blocks/data/testing/fixtures";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 import { pairDevice, unpairDevice } from "./devices";
 import { findStationTablets, listStationTablets } from "./station-tablets";
@@ -20,7 +21,7 @@ function later(seconds: number): Date {
 }
 
 async function entryOf(stationId: string) {
-  const all = await listStationTablets();
+  const all = await listStationTablets(WHOLE_NETWORK);
   return all.filter((entry) => entry.stationId === stationId);
 }
 
@@ -86,6 +87,33 @@ describe("станции и их планшеты", () => {
     expect(coveredEntry?.checklistCount).toBe(1);
   });
 
+  it("архивный чек-лист не считается: планшету он уже не откроется (#196)", async () => {
+    const { stationId } = await createStation();
+    await createChecklist({ stationId });
+    const archived = await createChecklist({ stationId });
+    await getDb()
+      .update(checklists)
+      .set({ archivedAt: NOW })
+      .where(eq(checklists.id, archived));
+
+    const [entry] = await entryOf(stationId);
+
+    expect(entry?.checklistCount).toBe(1);
+  });
+
+  it("станция только с архивными чек-листами — ноль, «планшету нечего показать»", async () => {
+    const { stationId } = await createStation();
+    const archived = await createChecklist({ stationId });
+    await getDb()
+      .update(checklists)
+      .set({ archivedAt: NOW })
+      .where(eq(checklists.id, archived));
+
+    const [entry] = await entryOf(stationId);
+
+    expect(entry?.checklistCount).toBe(0);
+  });
+
   it("отвязанный планшет пропадает из станции, а сама станция остаётся", async () => {
     const { stationId } = await createStation();
     const tablet = await pairDevice({ stationId }, NOW);
@@ -103,7 +131,7 @@ describe("одна станция для панели", () => {
     const { stationId } = await createStation();
     const tablet = await pairDevice({ stationId }, NOW);
 
-    const entry = await findStationTablets(stationId);
+    const entry = await findStationTablets(stationId, WHOLE_NETWORK);
 
     expect(entry?.stationId).toBe(stationId);
     expect(entry?.tablets.map((row) => row.id)).toEqual([tablet.id]);
@@ -113,11 +141,11 @@ describe("одна станция для панели", () => {
     const { stationId } = await createStation();
     await getDb().delete(stations).where(eq(stations.id, stationId));
 
-    expect(await findStationTablets(stationId)).toBeNull();
+    expect(await findStationTablets(stationId, WHOLE_NETWORK)).toBeNull();
   });
 
   it("не падает на мусоре из адреса: параметр панели пишет кто угодно", async () => {
-    expect(await findStationTablets("не uuid")).toBeNull();
-    expect(await findStationTablets("")).toBeNull();
+    expect(await findStationTablets("не uuid", WHOLE_NETWORK)).toBeNull();
+    expect(await findStationTablets("", WHOLE_NETWORK)).toBeNull();
   });
 });

@@ -25,6 +25,7 @@ import {
   GAP_FILTERS,
   GAP_PARAM,
   ROLLOUT_FORM_ID,
+  STATION_IDS_PARAM,
   stationHref,
   type GapFilter,
 } from "./view";
@@ -131,7 +132,7 @@ function StationRow({
       data-testid="station-row"
     >
       {/*
-        Галочка — поле формы раскатки, которая стоит справа, на экране раздела
+        Галочка — поле формы выбора (раскатка и печать наклеек) справа, на экране раздела
         (атрибут `form`). Своего состояния у неё нет намеренно: выбор живёт в DOM
         колонки и переживает смену фильтра, потому что колонка не перерисовывается.
         Пока открыта карточка станции, формы раскатки на экране нет — и галочек тоже:
@@ -140,7 +141,7 @@ function StationRow({
       {canPick ? (
         <input
           type="checkbox"
-          name="stationIds"
+          name={STATION_IDS_PARAM}
           value={station.id}
           form={ROLLOUT_FORM_ID}
           aria-label={station.name}

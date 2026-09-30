@@ -9,10 +9,12 @@ import { loadHome } from "@/blocks/home/load";
 import { HomeScreen } from "@/blocks/home/ui/HomeScreen";
 import { parseHomeView } from "@/blocks/home/view";
 
-// Первый экран после входа — пульт сети (D169): цифры, дырки и станции выбранной
-// области. До D169 здесь стояли карточки-ссылки на разделы (#11, T112); владелец снял их
+// Первый экран после входа — пульт сети (D174): цифры, дырки и станции выбранной
+// области. До D174 здесь стояли карточки-ссылки на разделы (#11, T112); владелец снял их
 // вопросом «смысл что она показывает ссылки на другие разделы?» — меню слева и так ведёт
-// в каждый раздел, а главная обязана отвечать, что в сети происходит.
+// в каждый раздел, а главная обязана отвечать, что в сети происходит. «Мои чек-листы»
+// прежней главной (D148, T315) живут на пульте блоком, в той же области видимости
+// вошедшего (D145).
 //
 // T112 остаётся в силе: экран идёт в общем каркасе, как и все остальные экраны кабинета.
 
@@ -29,13 +31,13 @@ export default async function AdminHomePage({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const t = await getTranslations("admin");
   const view = parseHomeView(await searchParams);
   const locale = (await getLocale()) as Locale;
   const now = new Date();
-  const model = await loadHome(view, locale, now);
+  const model = await loadHome(view, locale, viewer, now);
 
   return (
     <AdminShell

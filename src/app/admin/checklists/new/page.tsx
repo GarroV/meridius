@@ -4,6 +4,8 @@ import { AdminPage } from "@/blocks/core/ui/AdminPage";
 import { listStations } from "@/blocks/editor/listing";
 import { NewChecklistForm } from "@/blocks/editor/ui/NewChecklistForm";
 import { newChecklistLabels } from "@/blocks/editor/ui/new-checklist-labels";
+import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 
 /**
  * Экран заведения чек-листа. Форма — клиентский компонент без доступа к словарю
@@ -16,7 +18,7 @@ import { newChecklistLabels } from "@/blocks/editor/ui/new-checklist-labels";
  */
 export default async function NewChecklistPage() {
   const t = await getTranslations("editor");
-  const stations = await listStations();
+  const stations = await listStations(scopeOf(await requireAdmin()));
   const locale = await getLocale();
   const labels = await newChecklistLabels();
 

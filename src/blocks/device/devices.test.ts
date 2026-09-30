@@ -9,10 +9,15 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { getDb, stations } from "@/blocks/data";
+import { devices, getDb, stations } from "@/blocks/data";
 import { createStation } from "@/blocks/data/testing/fixtures";
 
-import { findPairedDevice, pairDevice, unpairDevice } from "./devices";
+import {
+  findPairedDevice,
+  pairDevice,
+  touchDeviceSeen,
+  unpairDevice,
+} from "./devices";
 
 const NOW = new Date("2026-09-23T10:00:00Z");
 const SECOND = 1000;
@@ -127,5 +132,74 @@ describe("опознание планшета", () => {
     expect(await findPairedDevice("не uuid")).toBeNull();
     expect(await findPairedDevice("")).toBeNull();
     expect(await findPairedDevice("'; drop table devices; --")).toBeNull();
+  });
+});
+
+// Отказные пути (#146): каждый из них при поломке молчит — отвязка, которая «прошла»
+// второй раз, или привязка, которая упала, но успела снять прежнюю строку, снаружи
+// выглядят как обычная работа.
+async function lastSeenOf(id: string): Promise<Date | undefined> {
+  const [row] = await getDb()
+    .select({ lastSeenAt: devices.lastSeenAt })
+    .from(devices)
+    .where(eq(devices.id, id));
+  return row?.lastSeenAt;
+}
+
+describe("отказные пути", () => {
+  it("вторая отвязка отвечает «строки не было», мусор не роняет запрос", async () => {
+    const { stationId } = await createStation();
+    const device = await pairDevice({ stationId }, NOW);
+
+    expect(await unpairDevice(device.id)).toBe(true);
+    expect(await unpairDevice(device.id)).toBe(false);
+    expect(await unpairDevice("не uuid")).toBe(false);
+  });
+
+  it("упавшая привязка не снимает прежнюю строку: планшет не остаётся ни с чем", async () => {
+    const { stationId } = await createStation();
+    const previous = await pairDevice({ stationId }, NOW);
+
+    await expect(
+      pairDevice(
+        {
+          stationId: "2f1c9a3e-0000-4000-8000-000000000000",
+          previousDeviceId: previous.id,
+        },
+        later(10),
+      ),
+    ).rejects.toThrow();
+
+    expect(await findPairedDevice(previous.id)).not.toBeNull();
+  });
+
+  it("мусор вместо прежнего опознавателя не мешает привязке и никого не снимает", async () => {
+    const { stationId } = await createStation();
+    const neighbour = await pairDevice({ stationId }, NOW);
+
+    const device = await pairDevice(
+      { stationId, previousDeviceId: "'; delete from devices; --" },
+      later(10),
+    );
+
+    expect(await findPairedDevice(device.id)).not.toBeNull();
+    expect(await findPairedDevice(neighbour.id)).not.toBeNull();
+  });
+
+  it("«был на связи» не пишется чаще порога и не падает на мусоре", async () => {
+    const { stationId } = await createStation();
+    const device = await pairDevice({ stationId }, NOW);
+
+    await touchDeviceSeen(device.id, later(60));
+    expect((await lastSeenOf(device.id))?.getTime()).toBe(NOW.getTime());
+
+    await touchDeviceSeen(device.id, later(5 * 60));
+    expect((await lastSeenOf(device.id))?.getTime()).toBe(
+      later(5 * 60).getTime(),
+    );
+
+    await expect(
+      touchDeviceSeen("не uuid", later(600)),
+    ).resolves.toBeUndefined();
   });
 });

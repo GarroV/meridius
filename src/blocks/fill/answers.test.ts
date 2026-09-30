@@ -368,3 +368,25 @@ describe("табличный пункт: журнал замеса (T141)", () =
     expect(answers[0]?.value).toStrictEqual([{ c1: "24" }, { c2: "200" }]);
   });
 });
+
+describe("пункт-будильник (D156, T317)", () => {
+  const alarm = item("al", { type: "alarm", alarm: { afterMinutes: 30 } });
+
+  it("без поставленного будильника пункт не закрыт — чек-лист не отправить", () => {
+    const summary = summarizeFill(sections(alarm), emptyDraft());
+
+    expect(summary.answered).toBe(0);
+    expect(summary.canSubmit).toBe(false);
+  });
+
+  it("поставленный будильник закрывает пункт и провалом не бывает", () => {
+    const summary = summarizeFill(
+      sections(alarm),
+      answered(emptyDraft(), "al", "14:30"),
+    );
+
+    expect(summary.answered).toBe(1);
+    expect(summary.failedItemIds).toStrictEqual([]);
+    expect(summary.canSubmit).toBe(true);
+  });
+});

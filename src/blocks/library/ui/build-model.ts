@@ -6,6 +6,7 @@
 // экран показывал бы список из одного, а число из другого.
 import type { LocalizedText } from "@/blocks/data";
 import { checklistPath } from "@/blocks/editor/routes";
+import type { Viewer } from "@/blocks/auth/scope";
 
 import { getBlock, listBlocks } from "../blocks";
 import { libraryBlockPath } from "../routes";
@@ -40,11 +41,12 @@ function usageRow(usage: BlockUsage, locale: string): LibraryUsageRow {
 async function buildSelection(
   blockId: string,
   locale: string,
+  viewer: Viewer,
 ): Promise<LibrarySelection | null> {
   const block = await getBlock(blockId);
   if (block === null) return null;
 
-  const usages = await listUsages(blockId);
+  const usages = await listUsages(blockId, viewer);
   return {
     id: block.id,
     title: pickText(block.title, locale),
@@ -58,30 +60,40 @@ async function buildSelection(
  * Модель экрана. Блок из адреса открывается, если он ещё существует; иначе открывается
  * первый в списке — экран с пустой правой половиной при непустой библиотеке выглядел бы
  * сломанным, а не «ничего не выбрано».
+ *
+ * Партнёру блок не открывается ни из адреса, ни первым в списке: правит библиотеку
+ * только УК (D145, D169), а редактор с сохранением, отвечающим 404, выглядел как
+ * поломка (T338). Партнёр видит список — что в библиотеке есть, — без ссылок.
  */
 export async function buildLibraryModel(
   view: LibraryView,
   locale: string,
+  viewer: Viewer,
 ): Promise<LibraryModel> {
+  const canEdit = viewer.tenantKind === "hq";
   const blocks = await listBlocks();
 
-  const requested =
-    view.blockId !== undefined &&
-    blocks.some((block) => block.id === view.blockId)
+  const requested = !canEdit
+    ? undefined
+    : view.blockId !== undefined &&
+        blocks.some((block) => block.id === view.blockId)
       ? view.blockId
       : blocks[0]?.id;
 
   const selection =
-    requested === undefined ? null : await buildSelection(requested, locale);
+    requested === undefined
+      ? null
+      : await buildSelection(requested, locale, viewer);
 
   return {
+    canEdit,
     blocks: blocks.map((block) => ({
       id: block.id,
       title: pickText(block.title, locale),
       itemCount: block.itemCount,
       usageCount: block.usageCount,
       selected: block.id === selection?.id,
-      href: libraryBlockPath(block.id),
+      href: canEdit ? libraryBlockPath(block.id) : null,
     })),
     selection,
   };

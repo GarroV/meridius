@@ -27,5 +27,39 @@ export function asGapFilter(value: string | undefined): GapFilter | undefined {
   return GAP_FILTERS.find((name) => name === value);
 }
 
-/** Форма раскатки на экране раздела; галочки колонки ссылаются на неё атрибутом `form`. */
+/**
+ * Форма выбора станций на экране раздела; галочки колонки ссылаются на неё атрибутом
+ * `form`. У неё две кнопки: раскатать шаблон (серверное действие) и напечатать наклейки
+ * (переход на лист печати с теми же галочками в адресе).
+ */
 export const ROLLOUT_FORM_ID = "rollout-form";
+
+/** Имя поля галочки колонки: его читают и раскатка, и лист печати. */
+export const STATION_IDS_PARAM = "stationIds";
+
+/** Лист печати наклеек пачкой (T311). */
+export const STICKERS_PATH = `${STATIONS_PATH}/stickers`;
+
+/** Лист наклеек на перечисленные станции — тот же адрес, что собирает форма колонки. */
+export function stickersHref(stationIds: readonly string[]): string {
+  const query = new URLSearchParams(
+    stationIds.map((id) => [STATION_IDS_PARAM, id]),
+  );
+  return `${STICKERS_PATH}?${query.toString()}`;
+}
+
+/**
+ * Параметр вопроса на карточке станции. Вопрос живёт в адресе, как на листе QR и в
+ * справочнике: окно открывается с сервера, переживает перезагрузку и задаётся без
+ * JavaScript. Значение — `reissue` (перевыпуск кода) или id планшета (его отвязка,
+ * `device/ui/UnlinkButton`).
+ */
+const CONFIRM_PARAM = "confirm";
+
+/** Значение `?confirm=` для вопроса о перевыпуске кода станции. */
+export const CONFIRM_REISSUE = "reissue";
+
+/** Карточка станции с открытым вопросом. */
+export function stationConfirmHref(stationId: string, confirm: string): string {
+  return `${stationHref(stationId)}?${CONFIRM_PARAM}=${encodeURIComponent(confirm)}`;
+}

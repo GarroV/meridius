@@ -17,17 +17,10 @@ import { seedStationWithoutChecklist } from "./fill-fixtures";
 test.describe("раздел «Станции»", () => {
   test.use({ locale: "ru-RU" });
 
-  // Последовательно, и это обход чужого дефекта, а не привычка. Каждый сценарий входит
-  // сам, а предел входа занимает место ДО проверки пароля и снимает счёт только после
-  // успеха: семь одновременных входов с верным паролем упираются в `perClient` (5 за
-  // 15 минут), и один-два сценария падают на входе — каждый раз разные. Выглядело как
-  // известная флейка под нагрузкой (#85), оказалось #170. Как только #170 починят,
-  // строку убрать: параллельный прогон здесь ничем больше не мешает.
-  test.describe.configure({ mode: "serial" });
-
   test.beforeEach(async ({ page }) => {
     await page.goto("/admin/login");
     await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+    await page.locator('input[name="login"]').fill("admin");
     await page.getByTestId("login-submit").click();
     await expect(page.getByTestId("admin-home")).toBeVisible();
   });
@@ -41,7 +34,10 @@ test.describe("раздел «Станции»", () => {
     ).toBeVisible();
 
     // D152: раздел обязан сказать о себе прямо на экране, а не подсказкой в другом месте.
-    await expect(page.getByText("Здесь живут станции сети")).toBeVisible();
+    // Общий вводный блок разделов (T316); все разделы разом держит `section-intro.spec.ts`.
+    await expect(
+      page.getByTestId("section-intro").filter({ visible: true }),
+    ).toContainText("Станция — место на кухне");
   });
 
   test("станция без чек-листа помечена и попадает в свой фильтр", async ({
@@ -142,7 +138,7 @@ test.describe("раздел «Станции»", () => {
     await expect(page.getByText("откроет пустоту")).toBeVisible();
   });
 
-  test("на карточке есть инструкция привязки и три факта, из-за которых её считали сломанной", async ({
+  test("на карточке есть инструкция привязки с настоящим адресом и факты, из-за которых её считали сломанной", async ({
     page,
   }) => {
     const seeded = await seedStationWithoutChecklist("инструкции", "ru");
@@ -156,13 +152,18 @@ test.describe("раздел «Станции»", () => {
 
     // Просьба владельца дословно: «надо в разделе привязки дать инструкцию, как
     // привязывать планшет, и соответственно всю логику описать».
-    const steps = page.getByTestId("pair-steps").getByRole("listitem");
-    await expect(steps).toHaveCount(3);
+    // Шаги — общие с продуктом (`device/ui/PairGuide`), с настоящим адресом страницы
+    // привязки (D167): его набирают на планшете, путь без площадки не годится.
+    const guide = page.getByTestId("pair-guide");
+    await expect(guide.getByTestId("pair-guide-step")).toHaveCount(4);
+    await expect(guide.getByTestId("pair-guide-address")).toHaveText(
+      /^https?:\/\/.+\/pair$/,
+    );
+    await expect(guide).toContainText("5 минут");
+    await expect(guide).toContainText("после перезагрузки");
 
     const facts = page.getByTestId("pair-facts");
-    await expect(facts).toContainText("пять минут");
     await expect(facts).toContainText("привязку планшета не трогает");
-    await expect(facts).toContainText("до отвязки");
   });
 
   test("неизвестный фильтр показывает всё, а не пустоту", async ({ page }) => {

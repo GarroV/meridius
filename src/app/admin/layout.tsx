@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { requireAdmin } from "@/blocks/auth/guard";
 import { asLocale, type Locale } from "@/blocks/core/locale";
 import { themeFromCookieHeader } from "@/blocks/core/theme";
+import { AdminViewerProvider } from "@/blocks/core/ui/admin-viewer";
 import { ThemeProvider } from "@/blocks/core/ui/ThemeProvider";
 import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
@@ -26,7 +27,8 @@ export default async function AdminLayout({
 }: {
   readonly children: ReactNode;
 }) {
-  await requireAdmin();
+  // Роль вошедшего меню берёт отсюда (T344): пункт УК и подпись в подвале.
+  const viewer = await requireAdmin();
 
   const locale = asLocale(await getLocale());
 
@@ -53,7 +55,9 @@ export default async function AdminLayout({
         admin: MESSAGES[locale].admin,
       }}
     >
-      <ThemeProvider choice={themeChoice}>{children}</ThemeProvider>
+      <AdminViewerProvider role={viewer.tenantKind}>
+        <ThemeProvider choice={themeChoice}>{children}</ThemeProvider>
+      </AdminViewerProvider>
     </NextIntlClientProvider>
   );
 }

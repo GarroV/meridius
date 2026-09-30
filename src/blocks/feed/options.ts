@@ -6,6 +6,7 @@
 import { eq } from "drizzle-orm";
 
 import { getDb, countries, stations, stores } from "@/blocks/data";
+import { countryCondition, type Scope } from "@/blocks/auth/scope";
 
 import type { FeedStationOption, FeedStoreOption, FilterOption } from "./model";
 
@@ -22,11 +23,16 @@ export interface FeedCatalog {
  * управляющий мог переключиться, не сбрасывая фильтр. Объём — справочник сети (десятки
  * строк на пилоте), и он не растёт вместе с историей заполнений.
  */
-export async function loadFeedCatalog(): Promise<FeedCatalog> {
+export async function loadFeedCatalog(scope: Scope): Promise<FeedCatalog> {
   const db = getDb();
 
+  // Выпадающие списки — только видимые страны (D145): выбор экрана берётся отсюда, и
+  // чужой идентификатор в адресе просто не находится.
   const [countryRows, storeRows, stationRows] = await Promise.all([
-    db.select({ id: countries.id, name: countries.name }).from(countries),
+    db
+      .select({ id: countries.id, name: countries.name })
+      .from(countries)
+      .where(countryCondition(scope, countries.id)),
     db
       .select({
         id: stores.id,
@@ -34,14 +40,17 @@ export async function loadFeedCatalog(): Promise<FeedCatalog> {
         countryId: stores.countryId,
         timezone: stores.timezone,
       })
-      .from(stores),
+      .from(stores)
+      .where(countryCondition(scope, stores.countryId)),
     db
       .select({
         id: stations.id,
         name: stations.name,
         storeId: stations.storeId,
       })
-      .from(stations),
+      .from(stations)
+      .innerJoin(stores, eq(stores.id, stations.storeId))
+      .where(countryCondition(scope, stores.countryId)),
   ]);
 
   return { countries: countryRows, stores: storeRows, stations: stationRows };

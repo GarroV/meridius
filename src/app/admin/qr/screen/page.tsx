@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf } from "@/blocks/auth/scope";
 import { buildScreenModel } from "@/blocks/qr/ui/build-model";
 import { publicBasePath } from "@/blocks/qr/sticker-origin";
 import { scanOrigin } from "@/blocks/qr/ui/origin";
@@ -17,13 +18,14 @@ export default async function QrStationScreenPage({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const ref = parseStationRef(await searchParams);
   if (ref === null) notFound();
 
   const requestHeaders = await headers();
   const model = await buildScreenModel(ref, {
+    scope: scopeOf(viewer),
     origin: scanOrigin(requestHeaders, process.env),
     basePath: publicBasePath(process.env),
     acceptLanguage: requestHeaders.get("accept-language"),

@@ -125,6 +125,13 @@ describe("publishVersion", () => {
     await expect(publishVersion(checklistId)).rejects.toThrow(/черновик/i);
   });
 
+  test("несуществующий чек-лист не публикуется и версий не заводит", async () => {
+    const missing = "2f1c9a3e-0000-4000-8000-00000000c0de";
+
+    await expect(publishVersion(missing)).rejects.toThrow(/Чек-листа .* нет/);
+    expect(await versionsOf(missing)).toStrictEqual([]);
+  });
+
   test("две одновременные публикации дают две версии, а не одну сломанную", async () => {
     const checklistId = await createChecklist();
     await createDraft(checklistId, sampleSections("гонка"));

@@ -1,4 +1,4 @@
-// «Сделать шаблоном» из шапки редактора (D169): тем путём, каким это делает методист.
+// «Сделать шаблоном» из шапки редактора (D174): тем путём, каким это делает методист.
 // Смысл ядра — какая версия уходит в шаблон, отказы — проверен на базе
 // (`src/blocks/editor/make-template.test.ts`); здесь — что кнопка есть, ведёт в
 // редактор шаблона, шаблон виден в разделе, а у чек-листа кнопка пропадает.
@@ -26,6 +26,7 @@ async function checklistOf(stationId: string): Promise<string> {
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/admin/login");
+  await page.locator('input[name="login"]').fill("admin");
   await page.locator('input[name="password"]').fill(E2E_ADMIN_PASSWORD);
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("admin-home")).toBeVisible();

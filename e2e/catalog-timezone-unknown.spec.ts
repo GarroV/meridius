@@ -76,6 +76,7 @@ async function signIn(page: Page): Promise<void> {
   // Не по подписи поля: она переводится, а английский сценарий этого же файла
   // проверяет тот же экран на другом языке.
   await page.locator('input[name="password"]').fill(E2E_ADMIN_PASSWORD);
+  await page.locator('input[name="login"]').fill("admin");
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }

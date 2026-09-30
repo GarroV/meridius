@@ -1,7 +1,6 @@
 import { useTranslations } from "next-intl";
 import type { ChangeEvent } from "react";
 
-import type { StationOption } from "../listing";
 import type { WindowValue } from "../window-field";
 import {
   WINDOW_PRESETS,
@@ -22,7 +21,11 @@ const BOUND_CLASS =
   "flex min-w-0 flex-1 basis-[132px] items-center gap-[var(--space-4)]";
 
 /**
- * Свойства чек-листа: название, станция, окно.
+ * Свойства чек-листа: название и окно.
+ *
+ * Станции здесь нет (T312, D163): чек-лист вешают на станцию в разделе «Станции», на
+ * карточке станции. Два входа — «станция чек-листа» здесь и «чек-лист станции» там —
+ * противоречили друг другу, и владелец не находил, где же привязка (#165).
  *
  * Окно задаётся двумя способами сразу, и это не дубль: список — быстрый выбор трёх
  * обычных смен станции, поля времени — своё окно для всего остального (T185; до него
@@ -36,22 +39,13 @@ const BOUND_CLASS =
  */
 export function PropertiesCard({
   title,
-  stationId,
   window,
-  stations,
-  showStation,
   onTitle,
-  onStation,
   onWindow,
 }: {
   readonly title: string;
-  readonly stationId: string;
   readonly window: WindowValue;
-  readonly stations: readonly StationOption[];
-  /** `false` у шаблона: станции у него не бывает, и пустой выбор читался бы «выбрать потом». */
-  readonly showStation: boolean;
   readonly onTitle: (value: string) => void;
-  readonly onStation: (value: string) => void;
   readonly onWindow: (value: WindowValue) => void;
 }) {
   const t = useTranslations("editor.form");
@@ -62,7 +56,7 @@ export function PropertiesCard({
 
   return (
     <div className="bg-surface mb-[var(--space-8)] rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]">
-      {/* Ниже складки три поля свойств встают столбиком: в строку они помещаются
+      {/* Ниже складки поля свойств встают столбиком: в строку они помещаются
         только обрезанными — «Открытие см…» вместо названия чек-листа. */}
       <div className="flex gap-[var(--space-6)] p-[var(--space-7)] max-md:flex-col">
         <div className="flex min-w-0 flex-1 flex-col gap-[var(--space-3)]">
@@ -80,31 +74,6 @@ export function PropertiesCard({
             }}
           />
         </div>
-
-        {showStation ? (
-          <div className="flex min-w-0 flex-1 flex-col gap-[var(--space-3)]">
-            <label className={FIELD_LABEL_CLASS} htmlFor="checklist-station">
-              {t("station")}
-            </label>
-            <select
-              id="checklist-station"
-              data-testid="checklist-station"
-              className={`${CONTROL_CLASS} pr-[var(--space-8)]`}
-              style={SELECT_ARROW}
-              value={stationId}
-              onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                onStation(event.target.value);
-              }}
-            >
-              <option value="">{t("noStation")}</option>
-              {stations.map((station) => (
-                <option key={station.id} value={station.id}>
-                  {`${station.countryName} · ${station.storeName} · ${station.name}`}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
 
         <div className="flex min-w-0 flex-1 flex-col gap-[var(--space-3)]">
           <label className={FIELD_LABEL_CLASS} htmlFor="checklist-window">

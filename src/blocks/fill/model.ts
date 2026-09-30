@@ -42,6 +42,18 @@ export interface FillItemView {
   readonly unit: string | null;
   /** Колонки журнала; есть только у табличного пункта (D074). */
   readonly columns?: readonly FillColumnView[];
+  /** Будильник, заложенный составителем; есть только у пункта-будильника (D156). */
+  readonly alarm?: FillAlarmView;
+}
+
+/**
+ * Будильник пункта в том виде, в каком его подставляет экран (D156): подпись на языке
+ * экрана и ОДНО из двух — час «ЧЧ:ММ» или отсрочка в минутах от открытия пункта.
+ */
+export interface FillAlarmView {
+  readonly label: string;
+  readonly at: string | null;
+  readonly afterMinutes: number | null;
 }
 
 export interface FillSectionView {

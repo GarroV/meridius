@@ -480,6 +480,42 @@ describe("listSubmissions — фильтры", () => {
     }
   });
 
+  test("область стран (D145): только перечисленные страны, пустой список — ничего", async () => {
+    const a = await readyVersion("scope-a");
+    const b = await readyVersion("scope-b");
+    const itemA = a.sections[0]?.items[0]?.id ?? "";
+    const itemB = b.sections[0]?.items[0]?.id ?? "";
+    const idA = await saveSubmission({
+      mode: "normal",
+      versionId: a.versionId,
+      answers: [boolAnswer(itemA, true)],
+      startedAt: Date.now(),
+    });
+    const idB = await saveSubmission({
+      mode: "normal",
+      versionId: b.versionId,
+      answers: [boolAnswer(itemB, true)],
+      startedAt: Date.now(),
+    });
+
+    const mine = (
+      await listSubmissions({ countryIds: [a.station.countryId] })
+    ).map((row) => row.id);
+    expect(mine).toContain(idA);
+    expect(mine).not.toContain(idB);
+
+    // Пустой список стран — партнёр без стран: он не видит ничего, а не всё.
+    expect(await listSubmissions({ countryIds: [] })).toEqual([]);
+
+    // Страна из фильтра экрана не расширяет область: чужая страна при своей области пуста.
+    expect(
+      await listSubmissions({
+        countryIds: [a.station.countryId],
+        countryId: b.station.countryId,
+      }),
+    ).toEqual([]);
+  });
+
   test("фильтрует по периоду включительно с обеих сторон и комбинирует фильтры", async () => {
     const { station, versionId } = await readyVersion("period");
     const early = new Date("2026-01-01T00:00:00.000Z");

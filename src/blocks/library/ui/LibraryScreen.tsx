@@ -5,6 +5,7 @@ import { getMessages, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
+import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 
 import { submitCreateBlock } from "../actions";
 import { BlockEditor } from "./BlockEditor";
@@ -40,8 +41,6 @@ const CARD_HEAD_CLASS =
   "flex items-center gap-[var(--space-6)] rounded-t-[var(--r-block)] border-b border-[var(--line)] bg-[var(--surface-3)] px-[var(--space-7)] py-[var(--space-6)]";
 const CARD_TITLE_CLASS =
   "text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold";
-const NOTICE_CLASS =
-  "flex gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--line-strong)] bg-[var(--surface-2)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)]";
 const ROW_CLASS =
   "flex items-center gap-[var(--space-4)] border-b border-[var(--line)] px-[var(--space-6)] py-[var(--space-5)] text-ink no-underline hover:bg-[var(--surface-2)]";
 const ROW_SELECTED_CLASS =
@@ -69,14 +68,8 @@ function BlockRow({
   readonly row: LibraryBlockRow;
   readonly t: Translate;
 }): ReactElement {
-  return (
-    <Link
-      href={row.href}
-      data-testid="library-block"
-      data-selected={row.selected ? "true" : "false"}
-      aria-current={row.selected ? "true" : undefined}
-      className={row.selected ? ROW_SELECTED_CLASS : ROW_CLASS}
-    >
+  const content = (
+    <>
       {row.title}
       <span className={ROW_META_CLASS}>
         {t("items", { count: row.itemCount })} ·{" "}
@@ -94,6 +87,28 @@ function BlockRow({
           t("usedIn", { count: row.usageCount })
         )}
       </span>
+    </>
+  );
+
+  // Партнёру блок не открыть (T338): строка — справка о том, что в библиотеке есть,
+  // а не ссылка в редактор, который ему не откроется.
+  if (row.href === null) {
+    return (
+      <div data-testid="library-block" className={ROW_CLASS}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={row.href}
+      data-testid="library-block"
+      data-selected={row.selected ? "true" : "false"}
+      aria-current={row.selected ? "true" : undefined}
+      className={row.selected ? ROW_SELECTED_CLASS : ROW_CLASS}
+    >
+      {content}
     </Link>
   );
 }
@@ -159,6 +174,17 @@ function UsagesCard({
   );
 }
 
+/** Вместо редактора у партнёра: кто правит блоки и где их вставляют (T338). */
+function ReadOnlyNote({ t }: { readonly t: Translate }): ReactElement {
+  return (
+    <div className={CARD_CLASS} data-testid="library-read-only">
+      <p className="m-0 px-[var(--space-6)] py-[var(--space-6)] text-[var(--ink-2)]">
+        {t("readOnly")}
+      </p>
+    </div>
+  );
+}
+
 function EmptyLibrary({ t }: { readonly t: Translate }): ReactElement {
   return (
     <div className={CARD_CLASS} data-testid="library-empty">
@@ -208,27 +234,28 @@ export async function LibraryScreen({
     <AdminShell
       testId="library-screen"
       active="library"
-      breadcrumb={t("crumbs")}
+      // Партнёру библиотека только для чтения (D169) — для него это справочник (T344).
+      breadcrumb={model.canEdit ? t("crumbs") : t("crumbsReadOnly")}
       title={t("title")}
       topbarAction={
-        <form action={submitCreateBlock}>
-          <input type="hidden" name="locale" value={locale} />
-          <input type="hidden" name="title" value={t("newTitle")} />
-          <button
-            type="submit"
-            data-testid="new-block"
-            className={BTN_PRIMARY_CLASS}
-          >
-            {t("new")}
-          </button>
-        </form>
+        model.canEdit ? (
+          <form action={submitCreateBlock}>
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="title" value={t("newTitle")} />
+            <button
+              type="submit"
+              data-testid="new-block"
+              className={BTN_PRIMARY_CLASS}
+            >
+              {t("new")}
+            </button>
+          </form>
+        ) : null
       }
     >
-      <div className={NOTICE_CLASS}>
-        <div>{t("notice")}</div>
-      </div>
+      <SectionIntro section="library" />
 
-      {model.selection === null ? (
+      {model.blocks.length === 0 ? (
         <EmptyLibrary t={t} />
       ) : (
         <div className={SPLIT_CLASS}>
@@ -243,18 +270,22 @@ export async function LibraryScreen({
             </div>
           </section>
 
-          <div className="flex min-w-0 flex-col gap-[var(--space-6)]">
-            <NextIntlClientProvider locale={locale} messages={clientMessages}>
-              <BlockEditor
-                key={model.selection.id}
-                blockId={model.selection.id}
-                locale={locale}
-                initialTitle={model.selection.title}
-                initialItems={model.selection.items}
-              />
-            </NextIntlClientProvider>
-            <UsagesCard selection={model.selection} t={t} />
-          </div>
+          {model.selection === null ? (
+            <ReadOnlyNote t={t} />
+          ) : (
+            <div className="flex min-w-0 flex-col gap-[var(--space-6)]">
+              <NextIntlClientProvider locale={locale} messages={clientMessages}>
+                <BlockEditor
+                  key={model.selection.id}
+                  blockId={model.selection.id}
+                  locale={locale}
+                  initialTitle={model.selection.title}
+                  initialItems={model.selection.items}
+                />
+              </NextIntlClientProvider>
+              <UsagesCard selection={model.selection} t={t} />
+            </div>
+          )}
         </div>
       )}
     </AdminShell>

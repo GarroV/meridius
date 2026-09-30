@@ -48,6 +48,20 @@ run "тесты"            npx --no-install vitest run --coverage --reporter=de
 run "порог покрытия"   node scripts/coverage-gate.mjs
 run "мёртвый код"      npx --no-install knip
 run "границы модулей"  npx --no-install depcruise src
+# `--no-e2e` зовёт хук pre-push (D168): на Маке стендов нет, а сквозные поднимают сервер
+# продукта и по туннелю к базе ложно краснеют под нагрузкой (#173). Их гоняет CI на
+# каждом PR и пуше в main. Пропуск объявляется вслух: молчащий пропуск неотличим от
+# пройденной проверки.
+if [ "${1:-}" = "--no-e2e" ]; then
+  printf '\n\033[33m▸ сквозные сценарии и переводы НЕ гонялись (--no-e2e): их гоняет CI, см. D168\033[0m\n'
+  if [ ${#FAILED[@]} -gt 0 ]; then
+    printf '\n\033[31mПРОВАЛ (%d): %s\033[0m\n' "${#FAILED[@]}" "${FAILED[*]}"
+    exit 1
+  fi
+  printf '\n\033[32mБЫСТРЫЙ НАБОР ПРОЙДЕН\033[0m · сквозные — в CI · отчёты в reports/\n'
+  exit 0
+fi
+
 run "сквозные сценарии" npx --no-install playwright test
 E2E_LOG="$LAST_LOG"
 

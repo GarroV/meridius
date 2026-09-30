@@ -10,6 +10,10 @@ import { createStation } from "@/blocks/data/testing/fixtures";
 
 import { consumePairingPin, issuePairingPin } from "./pairing";
 import { PIN_TTL_SECONDS } from "./pin";
+import { holdPairingsLock } from "./testing/pairings-lock";
+
+// Выпуск чистит истёкшие пины всех станций: соседние файлы с пинами ждут своей очереди (T346).
+holdPairingsLock();
 
 const NOW = new Date("2026-09-23T10:00:00Z");
 const SECOND = 1000;
@@ -60,7 +64,7 @@ describe("выпуск пина", () => {
     });
   });
 
-  it("чистит истёкшие несъеденные пины тем же запросом, что выпускает новый", async () => {
+  it("чистит истёкшие несъеденные пины тем же выпуском, что выдаёт новый", async () => {
     const stale = await createStation();
     const fresh = await createStation();
     await issuePairingPin(stale.stationId, NOW);

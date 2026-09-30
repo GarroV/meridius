@@ -19,6 +19,7 @@ import {
   stores,
   submissions,
 } from "@/blocks/data";
+import { countryCondition, type Scope } from "@/blocks/auth/scope";
 
 import { type StationGap, gapsOf } from "./gaps";
 
@@ -54,8 +55,14 @@ export interface NetworkStation {
 // SQL. Иначе сравнение `checklistCount === 0` в `gaps.ts` ловит строку "0", молча не
 // срабатывает, и экран показывает «разрывов нет» ровно там, где станция стоит без
 // чек-листа. Поймано на себе: линт счёл обёртку `Number()` лишней, потому что верил типу.
+//
+// Считаются только действующие чек-листы. Удаление чек-листа с заполнениями лишь ставит
+// `archived_at` и оставляет `station_id` (`editor/removal.ts`), поэтому без условия станция
+// с одним снятым с работы чек-листом выглядела бы закрытой, хотя наклейка открывает пустоту
+// (#193).
 const checklistCount = sql<number>`(
-  select count(*)::int from ${checklists} where ${checklists.stationId} = ${stations.id}
+  select count(*)::int from ${checklists}
+  where ${checklists.stationId} = ${stations.id} and ${checklists.archivedAt} is null
 )`;
 
 const deviceCount = sql<number>`(
@@ -84,6 +91,7 @@ const lastSubmissionAt = sql<Date | null>`(
  * на каждой отрисовке и разъезжалось между экраном и печатью наклеек.
  */
 export async function listNetworkStations(
+  scope: Scope,
   now: Date = new Date(),
 ): Promise<readonly NetworkStation[]> {
   const rows = await getDb()
@@ -103,6 +111,8 @@ export async function listNetworkStations(
     .from(stations)
     .innerJoin(stores, eq(stations.storeId, stores.id))
     .innerJoin(countries, eq(stores.countryId, countries.id))
+    // Область видимости (D145): партнёр видит станции своих стран, УК — всю сеть.
+    .where(countryCondition(scope, stores.countryId))
     .orderBy(asc(countries.name), asc(stores.name), asc(stations.name));
 
   return rows.map(({ createdAt, ...row }) => ({

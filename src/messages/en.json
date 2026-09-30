@@ -7,10 +7,11 @@
   "login": {
     "brand": "MERIDIUS",
     "brandMuted": "Dodo",
+    "login": "Login",
     "password": "Password",
     "submit": "Sign in",
     "submitting": "Checking…",
-    "failed": "Wrong password",
+    "failed": "Wrong login or password",
     "throttled": "Too many sign-in attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
     "kitchenHint": "Kitchen staff do not need to sign in: the checklist opens from the station QR code."
   },
@@ -26,7 +27,7 @@
     "code": "Error code"
   },
   "admin": {
-    "home": "Admin",
+    "home": "Home",
     "theme": {
       "label": "Theme",
       "system": "Auto",
@@ -49,34 +50,30 @@
     "signOut": "Sign out",
     "sections": {
       "checklists": "Checklists",
-      "checklistsHint": "Create a checklist and publish a version",
       "stations": "Stations",
-      "stationsHint": "Put a checklist on a station and pair a tablet",
       "templates": "Templates",
-      "templatesHint": "Take a head-office template and adapt it",
       "qr": "QR codes",
-      "qrHint": "Print station stickers",
       "feed": "Submissions",
-      "feedHint": "See what stations submitted",
       "catalog": "Countries and pizzerias",
-      "catalogHint": "Add a pizzeria and its stations",
       "library": "Block library",
-      "libraryHint": "Create a block and insert it into checklists",
       "devices": "Devices",
-      "devicesHint": "See paired tablets and unpair them"
+      "partners": "Partners"
     },
     "nav": {
       "brand": "MERIDIUS",
       "brandMuted": "Dodo",
       "soon": "Section is not ready yet",
       "signedIn": "Signed in",
-      "role": "methodologist",
       "groups": {
         "work": "Work",
         "reference": "Reference"
       },
       "home": "Home",
-      "search": "Find a checklist"
+      "search": "Find a checklist",
+      "roles": {
+        "hq": "HQ methodologist",
+        "partner": "partner"
+      }
     }
   },
   "catalog": {
@@ -164,7 +161,8 @@
       "checklistArchived": "This checklist is withdrawn — it cannot be assigned to a station",
       "confirmationRequired": "Deletion needs confirmation",
       "notFound": "Record not found",
-      "codeCollision": "This QR code is already taken — try again"
+      "codeCollision": "This QR code is already taken — try again",
+      "storeCodeTaken": "Another pizzeria in this country already has this store code"
     }
   },
   "editor": {
@@ -197,7 +195,6 @@
       "items": "{count, plural, one {# item} other {# items}}",
       "back": "All checklists",
       "pickTitle": "Pick a checklist on the left",
-      "pickHint": "It opens right here, next to the list — no need to go to another page.",
       "close": "Close panel"
     },
     "form": {
@@ -259,6 +256,7 @@
       "typeNumber": "Number",
       "typeText": "Text",
       "typeTable": "Table",
+      "typeAlarm": "Alarm",
       "critical": "Critical",
       "from": "from",
       "to": "to",
@@ -272,6 +270,16 @@
       "normal": "Normal",
       "major": "Major",
       "severityLabel": "How critical the item is"
+    },
+    "alarm": {
+      "label": "Alarm label",
+      "labelPlaceholder": "For example: take the dough out",
+      "when": "When",
+      "modeAfter": "A delay after opening",
+      "modeAt": "At a set time",
+      "at": "At",
+      "after": "In",
+      "minutes": "min"
     },
     "table": {
       "columns": "Log columns",
@@ -334,13 +342,18 @@
       "empty": "No blocks yet"
     },
     "notice": {
-      "station": "This is the checklist of station “{station}” at store “{store}” (the “Station” field). The station’s QR code and tablet open the version published at the moment they are opened.",
-      "noStation": "No station selected: while the “Station” field is empty, neither a QR code nor a tablet opens this checklist.",
+      "station": "The checklist is on station “{station}” of store “{store}”: the station’s QR code and tablet open the version published at the moment they are opened.",
+      "noStation": "The checklist is not on a station: until it is, its QR code opens nothing. Checklists are put on stations in the Stations section.",
+      "openStation": "The station, its sticker and its tablet are in Stations",
+      "attach": "Put on a station",
       "windowOpen": "Window {start}–{end}: it is {now} at the store and the window is open — the employee will see the published version right away.",
       "windowClosedToday": "Window {start}–{end}: it is {now} at the store and the window is closed — the employee will see the published version today from {opensAt}.",
       "windowClosedTomorrow": "Window {start}–{end}: it is {now} at the store and the window is closed — the employee will see the published version tomorrow from {opensAt}."
     },
     "preview": {
+      "alarm": "Alarm “{label}” — {when}",
+      "alarmAt": "at {time}",
+      "alarmAfter": "{minutes} min after opening",
       "title": "Preview",
       "notice": "This is what an employee sees. It only shows: the employee answers and submits on their own phone, opening the checklist by the station QR code.",
       "progress": "{done} of {total}",
@@ -374,6 +387,9 @@
       "emptyTitle": "The title is empty.",
       "notFound": "Checklist not found.",
       "nothingToPublish": "Nothing to publish: the checklist has no items.",
+      "badSchedule": "The round schedule was not accepted: check the time ranges.",
+      "tooManyColumns": "Too many columns: there can be no more than {limit}.",
+      "badAlarm": "The alarm needs a time: an hour or a number of minutes.",
       "unknownBlock": "The inserted library block was not found.",
       "unknown": "Could not save. Please try again."
     },
@@ -386,6 +402,25 @@
       "confirmDelete": "Delete completely",
       "confirmArchive": "Take out of service",
       "cancel": "Cancel"
+    },
+    "templateUpdate": {
+      "origin": "Copy of template “{title}”, version {version}",
+      "updated": "Template “{title}” has been updated: version {version}",
+      "updatedHint": "See what changed and take whatever suits you. The copy stays yours.",
+      "view": "See what changed",
+      "dismiss": "Keep as is",
+      "title": "What changed in the template",
+      "intro": "Template “{title}”: version {from} → {to}. Tick what to take — everything else in your copy stays as it was.",
+      "added": "Added",
+      "changed": "Changed",
+      "removed": "Removed",
+      "was": "was: {title}",
+      "section": "Section “{title}”",
+      "none": "No items in the template have changed.",
+      "take": "Take the ticked changes",
+      "takeHint": "They go into the draft — publish once you have looked them over.",
+      "stale": "The template was updated again — the differences below are against its latest version.",
+      "untitled": "Untitled"
     }
   },
   "qr": {
@@ -560,6 +595,8 @@
       "labelLabel": "What for",
       "labelPlaceholder": "For example: take out the dough",
       "add": "Set",
+      "itemAdd": "Set the alarm",
+      "itemSet": "The alarm is set for {time} — it is in the alarms panel below.",
       "drop": "Remove the alarm «{label}»",
       "ringing": "Alarm for {time}",
       "acknowledge": "Got it",
@@ -720,14 +757,48 @@
         "noPassesText": "Rounds are set up, but the checklist window never ran on these days: widen the period or clear the filters.",
         "noPassesAction": "Clear filters"
       }
+    },
+    "stats": {
+      "title": "Statistics",
+      "link": "Statistics",
+      "backToFeed": "Back to feed",
+      "lead": "A summary for a country or a single pizzeria: where things go wrong and what exactly. The numbers are counted from submissions, round marks and alarms over the selected period — the same data as the feed.",
+      "period": "last {days} days: {from} to {to}",
+      "days7": "7 days",
+      "days30": "30 days",
+      "submissions": "{count, plural, one {submission} other {submissions}} in the period",
+      "criticalShare": "submissions with a failed critical item: {failed} of {total}",
+      "criticalShareEmpty": "share with a failed critical item — no submissions",
+      "alarms": "{count, plural, one {alarm set} other {alarms set}}; alarms removed by staff are not counted",
+      "silent": "{count, plural, one {station silent} other {stations silent}} for over 24 hours",
+      "noValue": "—",
+      "topTitle": "Failed most often",
+      "topLead": "The five items failed most often — in submissions and in round marks.",
+      "topItem": "Item",
+      "topFailures": "Failures",
+      "topStores": "Pizzerias",
+      "topEmpty": "No item was failed in the period.",
+      "silentTitle": "Silent for over 24 hours",
+      "silentLead": "Stations with a working checklist that sent neither a submission nor a round mark in the last 24 hours. Does not depend on the period.",
+      "silentStation": "Station",
+      "silentFor": "Silent for",
+      "silentLast": "Last signal",
+      "silentHours": "{hours} h",
+      "silentDays": "{days} d {hours} h",
+      "silentNever": "never",
+      "silentEmpty": "Every station with a working checklist sent a signal in the last 24 hours.",
+      "silentMore": "Showing {shown} of {total}, longest silent first.",
+      "emptyTitle": "Nothing to count yet",
+      "emptyText": "For these filters there are no submissions or alarms in the period, and no station is expected to report. Set up a checklist on a station — or widen the period to 30 days.",
+      "emptyAction": "Open checklists"
     }
   },
   "library": {
     "crumbs": "Work",
+    "crumbsReadOnly": "Reference",
     "title": "Block library",
     "new": "+ New block",
     "newTitle": "New block",
-    "notice": "A block is created once and inserted into any number of checklists. Editing a block reaches every draft it sits in; already published checklist versions never change.",
     "listTitle": "Blocks",
     "items": "{count, plural, one {# item} other {# items}}",
     "usedIn": "in {count}",
@@ -759,7 +830,8 @@
       "nothingToPublish": "Nothing to publish.",
       "unknownBlock": "Library block not found.",
       "unknown": "Could not save. Try again."
-    }
+    },
+    "readOnly": "Library blocks are created and edited by the management company: a change to a block reaches checklists across the whole network. You can insert a block into your own checklist from its editor."
   },
   "device": {
     "pair": {
@@ -783,6 +855,7 @@
       "failed": {
         "temporary": "Could not reach the database. Wait a minute and press again.",
         "stationGone": "This station no longer exists — it was deleted. Refresh the page.",
+        "tooOften": "Too many codes issued in a row. You can issue a new one in {minutes, plural, one {# minute} other {# minutes}}.",
         "broken": "A server fault stops the code from being issued, and retrying will not help. Tell whoever runs MERIDIUS: the cause is in the server log.",
         "offline": "No connection to the server. Check the internet and press again."
       }
@@ -853,7 +926,7 @@
       "lead": "Once per tablet, about a minute. You need a tablet with internet and this workspace — on a computer or a phone.",
       "step1": {
         "title": "Issue a code",
-        "text": "In the list below, click the station where the tablet will stand, then “Pair a tablet”. Four digits appear.",
+        "text": "In Stations, open the station where the tablet will stand and press “Pair a tablet”. Four digits appear.",
         "drawerText": "Press “Pair a tablet” above — four digits appear."
       },
       "step2": {
@@ -866,7 +939,7 @@
       },
       "step4": {
         "title": "Done",
-        "text": "The tablet opens the station checklist right away and keeps opening it on its own — after a restart and without a new code. Here the station gets the “Tablet paired” mark."
+        "text": "The tablet opens the station checklist right away and keeps opening it on its own — after a restart and without a new code. The paired tablet appears on the station card."
       },
       "trouble": {
         "title": "If it did not work",
@@ -881,12 +954,10 @@
   "stations": {
     "title": "Stations",
     "breadcrumb": "Work",
-    "intro": "This is where the network's stations live. You can see what covers each one and how it is filled in: by phone from the sticker, or from a paired tablet. A station with no checklist is marked — its sticker opens onto nothing.",
     "rail": {
       "label": "Station list",
       "back": "All stations",
-      "pickTitle": "Pick a station on the left",
-      "pickHint": "Its card opens right here, next to the list: the station's checklist, sticker and tablet."
+      "pickTitle": "Pick a station on the left"
     },
     "checklists": "{count, plural, one {# checklist} other {# checklists}}",
     "tabletPaired": "Tablet paired",
@@ -909,6 +980,8 @@
       "attachLabel": "Put a checklist on it",
       "attach": "Put on",
       "nothingToAttach": "No free checklists — they are all on stations already.",
+      "originCopy": "Copy of the “{template}” template, version {version}",
+      "originLocal": "Local: made here, not copied from a template",
       "sticker": "Sticker",
       "stickerWhat": "People scan the sticker with their own phone. Nothing needs pairing for that.",
       "print": "Print",
@@ -917,15 +990,13 @@
       "tablet": "Tablet",
       "tabletWhat": "A tablet is paired once and then simply stays on the station.",
       "noTablet": "No tablet paired.",
-      "pairedAt": "Paired {at, date, short}"
+      "pairedAt": "Paired {at, date, short}",
+      "lastSeen": "Last seen {at, date, short}",
+      "download": "Download",
+      "openScreen": "Open the code on a tablet"
     },
     "pairing": {
-      "step1": "Press “Pair a tablet” — a four-digit code appears.",
-      "step2": "On the tablet, open the pairing address shown next to the code.",
-      "step3": "Enter the code. The tablet is now bound to this station and opens it by itself.",
-      "factTtl": "The code lives five minutes and works once. Missed it — issue a new one, that breaks nothing.",
-      "factReissue": "Reissuing the QR sticker does not touch the tablet pairing. They are different things: the sticker is an address for phones, the pairing is the tablet itself.",
-      "factPersists": "The tablet stays paired until you unpair it. A reboot, a lost network and a closed tab do not undo it."
+      "factReissue": "Reissuing the QR sticker does not touch the tablet pairing. They are different things: the sticker is an address for phones, the pairing is the tablet itself."
     },
     "rollout": {
       "label": "Roll out a template",
@@ -933,13 +1004,20 @@
       "hint": "Tick the stations. Each gets its own copy — from then on the country edits it as its own.",
       "noTemplates": "No templates yet. Nothing to roll out.",
       "done": "Done: copies placed — {copied}, skipped (a copy was already there) — {skipped}."
+    },
+    "stickers": {
+      "title": "Stickers for the selected stations",
+      "action": "Print stickers for the selected",
+      "print": "Print",
+      "count": "A4 · {count, plural, one {# sticker} other {# stickers}} · {stores, plural, one {# pizzeria} other {# pizzerias}}",
+      "sheetTitle": "Print sheet",
+      "empty": "No stations selected. Tick them in the column on the left and press “Print stickers for the selected”."
     }
   },
   "templates": {
     "title": "Templates",
     "breadcrumb": "Work",
     "new": "New template",
-    "intro": "This is how we see the ideal shift. Take a template and adapt it: your copy lives its own life, and the template prescribes nothing.",
     "empty": "No templates yet. Create the first one or make one from a ready checklist — the “Make a template” button in its editor. Every country will be able to take it.",
     "untitled": "Untitled",
     "items": "{count, plural, one {# item} other {# items}}",
@@ -993,6 +1071,103 @@
       "title": "What’s happening",
       "all": "All fills",
       "empty": "No fills in the selected period."
+    },
+    "checklistsTitle": "My checklists",
+    "checklistsAll": "All checklists ({count})",
+    "noStation": "Not on a station",
+    "version": "Version {number}",
+    "changed": "unpublished changes",
+    "unpublished": "Not published",
+    "emptyTitle": "You have no checklists yet",
+    "emptyText": "Start from a head-office template: take a copy, adjust it to your pizzerias and put it on your stations.",
+    "emptyAction": "Make one from a template"
+  },
+  "partners": {
+    "crumbs": "Directory",
+    "title": "Partners",
+    "createTitle": "Add a partner",
+    "tenant": "Partner",
+    "tenantHint": "Partner name. If this partner already exists, the new account and the ticked countries are added to it — countries already given are not taken away.",
+    "login": "Login",
+    "loginHint": "Lowercase Latin letters, digits, dot, hyphen and underscore — 3 to 64 characters.",
+    "password": "Password",
+    "passwordHint": "At least {min} characters.",
+    "countries": "Partner countries",
+    "countriesEmpty": "There are no countries in the directory yet — add them in the Directory section first.",
+    "create": "Add",
+    "creating": "Adding…",
+    "created": "Account “{login}” created. Hand the login and password to the partner.",
+    "listTitle": "Partner accounts",
+    "listEmpty": "No partner accounts yet.",
+    "active": "Active",
+    "disabledSince": "Removed {date}",
+    "noCountries": "No countries — the partner will see nothing.",
+    "disabledNote": "Sign-in with this account is refused. The login stays taken.",
+    "changePassword": "Change password",
+    "newPassword": "New password",
+    "save": "Save",
+    "saving": "Saving…",
+    "passwordChanged": "Password changed. Anyone already signed in with this account is sent to the sign-in form on their next step.",
+    "resetPassword": "Reset password",
+    "resetting": "Resetting…",
+    "resetConfirm": "The partner gets a new random password; the old one stops working at once and open sessions end.",
+    "resetYes": "Reset",
+    "resetDone": "New password — write it down now, it will not be shown again:",
+    "disable": "Remove account",
+    "disableConfirm": "Sign-in with this account is refused at once and open sessions end. A removed account cannot be restored from this screen.",
+    "disableYes": "Remove",
+    "disabling": "Removing…",
+    "errors": {
+      "tenant-name": "The partner name is empty or longer than 120 characters.",
+      "hq-tenant": "That is the management company's name — a partner cannot be called that.",
+      "no-countries": "Tick at least one country.",
+      "unknown-country": "One of the ticked countries is no longer in the directory. Reload the page.",
+      "root-login": "The login admin belongs to the management company account.",
+      "login-shape": "Login has the wrong form: lowercase Latin letters, digits, dot, hyphen and underscore, 3 to 64 characters.",
+      "login-taken": "This login is already taken.",
+      "short-password": "The password is shorter than {min} characters.",
+      "not-found": "Account not found. Reload the page.",
+      "removed": "The account has already been removed.",
+      "unknown": "That did not work. Try again; if it keeps failing, tell the developers."
+    }
+  },
+  "sectionIntro": {
+    "label": "About this section",
+    "more": "More",
+    "checklists": {
+      "why": "A checklist is what a team member checks at a station during a shift.",
+      "what": "This is where checklists are created and edited: items, the shift window, blocks from the library. The kitchen sees only the published version, so a draft is safe to edit.",
+      "next": "Once published, the checklist opens from its station's QR sticker, and what gets filled in shows up in Submissions."
+    },
+    "stations": {
+      "why": "A station is the place in the kitchen where a checklist is filled in: by phone from the sticker, or from a paired tablet.",
+      "what": "Here you can see what covers each station. A station with no checklist is marked — its sticker opens onto nothing. Tick stations in the column to roll out a copy of a template to them or to print their stickers in one go.",
+      "next": "Open a station to find its checklist, its sticker and tablet pairing."
+    },
+    "templates": {
+      "why": "A template is how we see the ideal shift. It prescribes nothing.",
+      "what": "Take a template and adapt it: your copy lives its own life. When the template is updated, your copy shows what changed, and you take what fits.",
+      "next": "A template you have taken is rolled out to stations in Stations."
+    },
+    "library": {
+      "why": "A block is a set of items that repeats across checklists.",
+      "what": "A block's items are edited here, in one place, and the change appears in every draft the block is inserted into. Published versions do not change.",
+      "next": "Insert the block into a checklist in the editor and publish a version — that is when the change reaches the kitchen."
+    },
+    "feed": {
+      "why": "This is where you see what was actually filled in at the stations.",
+      "what": "A feed of submissions by country and pizzeria: failed items, comments, alarms. Any submission opens as a card; a 7- and 30-day summary is behind the Statistics link.",
+      "next": "Found a weak spot? Fix the checklist in Checklists or look into the station in Stations."
+    },
+    "catalog": {
+      "why": "The network directory: countries, pizzerias and their stations. Everything else relies on it.",
+      "what": "Add a pizzeria and its stations. Head office edits the whole network; a partner edits the pizzerias and stations of their own countries.",
+      "next": "A new station appears in Stations: put a checklist on it and print its sticker."
+    },
+    "partners": {
+      "why": "A partner is a pizzeria network that works in the cabinet with its own countries.",
+      "what": "Create a partner account here and give it countries: signed in with its own login, the partner sees only those. Passwords are changed and reset and accounts removed here too.",
+      "next": "Hand the login and password to the partner yourself — the product does not send them."
     }
   }
 }

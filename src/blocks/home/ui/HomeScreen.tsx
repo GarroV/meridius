@@ -7,6 +7,7 @@ import { FeedMetrics } from "@/blocks/feed/ui/FeedMetrics";
 import type { FeedView } from "@/blocks/feed/view";
 
 import type { HomeModel } from "../load";
+import { HomeChecklists } from "./HomeChecklists";
 import { HomeRecent } from "./HomeRecent";
 import { StationsTable, StoresTable } from "./HomeStations";
 import { HomeTodo } from "./HomeTodo";
@@ -17,9 +18,9 @@ const WORKING_VALUE_CLASS =
   "text-[length:var(--fs-num-hero)] leading-[1.1] font-semibold font-[family-name:var(--font-num)] [font-variant-numeric:tabular-nums]";
 
 /**
- * Главная кабинета — пульт сети (D169), а не ссылки на разделы: меню слева и так ведёт
+ * Главная кабинета — пульт сети (D174), а не ссылки на разделы: меню слева и так ведёт
  * в разделы. Сверху вниз: область (страна → пиццерия → станция, период), цифры за
- * период, что не закрыто, станции области, что происходит.
+ * период, что не закрыто, мои чек-листы (D148), станции области, что происходит.
  */
 export async function HomeScreen({
   model,
@@ -62,7 +63,13 @@ export async function HomeScreen({
         <FeedMetrics metrics={feed.metrics} period={feed.selection.period} />
       </div>
 
-      <HomeTodo gaps={model.gaps} drafts={model.drafts} view={view} />
+      <HomeTodo gaps={model.gaps} drafts={model.drafts} />
+
+      <HomeChecklists
+        checklists={model.checklists}
+        total={model.checklistTotal}
+        isFiltered={model.isFiltered}
+      />
 
       {model.stations.length === 0 ? (
         <p className={`${CARD_CLASS} ${META_CLASS} m-0 p-[var(--space-7)]`}>

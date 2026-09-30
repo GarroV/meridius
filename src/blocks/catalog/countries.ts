@@ -3,6 +3,7 @@
 // справочник: снести страну вместе с её пиццериями одним махом нельзя).
 import { asc, count, eq } from "drizzle-orm";
 
+import { countryCondition, type Scope } from "@/blocks/auth/scope";
 import { isLocale, LOCALES, type Locale } from "@/blocks/core/locale";
 import { countries, getDb, stores } from "@/blocks/data";
 
@@ -57,7 +58,7 @@ function requireLocale(locale: string): Locale {
  * одним запросом с группировкой (левое соединение со `stores`), а не запросом
  * на страну — иначе список из сотни стран стоил бы сотню лишних обращений к базе.
  */
-export async function listCountries(): Promise<CountryRow[]> {
+export async function listCountries(scope: Scope): Promise<CountryRow[]> {
   const rows = await getDb()
     .select({
       id: countries.id,
@@ -67,6 +68,8 @@ export async function listCountries(): Promise<CountryRow[]> {
     })
     .from(countries)
     .leftJoin(stores, eq(stores.countryId, countries.id))
+    // Область видимости (D145): партнёр видит свои страны, УК — все.
+    .where(countryCondition(scope, countries.id))
     .groupBy(countries.id)
     .orderBy(asc(countries.name));
 

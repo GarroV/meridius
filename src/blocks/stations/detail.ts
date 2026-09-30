@@ -8,7 +8,8 @@
 // потому не может позволить себе ни одного лишнего столбца, а карточка читает одну
 // строку и берёт всё. Свести их в одно значило бы либо тащить по сети то, что нужно
 // одной станции, либо не показать на карточке половины.
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import type { LocalizedText } from "@/blocks/data";
 import {
@@ -20,11 +21,40 @@ import {
   stores,
   submissions,
 } from "@/blocks/data";
+import { countryCondition, type Scope } from "@/blocks/auth/scope";
+
+/**
+ * Откуда чек-лист на станции (D149, D155): копия шаблона УК или заведён страной сам.
+ *
+ * Версия — та, с которой копия снята, а не нынешняя версия шаблона: копия — хозяйство
+ * страны, и номер лишь отличает свежую копию от отставшей. Копия удалённого шаблона
+ * ссылку теряет (`on delete set null`) и называется местной: назвать её источник больше
+ * нечем, а номер версии без названия ни о чём человеку не говорит.
+ */
+type ChecklistOrigin =
+  | { readonly kind: "local" }
+  | {
+      readonly kind: "copy";
+      readonly templateTitle: LocalizedText;
+      readonly version: number;
+    };
 
 /** Чек-лист, висящий на станции. */
 interface AttachedChecklist {
   readonly id: string;
   readonly title: LocalizedText;
+  readonly origin: ChecklistOrigin;
+}
+
+/** Шаблон-источник копии: та же таблица, поэтому соединение идёт через псевдоним. */
+const sourceTemplate = alias(checklists, "source_template");
+
+function originOf(
+  templateTitle: LocalizedText | null,
+  version: number | null,
+): ChecklistOrigin {
+  if (templateTitle === null || version === null) return { kind: "local" };
+  return { kind: "copy", templateTitle, version };
 }
 
 /** Привязанный планшет. Их может быть несколько: две точки входа на одной станции. */
@@ -60,6 +90,7 @@ const UUID_PATTERN =
  */
 export async function getStationDetail(
   id: string,
+  scope: Scope,
 ): Promise<StationDetail | null> {
   if (!UUID_PATTERN.test(id)) return null;
 
@@ -79,7 +110,8 @@ export async function getStationDetail(
     .from(stations)
     .innerJoin(stores, eq(stations.storeId, stores.id))
     .innerJoin(countries, eq(stores.countryId, countries.id))
-    .where(eq(stations.id, id))
+    // Чужая станция — «такой нет», как и несуществующая (D145).
+    .where(and(eq(stations.id, id), countryCondition(scope, stores.countryId)))
     .limit(1);
 
   if (row === undefined) return null;
@@ -89,8 +121,17 @@ export async function getStationDetail(
   // Здесь это дороже, чем в списке, ровно на два запроса — но строка одна.
   const [attached, tablets, [latest]] = await Promise.all([
     db
-      .select({ id: checklists.id, title: checklists.title })
+      .select({
+        id: checklists.id,
+        title: checklists.title,
+        templateTitle: sourceTemplate.title,
+        version: checklists.sourceVersion,
+      })
       .from(checklists)
+      .leftJoin(
+        sourceTemplate,
+        eq(checklists.sourceChecklistId, sourceTemplate.id),
+      )
       .where(eq(checklists.stationId, id))
       .orderBy(asc(checklists.title)),
     db
@@ -112,7 +153,10 @@ export async function getStationDetail(
 
   return {
     ...row,
-    checklists: attached,
+    checklists: attached.map(({ templateTitle, version, ...checklist }) => ({
+      ...checklist,
+      origin: originOf(templateTitle, version),
+    })),
     tablets,
     lastSubmissionAt: latest?.submittedAt ?? null,
   };

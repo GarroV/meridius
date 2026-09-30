@@ -18,11 +18,11 @@ export default async function CatalogPage({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const view = parseCatalogView(await searchParams);
   const locale = (await getLocale()) as Locale;
-  const model = await buildCatalogModel(view, locale);
+  const model = await buildCatalogModel(view, locale, viewer);
 
   return <CatalogScreen model={model} />;
 }

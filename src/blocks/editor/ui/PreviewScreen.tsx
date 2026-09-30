@@ -6,6 +6,8 @@ import type { ReactElement } from "react";
 import { Drawer } from "@/blocks/core/ui/Drawer";
 import type { Item, LocalizedText, Section, ShiftMode } from "@/blocks/data";
 import { isShiftMode, sectionsForMode, severityOf } from "@/blocks/data";
+import { requireChecklistVisible } from "@/blocks/auth/access";
+import { requireAdmin } from "@/blocks/auth/guard";
 
 import { loadEditor } from "../drafts";
 import { pickEditorText } from "../localized-text";
@@ -157,6 +159,22 @@ function tableHint(item: Item, locale: string, t: Translate): string | null {
   return t("preview.table", { columns: names.join(" · ") });
 }
 
+/**
+ * Пункт-будильник в предпросмотре (D156): что подставит станция — подпись и время. Кнопку
+ * «Поставить» предпросмотр не рисует: ставить будильник из черновика некуда.
+ */
+function alarmHint(item: Item, locale: string, t: Translate): string | null {
+  if (item.type !== "alarm" || item.alarm === undefined) return null;
+  const label =
+    pickEditorText(item.alarm.label, locale) ||
+    pickEditorText(item.title, locale);
+  const when =
+    item.alarm.at === undefined
+      ? t("preview.alarmAfter", { minutes: item.alarm.afterMinutes ?? 0 })
+      : t("preview.alarmAt", { time: item.alarm.at });
+  return t("preview.alarm", { label, when });
+}
+
 function ItemRow({
   item,
   locale,
@@ -170,6 +188,7 @@ function ItemRow({
 }): ReactElement {
   const range = rangeHint(item, locale, t);
   const table = tableHint(item, locale, t);
+  const alarm = alarmHint(item, locale, t);
   const severity = severityOf(item);
 
   return (
@@ -204,6 +223,11 @@ function ItemRow({
         {table !== null ? (
           <span data-testid="preview-table" className={ITEM_HINT_CLASS}>
             {table}
+          </span>
+        ) : null}
+        {alarm !== null ? (
+          <span data-testid="preview-alarm" className={ITEM_HINT_CLASS}>
+            {alarm}
           </span>
         ) : null}
       </span>
@@ -287,6 +311,7 @@ export async function PreviewScreen({
   /** Режим смены, в котором смотрят предпросмотр; по умолчанию полная смена. */
   readonly mode?: string | undefined;
 }): Promise<ReactElement> {
+  await requireChecklistVisible(await requireAdmin(), id);
   const state = await loadEditor(id);
   if (state === null) notFound();
 

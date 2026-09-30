@@ -6,9 +6,10 @@
 // "0" не равна нулю, сравнение в `gaps.ts` не срабатывает, и экран показывает «разрывов
 // нет» ровно там, где станция стоит без чек-листа. Заглушка такую подмену не ловит по
 // определению: она вернёт то число, которое в неё положили.
+import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
-import { submissions } from "@/blocks/data";
+import { checklists, submissions } from "@/blocks/data";
 import { getTestDb } from "@/blocks/data/testing/db";
 import {
   createChecklist,
@@ -16,6 +17,7 @@ import {
   createStation,
   sampleSections,
 } from "@/blocks/data/testing/fixtures";
+import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
 import { listNetworkStations } from "./overview";
 
@@ -23,7 +25,7 @@ describe("список станций сети", () => {
   test("станция без чек-листа приходит нулём-числом и попадает в разрыв", async () => {
     const { stationId } = await createStation();
 
-    const stations = await listNetworkStations(new Date());
+    const stations = await listNetworkStations(WHOLE_NETWORK, new Date());
     const station = stations.find((one) => one.id === stationId);
 
     expect(
@@ -36,6 +38,28 @@ describe("список станций сети", () => {
     expect(typeof station?.checklistCount).toBe("number");
     expect(typeof station?.deviceCount).toBe("number");
     expect(station?.checklistCount).toBe(0);
+    expect(station?.gaps).toContain("noChecklist");
+  });
+
+  // #193: удаление чек-листа с заполнениями только ставит `archived_at`, а `station_id`
+  // оставляет. Если счётчик берёт и архивные, станция, у которой остался лишь снятый с
+  // работы чек-лист, выглядит закрытой: наклейка открывает пустоту, а раздел и главная
+  // говорят «всё в порядке».
+  test("архивный чек-лист не закрывает станцию", async () => {
+    const { stationId } = await createStation();
+    const checklistId = await createChecklist({ stationId });
+    await getTestDb()
+      .update(checklists)
+      .set({ archivedAt: new Date() })
+      .where(eq(checklists.id, checklistId));
+
+    const stations = await listNetworkStations(WHOLE_NETWORK, new Date());
+    const station = stations.find((one) => one.id === stationId);
+
+    expect(
+      station?.checklistCount,
+      "архивный чек-лист посчитан как действующий",
+    ).toBe(0);
     expect(station?.gaps).toContain("noChecklist");
   });
 
@@ -57,7 +81,7 @@ describe("список станций сети", () => {
       startedAt: new Date(),
     });
 
-    const stations = await listNetworkStations(new Date());
+    const stations = await listNetworkStations(WHOLE_NETWORK, new Date());
     const station = stations.find((one) => one.id === stationId);
 
     expect(station?.lastSubmissionAt).toBeInstanceOf(Date);

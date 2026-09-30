@@ -3,14 +3,17 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { Icon } from "@/blocks/core/ui/Icon";
+import { requireChecklistEditable } from "@/blocks/auth/access";
+import { requireAdmin } from "@/blocks/auth/guard";
 
 import { submitDuplicate, submitMakeTemplate } from "../actions";
 import { loadEditor } from "../drafts";
-import { listStations } from "../listing";
 import { pickEditorText } from "../localized-text";
 import { checklistDeletePath, checklistPreviewPath } from "../routes";
+import { loadTemplateOrigin } from "../template-updates";
 import type { WindowValue } from "../window-field";
 import { ChecklistEditor } from "./ChecklistEditor";
+import { TemplateOrigin } from "./TemplateOrigin";
 
 /** Время базы «06:00:00» на экране показывается и правится как «06:00». */
 function toFormTime(value: string): string {
@@ -36,7 +39,7 @@ function ChecklistActions({
   readonly checklistId: string;
   readonly duplicateLabel: string;
   readonly deleteLabel: string;
-  /** Есть, только когда шаблон из чек-листа сделать можно (D169). */
+  /** Есть, только когда шаблон из чек-листа сделать можно (D174). */
   readonly makeTemplateLabel?: string;
 }) {
   return (
@@ -93,24 +96,20 @@ function ChecklistActions({
  */
 export async function EditorScreen({
   checklistId,
-  stationAction,
 }: {
   readonly checklistId: string;
-  /**
-   * Действие кабинета, которому нужна СОХРАНЁННАЯ станция чек-листа, — сейчас это
-   * «Привязать планшет» блока `device`. Приходит готовой разметкой от страницы, а не
-   * импортом: правило границ не даёт редактору зависеть от блока привязки, а второй
-   * поход в базу за станцией ради одной карточки был бы лишним.
-   */
-  readonly stationAction?: (stationId: string | null) => React.ReactNode;
 }) {
+  // Редактор открывается только тому, кто может править: шаблон у партнёра открывается
+  // предпросмотром, а не редактором (D149, user-flow §5.2); чужое — «такого нет» (D145).
+  const viewer = await requireAdmin();
+  await requireChecklistEditable(viewer, checklistId);
   const state = await loadEditor(checklistId);
   if (state === null) notFound();
 
-  const [locale, stations, t] = await Promise.all([
+  const [locale, t, origin] = await Promise.all([
     getLocale(),
-    listStations(),
     getTranslations("editor"),
+    loadTemplateOrigin(checklistId),
   ]);
 
   const highestVersion = state.versions.reduce(
@@ -145,24 +144,34 @@ export async function EditorScreen({
   return (
     <div data-testid="editor-screen" className="flex min-w-0 flex-col">
       <ChecklistEditor
+        // Ключ — версия шаблона, с которой снята копия. «Взять изменения» пишет черновик
+        // на сервере и сдвигает её: без смены ключа редактор остался бы со старыми
+        // пунктами в состоянии и следующим «Сохранить» затёр бы только что взятое.
+        key={state.checklist.sourceVersion ?? 0}
         checklistId={checklistId}
         locale={locale}
         initialTitle={pickEditorText(state.checklist.title, locale)}
-        initialStationId={state.checklist.stationId ?? ""}
         isTemplate={isTemplate}
         initialWindow={windowOf(
           state.checklist.windowStart,
           state.checklist.windowEnd,
         )}
         initialSections={state.sections}
-        stations={stations}
         station={state.station}
         versions={state.versions}
         library={state.library}
         nextVersionNumber={highestVersion + 1}
         previewHref={checklistPreviewPath(checklistId)}
         crumbs={crumbs}
-        stationAction={stationAction?.(state.checklist.stationId ?? null)}
+        origin={
+          origin === null ? null : (
+            <TemplateOrigin
+              checklistId={checklistId}
+              origin={origin}
+              locale={locale}
+            />
+          )
+        }
         headerActions={
           isTemplate ? null : (
             <ChecklistActions

@@ -44,7 +44,6 @@ import {
   updateItem,
 } from "../editing";
 import type { LibraryEntry } from "../library-links";
-import type { StationOption } from "../listing";
 import { parsePastedLines, parsePastedList } from "../paste";
 import type { WindowValue } from "../window-field";
 import { WINDOW_FIELD, windowFieldValue } from "../window-field";
@@ -59,26 +58,24 @@ export interface ChecklistEditorProps {
   readonly checklistId: string;
   readonly locale: string;
   readonly initialTitle: string;
-  readonly initialStationId: string;
-  /** Шаблон станции не имеет (D154): поля станции в свойствах у него нет. */
+  /** Шаблон станции не имеет (D154): подсказки о станции у него нет. */
   readonly isTemplate: boolean;
   readonly initialWindow: WindowValue;
   readonly initialSections: readonly Section[];
-  readonly stations: readonly StationOption[];
   readonly station: EditorStation | null;
   readonly versions: readonly VersionSummary[];
   readonly library: readonly LibraryEntry[];
   readonly nextVersionNumber: number;
   readonly previewHref: string;
   readonly crumbs: string;
-  /** Готовая разметка действия кабинета над станцией чек-листа (см. `EditorScreen`). */
-  readonly stationAction?: ReactNode;
   /**
    * Действия над чек-листом целиком — дублировать, удалить (D162). До мастер-детали они
    * стояли в строке списка; строка стала обычным выбором, и действия переехали туда,
    * где открыт сам чек-лист. Приходят готовой разметкой: это серверные формы и ссылки.
    */
   readonly headerActions?: ReactNode;
+  /** Строка происхождения копии шаблона (T336); у своего чек-листа и шаблона её нет. */
+  readonly origin?: ReactNode;
 }
 
 const BUTTON_CLASS =
@@ -99,7 +96,6 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
     ...props.initialSections,
   ]);
   const [title, setTitle] = useState(props.initialTitle);
-  const [stationId, setStationId] = useState(props.initialStationId);
   const [window, setWindow] = useState<WindowValue>(props.initialWindow);
   const [focusItemId, setFocusItemId] = useState<string | null>(null);
   const [focusColumnId, setFocusColumnId] = useState<string | null>(null);
@@ -109,12 +105,6 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
   // прежнее значение, и сохранение СТИРАЕТ привязку молча (#7). Поэтому при монтировании
   // состояние подхватывает то, что уже стоит в разметке.
   useEffect(() => {
-    const station = document.getElementById("checklist-station");
-    if (station instanceof HTMLSelectElement && station.value !== "") {
-      setStationId((current) =>
-        station.value === current ? current : station.value,
-      );
-    }
     const titleField = document.getElementById("checklist-title");
     if (titleField instanceof HTMLInputElement && titleField.value !== "") {
       setTitle((current) =>
@@ -249,7 +239,6 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               checklistId={props.checklistId}
               locale={locale}
               title={title}
-              stationId={stationId}
               window={window}
               sections={sections}
             />
@@ -267,7 +256,6 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               checklistId={props.checklistId}
               locale={locale}
               title={title}
-              stationId={stationId}
               window={window}
               sections={sections}
             />
@@ -295,14 +283,11 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
             оставалось 440 px — длинное название секции обрезалось посреди слова. */}
         <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:minmax(0,1fr)_268px] @max-5xl:[grid-template-columns:1fr]">
           <div>
+            {props.origin}
             <PropertiesCard
               title={title}
-              stationId={stationId}
               window={window}
-              stations={props.stations}
-              showStation={!props.isTemplate}
               onTitle={setTitle}
-              onStation={setStationId}
               onWindow={setWindow}
             />
 
@@ -463,13 +448,11 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               locale={locale}
               onInsert={insertBlock}
             />
-            {/* У шаблона станции не бывает: «выберите станцию» и привязка планшета
-                звали бы туда, куда шаблону нельзя (D154). */}
+            {/* У шаблона станции не бывает: подсказка о станции звала бы туда, куда
+                шаблону нельзя (D154). Повесить чек-лист на станцию и привязать планшет
+                можно только в разделе «Станции» (T312, D163) — подсказка ведёт туда. */}
             {props.isTemplate ? null : (
-              <>
-                <StationNotice station={props.station} window={window} />
-                {props.stationAction}
-              </>
+              <StationNotice station={props.station} window={window} />
             )}
           </aside>
         </div>
@@ -494,14 +477,12 @@ function HiddenState({
   checklistId,
   locale,
   title,
-  stationId,
   window,
   sections,
 }: {
   readonly checklistId: string;
   readonly locale: string;
   readonly title: string;
-  readonly stationId: string;
   readonly window: WindowValue;
   readonly sections: readonly Section[];
 }) {
@@ -510,7 +491,6 @@ function HiddenState({
       <input type="hidden" name="checklistId" value={checklistId} />
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="title" value={title} />
-      <input type="hidden" name="stationId" value={stationId} />
       {/* Окно едет одним полем — тем же, каким его отправляет список на заведении
           (`window-field.ts`): два разных вида одного свойства на одном контракте
           расходятся молча. Здесь список стоит ВНЕ обеих форм, поэтому отправляет

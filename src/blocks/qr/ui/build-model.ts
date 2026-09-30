@@ -1,12 +1,11 @@
 // Загрузка данных для экранов QR. Справочник берётся только через публичный вход
 // блока `catalog`: в таблицы блок qr не ходит (контракт блоков, docs/furca/plan.md).
 import {
-  listCountries,
+  findStoreInScope,
   listStations,
-  listStores,
-  type StoreRow,
+  listStoresInScope,
 } from "@/blocks/catalog";
-import type { Locale } from "@/blocks/core/locale";
+import type { Scope } from "@/blocks/auth/scope";
 import { storeLocale } from "@/blocks/core/store-locale";
 
 import { stationQrSvg } from "../svg";
@@ -26,13 +25,6 @@ import {
   type StationRef,
 } from "./view";
 
-interface FoundStore {
-  readonly store: StoreRow;
-  readonly countryName: string;
-  /** Язык страны пиццерии как он лежит в справочнике — сырьё для `storeLocale`. */
-  readonly countryLocale: Locale;
-}
-
 /**
  * Что о запросе знает страница и не должен узнавать сам слой.
  *
@@ -43,6 +35,8 @@ interface FoundStore {
  * добраться до языка.
  */
 export interface QrRequest {
+  /** Область видимости вошедшего (D145): чужая пиццерия не находится. */
+  readonly scope: Scope;
   /** Адрес, который попадёт внутрь кода наклейки (`https://host`). */
   readonly origin: string;
   /** Базовый путь площадки: продукт бывает опубликован не на корне адреса (D045). */
@@ -58,58 +52,33 @@ export interface QrRequest {
 }
 
 /**
- * Пиццерия и страна, которой она принадлежит.
- *
- * Справочник умеет отдавать пиццерии страны, но не пиццерию по её идентификатору,
- * поэтому страны перебираются. Перебор идёт по справочнику сети (десятки строк),
- * а не по станциям, и происходит один раз на открытие экрана — опрос планшета
- * сюда не заходит.
+ * Все пиццерии видимых стран (D145) с их странами — список выбора, когда пиццерия
+ * не задана. Справочник отдаёт их одним запросом: перебор стран запросом на каждую
+ * рос вместе с сетью (T347).
  */
-async function findStore(storeId: string): Promise<FoundStore | null> {
-  for (const country of await listCountries()) {
-    const stores = await listStores(country.id);
-    const store = stores.find((candidate) => candidate.id === storeId);
-    if (store !== undefined) {
-      return {
-        store,
-        countryName: country.name,
-        countryLocale: country.locale,
-      };
-    }
-  }
-  return null;
-}
-
-/** Все пиццерии сети с их странами — список выбора, когда пиццерия не задана. */
-async function listAllStores(): Promise<QrStoreOption[]> {
-  const options: QrStoreOption[] = [];
-
-  for (const country of await listCountries()) {
-    for (const store of await listStores(country.id)) {
-      options.push({
-        id: store.id,
-        name: store.name,
-        countryName: country.name,
-        stationCount: store.stationCount,
-        href: qrHref({ storeId: store.id }),
-      });
-    }
-  }
-
-  return options;
+async function listAllStores(scope: Scope): Promise<QrStoreOption[]> {
+  const found = await listStoresInScope(scope);
+  return found.map(({ store, countryName }) => ({
+    id: store.id,
+    name: store.name,
+    countryName,
+    stationCount: store.stationCount,
+    href: qrHref({ storeId: store.id }),
+  }));
 }
 
 /** Экран без выбранной пиццерии: список пиццерий вместо листа. */
 async function chooseStore(
   origin: string,
   errorCode: QrErrorCode | null,
+  scope: Scope,
 ): Promise<QrModel> {
   return {
     scanOrigin: origin,
     store: null,
     stations: [],
     selected: null,
-    stores: await listAllStores(),
+    stores: await listAllStores(scope),
     errorCode,
     confirming: null,
   };
@@ -147,13 +116,14 @@ export async function buildQrModel(
   const storeId = view.storeId;
 
   if (storeId === undefined) {
-    return chooseStore(origin, errorCode);
+    return chooseStore(origin, errorCode, request.scope);
   }
 
-  const found = await findStore(storeId);
+  // Чужая пиццерия не находится вовсе (D145), как и несуществующая.
+  const found = await findStoreInScope(storeId, request.scope);
   // Пиццерии с таким идентификатором нет: показываем выбор, а не пустой лист
   // с чужой шапкой.
-  if (found === null) return chooseStore(origin, errorCode);
+  if (found === null) return chooseStore(origin, errorCode, request.scope);
 
   const stations = await stationViews(storeId, origin, basePath);
   const picked = stations.find((station) => station.id === view.stationId);
@@ -189,7 +159,7 @@ export async function buildScreenModel(
   request: QrRequest,
 ): Promise<QrScreenModel | null> {
   const { origin, basePath = "" } = request;
-  const found = await findStore(ref.storeId);
+  const found = await findStoreInScope(ref.storeId, request.scope);
   if (found === null) return null;
 
   const station = (await listStations(ref.storeId)).find(

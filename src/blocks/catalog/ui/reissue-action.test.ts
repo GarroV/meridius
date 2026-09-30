@@ -30,7 +30,14 @@ vi.mock("next/cache", () => ({
 vi.mock("@/blocks/auth/guard", () => ({
   requireAdmin: () => {
     calls.admin += 1;
-    return Promise.resolve();
+    return Promise.resolve({
+      accountId: null,
+      login: "admin",
+      tenantId: "00000000-0000-4000-8000-000000000000",
+      tenantKind: "hq",
+      tenantName: "УК",
+      countryIds: [],
+    });
   },
 }));
 
@@ -110,7 +117,7 @@ describe("перевыпуск кода станции", () => {
       destination,
       "Обещание кнопки — «перевыпустить и открыть печать»: без второго шага " +
         "методист уходит со старой наклейкой на станции и новым кодом в базе.",
-    ).toContain("/admin/qr");
-    expect(destination).toContain(STORE);
+    ).toContain("/admin/stations/stickers?");
+    expect(destination).toContain(`stationIds=${STATION}`);
   });
 });

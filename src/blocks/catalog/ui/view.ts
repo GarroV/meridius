@@ -122,33 +122,44 @@ export function catalogHref(view: CatalogView): string {
  */
 export interface QrTarget {
   readonly storeId: string | null;
-  /** Станция внутри этой пиццерии. Без пиццерии в адрес не попадает: см. ниже. */
+  /** Станция: с ней ссылка ведёт на лист наклейки именно этой станции. */
   readonly stationId?: string;
 }
 
 /**
- * Адрес раздела QR с выбранной пиццерией (и, если нужно, станцией).
+ * Лист наклеек раздела «Станции» и имя его параметра. Справочнику нельзя импортировать
+ * блок `stations` (он сам читает справочник, `.dependency-cruiser.cjs`), поэтому
+ * совпадение адреса — договорённость двух блоков; его держит `e2e/catalog-qr.spec.ts`
+ * настоящим переходом.
+ */
+const STICKERS_PATH = `${ADMIN_SECTIONS.stations.path}/stickers`;
+const STICKERS_STATION_PARAM = "stationIds";
+
+/**
+ * Адрес наклеек из справочника.
+ *
+ * Станция — сразу лист её наклейки (T341). Кнопка называется «QR» и стоит в строке
+ * станции: человек шёл печатать наклейку. Прежний адрес `/admin/qr?station=` после T312
+ * уводит на карточку станции, где QR нет, — и цепочка критерия 3 рвалась на лишнем
+ * шаге. Тот же лист нужен и после перевыпуска кода в справочнике: старая наклейка
+ * больше не работает, печатать надо новую.
+ *
+ * Пиццерия без станции — старым адресом раздела QR: он сам уводит на лист наклеек всех
+ * её станций (`stations/ui/legacy-routes.ts`), а список станций знает он, не ссылка.
  *
  * Почему не берётся готовый `qrHref` из `blocks/qr/ui/view.ts`: границы модулей
- * (`.dependency-cruiser.cjs`) запрещают справочнику импортировать блок `qr` — зависимость
- * идёт в обратную сторону, это блок `qr` читает справочник. Обратный импорт дал бы цикл,
- * и его отказывает отдельное правило. Поэтому общий факт берётся из того места, которое
- * доступно обоим, — сам адрес раздела лежит в `core/admin-sections`, рядом с боковым меню.
- *
- * Имена параметров (`store`, `station`) остаются договорённостью двух блоков: типами их не
- * связать через границу. Их совпадение держит сквозной сценарий `e2e/catalog-qr.spec.ts` —
- * настоящим переходом в браузере, потому что разъехаться они могут только молча.
+ * запрещают справочнику импортировать блок `qr` — это блок `qr` читает справочник.
+ * Сам адрес раздела лежит в `core/admin-sections`, доступном обоим.
  */
 export function qrStationsHref(target: QrTarget): string {
-  const path = ADMIN_SECTIONS.qr.path;
-  if (target.storeId === null) return path;
-
-  const query = new URLSearchParams({ store: target.storeId });
-  // Станция без пиццерии раздел QR не находит: он ищет её внутри пиццерии и молча
-  // показал бы выбор, забыв про станцию. Половину ссылки не строим вовсе.
   if (target.stationId !== undefined && target.stationId !== "") {
-    query.set("station", target.stationId);
+    const query = new URLSearchParams({
+      [STICKERS_STATION_PARAM]: target.stationId,
+    });
+    return `${STICKERS_PATH}?${query.toString()}`;
   }
 
-  return `${path}?${query.toString()}`;
+  const path = ADMIN_SECTIONS.qr.path;
+  if (target.storeId === null) return path;
+  return `${path}?${new URLSearchParams({ store: target.storeId }).toString()}`;
 }

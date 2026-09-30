@@ -75,6 +75,7 @@ async function signIn(page: Page): Promise<void> {
   // Не по подписи: вход зовут оба окна сценария T174, а подпись поля у них разная
   // («Пароль» / «Password», D009) — `name="password"` от языка интерфейса не зависит.
   await page.locator('input[name="password"]').fill(E2E_ADMIN_PASSWORD);
+  await page.locator('input[name="login"]').fill("admin");
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }
@@ -476,12 +477,20 @@ test.describe("редактор чек-листа", () => {
     const station = await seedStation(label());
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await signIn(page);
-    const editorUrl = await createChecklist(page, `Открытие кухни ${label()}`);
+    const title = `Открытие кухни ${label()}`;
+    const editorUrl = await createChecklist(page, title);
 
-    // Привязка к станции: без неё QR ничего не откроет.
-    await page.getByTestId("checklist-station").selectOption({
-      label: `${station.countryName} · ${station.storeName} · ${station.stationName}`,
-    });
+    // Привязка к станции: без неё QR ничего не откроет. С T312 чек-лист вешают на
+    // станцию только на её карточке — в редакторе поля станции нет.
+    await expect(page.getByTestId("checklist-station")).toHaveCount(0);
+    await page.goto(`/admin/stations/${station.stationId}`);
+    await page.locator("#attach-checklist").selectOption({ label: title });
+    await page.getByTestId("attach-checklist").click();
+    await expect(page.getByTestId("attached-checklist")).toContainText(title);
+    await page.goto(editorUrl);
+    await expect(page.getByTestId("station-notice")).toContainText(
+      station.stationName,
+    );
 
     await page.evaluate(async (text) => {
       await navigator.clipboard.writeText(text);

@@ -8,10 +8,16 @@
 // остаются как были. Обратное тоже верно — сид `seed:demo` снимает только свои строки
 // (`src/blocks/demo/seed.ts`), поэтому `npm run up` не стирает заведённую этим скриптом сеть.
 //
-// Прогон идемпотентен и опознаёт строки ПО ИМЕНИ: страну — по названию, пиццерию —
-// по названию внутри её страны. Своего кода у страны и пиццерии в схеме нет (D-решения
-// справочника), а придумывать его импортом значило бы завести второй опознаватель
-// рядом с тем, что видит методист на экране.
+// Прогон идемпотентен. Страна опознаётся по названию. Пиццерия — по КОДУ ТОЧКИ внутри
+// страны (#141): переименование на экране больше не превращает следующий прогон в дубль.
+// Пиццерия, заведённая до кода, находится по названию и получает код из файла. Запись
+// старого формата (просто строка названия) опознаётся по названию, как раньше. Правила
+// сопоставления — `planStoreImport` (`src/blocks/catalog/network-plan.ts`), с тестами.
+//
+// Формат пиццерии в файле: строка названия или `{ "name", "city"?, "code"? }`. Поле,
+// которого в записи нет, импорт не трогает: старый файл не стирает ни город, ни код.
+// Файл с кодом правит и название: снимок — источник справочника сети, поэтому каждое
+// переименование печатается в отчёте отдельной строкой.
 //
 // Лишнего скрипт не удаляет НИКОГДА: пиццерия, которой нет в файле, может быть заведена
 // методистом руками, а за ней уже стоит история заполнений (принцип 3). Такие строки
@@ -45,13 +51,18 @@ if (!process.env.DATABASE_URL) {
 }
 
 const {
+  NetworkPlanError,
   createCountry,
   createStore,
   listCountries,
   listStores,
+  planStoreImport,
+  readNetworkStore,
   updateCountry,
   updateStore,
 } = await import("../src/blocks/catalog/index.ts");
+// Команда площадки: вошедшего нет, импорт заводит справочник всей сети (D145).
+const { WHOLE_NETWORK } = await import("../src/blocks/auth/scope.ts");
 
 function readNetwork(path) {
   let raw;
@@ -79,14 +90,28 @@ function readNetwork(path) {
       process.exit(1);
     }
   }
-  return doc;
+  // Все пиццерии разбираются и сверяются ДО первой записи: файл с ошибкой в последней
+  // стране не должен оставить базу заведённой наполовину.
+  try {
+    return {
+      ...doc,
+      countries: doc.countries.map((country) => ({
+        ...country,
+        stores: country.stores.map(readNetworkStore),
+      })),
+    };
+  } catch (error) {
+    if (!(error instanceof NetworkPlanError)) throw error;
+    console.error(`Файл «${path}»: ${error.message}`);
+    process.exit(1);
+  }
 }
 
 const network = readNetwork(filePath);
 
 try {
   const existingCountries = new Map(
-    (await listCountries()).map((row) => [row.name, row]),
+    (await listCountries(WHOLE_NETWORK)).map((row) => [row.name, row]),
   );
 
   const summary = {
@@ -94,8 +119,22 @@ try {
     countriesUpdated: 0,
     storesCreated: 0,
     storesUpdated: 0,
+    storesUnchanged: 0,
+    renamed: [],
     unknown: [],
   };
+
+  // Сопоставление проверяется для всех стран до первой записи: повтор кода в файле
+  // (NetworkPlanError) не должен остановить импорт на середине.
+  for (const country of network.countries) {
+    try {
+      planStoreImport([], country.stores, country.timezone);
+    } catch (error) {
+      if (!(error instanceof NetworkPlanError)) throw error;
+      console.error(`${country.name}: ${error.message}`);
+      process.exit(1);
+    }
+  }
 
   for (const country of network.countries) {
     const known = existingCountries.get(country.name);
@@ -117,23 +156,35 @@ try {
       }
     }
 
-    const existingStores = new Map(
-      (await listStores(countryId)).map((row) => [row.name, row]),
+    const existingStores = await listStores(countryId);
+    const plan = planStoreImport(
+      existingStores,
+      country.stores,
+      country.timezone,
     );
-    for (const name of country.stores) {
-      const store = existingStores.get(name);
-      if (store === undefined) {
-        await createStore({ countryId, name, timezone: country.timezone });
-        summary.storesCreated += 1;
-      } else if (store.timezone !== country.timezone) {
-        await updateStore(store.id, { name, timezone: country.timezone });
-        summary.storesUpdated += 1;
+    const byId = new Map(existingStores.map((row) => [row.id, row]));
+    for (const store of plan.creates) {
+      await createStore({ countryId, ...store });
+      summary.storesCreated += 1;
+    }
+    for (const update of plan.updates) {
+      const row = byId.get(update.id);
+      await updateStore(update.id, {
+        name: update.set.name ?? row.name,
+        timezone: update.set.timezone ?? row.timezone,
+        city: update.set.city,
+        code: update.set.code,
+      });
+      summary.storesUpdated += 1;
+      if (update.set.name !== undefined) {
+        summary.renamed.push(
+          `${country.name}: «${update.previousName}» → «${update.set.name}»`,
+        );
       }
     }
-
-    const inFile = new Set(country.stores);
-    for (const name of existingStores.keys()) {
-      if (!inFile.has(name)) summary.unknown.push(`${country.name}: ${name}`);
+    summary.storesUnchanged += plan.unchanged;
+    for (const name of plan.unknown) {
+      summary.unknown.push(`${country.name}: ${name}`);
     }
   }
 
@@ -148,9 +199,15 @@ try {
     `  стран ${network.countries.length}: заведено ${summary.countriesCreated}, обновлено ${summary.countriesUpdated}`,
   );
   console.log(
-    `  пиццерий ${storesInFile}: заведено ${summary.storesCreated}, обновлено ${summary.storesUpdated}`,
+    `  пиццерий ${storesInFile}: заведено ${summary.storesCreated}, обновлено ${summary.storesUpdated}, без изменений ${summary.storesUnchanged}`,
   );
   console.log("  станции и чек-листы не заводились — это решение методиста");
+  if (summary.renamed.length > 0) {
+    console.log(
+      `\nПереименовано по файлу (${summary.renamed.length}) — опознаны по коду точки:`,
+    );
+    for (const line of summary.renamed) console.log(`  — ${line}`);
+  }
   if (summary.unknown.length > 0) {
     console.log(
       `\nВ базе есть пиццерии, которых нет в файле (${summary.unknown.length}) — не тронуты, решение по ним за человеком:`,

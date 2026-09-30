@@ -144,10 +144,18 @@ export function parseSubmission(input: unknown): Parsed<ParsedSubmission> {
   return { ok: true, value: { code, versionId, ticket, answers: parsed } };
 }
 
+/** Ответ пункта-будильника: местное время «ЧЧ:ММ», как у ручного будильника. */
+const ALARM_ANSWER_SHAPE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 function matchesType(item: Item, value: Answer["value"]): boolean {
   if (item.type === "bool") return typeof value === "boolean";
   if (item.type === "number") return typeof value === "number";
   if (item.type === "table") return matchesColumns(item, value);
+  // Пункт-будильник (D156) закрывается будильником, а не текстом: ответ — время, на
+  // которое его поставили. Чужая строка сошла бы в ленте за «поставлен на …».
+  if (item.type === "alarm") {
+    return typeof value === "string" && ALARM_ANSWER_SHAPE.test(value);
+  }
   return typeof value === "string";
 }
 

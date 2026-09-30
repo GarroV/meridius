@@ -1,4 +1,4 @@
-// «Сделать шаблоном» (D169): чек-лист станции даёт шаблон УК — без станции и без страны.
+// «Сделать шаблоном» (D174): чек-лист станции даёт шаблон УК — без станции и без страны.
 //
 // Зачем обратный ход. Шаблоны родились позже чек-листов: всё, что сеть уже отладила в
 // пилоте, живёт чек-листами конкретных станций, а раздел «Шаблоны» пуст. Переписывать
@@ -11,8 +11,11 @@
 // Источник у шаблона не записывается: `sourceChecklistId` у чек-листа значит «я копия
 // этого шаблона», и обратная ссылка с шаблона на станцию дала бы петлю, в которой
 // «шаблон обновился» пришёл бы самому шаблону.
+import { randomUUID } from "node:crypto";
+
 import { and, desc, eq, exists, isNotNull, isNull } from "drizzle-orm";
 
+import { hqTenantId } from "@/blocks/auth/accounts";
 import {
   checklistVersions,
   checklists,
@@ -97,26 +100,27 @@ export async function makeTemplateFromChecklist(
   now: Date = new Date(),
 ): Promise<string> {
   const source = await readSource(checklistId);
+  // Шаблоны — общее для всей сети и принадлежат УК (D145, D149), чей бы чек-лист ни был
+  // исходником.
+  const tenantId = await hqTenantId();
+  // Идентификатор задаётся здесь, а не читается из `returning`: версии и обратной ссылке
+  // исходника он нужен сразу, и ветки «база не вернула строку» просто нет.
+  const templateId = randomUUID();
 
-  return await getDb().transaction(async (tx) => {
-    const [template] = await tx
-      .insert(checklists)
-      .values({
-        title: source.title,
-        windowStart: source.windowStart,
-        windowEnd: source.windowEnd,
-        stationId: null,
-        isTemplate: true,
-      })
-      .returning({ id: checklists.id });
-
-    if (template === undefined) {
-      throw new Error("Шаблон не создался: база не вернула строку");
-    }
+  await getDb().transaction(async (tx) => {
+    await tx.insert(checklists).values({
+      id: templateId,
+      title: source.title,
+      windowStart: source.windowStart,
+      windowEnd: source.windowEnd,
+      stationId: null,
+      isTemplate: true,
+      tenantId,
+    });
 
     // Пункты сохраняют опознаватели: по ним потом видно, что в копиях изменили.
     await tx.insert(checklistVersions).values({
-      checklistId: template.id,
+      checklistId: templateId,
       versionNumber: FIRST_VERSION,
       status: "published",
       stationId: null,
@@ -126,11 +130,11 @@ export async function makeTemplateFromChecklist(
 
     await tx
       .update(checklists)
-      .set({ sourceChecklistId: template.id, sourceVersion: FIRST_VERSION })
+      .set({ sourceChecklistId: templateId, sourceVersion: FIRST_VERSION })
       .where(eq(checklists.id, source.id));
-
-    return template.id;
   });
+
+  return templateId;
 }
 
 export interface TemplateCandidate {
@@ -140,7 +144,7 @@ export interface TemplateCandidate {
 }
 
 /**
- * Чек-листы пиццерии, из которых можно сделать шаблоны пачкой (D169): живые, не шаблоны,
+ * Чек-листы пиццерии, из которых можно сделать шаблоны пачкой (D174): живые, не шаблоны,
  * без источника и с опубликованной версией — ровно те, кого примет
  * `makeTemplateFromChecklist`. Пачкой пользуется скрипт `templates-from-store.mjs`.
  */

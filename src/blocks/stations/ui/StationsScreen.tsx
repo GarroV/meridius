@@ -1,12 +1,14 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import { formActionPath } from "@/blocks/core/base-path";
 import { AdminPage } from "@/blocks/core/ui/AdminPage";
+import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 import { listTemplates } from "@/blocks/editor/templates";
 import type { LocalizedText } from "@/blocks/data";
 
 import { submitCopyToStations } from "./actions";
-import { ROLLOUT_FORM_ID } from "./view";
+import { ROLLOUT_FORM_ID, STICKERS_PATH } from "./view";
 
 /**
  * Раздел «Станции» — единственное место, где живёт всё про станцию (D151).
@@ -20,12 +22,10 @@ import { ROLLOUT_FORM_ID } from "./view";
  *
  * С D163 раздел — мастер-деталь: станции сети, счёт дырок и фильтр по ним стоят в
  * колонке слева (`StationsRail`, разметка сегмента), а этот экран — рабочая зона, пока
- * станция не выбрана: зачем раздел, куда нажать и раскатка шаблона на отмеченные в
- * колонке станции. Галочки колонки — поля формы раскатки отсюда (атрибут `form`).
+ * станция не выбрана: зачем раздел, куда нажать, раскатка шаблона и печать наклеек на
+ * отмеченные в колонке станции. Галочки колонки — поля формы выбора отсюда (атрибут `form`).
  */
 
-const INTRO_CLASS =
-  "rounded-[var(--r-block)] border border-[var(--line-strong)] bg-[var(--surface-2)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)] text-[var(--ink-2)]";
 const PICK_CLASS =
   "bg-surface flex flex-col gap-[var(--space-3)] rounded-[var(--r-block)] border border-[var(--line-strong)] px-[var(--space-7)] py-[var(--space-6)] shadow-[var(--sh-xs)]";
 const PICK_TITLE_CLASS =
@@ -71,50 +71,69 @@ export async function StationsScreen({
       title={t("title")}
       topbarAction={null}
     >
-      {/* D152: раздел объясняет себя сам, строкой цели на самом экране. */}
-      <p className={INTRO_CLASS}>{t("intro")}</p>
+      {/* D152: раздел объясняет себя сам. Ниже складки этой зоны не видно — там блок
+          стоит над колонкой станций (`StationsWorkspace`). */}
+      <SectionIntro section="stations" />
 
       <div className={PICK_CLASS} data-testid="stations-pick">
         <p className={PICK_TITLE_CLASS}>{t("rail.pickTitle")}</p>
-        <p className={META_CLASS}>{t("rail.pickHint")}</p>
       </div>
 
-      {templates.length === 0 ? (
-        <p className={META_CLASS} data-testid="no-templates">
-          {t("rollout.noTemplates")}
-        </p>
-      ) : (
-        <form
-          id={ROLLOUT_FORM_ID}
-          action={submitCopyToStations}
-          className={ROLLOUT_CLASS}
-          data-testid="rollout-form"
+      {/*
+        Форма выбора стоит всегда, даже без шаблонов: галочки колонки ссылаются на неё
+        атрибутом `form`, и печать наклеек пачкой (T311) не должна зависеть от того,
+        есть ли что раскатывать. Две кнопки — два пути одних и тех же галочек: раскатка
+        уходит серверным действием, печать — обычным GET на лист наклеек, чтобы выбор
+        лёг в адрес. Приставку базового пути атрибуту `formAction` ставит
+        `formActionPath`: Next его не трогает.
+      */}
+      <form
+        id={ROLLOUT_FORM_ID}
+        action={submitCopyToStations}
+        className={ROLLOUT_CLASS}
+        data-testid="rollout-form"
+      >
+        {templates.length === 0 ? (
+          <span className={META_CLASS} data-testid="no-templates">
+            {t("rollout.noTemplates")}
+          </span>
+        ) : (
+          <>
+            <label className={META_CLASS} htmlFor="rollout-template">
+              {t("rollout.label")}
+            </label>
+            <select
+              id="rollout-template"
+              name="templateId"
+              className={SELECT_CLASS}
+              defaultValue={chosenTemplate}
+            >
+              {templates.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {templateTitle(row.title, locale)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className={BUTTON_CLASS}
+              data-testid="rollout-submit"
+            >
+              {t("rollout.action")}
+            </button>
+          </>
+        )}
+        <button
+          type="submit"
+          formAction={formActionPath(STICKERS_PATH)}
+          formMethod="get"
+          className={BUTTON_CLASS}
+          data-testid="stickers-submit"
         >
-          <label className={META_CLASS} htmlFor="rollout-template">
-            {t("rollout.label")}
-          </label>
-          <select
-            id="rollout-template"
-            name="templateId"
-            className={SELECT_CLASS}
-            defaultValue={chosenTemplate}
-          >
-            {templates.map((row) => (
-              <option key={row.id} value={row.id}>
-                {templateTitle(row.title, locale)}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className={BUTTON_CLASS}
-            data-testid="rollout-submit"
-          >
-            {t("rollout.action")}
-          </button>
-          <span className={META_CLASS}>{t("rollout.hint")}</span>
-        </form>
-      )}
+          {t("stickers.action")}
+        </button>
+        <span className={META_CLASS}>{t("rollout.hint")}</span>
+      </form>
     </AdminPage>
   );
 }

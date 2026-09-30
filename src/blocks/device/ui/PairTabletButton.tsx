@@ -10,7 +10,7 @@
 //
 // Слова берутся из клиентского словаря (`device.issue`): отсчёт склоняется и меняется
 // каждую секунду, собрать его заранее на сервере нельзя. Раздел словаря передаёт
-// провайдером тот, кто рисует кнопку (`PairTabletCard.tsx`, `DevicesScreen.tsx`).
+// провайдером тот, кто рисует кнопку (`PairTabletCard.tsx`).
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 import type { ReactElement } from "react";
@@ -36,8 +36,11 @@ const LEFT_CLASS =
 const FAILED_CLASS =
   "text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--err)]";
 
-/** Почему нет кода: причина с сервера (#162) или обрыв связи до него. */
-type Failure = IssueFailure | "offline";
+/**
+ * Почему нет кода: причина с сервера (#162), предел выпуска на учётку (#144) или обрыв
+ * связи до сервера.
+ */
+type Failure = IssueFailure | "tooOften" | "offline";
 
 interface Issued {
   readonly code: string;
@@ -87,6 +90,8 @@ export function PairTabletButton({
   const t = useTranslations("device.issue");
   const [issued, setIssued] = useState<Issued | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
+  // Через сколько минут выпуск снова пустит — только для отказа «слишком часто».
+  const [waitMinutes, setWaitMinutes] = useState(0);
   const [pending, startIssuing] = useTransition();
   const left = useSecondsLeft(issued?.expiresAt ?? null);
   const expired = left === 0;
@@ -102,6 +107,10 @@ export function PairTabletButton({
             expiresAt: Date.parse(outcome.expiresAt),
           });
           setFailure(null);
+        } else if (outcome.kind === "tooOften") {
+          setIssued(null);
+          setWaitMinutes(outcome.minutes);
+          setFailure("tooOften");
         } else {
           setIssued(null);
           setFailure(outcome.reason);
@@ -147,7 +156,7 @@ export function PairTabletButton({
           role="alert"
           className={FAILED_CLASS}
         >
-          {t(`failed.${failure}`)}
+          {t(`failed.${failure}`, { minutes: waitMinutes })}
         </p>
       )}
 

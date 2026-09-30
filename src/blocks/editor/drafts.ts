@@ -24,6 +24,7 @@ import {
   stations,
   stores,
 } from "@/blocks/data";
+import { hqTenantId } from "@/blocks/auth/accounts";
 
 import type { LibraryEntry } from "./library-links";
 import { listLibrary, resolveLinkedSections } from "./library-links";
@@ -150,12 +151,15 @@ function checklistValues(input: ChecklistInput): {
 export async function createChecklist(
   input: ChecklistInput,
   kind: ChecklistKind = "checklist",
+  ownerTenantId?: string,
 ): Promise<string> {
   const isTemplate = kind === "template";
   const parsed = checklistValues(input);
+  // Хозяин (D145): не задан — УК; экраны кабинета передают тенант вошедшего всегда.
+  const tenantId = ownerTenantId ?? (await hqTenantId());
   const values = isTemplate
-    ? { ...parsed, stationId: null, isTemplate }
-    : parsed;
+    ? { ...parsed, stationId: null, isTemplate, tenantId }
+    : { ...parsed, tenantId };
 
   return getDb().transaction(async (tx) => {
     const inserted = await tx
@@ -176,22 +180,30 @@ export async function createChecklist(
   });
 }
 
-/** Свойства чек-листа: название, станция, окно. Версий не касается. */
+/**
+ * Свойства чек-листа, которые правит экран чек-листа: название и окно.
+ *
+ * Станции здесь нет (T312, D163): чек-лист вешают на станцию и снимают с неё только в
+ * разделе «Станции». Правка свойств станцию не трогает вовсе — ни пустым полем, ни
+ * значением из старой вкладки, где поле ещё было, — иначе сохранение черновика молча
+ * снимало бы чек-лист со станции, на которую его только что повесили.
+ */
+export type ChecklistProperties = Omit<ChecklistInput, "stationId">;
+
+/** Свойства чек-листа: название и окно. Версий и станции не касается. */
 export async function updateChecklist(
   checklistId: string,
-  input: ChecklistInput,
+  input: ChecklistProperties,
 ): Promise<void> {
   requireChecklistId(checklistId);
-  const values = checklistValues(input);
+  const window = parseWindow(input.window.start, input.window.end);
 
-  // Станция шаблона остаётся пустой, что бы ни пришло: см. `createChecklist`. Условие
-  // стоит в самом запросе, а не читается заранее, — так между чтением и записью нечему
-  // разойтись.
   const updated = await getDb()
     .update(checklists)
     .set({
-      ...values,
-      stationId: sql`case when ${checklists.isTemplate} then null else ${values.stationId}::uuid end`,
+      title: parseRequiredText(input.title),
+      windowStart: window.start,
+      windowEnd: window.end,
     })
     .where(eq(checklists.id, checklistId))
     .returning({ id: checklists.id });

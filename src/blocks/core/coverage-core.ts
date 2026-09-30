@@ -39,6 +39,12 @@ const CORE_FILES = [
   "src/blocks/auth/password.ts",
   "src/blocks/auth/rate-limit.ts",
   "src/blocks/auth/attempt-store.ts",
+  // Область видимости тенанта (D145): кто вошёл, что ему видно, чья это запись.
+  "src/blocks/auth/scope.ts",
+  "src/blocks/auth/accounts.ts",
+  "src/blocks/auth/access.ts",
+  "src/blocks/auth/provision.ts",
+  "src/blocks/auth/partners.ts",
 
   // Что засчитано и когда просрочено.
   "src/blocks/fill/answers.ts",
@@ -63,6 +69,8 @@ const CORE_FILES = [
   "src/blocks/editor/schedule-field.ts",
   "src/blocks/editor/table-field.ts",
   "src/blocks/editor/window-field.ts",
+  "src/blocks/editor/template-diff.ts",
+  "src/blocks/editor/template-updates.ts",
 
   "src/blocks/library/blocks.ts",
   "src/blocks/library/parsing.ts",
@@ -93,6 +101,21 @@ const CORE_FILES = [
   "src/blocks/device/config.ts",
   "src/blocks/device/windows.ts",
   "src/blocks/device/params.ts",
+
+  // Статистика по стране и пиццерии (D150, D170): блок `feed` — обвязка, но эти числа
+  // управляющий читает как факт, и неверная доля выглядит ровно как верная.
+  "src/blocks/feed/stats.ts",
+  "src/blocks/feed/stats-grading.ts",
+
+  // Поиск пиццерии в области видимости (D145, T347): фильтр тенанта стоит в самом
+  // запросе, и его ошибка молча показывает партнёру чужую пиццерию.
+  "src/blocks/catalog/store-lookup.ts",
+
+  // Станции справочника (T350): привязка чек-листа выпускает версию для станции (T348),
+  // код станции уникален, свободные чек-листы отобраны по тенанту. Ошибка здесь молчит:
+  // телефон видит «заполнять нечего», наклейка открывает чужую кухню, партнёр — чужое.
+  // `data/checklists.ts` уже в ядре каталогом `src/blocks/data/`.
+  "src/blocks/catalog/stations.ts",
 ] as const;
 
 /** Тесты в покрытии не участвуют: они и есть проверка, а не проверяемое. */

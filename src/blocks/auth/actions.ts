@@ -1,11 +1,19 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { cookies, headers } from "next/headers";
 
+import { ROOT_LOGIN, findLoginAccount, normalizeLogin } from "./accounts";
 import { adminPasswordHash, sessionSecret } from "./config";
-import { verifyPassword } from "./password";
-import { forgetLoginAttempts, reserveLoginAttempt } from "./rate-limit";
+import { hashPassword, verifyPassword } from "./password";
 import {
+  forgetLoginAttempts,
+  inClientTurn,
+  reserveLoginAttempt,
+} from "./rate-limit";
+import {
+  ROOT_SUBJECT,
   SESSION_COOKIE_NAME,
   SESSION_MAX_AGE_SECONDS,
   createSessionToken,
@@ -45,23 +53,55 @@ export type SignInResult =
   | { readonly status: "throttled"; readonly retryAfterSeconds: number };
 
 /**
- * Проверяет пароль и, если он верен, ставит сессионную куку на 30 дней.
- *
- * На неверный пароль отвечает отказом без подробностей о том, что именно не так:
- * учётная запись одна, и «нет такого пользователя» рассказывать некому.
+ * Хэш, по которому проверяется пароль неизвестного логина: случайный пароль, рабочие
+ * параметры scrypt. Неизвестный логин обязан стоить серверу ту же работу, что и
+ * известный, иначе время ответа перечисляет учётки. Считается один раз на процесс.
  */
-export async function signIn(password: string): Promise<SignInResult> {
-  // Секрет подписи читается до проверки пароля: без него вход не может «получиться»
-  // молча, без куки. Это отказ настройки площадки, а не неверный пароль.
-  const secret = sessionSecret();
+let decoyHash: Promise<string> | undefined;
 
-  const client = await clientKey();
-  const now = new Date();
+function decoy(): Promise<string> {
+  decoyHash ??= hashPassword(randomUUID());
+  return decoyHash;
+}
 
+interface Candidate {
+  /** Кому выпускать куку; null — логин неизвестен, и пускать некого. */
+  readonly subject: string | null;
+  readonly hash: string;
+}
+
+async function candidateFor(login: string | null): Promise<Candidate> {
+  if (login === ROOT_LOGIN) {
+    return { subject: ROOT_SUBJECT, hash: adminPasswordHash() };
+  }
+  const account = login === null ? null : await findLoginAccount(login);
+  if (account === null) return { subject: null, hash: await decoy() };
+  return { subject: account.id, hash: account.passwordHash };
+}
+
+/** Исход попытки под очередью: прошла — кому выпускать куку; нет — ответ форме. */
+type AttemptOutcome =
+  | {
+      readonly status: "passed";
+      readonly subject: string;
+      /** Когда прочитан хэш, с которым сошёлся пароль: это и есть время выпуска сессии. */
+      readonly issuedAt: Date;
+    }
+  | Exclude<SignInResult, { readonly status: "ok" }>;
+
+/**
+ * Счёт и пароль одной попытки. Выполняется в очереди клиента (`inClientTurn`): место
+ * занимается до scrypt, удачный вход снимает счёт до того, как в дело вступит следующий.
+ */
+async function attemptSignIn(
+  rawLogin: string,
+  password: string,
+  client: string,
+): Promise<AttemptOutcome> {
   // Место в счёте занимается до scrypt, и занимается оно САМОЙ попыткой, а не её
   // исходом: перебирающий не должен получать ни лишних попыток, ни даже той работы,
   // которую сервер тратит на проверку пароля.
-  const verdict = await reserveLoginAttempt(client, now);
+  const verdict = await reserveLoginAttempt(client, new Date());
   if (!verdict.allowed) {
     return {
       status: "throttled",
@@ -69,25 +109,61 @@ export async function signIn(password: string): Promise<SignInResult> {
     };
   }
 
-  const matches = await verifyPassword(password, adminPasswordHash());
-  if (!matches) {
+  // Время выпуска сессии — момент чтения хэша, а не момент после scrypt: сброс пароля,
+  // пришедшийся на проверку, иначе пропустил бы вход прежним паролем с сессией «после
+  // сброса» (#198). С отметкой раньше сброса такая сессия при чтении не принимается.
+  const issuedAt = new Date();
+  const candidate = await candidateFor(normalizeLogin(rawLogin));
+  const matches = await verifyPassword(password, candidate.hash);
+  if (!matches || candidate.subject === null) {
     // Считать промах отдельно нечего: попытка уже сосчитана до проверки пароля.
     return { status: "rejected" };
   }
 
   await forgetLoginAttempts(client);
+  return { status: "passed", subject: candidate.subject, issuedAt };
+}
+
+/**
+ * Проверяет логин и пароль и, если они верны, ставит сессионную куку на 30 дней.
+ *
+ * `admin` — учётка УК из окружения площадки; остальные логины — строки `accounts`
+ * (D145). На неизвестный логин и на неверный пароль ответ один и тот же, без
+ * подробностей, и работа сервера одна и та же: scrypt считается всегда.
+ */
+export async function signIn(
+  rawLogin: string,
+  password: string,
+): Promise<SignInResult> {
+  // Секрет подписи читается до проверки пароля: без него вход не может «получиться»
+  // молча, без куки. Это отказ настройки площадки, а не неверный пароль.
+  const secret = sessionSecret();
+
+  const client = await clientKey();
+
+  // Попытки одного клиента идут по очереди: иначе одновременные верные входы занимали
+  // места раньше, чем первый из них снимал счёт (#170). Предел держит не очередь, а
+  // место в базе — см. `rate-limit.ts`.
+  const outcome = await inClientTurn(client, () =>
+    attemptSignIn(rawLogin, password, client),
+  );
+  if (outcome.status !== "passed") return outcome;
 
   const store = await cookies();
-  store.set(SESSION_COOKIE_NAME, createSessionToken(secret, new Date()), {
-    // httpOnly: куку не достать из JavaScript, XSS не уносит сессию.
-    httpOnly: true,
-    // lax: форма входа отправляется со своего же сайта, межсайтовые запросы куку не носят.
-    sameSite: "lax",
-    path: COOKIE_PATH,
-    maxAge: SESSION_MAX_AGE_SECONDS,
-    // На площадке — только по HTTPS. На localhost браузер считает соединение доверенным.
-    secure: process.env.NODE_ENV === "production",
-  });
+  store.set(
+    SESSION_COOKIE_NAME,
+    createSessionToken(outcome.subject, secret, outcome.issuedAt),
+    {
+      // httpOnly: куку не достать из JavaScript, XSS не уносит сессию.
+      httpOnly: true,
+      // lax: форма входа отправляется со своего же сайта, межсайтовые запросы куку не носят.
+      sameSite: "lax",
+      path: COOKIE_PATH,
+      maxAge: SESSION_MAX_AGE_SECONDS,
+      // На площадке — только по HTTPS. На localhost браузер считает соединение доверенным.
+      secure: process.env.NODE_ENV === "production",
+    },
+  );
 
   return { status: "ok" };
 }

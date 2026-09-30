@@ -31,16 +31,17 @@ if (!connectionString) {
 }
 
 const url = new URL(connectionString);
-// Метка лежит в служебной базе `postgres`: она одна на сервер, и её видят все базы стенда.
+// Метки лежат в служебной базе `postgres`, по строке на базу: сервер общий, база — своя.
 const admin = new URL(url.toString());
 admin.pathname = "/postgres";
 
+const database = decodeURIComponent(url.pathname.replace(/^\//, ""));
 const own = ownStand();
 const pool = new Pool({ connectionString: admin.toString() });
 
 let check;
 try {
-  check = await claimStand(pool, own);
+  check = await claimStand(pool, database, own);
 } catch (cause) {
   console.error(
     `База ${url.host} недоступна: ${cause instanceof Error ? cause.message : String(cause)}\n` +
@@ -52,12 +53,14 @@ try {
 }
 
 if (check.kind === "foreign") {
-  console.error(foreignStandMessage(check, { target: url.host, own }));
+  console.error(
+    foreignStandMessage(check, { target: url.host, database, own }),
+  );
   process.exit(1);
 }
 
 console.log(
   check.claimed
-    ? `Стенд ${url.host} помечен как свой (${own.copyId}).`
-    : `Стенд ${url.host} свой (${own.copyId}).`,
+    ? `База ${database} на ${url.host} помечена как своя (${own.copyId}).`
+    : `База ${database} на ${url.host} своя (${own.copyId}).`,
 );

@@ -5,6 +5,7 @@ export type {
   Answer,
   ChecklistWindow,
   Item,
+  ItemAlarm,
   ItemColumn,
   ItemType,
   LocalizedText,
@@ -35,15 +36,17 @@ export type {
   StoreShiftMode,
   Submission,
 } from "./schema";
-export type { Alarm, Check } from "./schema";
+export type { Account, Alarm, Check, Tenant, TenantKind } from "./schema";
 export type { AnswerValue } from "./types";
 export {
+  accounts,
   alarms,
   blocks,
   checklistVersions,
   checklists,
   checks,
   countries,
+  deviceAttempts,
   devicePairings,
   devices,
   loginAttempts,
@@ -51,6 +54,8 @@ export {
   storeShiftModes,
   stores,
   submissions,
+  tenantCountries,
+  tenants,
 } from "./schema";
 
 export type { Interval } from "./schedule";
@@ -83,8 +88,9 @@ export type { Database } from "./client";
 export { getDb } from "./client";
 export { pingDatabase } from "./health";
 
-export type { VersionWithChecklist } from "./checklists";
+export type { BindChecklistResult, VersionWithChecklist } from "./checklists";
 export {
+  bindChecklistToStation,
   getDraft,
   getPublishedVersionForStation,
   listPublishedVersionsForStation,

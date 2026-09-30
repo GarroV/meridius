@@ -1,4 +1,4 @@
-// «Сделать шаблоном» на настоящей базе (D169): из чек-листа станции — шаблон без станции
+// «Сделать шаблоном» на настоящей базе (D174): из чек-листа станции — шаблон без станции
 // и страны, а сам чек-лист становится копией этого шаблона. Смысл в SQL и в
 // ограничениях базы, поэтому подмен нет.
 import { afterAll, describe, expect, test } from "vitest";
@@ -14,7 +14,11 @@ import {
   sampleSections,
 } from "@/blocks/data/testing/fixtures";
 
-import { makeTemplateFromChecklist, MakeTemplateError } from "./make-template";
+import {
+  listTemplateCandidates,
+  makeTemplateFromChecklist,
+  MakeTemplateError,
+} from "./make-template";
 import { listTemplateCards, takeTemplate } from "./templates";
 
 afterAll(closeTestDb);
@@ -175,5 +179,35 @@ describe("сделать шаблоном", () => {
         makeTemplateFromChecklist("00000000-0000-4000-8000-000000000000"),
       ),
     ).toBe("notChecklist");
+  });
+
+  test("кандидаты пачки — опубликованные чек-листы пиццерии без источника", async () => {
+    const station = await createStation();
+    const published = await createChecklist({
+      stationId: station.stationId,
+      title: { ru: "Кандидат", en: "Candidate" },
+      windowStart: "08:00:00",
+      windowEnd: "20:00:00",
+    });
+    await createPublishedVersion(published, sampleSections("кандидат"), 1);
+    const draftOnly = await createChecklist({
+      stationId: station.stationId,
+      title: { ru: "Только черновик", en: "Draft only" },
+      windowStart: "08:00:00",
+      windowEnd: "20:00:00",
+    });
+    await createDraft(draftOnly, sampleSections("черновик"));
+
+    const ids = async () =>
+      (await listTemplateCandidates(station.storeId)).map(
+        (row) => row.checklistId,
+      );
+    expect(await ids()).toEqual([published]);
+
+    // Ставший копией шаблона кандидатом быть перестаёт — повторный прогон пачки пуст.
+    await makeTemplateFromChecklist(published);
+    expect(await ids()).toEqual([]);
+
+    expect(await listTemplateCandidates("не-uuid")).toEqual([]);
   });
 });

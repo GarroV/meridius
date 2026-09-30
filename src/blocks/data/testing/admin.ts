@@ -42,17 +42,22 @@ async function onAdminConnection<T>(
 }
 
 /**
- * Отказывает, если сервер принадлежит другой копии репозитория (T101).
+ * Отказывает, если база принадлежит другой копии репозитория (T101).
  *
- * Стоит перед созданием базы, а не после: прогон одной копии не должен ни заводить свои
- * базы на чужом сервере, ни считать чужой стенд своим. Ничейный сервер помечается своим
+ * Стоит перед созданием базы, а не после: прогон одной копии не должен считать чужую
+ * базу своей. Сервер при этом общий, метка — у каждой базы. Ничейная база помечается своей
  * и ничего при этом не сносится — разбор в `@/blocks/core/stand`.
  */
 async function assertOwnStand(url: URL): Promise<void> {
   const own = ownStand();
-  const check = await onAdminConnection(url, (pool) => claimStand(pool, own));
+  const database = databaseNameFrom(url);
+  const check = await onAdminConnection(url, (pool) =>
+    claimStand(pool, database, own),
+  );
   if (check.kind === "foreign") {
-    throw new Error(foreignStandMessage(check, { target: url.host, own }));
+    throw new Error(
+      foreignStandMessage(check, { target: url.host, database, own }),
+    );
   }
 }
 

@@ -17,6 +17,11 @@
 // - Сегменты `wide` рисуются без колонки и со своим пунктом меню: шаблон открывается
 //   тем же редактором по адресу чек-листа (T309), но в список чек-листов не входит, и
 //   колонка чек-листов рядом с ним звала бы не туда.
+//
+// Вводный блок раздела (D152, T316) выше складки стоит в пустой рабочей зоне — его
+// ставит страница раздела. Ниже складки этой зоны без выбранного элемента не видно вовсе,
+// и человек с телефона не узнал бы, зачем раздел: там блок стоит над колонкой списка.
+// Каркас получает его готовой разметкой (`intro`): он клиентский, а блок — серверный.
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
 import type { ReactElement, ReactNode } from "react";
@@ -30,13 +35,14 @@ import { ADMIN_CONTENT_ID, SkipLink } from "./SkipLink";
  * а одинаковая колонка в двух продуктах линейки — прямое требование D164.
  */
 const FRAME_CLASS =
-  "grid min-h-screen items-start grid-cols-[auto_18rem_minmax(0,1fr)] max-md:grid-cols-[auto_minmax(0,1fr)]";
+  "grid min-h-screen items-start grid-cols-[auto_18rem_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_1fr]";
 const WIDE_FRAME_CLASS =
-  "grid min-h-screen items-start grid-cols-[auto_minmax(0,1fr)]";
+  "grid min-h-screen items-start grid-cols-[auto_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_1fr]";
 // Колонка липнет к верху и прокручивается своей прокруткой: длинный список сети не
 // утаскивает за собой рабочую зону, и выбранная строка остаётся там, где её нажали.
+// Ниже складки над колонкой стоит полоса меню (D092), и колонка — просто часть страницы.
 const RAIL_CLASS =
-  "bg-surface sticky top-0 flex h-screen min-w-0 flex-col overflow-y-auto border-r border-[var(--line)]";
+  "bg-surface flex min-w-0 flex-col border-[var(--line)] md:sticky md:top-0 md:h-screen md:overflow-y-auto md:border-r";
 const BACK_CLASS =
   "bg-surface flex items-center gap-[var(--space-3)] border-b border-[var(--line)] px-[var(--space-7)] py-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] no-underline hover:text-ink md:hidden";
 
@@ -51,6 +57,8 @@ export interface MasterDetailProps {
   /** Куда ведёт «назад к списку» ниже складки и как это подписано. */
   readonly backHref: string;
   readonly backLabel: string;
+  /** Вводный блок раздела над колонкой — только ниже складки и только без выбора. */
+  readonly intro?: ReactNode;
   /** Сегменты, открытые без колонки, и меню для них. */
   readonly wide?:
     | { readonly segments: readonly string[]; readonly nav: ReactNode }
@@ -65,6 +73,7 @@ export function MasterDetail({
   railLabel,
   backHref,
   backLabel,
+  intro,
   wide,
   children,
 }: MasterDetailProps): ReactElement {
@@ -88,6 +97,14 @@ export function MasterDetail({
           data-testid="master-rail"
           className={`${RAIL_CLASS}${hasDetail ? " max-md:hidden" : ""}`}
         >
+          {intro !== undefined && !hasDetail ? (
+            <div
+              className="px-[var(--space-6)] pt-[var(--space-6)] md:hidden"
+              data-testid="master-intro"
+            >
+              {intro}
+            </div>
+          ) : null}
           {rail}
         </aside>
       )}

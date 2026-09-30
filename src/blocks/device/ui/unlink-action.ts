@@ -5,13 +5,14 @@
 // `requireAdmin()` стоит первой строкой: тело действия зовёт кто угодно, а не только
 // кнопка экрана «Устройства» — охрана разметки (`src/app/admin/layout.tsx`) действия не
 // закрывает, они выполняются мимо дерева разметки (тот же приём, что у
-// `qr/ui/actions.ts` и `pair-action.ts` этого же блока).
+// `stations/ui/actions.ts` и `pair-action.ts` этого же блока).
 //
 // Действие ничего не решает само — вопрос «отвязать ли» уже задан и подтверждён на
 // экране (`UnlinkButton.tsx`, окно `core/ui/ConfirmDialog`), поэтому здесь нет ветки
 // «confirmed», как у перевыпуска кода в справочнике: отвязка выполняется сразу.
 import { revalidatePath } from "next/cache";
 
+import { canSee } from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 
@@ -28,7 +29,10 @@ export interface UnlinkOutcome {
  * через JavaScript, потому что решение «показать отказ» принимает кнопка, а не адрес.
  */
 export async function unlinkDevice(id: string): Promise<UnlinkOutcome> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
+  // Чужой планшет отвечает как уже отвязанный — тем же отказом, что и несуществующий
+  // (D145): кнопка покажет «обновите страницу», а сам планшет не тронут.
+  if (!(await canSee(viewer, "device", id))) return { ok: false };
 
   const ok = await unpairDevice(id);
   revalidatePath(ADMIN_SECTIONS.devices.path);

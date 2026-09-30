@@ -27,6 +27,7 @@ export async function LoginScreen() {
           <div className="p-[var(--space-7)]">
             <LoginForm
               labels={{
+                login: t("login"),
                 password: t("password"),
                 submit: t("submit"),
                 submitting: t("submitting"),

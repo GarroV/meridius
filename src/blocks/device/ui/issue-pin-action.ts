@@ -1,12 +1,14 @@
 "use server";
 
 // Выпуск пина из кабинета: действие карточки станции и панели раздела «Устройства».
+import { canSee } from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
 
 import { isUuid } from "../devices";
 import { classifyIssueFailure, type IssueFailure } from "../issue-failure";
 import { issuePairingPin } from "../pairing";
 import { PIN_TTL_SECONDS } from "../pin";
+import { checkIssueAllowed } from "../rate-limit";
 
 const SECONDS_IN_MINUTE = 60;
 
@@ -24,7 +26,12 @@ export type IssuePinOutcome =
    * Отказ с причиной (#162): экран говорит «попробуйте через минуту» только там, где
    * повтор помогает, а не на любую ошибку базы.
    */
-  | { readonly kind: "failed"; readonly reason: IssueFailure };
+  | { readonly kind: "failed"; readonly reason: IssueFailure }
+  /**
+   * Эта учётка выпустила слишком много кодов подряд (#144). Бюджет свой, а не общий с
+   * вводом на `/pair`: перебор на планшетной странице выпуск в кабинете не запирает.
+   */
+  | { readonly kind: "tooOften"; readonly minutes: number };
 
 /**
  * Выпускает пин для станции чек-листа.
@@ -44,14 +51,34 @@ export type IssuePinOutcome =
 export async function issuePinAction(
   stationId: string,
 ): Promise<IssuePinOutcome> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   if (typeof stationId !== "string" || !isUuid(stationId)) {
     return { kind: "failed", reason: "broken" };
   }
+  // Чужая станция — тот же отказ, что и станция не того вида (D145): код не выпускается.
+  if (!(await canSee(viewer, "station", stationId))) {
+    return { kind: "failed", reason: "broken" };
+  }
 
   try {
-    const pin = await issuePairingPin(stationId, new Date());
+    const now = new Date();
+    // Учётка — из подписанной сессии, подделать её нельзя. У УК из окружения площадки
+    // строки учётки нет, и её счёт ведётся по логину.
+    const verdict = await checkIssueAllowed(
+      viewer.accountId ?? `login:${viewer.login}`,
+      now,
+    );
+    if (!verdict.allowed) {
+      return {
+        kind: "tooOften",
+        minutes: Math.max(
+          1,
+          Math.ceil(verdict.retryAfterSeconds / SECONDS_IN_MINUTE),
+        ),
+      };
+    }
+    const pin = await issuePairingPin(stationId, now);
     return {
       kind: "issued",
       code: pin.code,

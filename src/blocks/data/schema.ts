@@ -15,9 +15,11 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   time,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -88,6 +90,82 @@ export const countries = pgTable(
   ],
 );
 
+/**
+ * Тенант — область видимости кабинета (D145, миграция 0016). УК одна и видит все
+ * страны; партнёр видит только страны из `tenant_countries`. Сам расчёт области —
+ * `src/blocks/auth/scope.ts`, здесь только форма данных.
+ */
+export const TENANT_KINDS = ["hq", "partner"] as const;
+export type TenantKind = (typeof TENANT_KINDS)[number];
+
+export const tenants = pgTable(
+  "tenants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").$type<TenantKind>().notNull(),
+    name: text("name").notNull(),
+    createdAt: serverTimestamp(CREATED_AT),
+  },
+  (table) => [
+    check("tenants_kind", sql`kind in ('hq', 'partner')`),
+    check("tenants_name_length", sql`length(btrim(name)) between 1 and 120`),
+    // УК ровно одна: вторая «УК» видела бы всю сеть, и никто бы этого не заметил.
+    uniqueIndex("tenants_single_hq")
+      .on(table.kind)
+      .where(sql`kind = 'hq'`),
+  ],
+);
+
+/** Страны партнёра. У УК строк нет: «все страны» — это отсутствие фильтра. */
+export const tenantCountries = pgTable(
+  "tenant_countries",
+  {
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    countryId: uuid("country_id")
+      .notNull()
+      .references(() => countries.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({
+      name: "tenant_countries_pk",
+      columns: [table.tenantId, table.countryId],
+    }),
+    index("tenant_countries_country_idx").on(table.countryId),
+  ],
+);
+
+/**
+ * Учётная запись кабинета. Логин `admin` занят учёткой УК из окружения площадки
+ * (`ADMIN_PASSWORD_HASH`) и в базе запрещён — один логин не открывает две учётки.
+ */
+export const accounts = pgTable(
+  "accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    login: text("login").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    createdAt: serverTimestamp(CREATED_AT),
+    disabledAt: timestamp("disabled_at", { withTimezone: true }),
+    /**
+     * Когда пароль сменили или сбросили; `null` — не меняли с заведения. Сессия,
+     * выпущенная раньше этой отметки, не принимается (#198, миграция 0019).
+     */
+    passwordChangedAt: timestamp("password_changed_at", { withTimezone: true }),
+  },
+  (table) => [
+    unique("accounts_login_unique").on(table.login),
+    check("accounts_login_shape", sql`login ~ '^[a-z0-9._-]{3,64}$'`),
+    check("accounts_login_not_root", sql`login <> 'admin'`),
+    check("accounts_password_hash_shape", sql`password_hash ~ '^scrypt[.]'`),
+    index("accounts_tenant_idx").on(table.tenantId),
+  ],
+);
+
 export const stores = pgTable(
   "stores",
   {
@@ -99,9 +177,26 @@ export const stores = pgTable(
     // Часовой пояс пиццерии: по нему окно чек-листа сравнивается с местным временем,
     // иначе утренний чек-лист в Казахстане открывался бы днём.
     timezone: text("timezone").notNull().default("UTC"),
+    // Город — отдельно от названия (#141): иначе его вклеивали в название, и справочник
+    // разъезжался между импортом и тем, что методист пишет руками.
+    city: text("city"),
+    // Код точки — опознаватель пиццерии в справочнике сети, уникален в пределах страны.
+    // Необязателен: пиццерии, заведённые до него, остаются валидными без кода.
+    code: text("code"),
     createdAt: serverTimestamp(CREATED_AT),
   },
-  (table) => [index("stores_country_idx").on(table.countryId)],
+  (table) => [
+    index("stores_country_idx").on(table.countryId),
+    check(
+      "stores_city_shape",
+      sql`city is null or (city = btrim(city) and length(city) between 1 and 120)`,
+    ),
+    check(
+      "stores_code_shape",
+      sql`code is null or (code = btrim(code) and length(code) between 1 and 64)`,
+    ),
+    uniqueIndex("stores_country_code_uq").on(table.countryId, table.code),
+  ],
 );
 
 export const stations = pgTable(
@@ -157,10 +252,20 @@ export const checklists = pgTable(
       { onDelete: "set null" },
     ),
     sourceVersion: integer("source_version"),
+    // «Оставить как есть» (D154, T336): до какой версии шаблона страна обновление уже
+    // видела и отклонила. Строка «шаблон обновился» гаснет до следующей версии, а
+    // `source_version` не сдвигается: содержимое копии по-прежнему снято с неё.
+    sourceSeenVersion: integer("source_seen_version"),
+    // Хозяин чек-листа (D145, миграция 0016): без него чек-лист без станции не лежит ни
+    // в одной стране, и «мой» (D148) не отличить от чужого.
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
     createdAt: serverTimestamp(CREATED_AT),
   },
   (table) => [
     index("checklists_station_idx").on(table.stationId),
+    index("checklists_tenant_idx").on(table.tenantId),
     index("checklists_source_idx").on(table.sourceChecklistId),
     check(
       "checklists_template_has_no_station",
@@ -547,7 +652,46 @@ export const loginAttempts = pgTable(
   ],
 );
 
+/**
+ * Счёт попыток привязки планшета (блок `device`, #144, миграция 0018).
+ *
+ * Та же природа, что у `login_attempts`: состояние защиты, а не данные продукта, и в базе
+ * оно лежит ради одного — счёт обязан пережить перезапуск процесса и быть общим у всех
+ * копий приложения. В памяти процесса вторая копия молча удваивала предел.
+ *
+ * Строка — пара «бюджет — ключ» под отпечатком sha256: бюджет ввода кода на `/pair` и
+ * бюджет выпуска кода в кабинете не делят счёт. Своя таблица, а не `login_attempts`:
+ * публичной поверхности привязки знать о входе в кабинет запрещено (T187).
+ */
+export const deviceAttempts = pgTable(
+  "device_attempts",
+  {
+    attemptKey: text("attempt_key").primaryKey(),
+    // Имя бюджета открытой колонкой: уборка кончившихся окон идёт по бюджету, и чужое
+    // «сейчас» не сметает счёт другого бюджета. Константа кода, а не данные снаружи.
+    budget: text("budget").notNull(),
+    // Начало окна: отсчёт от первой попытки, поэтому отказ кончается в названный срок.
+    windowStartedAt: timestamp("window_started_at", {
+      withTimezone: true,
+    }).notNull(),
+    attempts: integer("attempts").notNull(),
+  },
+  () => [
+    // Ровно sha256 и ничего кроме: забытое хэширование в коде не должно означать, что база
+    // примет адрес клиента из подделываемого заголовка как есть.
+    check(
+      "device_attempts_attempt_key_shape",
+      sql`attempt_key ~ '^[0-9a-f]{64}$'`,
+    ),
+    // Строка заводится первой попыткой: ноль здесь — сбой счёта, а не «никто не пробовал».
+    check("device_attempts_attempts_positive", sql`attempts > 0`),
+    check("device_attempts_budget_shape", sql`budget ~ '^[a-z0-9-]{1,64}$'`),
+  ],
+);
+
 export type Country = typeof countries.$inferSelect;
+export type Tenant = typeof tenants.$inferSelect;
+export type Account = typeof accounts.$inferSelect;
 export type Store = typeof stores.$inferSelect;
 export type Station = typeof stations.$inferSelect;
 export type Checklist = typeof checklists.$inferSelect;

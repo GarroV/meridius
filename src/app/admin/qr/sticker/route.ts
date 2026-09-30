@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 
+import { canSee } from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
 import { listStations } from "@/blocks/catalog";
 import { publicBasePath } from "@/blocks/qr/sticker-origin";
@@ -20,7 +21,7 @@ import { parseStationRef, type SearchParams } from "@/blocks/qr/ui/view";
  * `src/app/admin/layout.tsx` его не закрывает (проверяется `e2e/admin-guard.spec.ts`).
  */
 export async function GET(request: Request): Promise<Response> {
-  await requireAdmin();
+  const viewer = await requireAdmin();
 
   const params: SearchParams = Object.fromEntries(
     new URL(request.url).searchParams,
@@ -28,6 +29,11 @@ export async function GET(request: Request): Promise<Response> {
   const ref = parseStationRef(params);
   if (ref === null) {
     return Response.json({ error: "badRequest" }, { status: 400 });
+  }
+
+  // Чужая пиццерия отвечает тем же, что и несуществующая (D145).
+  if (!(await canSee(viewer, "store", ref.storeId))) {
+    return Response.json({ error: "notFound" }, { status: 404 });
   }
 
   const stations = await listStations(ref.storeId);

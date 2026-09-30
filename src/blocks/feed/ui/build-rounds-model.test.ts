@@ -12,6 +12,7 @@ import {
   createPublishedVersion,
   createStation,
 } from "@/blocks/data/testing/fixtures";
+import { hqViewer } from "@/blocks/auth/testing/viewers";
 
 import type { RoundsReportModel } from "../rounds-model";
 import { parseFeedView } from "../view";
@@ -140,7 +141,7 @@ async function mark(
   });
 }
 
-function modelOf(
+async function modelOf(
   stationId: string,
   period: string,
   now: Date,
@@ -148,6 +149,7 @@ function modelOf(
   return buildRoundsModel(
     parseFeedView({ station: stationId, period }),
     "ru",
+    await hqViewer(),
     now,
   );
 }

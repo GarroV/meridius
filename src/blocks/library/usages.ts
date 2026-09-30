@@ -8,6 +8,7 @@ import { sql } from "drizzle-orm";
 
 import type { LocalizedText } from "@/blocks/data";
 import { getDb } from "@/blocks/data";
+import { checklistVisibleSql, type Viewer } from "@/blocks/auth/scope";
 
 import { isUuid } from "./parsing";
 
@@ -46,8 +47,16 @@ interface UsageRow extends Record<string, unknown> {
  * из адреса, то есть от кого угодно, и склеивать из него текст запроса нельзя даже
  * после проверки формата.
  */
-export async function listUsages(blockId: string): Promise<BlockUsage[]> {
+export async function listUsages(
+  blockId: string,
+  viewer: Viewer,
+): Promise<BlockUsage[]> {
   if (!isUuid(blockId)) return [];
+  // Блок общий на всю сеть, а чек-листы, где он стоит, — нет: партнёр видит только те,
+  // что видит в списке чек-листов (D145).
+  const visible =
+    checklistVisibleSql(viewer, sql`c.tenant_id`, sql`s.country_id`) ??
+    sql`true`;
 
   const rows = await getDb().execute<UsageRow>(sql`
     select c.id::text as checklist_id, c.title,
@@ -59,6 +68,7 @@ export async function listUsages(blockId: string): Promise<BlockUsage[]> {
       left join stations st on st.id = c.station_id
       left join stores s on s.id = st.store_id
      where c.archived_at is null
+       and ${visible}
        and v.status in ('draft', 'published')
        and exists (select 1
                      from jsonb_array_elements(v.sections) sec

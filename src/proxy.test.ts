@@ -1,7 +1,11 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
-import { SESSION_COOKIE_NAME, createSessionToken } from "@/blocks/auth/session";
+import {
+  ROOT_SUBJECT,
+  SESSION_COOKIE_NAME,
+  createSessionToken,
+} from "@/blocks/auth/session";
 import { DEVICE_TAB_HEADER } from "@/blocks/device/params";
 import { FILL_STATION_CODE_HEADER } from "@/blocks/fill/params";
 
@@ -19,7 +23,7 @@ function requestTo(path: string, cookie?: string): NextRequest {
 }
 
 function validCookie(): string {
-  return createSessionToken(SECRET, new Date());
+  return createSessionToken(ROOT_SUBJECT, SECRET, new Date());
 }
 
 beforeEach(() => {
@@ -46,6 +50,7 @@ describe("охрана перед рендером", () => {
   test("страница привязки и вкладка планшета не читают сессию кабинета", () => {
     // Ни без куки, ни с подделанной: обе ветки стоят до всего, что связано со входом.
     const forged = createSessionToken(
+      ROOT_SUBJECT,
       "чужой-секрет-достаточной-длины-123456",
       new Date(),
     );
@@ -77,6 +82,7 @@ describe("охрана перед рендером", () => {
     // Ни без куки, ни с подделанной: ветка публичного маршрута срабатывает первой
     // и до сессии не доходит вовсе.
     const forged = createSessionToken(
+      ROOT_SUBJECT,
       "чужой-секрет-достаточной-длины-123456",
       new Date(),
     );
@@ -126,6 +132,7 @@ describe("охрана перед рендером", () => {
 
   test("с подделанной и с мусорной кукой уводит на форму входа", () => {
     const forged = createSessionToken(
+      ROOT_SUBJECT,
       "секрет-подобранный-злоумышленником",
       new Date(),
     );

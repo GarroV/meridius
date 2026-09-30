@@ -20,6 +20,7 @@ import {
   type LocalizedText,
   type Section,
 } from "@/blocks/data";
+import { hqTenantId } from "@/blocks/auth/accounts";
 
 import { isUuid } from "./validation";
 
@@ -265,8 +266,11 @@ export async function copyTemplateToStations(
   templateId: string,
   stationIds: readonly string[],
   now: Date = new Date(),
+  ownerTenantId?: string,
 ): Promise<CopyOutcome> {
   const template = await readTemplate(templateId);
+  // Чьи копии (D145): не задан — УК; экраны кабинета передают тенант вошедшего всегда.
+  const tenantId = ownerTenantId ?? (await hqTenantId());
   const alreadyHave = await stationsWithCopy(templateId, stationIds);
   const targets = plannedCopies({ stationIds, alreadyHave });
 
@@ -281,6 +285,7 @@ export async function copyTemplateToStations(
           windowStart: template.windowStart,
           windowEnd: template.windowEnd,
           stationId,
+          tenantId,
           sourceChecklistId: template.id,
           sourceVersion: template.versionNumber,
         })
@@ -301,6 +306,14 @@ export async function copyTemplateToStations(
         sections: [...template.sections],
         publishedAt: now,
       });
+      // И черновик с тем же содержимым — как после любой публикации (`publishVersion`
+      // черновик не удаляет). Редактор правит черновик, и копия без него открывалась
+      // пустой: страна видела чек-лист без единого пункта, хотя на станции он полон.
+      await tx.insert(checklistVersions).values({
+        checklistId: copy.id,
+        status: "draft",
+        sections: [...template.sections],
+      });
     }
   });
 
@@ -318,8 +331,13 @@ export async function copyTemplateToStations(
  *
  * Пункты сохраняют опознаватели шаблона: по ним потом видно, что в копии изменили.
  */
-export async function takeTemplate(templateId: string): Promise<string> {
+export async function takeTemplate(
+  templateId: string,
+  ownerTenantId?: string,
+): Promise<string> {
   const template = await readTemplate(templateId);
+  // Чья копия (D145): не задан — УК; экраны кабинета передают тенант вошедшего всегда.
+  const tenantId = ownerTenantId ?? (await hqTenantId());
 
   return await getDb().transaction(async (tx) => {
     const [copy] = await tx
@@ -329,6 +347,7 @@ export async function takeTemplate(templateId: string): Promise<string> {
         windowStart: template.windowStart,
         windowEnd: template.windowEnd,
         stationId: null,
+        tenantId,
         sourceChecklistId: template.id,
         sourceVersion: template.versionNumber,
       })

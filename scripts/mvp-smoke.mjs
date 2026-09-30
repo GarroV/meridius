@@ -85,26 +85,6 @@ function argumentRaw(name) {
     : undefined;
 }
 
-/**
- * Осталась ли выбранной станция в редакторе.
- *
- * Значение читается с самого селектора: перерисовка после серверного действия
- * возвращает список заново, и потерянный выбор виден только так.
- */
-async function stationBound(page, label, timeout = STEP_TIMEOUT) {
-  const select = page.getByTestId("checklist-station");
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    const selected = await select
-      .locator("option:checked")
-      .innerText()
-      .catch(() => "");
-    if (selected.trim() === label) return true;
-    await page.waitForTimeout(300);
-  }
-  return false;
-}
-
 /** Дождаться, пока элементов станет не меньше `expected`. */
 async function waitForCount(locator, expected, timeout = STEP_TIMEOUT) {
   const deadline = Date.now() + timeout;
@@ -201,6 +181,7 @@ function heading(text) {
 async function signIn(page) {
   await page.goto(`${BASE_URL}/admin/login`, { waitUntil: "domcontentloaded" });
   await page.getByLabel("Password").fill(PASSWORD);
+  await page.locator('input[name="login"]').fill("admin");
   await page.getByTestId("login-submit").click();
   await page.getByTestId("admin-home").waitFor({ timeout: STEP_TIMEOUT });
 }
@@ -259,8 +240,15 @@ async function createCatalog(page) {
     `станция «${STATION}» заведена, код ${code}`,
   );
 
+  // Id станции — из ссылки «QR» её строки: она ведёт на лист наклейки этой станции
+  // (T341), а по id открывается карточка станции, где вешают чек-лист (T312).
+  const stationId = await idFromLink(
+    row.getByTestId("catalog-station-qr"),
+    "stationIds",
+  );
+
   await shot(page, "catalog");
-  return { countryId, storeId, code };
+  return { countryId, storeId, stationId, code };
 }
 
 async function createChecklist(page, catalog) {
@@ -276,20 +264,6 @@ async function createChecklist(page, catalog) {
   await page.locator("#new-checklist-window").selectOption(ANY_WINDOW_VALUE);
   await page.getByTestId("create-checklist").click();
   await page.getByTestId("editor-screen").waitFor({ timeout: STEP_TIMEOUT });
-
-  await page
-    .getByTestId("checklist-station")
-    .selectOption({ label: `${COUNTRY} · ${STORE} · ${STATION}` });
-  // Выбор станции уходит на сервер и перерисовывает редактор. Пока перерисовка идёт,
-  // клавиатурный ввод уезжает в элемент, который сейчас будет заменён, — на localhost
-  // это успевало, по внешнему адресу пункты переставали создаваться вовсе.
-  await page.waitForLoadState("networkidle");
-  // Привязка станции уходит в черновик серверным действием. Проверяем, что она там
-  // осталась: публикация читает черновик, и потерянная привязка даёт станцию без
-  // чек-листа — заполнение по её QR открыть уже нельзя.
-  const stationLabel = `${COUNTRY} · ${STORE} · ${STATION}`;
-  const bound = await stationBound(page, stationLabel);
-  check(bound, `чек-лист привязан к станции «${STATION}»`);
 
   const items = page.getByTestId("item-title");
   await items.first().click();
@@ -335,15 +309,31 @@ async function createChecklist(page, catalog) {
   const published = await page.getByTestId("editor-published").innerText();
   check(published.includes("1"), `версия опубликована: «${published.trim()}»`);
 
+  // Чек-лист вешают на станцию на её карточке — в редакторе поля станции нет (T312).
+  // Без этого шага QR станции ничего не откроет.
+  await page.goto(`${BASE_URL}/admin/stations/${catalog.stationId}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.locator("#attach-checklist").selectOption({ label: CHECKLIST });
+  await page.getByTestId("attach-checklist").click();
+  const attached = page.getByTestId("attached-checklist");
+  await attached.waitFor({ timeout: STEP_TIMEOUT });
+  check(
+    (await attached.innerText()).includes(CHECKLIST),
+    `чек-лист повешен на станцию «${STATION}»`,
+  );
+  await shot(page, "station-card");
+
   return catalog;
 }
 
-async function printQr(page, storeId) {
-  heading("Печать: лист QR-кодов станций");
+async function printQr(page, stationId) {
+  heading("Печать: лист наклеек станций");
 
-  await page.goto(`${BASE_URL}/admin/qr?store=${storeId}`, {
-    waitUntil: "domcontentloaded",
-  });
+  await page.goto(
+    `${BASE_URL}/admin/stations/stickers?stationIds=${stationId}`,
+    { waitUntil: "domcontentloaded" },
+  );
   await page.getByTestId("qr-sheet").waitFor({ timeout: STEP_TIMEOUT });
   const stickers = await page.getByTestId("qr-sticker").count();
   check(stickers >= 1, `лист печати собран, наклеек на нём ${stickers}`);
@@ -584,7 +574,7 @@ try {
   await signIn(page);
   const catalog = await createCatalog(page);
   await createChecklist(page, catalog);
-  await printQr(page, catalog.storeId);
+  await printQr(page, catalog.stationId);
   await fillFromPhone(browser, catalog.code);
   await findInFeed(page);
 } catch (error) {

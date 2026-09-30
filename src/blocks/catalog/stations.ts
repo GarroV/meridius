@@ -3,8 +3,14 @@
 // в нём не собирается (решение D024).
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
+import type { Viewer } from "@/blocks/auth/scope";
 import type { LocalizedText } from "@/blocks/data";
-import { checklists, getDb, stations } from "@/blocks/data";
+import {
+  bindChecklistToStation,
+  checklists,
+  getDb,
+  stations,
+} from "@/blocks/data";
 
 import {
   CatalogError,
@@ -80,11 +86,10 @@ async function withFreshCode<T>(
 /** Чек-листы станций одним запросом: список станций иначе превратился бы в N+1. */
 async function checklistsOfStations(
   stationIds: string[],
-): Promise<Map<string, StationChecklist[]>> {
-  const grouped = new Map<string, StationChecklist[]>();
-  if (stationIds.length === 0) return grouped;
+): Promise<(StationChecklist & { stationId: string | null })[]> {
+  if (stationIds.length === 0) return [];
 
-  const rows = await getDb()
+  return await getDb()
     .select({
       id: checklists.id,
       stationId: checklists.stationId,
@@ -95,13 +100,6 @@ async function checklistsOfStations(
     // Порядок дня, а не алфавит: утренний чек-лист выше вечернего независимо от
     // языка интерфейса. Сортировка по названию требовала бы выбрать язык в запросе.
     .orderBy(asc(checklists.windowStart), asc(checklists.createdAt));
-
-  for (const row of rows) {
-    if (row.stationId === null) continue;
-    const list = grouped.get(row.stationId) ?? [];
-    grouped.set(row.stationId, [...list, { id: row.id, title: row.title }]);
-  }
-  return grouped;
 }
 
 /** Станции пиццерии с назначенными чек-листами. Неизвестная пиццерия — пустой список. */
@@ -120,11 +118,15 @@ export async function listStations(storeId: string): Promise<StationRow[]> {
     .where(eq(stations.storeId, storeId))
     .orderBy(asc(stations.name));
 
-  const grouped = await checklistsOfStations(rows.map((row) => row.id));
+  const attached = await checklistsOfStations(rows.map((row) => row.id));
 
+  // Раскладка по станциям — фильтром, а не словарём с `?? []`: у станции без
+  // чек-листов пустой список получается сам, без ветки. Порядок дня сохраняется.
   return rows.map((row) => ({
     ...row,
-    checklists: grouped.get(row.id) ?? [],
+    checklists: attached
+      .filter((item) => item.stationId === row.id)
+      .map((item) => ({ id: item.id, title: item.title })),
   }));
 }
 
@@ -230,20 +232,13 @@ export async function assignChecklist(
   if (station === undefined) throw notFound(WHAT);
 
   // Снятый с работы чек-лист привязать нельзя: методист убрал его из работы, и привязка
-  // вернула бы его на станцию молча. Условие стоит в самой записи, а не проверкой до неё:
-  // чек-лист снимают с работы и в ту минуту, когда справочник уже показал список.
-  const [row] = await getDb()
-    .update(checklists)
-    .set({ stationId })
-    .where(and(eq(checklists.id, checklistId), isNull(checklists.archivedAt)))
-    .returning({ id: checklists.id });
-  if (row === undefined) {
-    // Запись не тронута по двум разным причинам, и человеку они говорят разное.
-    const [existing] = await getDb()
-      .select({ archivedAt: checklists.archivedAt })
-      .from(checklists)
-      .where(eq(checklists.id, checklistId));
-    if (existing === undefined) throw notFound("чек-лист");
+  // вернула бы его на станцию молча. Условие проверяется в той же транзакции, что и
+  // запись: чек-лист снимают с работы и в ту минуту, когда справочник уже показал список.
+  // Уже опубликованный чек-лист слой данных там же переопубликует для этой станции —
+  // иначе её QR открывал бы «заполнять нечего» (T348).
+  const result = await bindChecklistToStation(checklistId, stationId);
+  if (result === "missing") throw notFound("чек-лист");
+  if (result === "archived") {
     throw new CatalogError(
       "checklistArchived",
       `чек-лист ${checklistId}: снят с работы, привязать его к станции нельзя`,
@@ -271,10 +266,19 @@ export async function detachChecklist(checklistId: string): Promise<void> {
  * никто не видит: у методиста в его списке их нет, а справочник предлагал привязать их
  * заново — то есть вернуть в работу снятое.
  */
-export async function listUnassignedChecklists(): Promise<StationChecklist[]> {
+export async function listUnassignedChecklists(
+  viewer: Viewer,
+): Promise<StationChecklist[]> {
+  // Чек-лист без станции не лежит ни в одной стране: партнёру виден только свой (D145).
+  const own =
+    viewer.tenantKind === "hq"
+      ? undefined
+      : eq(checklists.tenantId, viewer.tenantId);
   return getDb()
     .select({ id: checklists.id, title: checklists.title })
     .from(checklists)
-    .where(and(isNull(checklists.stationId), isNull(checklists.archivedAt)))
+    .where(
+      and(isNull(checklists.stationId), isNull(checklists.archivedAt), own),
+    )
     .orderBy(asc(checklists.createdAt));
 }

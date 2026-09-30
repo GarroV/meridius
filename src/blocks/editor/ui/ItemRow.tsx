@@ -17,6 +17,7 @@ import { severityOf } from "@/blocks/data/severity";
 
 import type { ScheduleSetting } from "../editing";
 import { pickEditorText } from "../localized-text";
+import { AlarmFields } from "./AlarmFields";
 import { ScheduleChip } from "./ScheduleChip";
 import { SELECT_ARROW_SMALL } from "./select-style";
 import { TableColumns } from "./TableColumns";
@@ -122,7 +123,7 @@ const BOUND_CLASS =
 const UNIT_CLASS =
   "text-ink bg-surface h-[var(--control-h-sm)] w-[72px] rounded-[var(--r-control)] border border-[var(--line-control)] text-center text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 
-const ITEM_TYPES: readonly ItemType[] = ["bool", "number", "text"];
+const ITEM_TYPES: readonly ItemType[] = ["bool", "number", "text", "alarm"];
 const ITEM_TYPES_WITH_TABLE: readonly ItemType[] = [...ITEM_TYPES, "table"];
 
 /** Порядок положений переключателя уровня: слева направо, от лёгкого к тяжёлому. */
@@ -147,6 +148,7 @@ function typeKey(type: ItemType): string {
   if (type === "number") return "typeNumber";
   if (type === "text") return "typeText";
   if (type === "table") return "typeTable";
+  if (type === "alarm") return "typeAlarm";
   return "typeBool";
 }
 
@@ -249,6 +251,7 @@ export function ItemRow({
       ? ITEM_TYPES
       : ITEM_TYPES_WITH_TABLE;
   const showColumns = item.type === "table" && columns !== undefined;
+  const showAlarm = item.type === "alarm";
 
   return (
     <div
@@ -260,7 +263,9 @@ export function ItemRow({
           : "@container/item hover:bg-[var(--surface-2)]"
       }
     >
-      <div className={`${ROW_CLASS} ${showColumns ? "" : ROW_LINE_CLASS}`}>
+      <div
+        className={`${ROW_CLASS} ${showColumns || showAlarm ? "" : ROW_LINE_CLASS}`}
+      >
         <div className="text-right text-[length:var(--fs-meta)] text-[var(--ink-3)]">
           {ordinal}
         </div>
@@ -395,7 +400,9 @@ export function ItemRow({
             только потом вес пункта») предпочтением и остался: требованием он не был. */}
           {/* Табличный пункт расписания не имеет ни в каком виде: `parseItem`
             отвергает его, и чип обещал бы настройку, которой не бывает. */}
-          {item.type === "table" ? null : schedule !== undefined ? (
+          {/* Будильник — тоже: его ставят один раз, когда пункт открыли (D070, D156). */}
+          {item.type === "table" || showAlarm ? null : schedule !==
+            undefined ? (
             <ScheduleChip
               item={item}
               window={schedule.window}
@@ -427,6 +434,16 @@ export function ItemRow({
           onTitle={columns.onTitle}
           onNorm={columns.onNorm}
           onRemove={columns.onRemove}
+        />
+      ) : null}
+
+      {showAlarm ? (
+        <AlarmFields
+          item={item}
+          locale={locale}
+          onChange={(alarm) => {
+            onPatch({ alarm });
+          }}
         />
       ) : null}
     </div>

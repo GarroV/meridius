@@ -5,7 +5,7 @@
 // блоке `data` (D024), и не взят у `stations/overview.ts`: блок `device` на `stations`
 // ссылаться не может (`.dependency-cruiser.cjs`), да и вопрос у раздела станций другой —
 // «где по сети дырки», а не «какой планшет где стоит».
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import {
   checklists,
@@ -15,6 +15,7 @@ import {
   stations,
   stores,
 } from "@/blocks/data";
+import { countryCondition, type Scope } from "@/blocks/auth/scope";
 
 import { isUuid } from "./devices";
 
@@ -46,9 +47,13 @@ export interface StationTablets {
  * Подзапросом, а не соединением, и с `::int`: соединение с чек-листами размножило бы
  * строки планшетов, а `count()` без приведения приходит от драйвера строкой, и "0"
  * на экране читался бы как «чек-лист есть» (разбор — `stations/overview.ts`).
+ * Архивный чек-лист не считается (#196): на станции он уже не открывается, и планшет с
+ * одними архивными показал бы «нечего заполнять» под отметкой «чек-лист есть».
  */
 const checklistCount = sql<number>`(
-  select count(*)::int from ${checklists} where ${checklists.stationId} = ${stations.id}
+  select count(*)::int from ${checklists}
+   where ${checklists.stationId} = ${stations.id}
+     and ${checklists.archivedAt} is null
 )`;
 
 interface Row {
@@ -126,16 +131,21 @@ function foldRows(rows: readonly Row[]): StationTablets[] {
 }
 
 /** Все станции сети с планшетами: страна, пиццерия, станция — так их ищет человек. */
-export async function listStationTablets(): Promise<StationTablets[]> {
-  const rows = await selectRows().orderBy(
-    asc(countries.name),
-    asc(countries.id),
-    asc(stores.name),
-    asc(stores.id),
-    asc(stations.name),
-    asc(stations.id),
-    asc(devices.pairedAt),
-  );
+export async function listStationTablets(
+  scope: Scope,
+): Promise<StationTablets[]> {
+  // Область видимости (D145): партнёр видит станции своих стран, УК — всю сеть.
+  const rows = await selectRows()
+    .where(countryCondition(scope, stores.countryId))
+    .orderBy(
+      asc(countries.name),
+      asc(countries.id),
+      asc(stores.name),
+      asc(stores.id),
+      asc(stations.name),
+      asc(stations.id),
+      asc(devices.pairedAt),
+    );
   return foldRows(rows);
 }
 
@@ -146,11 +156,18 @@ export async function listStationTablets(): Promise<StationTablets[]> {
  */
 export async function findStationTablets(
   stationId: string,
+  scope: Scope,
 ): Promise<StationTablets | null> {
   if (!isUuid(stationId)) return null;
 
+  // Чужая станция — «станции нет», как и удалённая (D145).
   const rows = await selectRows()
-    .where(eq(stations.id, stationId))
+    .where(
+      and(
+        eq(stations.id, stationId),
+        countryCondition(scope, stores.countryId),
+      ),
+    )
     .orderBy(asc(devices.pairedAt));
   return foldRows(rows)[0] ?? null;
 }

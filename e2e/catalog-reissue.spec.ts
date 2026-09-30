@@ -11,6 +11,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
+import { decodeQrSvg } from "../src/blocks/qr/testing/decode-svg";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { seedStore, type SeededStore } from "./station-fixtures";
 
@@ -19,6 +20,7 @@ const CATALOG_PATH = "/admin/catalog";
 async function signIn(page: Page): Promise<void> {
   await page.goto("/admin/login");
   await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);
+  await page.locator('input[name="login"]').fill("admin");
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }
@@ -175,20 +177,17 @@ test.describe("перевыпуск кода станции", () => {
     await page.getByTestId("reissue-confirm").click();
 
     // Обещание кнопки — «перевыпустить И открыть печать»: без второго шага методист
-    // уходит со старой наклейкой на станции и новым кодом в базе.
-    await expect(page.getByTestId("qr-screen")).toBeVisible();
-    const url = new URL(page.url());
-    expect(url.searchParams.get("store")).toBe(store.storeId);
-    expect(url.searchParams.get("station")).not.toBeNull();
+    // уходит со старой наклейкой на станции и новым кодом в базе. Печать — лист
+    // наклейки именно этой станции, как и после перевыпуска с её карточки (T341).
+    await expect(page).toHaveURL(/\/admin\/stations\/stickers\?stationIds=/);
+    const sticker = page.getByTestId("qr-sticker");
+    await expect(sticker).toHaveCount(1);
+    await expect(sticker).toContainText(name);
 
-    // На печати — код именно этой станции и именно новый.
-    const printed = page
-      .getByTestId("qr-stations")
-      .locator("tbody tr")
-      .filter({ hasText: name })
-      .locator("td:nth-child(2)");
-    await expect(printed).not.toHaveText(before);
-    const after = (await printed.innerText()).trim();
+    // На наклейке — код именно этой станции и именно новый: его несёт сама картинка.
+    const svg = await sticker.locator("svg").evaluate((node) => node.outerHTML);
+    const after = new URL(decodeQrSvg(svg)).pathname.split("/").at(-1) ?? "";
+    expect(after).not.toBe("");
     expect(after).not.toBe(before);
 
     // И то же самое в справочнике: сменился код станции, а не показ на одной странице.

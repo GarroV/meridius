@@ -101,6 +101,72 @@
   }
 }
 
+/* Меню кабинета ниже складки — верхняя полоса (D092, T344).
+   Ядро (`.sidenav`, эталон Swarm) знает две ширины: колонка 216 px и уже 1100 px
+   колонка иконок 56 px. На телефоне колонка иконок отнимала 56 px из 375 при каждом
+   экране, а D092 требует схлопывающееся меню и всю ширину содержимому. Поэтому ниже
+   `--page-fold` (768 px; число продублировано, у медиазапроса нет доступа к
+   переменным) панель ложится полосой в одну строку со своей горизонтальной
+   прокруткой — тот же приём, что у полосы эталона экранов (`design/app.css`, `.nav`).
+   Шторки по кнопке нет сознательно: это состояние, то есть скрипт на каждом экране.
+   Подписи, группы и имя уже скрыты правилом ядра «уже 1100 px» — здесь только
+   раскладка. Слой `components` сильнее `base`, куда импортировано ядро. */
+@layer components {
+  @media (max-width: 767.98px) {
+    .sidenav {
+      flex-direction: row;
+      align-items: center;
+      width: auto;
+      overflow-x: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .sidenav__brand {
+      flex-shrink: 0;
+      padding: var(--space-4) var(--space-5);
+      border-bottom: 0;
+    }
+    .sidenav__search {
+      flex-shrink: 0;
+      padding: 0 var(--space-2);
+    }
+    .sidenav__field {
+      width: 34px;
+    }
+    .sidenav__list {
+      flex-direction: row;
+      flex: none;
+      overflow: visible;
+      padding: var(--space-4) var(--space-2);
+    }
+    .sidenav__item,
+    .sidenav__current {
+      width: 34px;
+      flex-shrink: 0;
+    }
+    /* Текущий пункт — полоса снизу, а не слева: полоса слева читается как
+       разделитель соседних иконок. */
+    .sidenav__current {
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+    .sidenav__foot {
+      flex-direction: row;
+      flex-shrink: 0;
+      align-items: center;
+      border-top: 0;
+    }
+    .sidenav__theme {
+      flex-direction: row;
+      margin-bottom: 0;
+    }
+    .sidenav__user {
+      flex-shrink: 0;
+      border-top: 0;
+      padding: 0 var(--space-5);
+    }
+  }
+}
+
 @layer base {
   html {
     /* Поворот телефона на кухне не должен раздувать текст: эталон задаёт размеры сам. */
