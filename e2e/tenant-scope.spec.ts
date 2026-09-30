@@ -296,6 +296,8 @@ const PROBES: Record<string, Probe> = {
       `/admin/library${params({ block: world.libraryBlockId })}`,
     ],
   },
+  // Экран УК «Партнёры» (T337): партнёру — 404, и чужих учёток он не видит.
+  "/admin/partners": { foreign: () => ["/admin/partners"] },
   // Бывший лист QR — теперь перенаправление на карточку станции (T312): чужая
   // пиццерия и станция в адресе не должны довести до чужой карточки.
   "/admin/qr": {
@@ -421,6 +423,7 @@ test.describe("область видимости тенанта на весь к
       `/admin/stations/${world.theirs.stationId}`,
       `/admin/qr/code${params({ store: world.theirs.storeId, station: world.theirs.stationId })}`,
       "/admin/templates/new",
+      "/admin/partners",
       // Редактор блока библиотеки: блок общий на сеть, правит его только УК (T338).
       `/admin/library${params({ block: world.libraryBlockId })}`,
       // Бывшие разделы доводят до карточки станции — чужой она быть не может.

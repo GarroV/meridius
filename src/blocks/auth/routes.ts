@@ -9,3 +9,6 @@ export const LOGIN_PATH = "/admin/login";
 
 /** Куда попадает вошедший. Первый экран админки. */
 export const ADMIN_HOME_PATH = "/admin";
+
+/** Экран УК «Партнёры»: учётки партнёров (T337). Партнёру адрес отвечает 404. */
+export const PARTNERS_PATH = "/admin/partners";
