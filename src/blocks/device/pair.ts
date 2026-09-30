@@ -1,7 +1,8 @@
 // Привязка планшета: что происходит, когда на планшете ввели четыре цифры.
 //
-// Порядок проверок тот же, что у отправки заполнения: форма тела (дёшево, без базы),
-// потом частота (тоже без базы), и только затем база. Иначе перебор гонял бы базу.
+// Порядок проверок: сначала частота (одна строка счёта в базе, #144; считается и на
+// мусоре), потом форма кода (без базы), и только затем поиск пина. Иначе перебор ходил бы
+// мимо счётчика или гонял бы поиск пина.
 import { headers } from "next/headers";
 
 import { rememberDevice, deviceIdFromCookie } from "./current";
@@ -47,7 +48,7 @@ export async function pairTablet(
     (await headers()).get("x-forwarded-for"),
     process.env,
   );
-  const verdict = checkPairAllowed(client, now);
+  const verdict = await checkPairAllowed(client, now);
   if (!verdict.allowed) {
     return { kind: "tooOften", retryAfterSeconds: verdict.retryAfterSeconds };
   }
