@@ -102,13 +102,13 @@ export function itemInputId(itemId: string): string {
  * поймала на снимке то, что проверка шириной пропустила — название обрезано на
  * полуслове («Температура камеры быстр»).
  *
- * `minmax(0,auto)` у колонки управления — разрешение быть уже своего содержимого.
- * Без нижней границы `auto` требовал ширину всех кнопок в одну строку, и не влезшее
- * уезжало за край страницы. С нулевым минимумом управление переносится (`flex-wrap`
- * ниже): строка становится выше, а не шире экрана.
+ * Три колонки — только когда строка шире 56rem (контейнер `item`, см. разметку ниже):
+ * там управление целиком влезает рядом с названием. Уже — две колонки, и управление
+ * встаёт под название во всю ширину строки. Прежний `minmax(0,auto)` с переносом по
+ * месту делал высоту строки зависящей от длины регулярности пункта.
  */
 const ROW_CLASS =
-  "grid grid-cols-[28px_minmax(0,1fr)] items-center gap-[var(--space-5)] px-[var(--space-6)] py-[var(--space-4)] xl:grid-cols-[28px_minmax(320px,1fr)_minmax(0,auto)]";
+  "grid grid-cols-[28px_minmax(0,1fr)] items-center gap-[var(--space-5)] px-[var(--space-6)] py-[var(--space-4)] @[56rem]/item:grid-cols-[28px_minmax(0,1fr)_auto]";
 /** Линия под строкой. У табличного пункта она уезжает под панель колонок: панель —
     продолжение той же строки, а не соседняя. */
 const ROW_LINE_CLASS = "border-b border-[var(--line)]";
@@ -259,8 +259,8 @@ export function ItemRow({
       data-severity={severity}
       className={
         severity === "critical"
-          ? "bg-[var(--warn-soft)]"
-          : "hover:bg-[var(--surface-2)]"
+          ? "@container/item bg-[var(--warn-soft)]"
+          : "@container/item hover:bg-[var(--surface-2)]"
       }
     >
       <div
@@ -284,10 +284,14 @@ export function ItemRow({
           onPaste={onPaste}
         />
 
-        {/* Управление переносится, а не сжимает название: у чипа регулярности и
-          переключателя уровня свои неделимые ширины, и в одну строку они влезают
-          не всегда. Ниже складки колонка своя, во всю ширину строки. */}
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-[var(--space-4)] max-xl:col-span-2 max-xl:justify-start">
+        {/* Раскладку строки выбирает ширина САМОЙ строки (контейнер `item`), а не
+          окна: рядом стоят колонка чек-листов и колонка версий, и при окне 1440 px
+          строке остаётся около 700 px. Раньше управление переносилось по месту, и
+          высота зависела от содержимого: длинная регулярность («08:00–23:00, каждый
+          час») уносила «×» на вторую строку, короткая («Один раз») — нет. Теперь
+          правило одно на все пункты: строка шире 56rem — всё в одну линию, уже —
+          название сверху целиком, управление под ним. */}
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-[var(--space-4)] @max-[56rem]/item:col-span-2 @max-[56rem]/item:justify-start @[56rem]/item:flex-nowrap">
           <select
             data-testid="item-type"
             className={`${SELECT_CLASS} pr-[var(--space-8)]`}
@@ -414,7 +418,7 @@ export function ItemRow({
             type="button"
             data-testid="item-remove"
             aria-label={t("remove")}
-            className="text-err flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] hover:border-[var(--err-line)] hover:bg-[var(--err-soft)] max-xl:ml-auto"
+            className="text-err flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] hover:border-[var(--err-line)] hover:bg-[var(--err-soft)] @max-[56rem]/item:ml-auto"
             onClick={onRemove}
           >
             ×

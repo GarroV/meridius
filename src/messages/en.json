@@ -172,6 +172,7 @@
       "new": "+ New checklist",
       "duplicate": "Duplicate",
       "delete": "Delete",
+      "makeTemplate": "Make a template — no station or country, for the whole network",
       "draftTag": "draft",
       "noStation": "no station",
       "noStore": "No store",
@@ -341,7 +342,7 @@
       "empty": "No blocks yet"
     },
     "notice": {
-      "station": "The checklist is attached to station “{station}” of store “{store}”. Its QR code opens the version published at the moment of scanning.",
+      "station": "The checklist is on station “{station}” of store “{store}”: the station’s QR code and tablet open the version published at the moment they are opened.",
       "noStation": "The checklist is not on a station: until it is, its QR code opens nothing. Checklists are put on stations in the Stations section.",
       "openStation": "The station, its sticker and its tablet are in Stations",
       "attach": "Put on a station",
@@ -925,7 +926,8 @@
       "lead": "Once per tablet, about a minute. You need a tablet with internet and this workspace — on a computer or a phone.",
       "step1": {
         "title": "Issue a code",
-        "text": "In Stations, open the station where the tablet will stand and press “Pair a tablet”. Four digits appear."
+        "text": "In Stations, open the station where the tablet will stand and press “Pair a tablet”. Four digits appear.",
+        "drawerText": "Press “Pair a tablet” above — four digits appear."
       },
       "step2": {
         "title": "Open the address on the tablet",
@@ -933,7 +935,7 @@
       },
       "step3": {
         "title": "Type the code",
-        "text": "Type the four digits and press “Pair”. The code is valid for {minutes, plural, one {# minute} other {# minutes}} and works once."
+        "text": "The tablet shows a four-digit field: type the code the cabinet showed in step 1 and press “Pair”. The code is valid for {minutes, plural, one {# minute} other {# minutes}} and works once."
       },
       "step4": {
         "title": "Done",
@@ -1016,7 +1018,7 @@
     "title": "Templates",
     "breadcrumb": "Work",
     "new": "New template",
-    "empty": "No templates yet. Create the first one — every country will be able to take it.",
+    "empty": "No templates yet. Create the first one or make one from a ready checklist — the “Make a template” button in its editor. Every country will be able to take it.",
     "untitled": "Untitled",
     "items": "{count, plural, one {# item} other {# items}}",
     "updated": "updated {date}",
@@ -1027,18 +1029,55 @@
     "edit": "Edit"
   },
   "adminHome": {
-    "gapTitle": "{count, plural, one {# station has no checklist} other {# stations have no checklist}}",
-    "gapText": "Their QR sticker opens nothing: staff scan it and find no checklist.",
-    "gapAction": "Show these stations",
+    "working": {
+      "value": "{working} of {total}",
+      "caption": "stations at work: a checklist and fills within a day"
+    },
+    "noStations": "No stations in the selected scope. Add a store and its stations in “Countries and stores”.",
+    "todo": {
+      "title": "Not closed yet",
+      "noChecklist": "{count, plural, one {station without a checklist — its sticker opens nothing} other {stations without a checklist — their stickers open nothing}}",
+      "silent": "{count, plural, one {station silent for over a day} other {stations silent for over a day}}",
+      "drafts": "{count, plural, one {checklist with an unpublished edit — the station still shows the old one} other {checklists with unpublished edits — stations still show the old ones}}"
+    },
+    "stations": {
+      "title": "Stations",
+      "count": "{count, plural, one {# station} other {# stations}}",
+      "columnStation": "Station",
+      "columnStatus": "State",
+      "columnTablet": "Tablet",
+      "columnLastFill": "Last fill",
+      "status": {
+        "working": "working",
+        "silent": "silent",
+        "noChecklist": "no checklist"
+      },
+      "noTablet": "none",
+      "tablets": "{count, plural, one {# tablet} other {# tablets}}",
+      "seen": "online {ago}",
+      "never": "never"
+    },
+    "stores": {
+      "title": "Stores",
+      "count": "{count, plural, one {# store} other {# stores}}",
+      "columnStore": "Store",
+      "columnWorking": "Stations at work",
+      "columnTablets": "With a tablet",
+      "columnLastFill": "Last fill",
+      "ofTotal": "{part} of {total}",
+      "never": "never"
+    },
+    "recent": {
+      "title": "What’s happening",
+      "all": "All fills",
+      "empty": "No fills in the selected period."
+    },
     "checklistsTitle": "My checklists",
     "checklistsAll": "All checklists ({count})",
     "noStation": "Not on a station",
     "version": "Version {number}",
     "changed": "unpublished changes",
     "unpublished": "Not published",
-    "submissionsTitle": "Recent submissions",
-    "submissionsAll": "All submissions",
-    "submissionsEmpty": "No checklist has been submitted yet.",
     "emptyTitle": "You have no checklists yet",
     "emptyText": "Start from a head-office template: take a copy, adjust it to your pizzerias and put it on your stations.",
     "emptyAction": "Make one from a template"

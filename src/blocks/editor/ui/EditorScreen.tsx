@@ -6,7 +6,7 @@ import { Icon } from "@/blocks/core/ui/Icon";
 import { requireChecklistEditable } from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
 
-import { submitDuplicate } from "../actions";
+import { submitDuplicate, submitMakeTemplate } from "../actions";
 import { loadEditor } from "../drafts";
 import { pickEditorText } from "../localized-text";
 import { checklistDeletePath, checklistPreviewPath } from "../routes";
@@ -34,13 +34,30 @@ function ChecklistActions({
   checklistId,
   duplicateLabel,
   deleteLabel,
+  makeTemplateLabel,
 }: {
   readonly checklistId: string;
   readonly duplicateLabel: string;
   readonly deleteLabel: string;
+  /** Есть, только когда шаблон из чек-листа сделать можно (D174). */
+  readonly makeTemplateLabel?: string;
 }) {
   return (
     <>
+      {makeTemplateLabel === undefined ? null : (
+        <form action={submitMakeTemplate}>
+          <input type="hidden" name="checklistId" value={checklistId} />
+          <button
+            type="submit"
+            data-testid="make-template"
+            className="icon-btn"
+            aria-label={makeTemplateLabel}
+            title={makeTemplateLabel}
+          >
+            <Icon name="spark" />
+          </button>
+        </form>
+      )}
       <form action={submitDuplicate}>
         <input type="hidden" name="checklistId" value={checklistId} />
         <button
@@ -103,6 +120,12 @@ export async function EditorScreen({
   // Шаблон правится тем же редактором, но живёт своим разделом (T309): и меню, и путь
   // над заголовком ведут туда, откуда его открыли.
   const isTemplate = state.checklist.isTemplate;
+  // Шаблон снимается с опубликованного и только с чек-листа без источника: копия шаблона
+  // шаблон уже имеет, а черновик шаблоном не становится (`make-template.ts`).
+  const canMakeTemplate =
+    !isTemplate &&
+    state.checklist.sourceChecklistId === null &&
+    state.versions.some((version) => version.status === "published");
   const crumbs = [
     isTemplate ? t("screen.crumbsTemplates") : t("screen.crumbsRoot"),
     state.station?.countryName,
@@ -155,6 +178,9 @@ export async function EditorScreen({
               checklistId={checklistId}
               duplicateLabel={t("list.duplicate")}
               deleteLabel={t("list.delete")}
+              makeTemplateLabel={
+                canMakeTemplate ? t("list.makeTemplate") : undefined
+              }
             />
           )
         }

@@ -23,8 +23,11 @@ const HEAD_CLASS =
 // `flex-1 min-w-0` обязательны: у `input` своя ширина по умолчанию (около двадцати
 // знаков), она не растёт под содержимое и не сжимается под соседей. Без этого длинный
 // заголовок секции обрезался на середине слова — «Opening 05:00–08:00 · S».
+// Нижняя граница 10rem, а не ноль: шапка переносится (`flex-wrap`), но перенос случается,
+// только когда элементу есть куда упереться. С нулём название блока библиотеки рядом с
+// неделимыми «4 пункта · используется ещё в 3 чек-листах» и кнопками сжималось в черту.
 const TITLE_CLASS =
-  "font-ui text-ink min-w-0 flex-1 rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--fs-body)] font-semibold hover:border-[var(--line-control)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
+  "font-ui text-ink min-w-[10rem] flex-1 rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--fs-body)] font-semibold hover:border-[var(--line-control)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const GHOST_BUTTON_CLASS =
   "flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] hover:bg-[var(--surface-3)] hover:text-[var(--ink)]";
 const SMALL_BUTTON_CLASS =
@@ -245,7 +248,10 @@ export function SectionCard(props: SectionCardProps) {
 
       {collapsed ? null : linked ? (
         <div className="border-t border-[var(--line)] px-[var(--space-6)] py-[var(--space-4)]">
-          <span className={META_CLASS}>{t("libraryHint")}</span>
+          {/* Подсказка — фраза, а не счётчик: переносится, а не распирает карточку. */}
+          <span className="text-[length:var(--fs-meta)] text-[var(--ink-3)]">
+            {t("libraryHint")}
+          </span>
         </div>
       ) : (
         <div className="flex flex-col gap-[var(--space-4)] border-t border-[var(--line)] px-[var(--space-6)] py-[var(--space-4)]">

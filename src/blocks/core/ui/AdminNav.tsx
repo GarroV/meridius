@@ -35,6 +35,11 @@ import { ThemeToggle } from "./ThemeToggle";
 // своей прокруткой (D092, T344): колонка иконок отнимала у телефона 56 px из 375.
 // Вид полосы — `globals.css`, слой `components`.
 
+// Тема и язык — две пилюли в одну строку, без подписей: иконки и коды языков понятны
+// сами, а слова остаются чтецу. На полосе иконок (уже 1100 px) — столбцом.
+const PREFS_ROW_CLASS =
+  "mb-[var(--space-2)] flex items-center justify-between gap-[var(--space-3)] px-[var(--space-2)] md:max-[1099px]:flex-col md:max-[1099px]:px-0";
+
 /** Иконка пункта — из набора линейки. Один факт на продукт, рядом с меню. */
 const SECTION_ICONS: Readonly<Record<AdminSectionKey, IconName>> = {
   checklists: "task",
@@ -167,15 +172,17 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
           каждом экране кабинета. Слова переводит меню, а не сами переключатели (T254):
           см. `ThemeToggle.tsx`.
         */}
-        <ThemeToggle
-          labels={{
-            label: t("theme.label"),
-            system: t("theme.system"),
-            light: t("theme.light"),
-            dark: t("theme.dark"),
-          }}
-        />
-        <LocaleToggle current={asLocale(locale)} label={t("locale.label")} />
+        <div className={PREFS_ROW_CLASS}>
+          <ThemeToggle
+            labels={{
+              label: t("theme.label"),
+              system: t("theme.system"),
+              light: t("theme.light"),
+              dark: t("theme.dark"),
+            }}
+          />
+          <LocaleToggle current={asLocale(locale)} label={t("locale.label")} />
+        </div>
       </div>
 
       {/*

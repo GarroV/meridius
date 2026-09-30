@@ -20,7 +20,8 @@
     "db:rollback": "node scripts/db-rollback.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
     "import:checklists": "node scripts/import-checklists.mjs",
-    "import:network": "node scripts/import-network.mjs"
+    "import:network": "node scripts/import-network.mjs",
+    "templates:from-store": "node scripts/templates-from-store.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

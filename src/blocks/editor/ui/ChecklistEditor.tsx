@@ -8,8 +8,13 @@
 // касания мыши между строками (принцип 5, D020).
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useActionState, useEffect, useState } from "react";
-import type { ClipboardEvent, KeyboardEvent, ReactNode } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import type {
+  ClipboardEvent,
+  KeyboardEvent,
+  ReactNode,
+  RefObject,
+} from "react";
 
 import { ADMIN_CONTENT_CLASS } from "@/blocks/core/ui/admin-frame";
 import { useLive } from "@/blocks/core/ui/use-live";
@@ -193,12 +198,16 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
     setPickingBlock(false);
   }
 
+  const [headRef, headHeight] = useHeight<HTMLElement>();
   const total = itemCount(sections);
   let ordinal = 0;
 
   return (
     <div className="@container flex min-w-0 flex-col">
-      <header className="bg-surface flex flex-wrap items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)] max-md:gap-[var(--space-5)] max-md:px-[var(--space-7)]">
+      <header
+        ref={headRef}
+        className="bg-surface sticky top-0 z-10 flex flex-wrap items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)] max-md:gap-[var(--space-5)] max-md:px-[var(--space-7)]"
+      >
         <div className="flex min-w-0 flex-col gap-[var(--space-1)]">
           <div className="text-[length:var(--fs-meta)] text-[var(--ink-3)]">
             {props.crumbs}
@@ -272,7 +281,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
         {/* Правая колонка уходит вниз по ширине РАБОЧЕЙ ЗОНЫ, а не окна: с D162 слева
             стоит колонка чек-листов, и на окне 1280 px секциям при правой колонке
             оставалось 440 px — длинное название секции обрезалось посреди слова. */}
-        <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:1fr_268px] @max-5xl:[grid-template-columns:1fr]">
+        <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:minmax(0,1fr)_268px] @max-5xl:[grid-template-columns:1fr]">
           <div>
             {props.origin}
             <PropertiesCard
@@ -428,7 +437,10 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
             </div>
           </div>
 
-          <aside className="sticky top-[var(--space-9)] flex w-[268px] flex-col gap-[var(--space-6)] self-start @max-5xl:static @max-5xl:w-full">
+          <aside
+            style={{ top: `calc(${String(headHeight)}px + var(--space-9))` }}
+            className="sticky flex w-[268px] flex-col gap-[var(--space-6)] self-start @max-5xl:static @max-5xl:w-full"
+          >
             <VersionsPanel versions={props.versions} />
             <LibraryPanel
               library={props.library}
@@ -491,4 +503,28 @@ function HiddenState({
       <input type="hidden" name="sections" value={JSON.stringify(sections)} />
     </>
   );
+}
+
+// Шапка редактора (название, статус, «Сохранить» и «Опубликовать») прилипает к верху:
+// чек-лист длинный, и без неё кнопки сохранения уезжали за край. Боковая колонка тоже
+// липкая, поэтому ей нужна настоящая высота шапки — а шапка переносится и на узком
+// экране становится выше. Высота меряется, а не угадывается константой, и уходит
+// колонке прямо в `top`: своя переменная CSS не прошла бы сторож токенов.
+
+function useHeight<T extends HTMLElement>(): [RefObject<T | null>, number] {
+  const ref = useRef<T>(null);
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const node = ref.current;
+    if (node === null) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry !== undefined)
+        setHeight(entry.borderBoxSize[0]?.blockSize ?? 0);
+    });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+  return [ref, height];
 }

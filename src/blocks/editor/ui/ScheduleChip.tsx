@@ -265,11 +265,13 @@ export function ScheduleChip({
         data-live={live ? "true" : undefined}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title={t("open")}
-        className={`${CHIP_CLASS} ${CHIP_ACTION_CLASS} ${chipSummary(item).kind === "none" ? `${CHIP_OFF_CLASS} ${CHIP_OFF_HOVER_CLASS}` : CHIP_ON_CLASS}`}
+        title={`${chipLabel(item, t)} — ${t("open")}`}
+        // Единственный элемент строки, который сжимается: остальное держит свою ширину,
+        // а длинная регулярность обрезается многоточием и не ломает строку (ItemRow).
+        className={`${CHIP_CLASS} ${CHIP_ACTION_CLASS} min-w-[88px] ${chipSummary(item).kind === "none" ? `${CHIP_OFF_CLASS} ${CHIP_OFF_HOVER_CLASS}` : CHIP_ON_CLASS}`}
         onClick={openDialog}
       >
-        {chipLabel(item, t)}
+        <span className="truncate">{chipLabel(item, t)}</span>
       </button>
 
       {open ? (

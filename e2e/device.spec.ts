@@ -202,6 +202,13 @@ test.describe("привязанный планшет", () => {
     await expect(admin.getByTestId("pair-tablet-where")).toContainText(
       PAIR_PATH,
     );
+    await expect(
+      admin.getByTestId("pair-guide").getByTestId("pair-guide-step"),
+    ).toHaveCount(4);
+    // Станция уже открыта: первый шаг ведёт к кнопке выше, а не «в список ниже».
+    await expect(
+      admin.getByTestId("pair-guide").getByTestId("pair-guide-step").first(),
+    ).toContainText(/выше|above/);
 
     // Планшет: адрес из инструкции, четыре цифры — и он открывает чек-лист станции.
     const tabletContext = await browser.newContext({ viewport: TABLET });

@@ -1,8 +1,9 @@
-// Главная кабинета — работа вошедшего, а не указатель разделов (D148, T315).
+// Главная кабинета — пульт сети (D174) с «Моими чек-листами» вошедшего (D148, T315).
 //
 // Что держит сценарий. После входа человек видит своё и из каждой строки попадает туда,
-// куда она зовёт: плашка «станции без чек-листа» — в «Станции», уже отфильтрованные;
-// строка чек-листа — в его редактор; строка заполнения — в его карточку. Чек-листов нет —
+// куда она зовёт: «станции без чек-листа» в «Что не закрыто» — в «Станции», уже
+// отфильтрованные; строка чек-листа — в его редактор; строка заполнения в «Что
+// происходит» — в его карточку; пиццерия сводки сужает пульт до своих станций. Чек-листов нет —
 // на экране один призыв, и он ведёт в «Шаблоны». Проверяется так, как пользуются: от формы
 // входа и дальше по ссылкам, а не прямым `page.goto` в экран (находка #11 — тупик после
 // входа, которого не ловил ни один сценарий, открывавший экраны по адресу).
@@ -25,6 +26,7 @@ import {
 import { hashPassword } from "../src/blocks/auth/password";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { e2eDatabaseUrl } from "./database";
+import { seedStore } from "./station-fixtures";
 
 const PASSWORD = "e2e-пароль-главной-длинный";
 
@@ -172,7 +174,7 @@ async function backHome(page: Page): Promise<void> {
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }
 
-test.describe("главная кабинета — работа вошедшего", () => {
+test.describe("главная кабинета — пульт сети", () => {
   // Подписи проверяются по-русски, значит и язык страницы задаётся явно: по умолчанию у
   // прогона он английский.
   test.use({ locale: "ru-RU" });
@@ -185,9 +187,13 @@ test.describe("главная кабинета — работа вошедшег
     // Призыва «с нуля» нет: чек-лист у партнёра есть, и два первых шага не спорят.
     await expect(home.getByTestId("home-from-template")).toHaveCount(0);
 
-    // Дырка первой строкой, и её ссылка открывает «Станции» уже отфильтрованными.
-    await expect(home.getByTestId("home-gap")).toBeVisible();
-    await home.getByTestId("home-gap-link").click();
+    // Пульт: область, цифры, заполнения.
+    await expect(home.getByTestId("feed-filters")).toBeVisible();
+    await expect(home.getByTestId("home-working")).toBeVisible();
+    await expect(home.getByTestId("feed-metrics")).toBeVisible();
+
+    // Дырка в «Что не закрыто», и её ссылка открывает «Станции» уже отфильтрованными.
+    await home.getByTestId("home-todo-noChecklist").click();
     await expect(page).toHaveURL(/\/admin\/stations\?gap=noChecklist$/);
     await expect(
       page.getByTestId("master-rail").getByText(world.emptyStationName),
@@ -206,11 +212,11 @@ test.describe("главная кабинета — работа вошедшег
 
     // Заполнение на его станции — строкой, и она открывает карточку заполнения.
     await home
-      .getByTestId("home-submissions")
+      .getByTestId("home-recent")
       .getByRole("link", { name: new RegExp(world.checklistTitle) })
       .click();
     await expect(page).toHaveURL(
-      new RegExp(`/admin/feed/${world.submissionId}$`),
+      new RegExp(`/admin/feed/${world.submissionId}(\\?|$)`),
     );
     await backHome(page);
   });
@@ -222,13 +228,36 @@ test.describe("главная кабинета — работа вошедшег
     await signInAs(page, login, PASSWORD);
     const home = page.getByTestId("admin-home");
 
-    await expect(home.getByTestId("home-gap")).toHaveCount(0);
     await expect(home.getByTestId("home-checklists")).toHaveCount(0);
-    await expect(home.getByTestId("home-submissions")).toHaveCount(0);
 
     await home.getByTestId("home-from-template").click();
     await expect(page).toHaveURL(/\/admin\/templates$/);
     await expect(page.getByTestId("templates-screen")).toBeVisible();
+  });
+
+  test("пиццерия из сводки сужает главную до её станций", async ({ page }) => {
+    const store = await seedStore();
+    await signInAs(page, "admin", E2E_ADMIN_PASSWORD);
+
+    const row = page
+      .getByTestId("home-store")
+      .filter({ hasText: store.storeName });
+    await expect(row).toHaveCount(1);
+    await row.getByRole("link", { name: store.storeName }).click();
+
+    await expect(page).toHaveURL(/[?&]store=/);
+    const stations = page.getByTestId("home-station");
+    await expect(stations).toHaveCount(store.stationNames.length);
+    // Станции только что заведены и без чек-листа — это и есть первая дырка.
+    await expect(stations.first()).toContainText("нет чек-листа");
+    await expect(page.getByTestId("home-todo-noChecklist")).toContainText(
+      String(store.stationNames.length),
+    );
+    // Строка станции ведёт на её карточку в «Станциях», своей копии карточки нет.
+    await expect(stations.first().getByRole("link").first()).toHaveAttribute(
+      "href",
+      /^\/admin\/stations\/[0-9a-f-]+$/,
+    );
   });
 
   test("из главной меню ведёт в каждый раздел, а выйти по-прежнему можно", async ({
