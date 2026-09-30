@@ -496,6 +496,11 @@ describe("сторожа тёмной темы", () => {
    * Исключение перечислено поимённо: «где-то есть причина» исключением не является.
    */
   const PAPER = new Set(["blocks/qr/svg.ts", "blocks/qr/ui/PrintSheet.tsx"]);
+  /**
+   * Чужая марка. Значок Google рисуется цветами Google по его правилам оформления
+   * кнопки входа (D176): перекрасить его токенами темы — значит нарушить эти правила.
+   */
+  const BRAND_MARKS = new Set(["blocks/auth/ui/GoogleMark.tsx"]);
   /** Палитра Tailwind: имена её цветов от темы продукта не зависят вовсе. */
   const PALETTE_UTILITY =
     /\b(?:bg|text|border|fill|stroke|ring|outline|shadow|decoration|divide|caret|accent|placeholder|from|via|to)-(?:white|black|slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)\b/g;
@@ -514,7 +519,7 @@ describe("сторожа тёмной темы", () => {
 
     for (const file of [...productFiles, GLOBALS]) {
       const relative = path.relative(ROOT, file);
-      if (PAPER.has(relative)) continue;
+      if (PAPER.has(relative) || BRAND_MARKS.has(relative)) continue;
       const text = withoutComments(readFileSync(file, "utf8"));
       for (const pattern of [PALETTE_UTILITY, HEX_COLOR, COLOR_FUNCTION]) {
         for (const [found] of text.matchAll(pattern))

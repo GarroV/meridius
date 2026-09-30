@@ -27,6 +27,23 @@ test.describe("вход через Google", () => {
     await expect(page.getByTestId("login-submit")).toBeVisible();
   });
 
+  test("нажатие кнопки доводит браузер до Google, политика безопасности не мешает", async ({
+    page,
+  }) => {
+    // Запрос к Google после перенаправления Playwright не перехватывает — ждём сам
+    // запрос: важно, что браузер его отправил, а не что ответил выдуманному клиенту Google.
+    await page.goto(LOGIN_PATH);
+
+    const toGoogle = page.waitForRequest((request) =>
+      request.url().startsWith("https://accounts.google.com/o/oauth2/v2/auth?"),
+    );
+    await page.getByTestId("login-google").click();
+
+    expect(new URL((await toGoogle).url()).searchParams.get("client_id")).toBe(
+      E2E_GOOGLE_CLIENT_ID,
+    );
+  });
+
   test("начало входа уводит к Google с нашим клиентом и одноразовой меткой", async ({
     request,
   }) => {

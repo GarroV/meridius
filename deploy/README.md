@@ -6,6 +6,7 @@
 | ---------------- | --------------------------------------------------------------------------------------------------------------------- |
 | Сервер           | VPS Contabo, Ubuntu 24.04, клон в `/srv/meridius`                                                                     |
 | Адрес            | https://meridius.95-111-249-216.sslip.io — временный; постоянный домен будет на Cloudflare                            |
+| Фронт Cloudflare | https://meridius.vasiliy-garro.workers.dev — там, где sslip.io заблокирован (как у decimus, D236); код — `front/`     |
 | Сеть к прокси    | `edge-meridius`, алиас `meridius-app`; надстройка — канон в `GarroV/vps-infra`, `projects/meridius/compose.edge.yaml` |
 | Бэкап            | Ночной, VPS → restic на MUSPELHEIM (`GarroV/vps-infra`, `backup/`)                                                    |
 | Стенд разработки | MUSPELHEIM, compose-проект `mac-stands`; на Маке порт 5433 — туннель на него (#174)                                   |
@@ -56,20 +57,21 @@ README и в #174.
 `deploy/.env.example`. Знак `$` в значениях не использовать: compose раскрывает его как
 подстановку.
 
-| Ключ                    | Что это                                                                                                 | Как получить                                                                                                                                   |
-| ----------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POSTGRES_USER`         | Пользователь базы                                                                                       | любое имя, например `meridius`                                                                                                                 |
-| `POSTGRES_PASSWORD`     | Пароль базы. Только `[A-Za-z0-9]`: подставляется в адрес подключения без экранирования                  | `openssl rand -hex 24`                                                                                                                         |
-| `POSTGRES_DB`           | Имя базы                                                                                                | `meridius`                                                                                                                                     |
-| `PUBLIC_BASE_URL`       | Публичный адрес без завершающего `/`. **Уходит внутрь напечатанных QR-кодов**                           | адрес площадки                                                                                                                                 |
-| `BASE_PATH`             | Путь продукта на адресе: пусто — корень, иначе вида `/qr`                                               | пусто, если продукт отдаётся с корня                                                                                                           |
-| `ADMIN_PASSWORD_HASH`   | Хэш пароля администратора (не сам пароль)                                                               | `node scripts/hash-admin-password.mjs` на любой машине с клоном — печатает строку целиком, `ADMIN_PASSWORD_HASH=…`; пароль не короче 12 знаков |
-| `SESSION_SECRET`        | Подпись cookie кабинета, от 32 знаков                                                                   | `openssl rand -hex 32`                                                                                                                         |
-| `DEVICE_SESSION_SECRET` | Подпись cookie планшета станции, от 32 знаков, **отличный** от `SESSION_SECRET`                         | `openssl rand -hex 32`                                                                                                                         |
-| `TRUSTED_PROXY_HOPS`    | Сколько доверенных посредников перед продуктом                                                          | `1` за одним прокси — после проверки из `docs/furca/blocks/fill.md` (раздел про туннель); до неё `0`                                           |
-| `GOOGLE_CLIENT_ID`      | Вход через Google (D176): идентификатор OAuth-клиента Meridius. Пусто — кнопки нет, вход только паролем | Google Cloud → Credentials → OAuth client (Web application), экран согласия External                                                           |
-| `GOOGLE_CLIENT_SECRET`  | Секрет того же клиента                                                                                  | там же, рядом с идентификатором                                                                                                                |
-| `GOOGLE_REDIRECT_URI`   | Адрес возврата; побуквенно как в консоли Google                                                         | `<PUBLIC_BASE_URL><BASE_PATH>/admin/login/google/callback`                                                                                     |
+| Ключ                        | Что это                                                                                                 | Как получить                                                                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_USER`             | Пользователь базы                                                                                       | любое имя, например `meridius`                                                                                                                 |
+| `POSTGRES_PASSWORD`         | Пароль базы. Только `[A-Za-z0-9]`: подставляется в адрес подключения без экранирования                  | `openssl rand -hex 24`                                                                                                                         |
+| `POSTGRES_DB`               | Имя базы                                                                                                | `meridius`                                                                                                                                     |
+| `PUBLIC_BASE_URL`           | Публичный адрес без завершающего `/`. **Уходит внутрь напечатанных QR-кодов**                           | адрес площадки                                                                                                                                 |
+| `BASE_PATH`                 | Путь продукта на адресе: пусто — корень, иначе вида `/qr`                                               | пусто, если продукт отдаётся с корня                                                                                                           |
+| `ADMIN_PASSWORD_HASH`       | Хэш пароля администратора (не сам пароль)                                                               | `node scripts/hash-admin-password.mjs` на любой машине с клоном — печатает строку целиком, `ADMIN_PASSWORD_HASH=…`; пароль не короче 12 знаков |
+| `SESSION_SECRET`            | Подпись cookie кабинета, от 32 знаков                                                                   | `openssl rand -hex 32`                                                                                                                         |
+| `DEVICE_SESSION_SECRET`     | Подпись cookie планшета станции, от 32 знаков, **отличный** от `SESSION_SECRET`                         | `openssl rand -hex 32`                                                                                                                         |
+| `TRUSTED_PROXY_HOPS`        | Сколько доверенных посредников перед продуктом                                                          | `1` за одним прокси — после проверки из `docs/furca/blocks/fill.md` (раздел про туннель); до неё `0`                                           |
+| `GOOGLE_CLIENT_ID`          | Вход через Google (D176): идентификатор OAuth-клиента Meridius. Пусто — кнопки нет, вход только паролем | Google Cloud → Credentials → OAuth client (Web application), экран согласия External                                                           |
+| `GOOGLE_CLIENT_SECRET`      | Секрет того же клиента                                                                                  | там же, рядом с идентификатором                                                                                                                |
+| `GOOGLE_REDIRECT_URI`       | Адрес возврата; побуквенно как в консоли Google                                                         | `<PUBLIC_BASE_URL><BASE_PATH>/admin/login/google/callback`                                                                                     |
+| `GOOGLE_FRONT_REDIRECT_URI` | Адрес возврата для входа через фронт Cloudflare; пусто — через фронт тот же прямой                      | `https://meridius.vasiliy-garro.workers.dev/admin/login/google/callback`                                                                       |
 
 `DATABASE_URL` не задаётся: compose собирает его сам из трёх ключей базы.
 
@@ -77,6 +79,20 @@ README и в #174.
 (`BUILD_COMMIT`, подпись в подвале кабинета). Их смена — это пересборка
 (`up -d --build`), простой перезапуск продукт не меняет. После смены адреса все ранее
 напечатанные наклейки ведут на старый адрес.
+
+## Фронт Cloudflare
+
+Там, где sslip.io заблокирован, продукт открывается через Worker
+`https://meridius.vasiliy-garro.workers.dev` — копию фронта decimus (decimus D236).
+Worker пересылает запрос на площадку как есть, подставляя адрес посетителя и ключ фронта;
+Caddy верит адресу и ставит метку `X-Meridius-Front` только при верном ключе, прямому
+запросу все три заголовка снимает (`GarroV/vps-infra`, `edge/sites/meridius.caddy`).
+По метке вход через Google берёт `GOOGLE_FRONT_REDIRECT_URI`: метка похода лежит в куке
+адреса фронта, и возврат на прямой адрес её бы не нашёл.
+
+- код и настройки — `front/src/index.js`, `front/wrangler.jsonc`; выкладка `npx wrangler deploy` из `front/`;
+- ключ фронта — секрет `FRONT_KEY` у Worker'а и `/srv/edge/sites/meridius-front.snippet` на VPS, вне git;
+  меняются вместе, иначе Caddy перестаёт узнавать фронт.
 
 ## Первый запуск
 

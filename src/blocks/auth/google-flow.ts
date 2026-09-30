@@ -6,7 +6,7 @@
 // чьи почты здесь заведены.
 import { timingSafeEqual } from "node:crypto";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { redirectPath } from "@/blocks/core/base-path";
 
@@ -14,10 +14,12 @@ import { sessionSecret } from "./config";
 import { findEmailAccount } from "./emails";
 import {
   authorizationUrl,
+  FRONT_MARKER_HEADER,
   exchangeCode,
   googleSettings,
   identityFromIdToken,
   newState,
+  type GoogleSettings,
 } from "./google";
 import { ADMIN_HOME_PATH, LOGIN_PATH } from "./routes";
 import { setSessionCookie } from "./session-cookie";
@@ -35,6 +37,12 @@ function goTo(location: string): Response {
   return new Response(null, { status: SEE_OTHER, headers: { location } });
 }
 
+/** Реквизиты для этого запроса: пришедшему через фронт — адрес возврата фронта. */
+async function settingsForRequest(): Promise<GoogleSettings | null> {
+  const viaFront = (await headers()).get(FRONT_MARKER_HEADER) === "1";
+  return googleSettings(viaFront);
+}
+
 function refused(): Response {
   return goTo(
     redirectPath(`${LOGIN_PATH}?${GOOGLE_FAILED_PARAM}=${GOOGLE_FAILED_VALUE}`),
@@ -43,7 +51,7 @@ function refused(): Response {
 
 /** Начало: метка в куку, человек — к Google. Без реквизитов — обратно на форму входа. */
 export async function startGoogleSignIn(): Promise<Response> {
-  const settings = googleSettings();
+  const settings = await settingsForRequest();
   if (settings === null) return goTo(redirectPath(LOGIN_PATH));
 
   const state = newState();
@@ -67,7 +75,7 @@ function sameState(expected: string | undefined, got: string | null): boolean {
 
 /** Возврат от Google: сверка метки, обмен кода, почта → учётка, сессия. */
 export async function finishGoogleSignIn(url: URL): Promise<Response> {
-  const settings = googleSettings();
+  const settings = await settingsForRequest();
   if (settings === null) return goTo(redirectPath(LOGIN_PATH));
   // Секрет — до всего остального: без него вход не может «получиться» молча, без куки.
   const secret = sessionSecret();

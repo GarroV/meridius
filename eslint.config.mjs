@@ -17,6 +17,8 @@ export default tseslint.config(
       "coverage/**",
       "next-env.d.ts",
       "docs/**",
+      // Worker фронта Cloudflare: другой рантайм, свой выклад через wrangler.
+      "front/**",
     ],
   },
 

@@ -181,6 +181,38 @@ describe("реквизиты клиента из окружения", () => {
   });
 });
 
+function withClient(): void {
+  vi.stubEnv("GOOGLE_CLIENT_ID", CLIENT_ID);
+  vi.stubEnv("GOOGLE_CLIENT_SECRET", "секрет");
+  vi.stubEnv("GOOGLE_REDIRECT_URI", SETTINGS.redirectUri);
+}
+
+describe("адрес возврата для фронта Cloudflare", () => {
+  const FRONT = "https://meridius.front.example/admin/login/google/callback";
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  test("пришедшему через фронт — адрес фронта", () => {
+    withClient();
+    vi.stubEnv("GOOGLE_FRONT_REDIRECT_URI", FRONT);
+    expect(googleSettings(true)?.redirectUri).toBe(FRONT);
+  });
+
+  test("прямому запросу — прямой адрес, даже если адрес фронта задан", () => {
+    withClient();
+    vi.stubEnv("GOOGLE_FRONT_REDIRECT_URI", FRONT);
+    expect(googleSettings(false)?.redirectUri).toBe(SETTINGS.redirectUri);
+  });
+
+  test("адреса фронта нет — и через фронт прямой адрес", () => {
+    withClient();
+    vi.stubEnv("GOOGLE_FRONT_REDIRECT_URI", "");
+    expect(googleSettings(true)?.redirectUri).toBe(SETTINGS.redirectUri);
+  });
+});
+
 test("метка похода к Google каждый раз новая и не короче 32 байт", () => {
   const first = newState();
   expect(first).not.toBe(newState());
