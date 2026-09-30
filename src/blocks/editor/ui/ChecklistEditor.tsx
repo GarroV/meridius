@@ -293,7 +293,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
         {/* Правая колонка уходит вниз по ширине РАБОЧЕЙ ЗОНЫ, а не окна: с D162 слева
             стоит колонка чек-листов, и на окне 1280 px секциям при правой колонке
             оставалось 440 px — длинное название секции обрезалось посреди слова. */}
-        <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:1fr_268px] @max-5xl:[grid-template-columns:1fr]">
+        <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:minmax(0,1fr)_268px] @max-5xl:[grid-template-columns:1fr]">
           <div>
             <PropertiesCard
               title={title}

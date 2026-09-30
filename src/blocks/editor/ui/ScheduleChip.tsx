@@ -268,7 +268,7 @@ export function ScheduleChip({
         title={`${chipLabel(item, t)} — ${t("open")}`}
         // Единственный элемент строки, который сжимается: остальное держит свою ширину,
         // а длинная регулярность обрезается многоточием и не ломает строку (ItemRow).
-        className={`${CHIP_CLASS} ${CHIP_ACTION_CLASS} min-w-0 ${chipSummary(item).kind === "none" ? `${CHIP_OFF_CLASS} ${CHIP_OFF_HOVER_CLASS}` : CHIP_ON_CLASS}`}
+        className={`${CHIP_CLASS} ${CHIP_ACTION_CLASS} min-w-[88px] ${chipSummary(item).kind === "none" ? `${CHIP_OFF_CLASS} ${CHIP_OFF_HOVER_CLASS}` : CHIP_ON_CLASS}`}
         onClick={openDialog}
       >
         <span className="truncate">{chipLabel(item, t)}</span>
