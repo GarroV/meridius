@@ -7,7 +7,7 @@ import { describe, expect, test } from "vitest";
 
 import { accounts, countries, getDb, tenants } from "@/blocks/data";
 
-import { findLoginAccount } from "./accounts";
+import { findLoginAccount, loadViewer } from "./accounts";
 import {
   changePartnerPassword,
   disablePartnerAccount,
@@ -55,6 +55,54 @@ async function storedHash(accountId: string): Promise<string> {
   if (row === undefined) throw new Error("учётки нет");
   return row.hash;
 }
+
+/** Сессия, открытая минуту назад, — до любой смены пароля в тесте. */
+function openedBefore(accountId: string) {
+  return { subject: accountId, issuedAt: new Date(Date.now() - 60_000) };
+}
+
+describe("смена и сброс пароля гасят открытые сессии", () => {
+  test("после смены пароля прежняя сессия не входит, соседняя — входит", async () => {
+    const target = await partner();
+    const neighbour = await partner();
+
+    const result = await changePartnerPassword(
+      target.accountId,
+      NEW_PASSWORD,
+      CHEAP,
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(await loadViewer(openedBefore(target.accountId))).toBeNull();
+    expect(
+      (await loadViewer(openedBefore(neighbour.accountId)))?.accountId,
+    ).toBe(neighbour.accountId);
+  });
+
+  test("после сброса прежняя сессия не входит", async () => {
+    const target = await partner();
+
+    const result = await resetPartnerPassword(target.accountId, CHEAP);
+
+    expect(result.ok).toBe(true);
+    expect(await loadViewer(openedBefore(target.accountId))).toBeNull();
+  });
+
+  test("отказанная смена пароля сессию не гасит", async () => {
+    const target = await partner();
+
+    const result = await changePartnerPassword(
+      target.accountId,
+      "короткий",
+      CHEAP,
+    );
+
+    expect(result).toEqual({ ok: false, reason: "short-password" });
+    expect((await loadViewer(openedBefore(target.accountId)))?.accountId).toBe(
+      target.accountId,
+    );
+  });
+});
 
 describe("listPartnerAccounts", () => {
   test("отдаёт учётку с её партнёром и странами, снятую — со сроком снятия", async () => {

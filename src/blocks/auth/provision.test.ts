@@ -51,7 +51,10 @@ describe("provisionPartner", () => {
     expect(await verifyPassword(PASSWORD, account?.passwordHash ?? "")).toBe(
       true,
     );
-    const viewer = await loadViewer(result.accountId);
+    const viewer = await loadViewer({
+      subject: result.accountId,
+      issuedAt: new Date(),
+    });
     expect(viewer).toMatchObject({
       tenantKind: "partner",
       tenantId: result.tenantId,

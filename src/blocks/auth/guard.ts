@@ -11,7 +11,8 @@ import type { Viewer } from "./scope";
 import { SESSION_COOKIE_NAME, readSessionToken } from "./session";
 
 /**
- * Кто вошёл. null — куки нет, подпись не сошлась, срок истёк или учётка снята.
+ * Кто вошёл. null — куки нет, подпись не сошлась, срок истёк, учётка снята или пароль
+ * сменили после входа.
  *
  * Обёрнуто в `cache`: разметка, страница и серверное действие одного запроса спрашивают
  * одно и то же, и ходить в базу за учёткой трижды незачем. Кэш живёт один запрос.
@@ -25,7 +26,7 @@ const currentViewer = cache(async (): Promise<Viewer | null> => {
   const session = readSessionToken(token, sessionSecret(), new Date());
   if (session === null) return null;
 
-  return loadViewer(session.subject);
+  return loadViewer(session);
 });
 
 /**

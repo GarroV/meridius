@@ -151,6 +151,11 @@ export const accounts = pgTable(
     passwordHash: text("password_hash").notNull(),
     createdAt: serverTimestamp(CREATED_AT),
     disabledAt: timestamp("disabled_at", { withTimezone: true }),
+    /**
+     * Когда пароль сменили или сбросили; `null` — не меняли с заведения. Сессия,
+     * выпущенная раньше этой отметки, не принимается (#198, миграция 0019).
+     */
+    passwordChangedAt: timestamp("password_changed_at", { withTimezone: true }),
   },
   (table) => [
     unique("accounts_login_unique").on(table.login),

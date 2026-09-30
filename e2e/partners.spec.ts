@@ -79,10 +79,20 @@ test.describe("экран «Партнёры»", () => {
     await partner.goto("/admin/catalog");
     await expect(partner.locator("body")).toContainText(mine);
     await expect(partner.locator("body")).not.toContainText(foreign);
+    // Тот же экран запросом клиентской навигации несёт имя страны — значит проверка
+    // того же запроса после сброса ниже может упасть, а не зеленеет вхолостую.
+    const rscBefore = await partner.request.get("/admin/catalog", {
+      headers: { RSC: "1" },
+    });
+    expect(await rscBefore.text()).toContain(mine);
     const refused = await partner.request.get("/admin/partners");
     expect(refused.status()).toBe(404);
 
-    // УК сбрасывает пароль: прежний больше не входит, новый — входит.
+    // УК сбрасывает пароль: прежний больше не входит, новый — входит, а вкладка,
+    // открытая до сброса, уходит на вход (#198). Время выпуска сессии — целые секунды,
+    // и сессия той же секунды, что и сброс, выживает (accounts.ts): пауза отделяет вход
+    // партнёра от сброса, чтобы сценарий проверял правило, а не везение со временем.
+    await partner.waitForTimeout(1_000);
     await row.getByTestId("partner-reset-open").click();
     await row.getByTestId("partner-reset").click();
     const issued = row.getByTestId("partner-reset-password");
@@ -95,6 +105,17 @@ test.describe("экран «Партнёры»", () => {
     const withNew = await freshPage(browser);
     await signIn(withNew, login, newPassword);
     await expect(withNew).not.toHaveURL(/\/admin\/login/);
+    // Клиентская навигация (заголовок RSC): подпись куки верна, поэтому охрана перед
+    // рендером её пропускает, и отказ даёт только разметка. Тело ответа не должно
+    // унести страницу вместе с редиректом.
+    const rsc = await partner.request.get("/admin/catalog", {
+      headers: { RSC: "1" },
+      maxRedirects: 0,
+    });
+    expect(await rsc.text()).not.toContain(mine);
+    await partner.goto("/admin/catalog");
+    await expect(partner).toHaveURL(/\/admin\/login/);
+    await expect(partner.locator("body")).not.toContainText(mine);
 
     // УК снимает учётку: вход отказан, открытая сессия гаснет на следующем запросе.
     await row.getByTestId("partner-disable-open").click();

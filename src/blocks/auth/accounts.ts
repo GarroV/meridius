@@ -10,7 +10,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { accounts, getDb, tenantCountries, tenants } from "@/blocks/data";
 
 import type { Viewer } from "./scope";
-import { ROOT_SUBJECT } from "./session";
+import { ROOT_SUBJECT, type AdminSession } from "./session";
 
 /**
  * Логин учётки УК из окружения площадки. Строки в базе у неё нет, и в базе этот логин
@@ -65,12 +65,33 @@ async function rootViewer(): Promise<Viewer> {
   };
 }
 
+const SECOND = 1000;
+
 /**
- * Кто стоит за сессией. null — учётки нет или она снята: такой сессией не входят, даже
- * если подпись куки верна.
+ * Выпущена ли сессия не раньше смены пароля. Время выпуска в куке — целые секунды,
+ * поэтому сравнение идёт по секундам: вход сразу после сброса, в ту же секунду, остаётся
+ * годным. Цена — сессия, открытая в ту же секунду до смены, тоже выживает; её окно
+ * меньше секунды, а ошибка в другую сторону не пускала бы новым паролем.
  */
-export async function loadViewer(subject: string): Promise<Viewer | null> {
-  if (subject === ROOT_SUBJECT) return rootViewer();
+function issuedAfterPasswordChange(
+  issuedAt: Date,
+  passwordChangedAt: Date | null,
+): boolean {
+  if (passwordChangedAt === null) return true;
+  return (
+    Math.floor(issuedAt.getTime() / SECOND) >=
+    Math.floor(passwordChangedAt.getTime() / SECOND)
+  );
+}
+
+/**
+ * Кто стоит за сессией. null — учётки нет, она снята или пароль сменили после выпуска
+ * сессии: такой сессией не входят, даже если подпись куки верна (#198).
+ */
+export async function loadViewer(
+  session: Pick<AdminSession, "subject" | "issuedAt">,
+): Promise<Viewer | null> {
+  if (session.subject === ROOT_SUBJECT) return rootViewer();
 
   const [row] = await getDb()
     .select({
@@ -79,15 +100,22 @@ export async function loadViewer(subject: string): Promise<Viewer | null> {
       tenantId: tenants.id,
       tenantKind: tenants.kind,
       tenantName: tenants.name,
+      passwordChangedAt: accounts.passwordChangedAt,
     })
     .from(accounts)
     .innerJoin(tenants, eq(tenants.id, accounts.tenantId))
-    .where(and(eq(accounts.id, subject), isNull(accounts.disabledAt)));
+    .where(and(eq(accounts.id, session.subject), isNull(accounts.disabledAt)));
   if (row === undefined) return null;
 
+  const { passwordChangedAt, ...viewer } = row;
+  if (!issuedAfterPasswordChange(session.issuedAt, passwordChangedAt)) {
+    return null;
+  }
+
   return {
-    ...row,
-    countryIds: row.tenantKind === "hq" ? [] : await countriesOf(row.tenantId),
+    ...viewer,
+    countryIds:
+      viewer.tenantKind === "hq" ? [] : await countriesOf(viewer.tenantId),
   };
 }
 

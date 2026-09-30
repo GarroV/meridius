@@ -23,6 +23,22 @@ import {
 import { ROOT_SUBJECT } from "./session";
 
 const HASH = "scrypt.2.1.1.c29sdA.a2V5";
+const SECOND = 1000;
+
+/** Сессия, выпущенная сейчас: время выпуска в куке — с точностью до секунды. */
+function signedInNow(subject: string, issuedAt = new Date()) {
+  return {
+    subject,
+    issuedAt: new Date(Math.floor(issuedAt.getTime() / SECOND) * SECOND),
+  };
+}
+
+async function stampPasswordChange(id: string, at: Date): Promise<void> {
+  await getDb()
+    .update(accounts)
+    .set({ passwordChangedAt: at })
+    .where(eq(accounts.id, id));
+}
 
 async function country(name: string): Promise<string> {
   const [row] = await getDb()
@@ -63,7 +79,7 @@ async function account(tenantId: string, disabled = false): Promise<string> {
 
 describe("loadViewer", () => {
   test("учётка УК из окружения — тенант УК из базы", async () => {
-    const viewer = await loadViewer(ROOT_SUBJECT);
+    const viewer = await loadViewer(signedInNow(ROOT_SUBJECT));
     expect(viewer?.tenantKind).toBe("hq");
     expect(viewer?.tenantId).toBe(await hqTenantId());
     expect(viewer?.accountId).toBeNull();
@@ -74,7 +90,7 @@ describe("loadViewer", () => {
     const mine = await country("Своя");
     await country("Чужая");
     const tenantId = await partnerWith([mine]);
-    const viewer = await loadViewer(await account(tenantId));
+    const viewer = await loadViewer(signedInNow(await account(tenantId)));
 
     expect(viewer?.tenantKind).toBe("partner");
     expect(viewer?.tenantId).toBe(tenantId);
@@ -86,18 +102,48 @@ describe("loadViewer", () => {
     const theirs = await country("Соседская");
     const tenantId = await partnerWith([mine]);
     await partnerWith([theirs]);
-    const viewer = await loadViewer(await account(tenantId));
+    const viewer = await loadViewer(signedInNow(await account(tenantId)));
 
     expect(viewer?.countryIds).not.toContain(theirs);
   });
 
   test("снятая учётка не входит, даже с годной кукой", async () => {
     const tenantId = await partnerWith([]);
-    expect(await loadViewer(await account(tenantId, true))).toBeNull();
+    expect(
+      await loadViewer(signedInNow(await account(tenantId, true))),
+    ).toBeNull();
+  });
+
+  test("сессия, выпущенная до смены пароля, не принимается", async () => {
+    const id = await account(await partnerWith([]));
+    const issuedAt = new Date(Date.now() - 60 * SECOND);
+    await stampPasswordChange(id, new Date());
+
+    expect(await loadViewer(signedInNow(id, issuedAt))).toBeNull();
+  });
+
+  test("сессия, выпущенная после смены пароля, принимается", async () => {
+    const id = await account(await partnerWith([]));
+    await stampPasswordChange(id, new Date(Date.now() - 60 * SECOND));
+
+    expect((await loadViewer(signedInNow(id)))?.accountId).toBe(id);
+  });
+
+  test("вход в ту же секунду, что и смена пароля, не выставляется", async () => {
+    // Время выпуска в куке — целые секунды: вход сразу после сброса не должен
+    // проигрывать долям секунды, иначе новый пароль «не входит».
+    const id = await account(await partnerWith([]));
+    // Середина секунды: сравнение с долями секунды проиграло бы здесь всегда.
+    const changedAt = new Date(
+      Math.floor(Date.now() / SECOND) * SECOND + SECOND / 2,
+    );
+    await stampPasswordChange(id, changedAt);
+
+    expect((await loadViewer(signedInNow(id, changedAt)))?.accountId).toBe(id);
   });
 
   test("несуществующая учётка — никто", async () => {
-    expect(await loadViewer(randomUUID())).toBeNull();
+    expect(await loadViewer(signedInNow(randomUUID()))).toBeNull();
   });
 
   test("отобранная страна пропадает сразу, без нового входа", async () => {
@@ -108,7 +154,7 @@ describe("loadViewer", () => {
       .delete(tenantCountries)
       .where(eq(tenantCountries.tenantId, tenantId));
 
-    expect((await loadViewer(id))?.countryIds).toEqual([]);
+    expect((await loadViewer(signedInNow(id)))?.countryIds).toEqual([]);
   });
 });
 
