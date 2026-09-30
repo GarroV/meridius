@@ -240,11 +240,11 @@ async function createCatalog(page) {
     `станция «${STATION}» заведена, код ${code}`,
   );
 
-  // Id станции — из ссылки «QR» её строки: по нему открывается карточка станции, где
-  // на станцию вешают чек-лист (T312).
+  // Id станции — из ссылки «QR» её строки: она ведёт на лист наклейки этой станции
+  // (T341), а по id открывается карточка станции, где вешают чек-лист (T312).
   const stationId = await idFromLink(
     row.getByTestId("catalog-station-qr"),
-    "station",
+    "stationIds",
   );
 
   await shot(page, "catalog");
