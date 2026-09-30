@@ -172,7 +172,7 @@ test.describe("статистика по пиццерии (D150)", () => {
     ).toBeLessThanOrEqual(PHONE.width);
 
     // Доступность — на широком экране: на 375 px axe находит безымянную ссылку-логотип
-    // бокового меню каркаса (`.sidenav__brand`), это дефект общего каркаса, а не экрана.
+    // бокового меню каркаса (`.sidenav__brand`), это дефект общего каркаса (#195), а не экрана.
     await page.setViewportSize({ width: 1280, height: 900 });
     const axe = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
     // Нарушение называется вместе с элементом: по голому id не понять, что чинить.
