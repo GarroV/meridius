@@ -333,8 +333,8 @@
       "empty": "No blocks yet"
     },
     "notice": {
-      "station": "The checklist is attached to station “{station}” of store “{store}”. Its QR code opens the version published at the moment of scanning.",
-      "noStation": "No station selected: until the checklist is attached to one, its QR code opens nothing.",
+      "station": "This is the checklist of station “{station}” at store “{store}” (the “Station” field). The station’s QR code and tablet open the version published at the moment they are opened.",
+      "noStation": "No station selected: while the “Station” field is empty, neither a QR code nor a tablet opens this checklist.",
       "windowOpen": "Window {start}–{end}: it is {now} at the store and the window is open — the employee will see the published version right away.",
       "windowClosedToday": "Window {start}–{end}: it is {now} at the store and the window is closed — the employee will see the published version today from {opensAt}.",
       "windowClosedTomorrow": "Window {start}–{end}: it is {now} at the store and the window is closed — the employee will see the published version tomorrow from {opensAt}."
