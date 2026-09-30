@@ -940,7 +940,7 @@
     "breadcrumb": "Work",
     "new": "New template",
     "intro": "This is how we see the ideal shift. Take a template and adapt it: your copy lives its own life, and the template prescribes nothing.",
-    "empty": "No templates yet. Create the first one — every country will be able to take it.",
+    "empty": "No templates yet. Create the first one or make one from a ready checklist — the “Make a template” button in its editor. Every country will be able to take it.",
     "untitled": "Untitled",
     "items": "{count, plural, one {# item} other {# items}}",
     "updated": "updated {date}",
