@@ -130,14 +130,13 @@ test.describe("вход в админку", () => {
     expect(body).not.toMatch(/type="password"[^>]*value="[^"]+"/);
   });
 
-  test("экран входа собран по эталону: заголовок, поле, кнопка и строка про кухню", async ({
+  test("экран входа собран как в Decimus: «Вход», поле, кнопка и строка про кухню", async ({
     page,
   }) => {
     await page.goto(LOGIN_PATH);
 
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "MERIDIUS Dodo",
-    );
+    await expect(page.getByText("MERIDIUS Dodo")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Вход");
     await expect(page.getByLabel("Пароль")).toHaveAttribute("type", "password");
     await expect(page.getByTestId("login-submit")).toHaveText("Войти");
     await expect(
@@ -210,9 +209,7 @@ test.describe("вход в админку", () => {
 
     await page.goto(LOGIN_PATH);
 
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "MERIDIUS Dodo",
-    );
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sign in");
     await expect(page.getByTestId("login-submit")).toHaveText("Sign in");
 
     await context.close();

@@ -12,3 +12,6 @@ export const ADMIN_HOME_PATH = "/admin";
 
 /** Экран УК «Партнёры»: учётки партнёров (T337). Партнёру адрес отвечает 404. */
 export const PARTNERS_PATH = "/admin/partners";
+
+/** Начало входа через Google (D176): кнопка экрана входа ведёт сюда. Под LOGIN_PATH — без сессии. */
+export const GOOGLE_START_PATH = "/admin/login/google";

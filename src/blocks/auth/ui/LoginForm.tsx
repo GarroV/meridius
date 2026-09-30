@@ -10,7 +10,6 @@ export interface LoginLabels {
   readonly submit: string;
   readonly submitting: string;
   readonly failed: string;
-  readonly kitchenHint: string;
 }
 
 const INITIAL_STATE: LoginFormState = { failed: false, message: null };
@@ -88,10 +87,6 @@ export function LoginForm({ labels }: { readonly labels: LoginLabels }) {
       >
         {pending ? labels.submitting : labels.submit}
       </button>
-
-      <p className="m-0 text-center text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--ink-3)]">
-        {labels.kitchenHint}
-      </p>
     </form>
   );
 }

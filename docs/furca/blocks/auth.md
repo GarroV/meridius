@@ -4,7 +4,7 @@
 
 ## Назначение
 
-Вход в кабинет управляющего и граница того, что каждому вошедшему видно. Учётки двух видов (D145): **УК** (логин `admin`, пароль из окружения площадки) видит всю сеть; **партнёр** (строка в `accounts`) видит только страны своего тенанта. Граница действует на весь кабинет: чужая запись отвечает тем же, что несуществующая, — 404.
+Вход в кабинет управляющего (логином и паролем или через Google, D176) и граница того, что каждому вошедшему видно. Учётки двух видов (D145): **УК** (логин `admin`, пароль из окружения площадки) видит всю сеть; **партнёр** (строка в `accounts`) видит только страны своего тенанта. Граница действует на весь кабинет: чужая запись отвечает тем же, что несуществующая, — 404.
 
 ## API-контракт
 
@@ -27,7 +27,11 @@ requireVisible / requireCountry / requireStations / requireChecklistVisible
 WHOLE_NETWORK: Scope                     // явная «вся сеть» для сидов, скриптов и тестов
 provisionPartner(input): Promise<ProvisionResult>  // заведение партнёра (экран «Партнёры»)
 listPartnerAccounts / changePartnerPassword / resetPartnerPassword
-  / disablePartnerAccount                // учётки партнёров; отказ — код, не исключение
+  / disablePartnerAccount                // учётки партнёров и УК; отказ — код, не исключение
+bindAccountEmail(accountId, email)       // почта для входа через Google; "" — отвязать (D176)
+findEmailAccount(email)                  // действующая учётка по привязанной почте, иначе null
+provisionHqMember({ login, email })      // сотрудник УК: учётка в тенанте УК, вход через Google
+startGoogleSignIn() / finishGoogleSignIn(url)  // маршруты /admin/login/google[/callback]
 ```
 
 | Что | Файл |
@@ -42,10 +46,14 @@ listPartnerAccounts / changePartnerPassword / resetPartnerPassword
 | Экран УК «Партнёры» `/admin/partners` | `src/blocks/auth/ui/Partners*.tsx`, `partners-action.ts`, `src/app/admin/partners/page.tsx` |
 | Хэш пароля, сессионная кука, окружение | `password.ts`, `session.ts`, `config.ts` |
 | Предел попыток входа и его хранилище | `rate-limit.ts`, `attempt-store.ts` |
+| Вход через Google: реквизиты, адрес Google, разбор `id_token` | `src/blocks/auth/google.ts` |
+| Вход через Google: метка, возврат, почта → учётка → сессия | `src/blocks/auth/google-flow.ts`, `src/app/(public)/admin/login/google/route.ts`, `src/app/(public)/admin/login/google/callback/route.ts` |
+| Почта учётки, сотрудник УК | `src/blocks/auth/emails.ts`, `src/blocks/auth/hq-members.ts` |
+| Выпуск и снятие сессионной куки (общий для пароля и Google) | `src/blocks/auth/session-cookie.ts` |
 | Экран входа | `src/blocks/auth/ui/` |
 | Тестовые вошедшие (`hqViewer`, `partnerViewer`) | `src/blocks/auth/testing/viewers.ts` |
 
-Ядро по `coverage-core.ts`: `session`, `password`, `rate-limit`, `attempt-store`, `scope`, `accounts`, `access`, `provision`, `partners`.
+Ядро по `coverage-core.ts`: `session`, `password`, `rate-limit`, `attempt-store`, `scope`, `accounts`, `access`, `provision`, `partners`, `google`, `emails`, `hq-members`.
 
 ## Правила области видимости
 
@@ -74,15 +82,20 @@ listPartnerAccounts / changePartnerPassword / resetPartnerPassword
   с флагом — предупреждение (D047: короткая учётка на время показа, значение — только в `.env` площадки).
 - **Партнёр** — заводит, меняет и сбрасывает пароль, снимает УК на экране «Партнёры» (`/admin/partners`, D169, T337); партнёру адрес и действия — 404. Пароль не короче 12 знаков; страны выбираются из справочника; повтор с тем же названием партнёра добавляет учётку и страны, ничего не снимая; занятый логин — отказ. Сброс выдаёт случайный пароль (16 знаков, `randomInt`) один раз. Снятие (`accounts.disabled_at`) необратимо с экрана и гасит открытые сессии на следующем запросе. Смена и сброс пароля ставят `accounts.password_changed_at` тем же запросом, что и хэш; сессия, выпущенная раньше отметки, при чтении не принимается и уводит на вход (#198). Сравнение — по целым секундам, как `iat` в куке: вход в ту же секунду, что и сброс, годен, и сессия той же секунды до сброса тоже выживает (окно меньше секунды). Пароль УК из окружения отметки не имеет: его смена открытые сессии УК не гасит, только смена `SESSION_SECRET`. Команда `partner:create` снята (#192).
 
+- **Сотрудник УК** — строка `accounts` в тенанте УК (видит всю сеть, как `admin`). Заводит УК на экране «Партнёры» карточкой «Добавить сотрудника УК»: логин и рабочая почта, пароль случайный и не показывается — вход через Google; при нужде пароль сбрасывается в списке учёток (D176).
+- **Вход через Google** (D176, по образцу Decimus) — рядом с паролем, не вместо. Пускает только учётку, к которой УК заранее привязала почту (строка учётки → «Почта для входа через Google»); учётки по почте не заводятся, домен почты не ограничивается. Почта хранится приведённой (обрезка, нижний регистр) и уникальна на всю базу; снятая учётка по почте не находится. `admin` почты не имеет и входит только паролем. Поток: кнопка → `/admin/login/google` (одноразовая метка в httpOnly-куке `meridius_google_state` на 10 минут) → Google → `/admin/login/google/callback` (метка сверяется `timingSafeEqual` и снимается при любом исходе, код меняется на `id_token`, проверяются `iss`, `aud`, `exp`, `email_verified === true`; подпись токена не проверяется — он получен нашим же запросом к Google по TLS с секретом клиента). Отказ один на все причины → `/admin/login?google=failed`, экран показывает общее сообщение. Сессия та же, что у пароля: `setSessionCookie` из `session-cookie.ts` — не из `actions.ts`, потому что всё экспортируемое из файла `"use server"` браузер может вызвать.
+
 ## Переменные окружения
 
 Имена и безопасные значения — в `.env.example`, рабочие — только в `.env`. `ADMIN_PASSWORD_HASH` (формат `scrypt.N.r.p.соль.ключ`) и `SESSION_SECRET` (не короче 32 знаков). Без любой вход никого не пускает; значения в ошибки не попадают. Значения из `.env.example` на `NODE_ENV=production` отказывают отдельной ошибкой.
+
+Вход через Google — `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (D176). Все три необязательны: не задан хоть один — кнопки на экране нет, маршруты Google уводят на форму входа. Клиент свой у Meridius (Web application, экран согласия External — иначе партнёры не с @dodobrands.io не войдут); адрес возврата — `<PUBLIC_BASE_URL><BASE_PATH>/admin/login/google/callback`, побуквенно как в консоли Google.
 
 **Знак `$` в значениях запрещён:** загрузчик `.env` Next молча подставляет `$переменная`, поэтому разделитель в хэше — точка. Проверка — `env-file.test.ts` на настоящем загрузчике.
 
 ## Схема
 
-Миграция `0016_tenants_and_accounts` (с `.down.sql`): `tenants` (ровно один `hq` — частичный уникальный индекс), `tenant_countries`, `accounts` (логин уникален, форма `^[a-z0-9._-]{3,64}$`, не `admin`, хэш `scrypt.…`), `checklists.tenant_id` — владелец чек-листа, существующие переписаны на УК. Миграция `0019_account_password_changed_at` (с `.down.sql`): `accounts.password_changed_at` — когда пароль сменили или сбросили, пусто — не меняли с заведения.
+Миграция `0016_tenants_and_accounts` (с `.down.sql`): `tenants` (ровно один `hq` — частичный уникальный индекс), `tenant_countries`, `accounts` (логин уникален, форма `^[a-z0-9._-]{3,64}$`, не `admin`, хэш `scrypt.…`), `checklists.tenant_id` — владелец чек-листа, существующие переписаны на УК. Миграция `0019_account_password_changed_at` (с `.down.sql`): `accounts.password_changed_at` — когда пароль сменили или сбросили, пусто — не меняли с заведения. Миграция `0020_account_email` (с `.down.sql`): `accounts.email` — почта для входа через Google, пусто — не привязана; уникальна, хранится приведённой (ограничение `accounts_email_shape`).
 
 ## Definition of Done блока
 

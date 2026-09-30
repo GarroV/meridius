@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 
 import { ROOT_LOGIN, findLoginAccount, normalizeLogin } from "./accounts";
 import { adminPasswordHash, sessionSecret } from "./config";
@@ -12,14 +12,9 @@ import {
   inClientTurn,
   reserveLoginAttempt,
 } from "./rate-limit";
-import {
-  ROOT_SUBJECT,
-  SESSION_COOKIE_NAME,
-  SESSION_MAX_AGE_SECONDS,
-  createSessionToken,
-} from "./session";
+import { ROOT_SUBJECT } from "./session";
+import { clearSessionCookie, setSessionCookie } from "./session-cookie";
 
-const COOKIE_PATH = "/";
 const FORWARDED_FOR = "x-forwarded-for";
 const REAL_IP = "x-real-ip";
 /** Когда прокси не назвал адрес (прямое соединение) — все такие клиенты считаются вместе. */
@@ -149,27 +144,12 @@ export async function signIn(
   );
   if (outcome.status !== "passed") return outcome;
 
-  const store = await cookies();
-  store.set(
-    SESSION_COOKIE_NAME,
-    createSessionToken(outcome.subject, secret, outcome.issuedAt),
-    {
-      // httpOnly: куку не достать из JavaScript, XSS не уносит сессию.
-      httpOnly: true,
-      // lax: форма входа отправляется со своего же сайта, межсайтовые запросы куку не носят.
-      sameSite: "lax",
-      path: COOKIE_PATH,
-      maxAge: SESSION_MAX_AGE_SECONDS,
-      // На площадке — только по HTTPS. На localhost браузер считает соединение доверенным.
-      secure: process.env.NODE_ENV === "production",
-    },
-  );
+  await setSessionCookie(outcome.subject, secret, outcome.issuedAt);
 
   return { status: "ok" };
 }
 
 /** Завершает сессию: кука убирается, следующий запрос к `/admin/*` увидит форму входа. */
 export async function signOut(): Promise<void> {
-  const store = await cookies();
-  store.delete({ name: SESSION_COOKIE_NAME, path: COOKIE_PATH });
+  await clearSessionCookie();
 }

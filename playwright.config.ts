@@ -5,6 +5,9 @@ import { defineConfig, devices } from "@playwright/test";
 import {
   E2E_ADMIN_PASSWORD_HASH,
   E2E_DEVICE_SESSION_SECRET,
+  E2E_GOOGLE_CLIENT_ID,
+  E2E_GOOGLE_CLIENT_SECRET,
+  E2E_GOOGLE_REDIRECT_URI,
   E2E_SESSION_SECRET,
 } from "./e2e/admin-credentials";
 import { e2eDatabaseUrl } from "./e2e/database";
@@ -119,6 +122,10 @@ export default defineConfig({
       // Адрес, который попадает внутрь QR-кода станции. Задан нарочно не тем, на
       // котором поднят сервер: так видно, что код берёт его из окружения площадки.
       PUBLIC_BASE_URL: E2E_PUBLIC_BASE_URL,
+      // Вход через Google включён выдуманным клиентом: видна кнопка, работают маршруты.
+      GOOGLE_CLIENT_ID: E2E_GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: E2E_GOOGLE_CLIENT_SECRET,
+      GOOGLE_REDIRECT_URI: E2E_GOOGLE_REDIRECT_URI,
     },
   },
 });

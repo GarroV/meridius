@@ -13,7 +13,13 @@
     "submitting": "Checking…",
     "failed": "Wrong login or password",
     "throttled": "Too many sign-in attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
-    "kitchenHint": "Kitchen staff do not need to sign in: the checklist opens from the station QR code."
+    "kitchenHint": "Kitchen staff do not need to sign in: the checklist opens from the station QR code.",
+    "title": "Sign in",
+    "lead": "Workspace for the management company and partners. Accounts are created by the management company.",
+    "or": "or",
+    "google": "Sign in with Google",
+    "googleHint": "Use the work email linked to your account. Unknown emails get no access.",
+    "googleFailed": "Google sign-in did not work: the email is not linked to an account, or sign-in was interrupted. Try again or use your login and password."
   },
   "notFound": {
     "title": "No such page",
@@ -1097,8 +1103,8 @@
     "create": "Add",
     "creating": "Adding…",
     "created": "Account “{login}” created. Hand the login and password to the partner.",
-    "listTitle": "Partner accounts",
-    "listEmpty": "No partner accounts yet.",
+    "listTitle": "Accounts",
+    "listEmpty": "No accounts yet.",
     "active": "Active",
     "disabledSince": "Removed {date}",
     "noCountries": "No countries — the partner will see nothing.",
@@ -1128,8 +1134,22 @@
       "short-password": "The password is shorter than {min} characters.",
       "not-found": "Account not found. Reload the page.",
       "removed": "The account has already been removed.",
-      "unknown": "That did not work. Try again; if it keeps failing, tell the developers."
-    }
+      "unknown": "That did not work. Try again; if it keeps failing, tell the developers.",
+      "email-shape": "That does not look like an email address: name@domain.",
+      "email-taken": "This email is already linked to another account."
+    },
+    "hqTag": "HQ",
+    "emailNone": "No email linked — password sign-in only.",
+    "emailOpen": "Email for Google sign-in",
+    "email": "Email",
+    "emailHint": "The address the person uses for Google. Leave empty to unlink — password sign-in stays.",
+    "emailSaved": "Saved.",
+    "hqTitle": "Add a management company member",
+    "hqLoginHint": "Same as in the account list: lowercase Latin letters, digits, dot, hyphen and underscore.",
+    "hqEmail": "Work email",
+    "hqEmailHint": "The member signs in with Google using this email and sees the whole network. No password is needed; you can reset one in the list if required.",
+    "hqCreate": "Add",
+    "hqCreated": "Member “{login}” added. They sign in with “Sign in with Google”."
   },
   "sectionIntro": {
     "label": "About this section",

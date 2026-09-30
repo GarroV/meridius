@@ -156,9 +156,19 @@ export const accounts = pgTable(
      * выпущенная раньше этой отметки, не принимается (#198, миграция 0019).
      */
     passwordChangedAt: timestamp("password_changed_at", { withTimezone: true }),
+    /**
+     * Почта для входа через Google (D176, миграция 0020); `null` — не привязана, учётка
+     * входит только паролем. Хранится приведённой, уникальна на всю базу.
+     */
+    email: text("email"),
   },
   (table) => [
     unique("accounts_login_unique").on(table.login),
+    unique("accounts_email_unique").on(table.email),
+    check(
+      "accounts_email_shape",
+      sql`email IS NULL OR (email = lower(btrim(email)) AND email ~ '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$' AND length(email) <= 254)`,
+    ),
     check("accounts_login_shape", sql`login ~ '^[a-z0-9._-]{3,64}$'`),
     check("accounts_login_not_root", sql`login <> 'admin'`),
     check("accounts_password_hash_shape", sql`password_hash ~ '^scrypt[.]'`),

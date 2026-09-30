@@ -11,6 +11,8 @@ export type PartnerFormError =
   | "login-shape"
   | "login-taken"
   | "short-password"
+  | "email-shape"
+  | "email-taken"
   | "not-found"
   | "removed"
   | "unknown";
