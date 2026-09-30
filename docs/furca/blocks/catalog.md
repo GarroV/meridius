@@ -10,7 +10,7 @@
 
 ```ts
 listCountries(); createCountry({ name, locale }); updateCountry(id, ...); deleteCountry(id)
-listStores(countryId); createStore({ countryId, name, timezone }); updateStore(id, ...)
+listStores(countryId); createStore({ countryId, name, timezone, city?, code? }); updateStore(id, ...) — город и код точки необязательны, код уникален в стране (отказ `storeCodeTaken`), правка без этих полей их не стирает (T333)
 deleteStore(id, { confirmed })
 listStations(storeId); createStation({ storeId, name }); updateStation(id, ...); deleteStation(id)
 reissueStationCode(stationId): Promise<{ code: string; issuedAt: Date }>
@@ -41,6 +41,7 @@ listTimezones(); assertKnownTimezone(name): Promise<string>
 | `src/blocks/catalog/station-code.ts` | Алфавит без похожих знаков и генератор кода станции с отбором с отклонением |
 | `src/blocks/catalog/countries.ts` | `listCountries`, `createCountry`, `updateCountry`, `deleteCountry` |
 | `src/blocks/catalog/stores.ts` | `listStores`, `createStore`, `updateStore`, `deleteStore`, `countStationsOfStore` |
+| `src/blocks/catalog/network-plan.ts` | `planStoreImport` — план `import:network`: пиццерия опознаётся по коду, затем по названию среди пиццерий без кода, затем по названию; поле, которого нет в файле, не трогается; повтор кода в файле — отказ до первой записи (T333) |
 | `src/blocks/catalog/stations.ts` | Станции, перевыпуск кода, привязка и отвязка чек-листа |
 | `src/blocks/catalog/timezone.ts` | Список зон PostgreSQL и проверка имени зоны (T062) |
 | `src/blocks/catalog/index.ts` | Публичный вход блока: отсюда справочник берут `qr` и `demo` |
