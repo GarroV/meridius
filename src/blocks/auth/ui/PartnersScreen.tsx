@@ -90,6 +90,8 @@ function actionLabels(t: Translate): AccountActionLabels {
     passwordChanged: t("passwordChanged"),
     resetPassword: t("resetPassword"),
     resetting: t("resetting"),
+    resetConfirm: t("resetConfirm"),
+    resetYes: t("resetYes"),
     resetDone: t("resetDone"),
     disable: t("disable"),
     disableConfirm: t("disableConfirm"),
@@ -126,7 +128,7 @@ function AccountRow({
             className={
               isRemoved
                 ? `${TAG_CLASS} text-[var(--ink-3)]`
-                : `${TAG_CLASS} border-[var(--accent-line)] text-[var(--accent)]`
+                : `${TAG_CLASS} border-[var(--ok-line)] bg-[var(--ok-soft)] text-[var(--ok)]`
             }
             data-testid="partner-status"
           >

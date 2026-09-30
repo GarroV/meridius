@@ -1027,6 +1027,8 @@
     "passwordChanged": "Password changed. Anyone already signed in with this account stays in until they sign out — remove the account to lock them out at once.",
     "resetPassword": "Reset password",
     "resetting": "Resetting…",
+    "resetConfirm": "The partner gets a new random password; the old one stops working at once.",
+    "resetYes": "Reset",
     "resetDone": "New password — write it down now, it will not be shown again:",
     "disable": "Remove account",
     "disableConfirm": "Sign-in with this account is refused at once and open sessions end. A removed account cannot be restored from this screen.",

@@ -42,6 +42,8 @@ export interface AccountActionLabels {
   readonly passwordChanged: string;
   readonly resetPassword: string;
   readonly resetting: string;
+  readonly resetConfirm: string;
+  readonly resetYes: string;
   readonly resetDone: string;
   readonly disable: string;
   readonly disableConfirm: string;
@@ -298,36 +300,47 @@ function ResetPassword({
     INITIAL_PARTNER_FORM,
   );
 
+  // Как соседние действия — раскрыть и подтвердить: сброс сразу отнимает у партнёра
+  // прежний пароль, и три похожих действия не должны вести себя тремя способами.
   return (
-    <form action={action} className="flex flex-col gap-[var(--space-4)]">
-      <input type="hidden" name="accountId" value={accountId} />
-      <div>
-        <button
-          type="submit"
-          disabled={pending}
-          data-testid="partner-reset"
-          className={BTN_CLASS}
-        >
-          {pending ? labels.resetting : labels.resetPassword}
-        </button>
-      </div>
-      <Outcome
-        state={state}
-        errors={errors}
-        testId="partner-reset"
-        done={
-          <>
-            {labels.resetDone}{" "}
-            <code
-              data-testid="partner-reset-password"
-              className="font-mono font-semibold select-all"
-            >
-              {state.password}
-            </code>
-          </>
-        }
-      />
-    </form>
+    <details>
+      <summary className={SUMMARY_CLASS} data-testid="partner-reset-open">
+        {labels.resetPassword}
+      </summary>
+      <form
+        action={action}
+        className="mt-[var(--space-4)] flex flex-col gap-[var(--space-4)]"
+      >
+        <input type="hidden" name="accountId" value={accountId} />
+        <p className={HINT_CLASS}>{labels.resetConfirm}</p>
+        <div>
+          <button
+            type="submit"
+            disabled={pending}
+            data-testid="partner-reset"
+            className={BTN_CLASS}
+          >
+            {pending ? labels.resetting : labels.resetYes}
+          </button>
+        </div>
+        <Outcome
+          state={state}
+          errors={errors}
+          testId="partner-reset"
+          done={
+            <>
+              {labels.resetDone}{" "}
+              <code
+                data-testid="partner-reset-password"
+                className="font-mono font-semibold select-all"
+              >
+                {state.password}
+              </code>
+            </>
+          }
+        />
+      </form>
+    </details>
   );
 }
 

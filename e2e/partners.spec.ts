@@ -83,6 +83,7 @@ test.describe("экран «Партнёры»", () => {
     expect(refused.status()).toBe(404);
 
     // УК сбрасывает пароль: прежний больше не входит, новый — входит.
+    await row.getByTestId("partner-reset-open").click();
     await row.getByTestId("partner-reset").click();
     const issued = row.getByTestId("partner-reset-password");
     await expect(issued).toHaveText(/^\S{12,}$/);
