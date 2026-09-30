@@ -24,7 +24,7 @@ import {
   createStation as createStationFixture,
   sampleSections,
 } from "@/blocks/data/testing/fixtures";
-import { hqViewer } from "@/blocks/auth/testing/viewers";
+import { hqViewer, partnerViewer } from "@/blocks/auth/testing/viewers";
 
 import { STATION_CODE_ALPHABET, STATION_CODE_LENGTH } from "./station-code";
 import {
@@ -182,6 +182,25 @@ describe("привязка чек-листа к станции (T017)", () => {
 
     const [row] = await listStations(storeId);
     expect(row?.checklists).toStrictEqual([{ id: checklistId, title }]);
+  });
+
+  test("чек-лист виден только у своей станции, соседняя по пиццерии остаётся пустой", async () => {
+    // Список станций собирает чек-листы одним запросом на всю пиццерию и раскладывает
+    // их сам: ошибка раскладки молча показывала бы чужой чек-лист соседней станции (T350).
+    const storeId = await emptyStore();
+    const kitchen = await createStation({ storeId, name: "А кухня" });
+    const counter = await createStation({ storeId, name: "Б касса" });
+    const checklistId = await createChecklist();
+    await assignChecklist(kitchen.id, checklistId);
+
+    const rows = await listStations(storeId);
+
+    expect(
+      rows.map((row) => [row.id, row.checklists.map((item) => item.id)]),
+    ).toStrictEqual([
+      [kitchen.id, [checklistId]],
+      [counter.id, []],
+    ]);
   });
 
   test("два чек-листа станции идут в порядке дня, а не в порядке привязки", async () => {
@@ -411,6 +430,50 @@ describe("привязка уже опубликованного чек-лист
     expect(
       (await versionsOf(checklistId)).map((row) => row.status),
     ).toStrictEqual(["draft"]);
+  });
+});
+
+describe("отказы справочника станций, которые иначе молчат (T350)", () => {
+  // Мусорный идентификатор из адреса или формы отвечает так же, как несуществующий:
+  // иначе ошибка синтаксиса uuid из базы уходила бы пятисоткой, и перебор отличал бы
+  // «такого нет» от «такого не бывает» (D021, D145).
+  const GARBAGE = "не-uuid";
+
+  test.each([
+    ["createStation", () => createStation({ storeId: GARBAGE, name: "Кухня" })],
+    ["updateStation", () => updateStation(GARBAGE, { name: "Кухня" })],
+    ["deleteStation", () => deleteStation(GARBAGE)],
+    ["reissueStationCode", () => reissueStationCode(GARBAGE)],
+    ["assignChecklist, станция", () => assignChecklist(GARBAGE, randomUUID())],
+    ["assignChecklist, чек-лист", () => assignChecklist(randomUUID(), GARBAGE)],
+    ["detachChecklist", () => detachChecklist(GARBAGE)],
+  ])("%s: мусорный идентификатор — «не найдено»", async (_name, call) => {
+    await expect(call()).rejects.toMatchObject({ code: "notFound" });
+  });
+
+  test("отвязка несуществующего чек-листа не выдаёт себя за удачу", async () => {
+    await expect(detachChecklist(randomUUID())).rejects.toMatchObject({
+      code: "notFound",
+    });
+  });
+
+  test("партнёру в свободных — только его чек-листы, УК — все", async () => {
+    // Чек-лист без станции не лежит ни в одной стране, и отбор по тенанту — единственное,
+    // что не даёт партнёру привязать к своей станции чужой (D145).
+    const partner = await partnerViewer([]);
+    const own = await createChecklist({ tenantId: partner.tenantId });
+    const foreign = await createChecklist();
+
+    const partnerIds = (await listUnassignedChecklists(partner)).map(
+      (item) => item.id,
+    );
+    const hqIds = (await listUnassignedChecklists(await hqViewer())).map(
+      (item) => item.id,
+    );
+
+    expect(partnerIds).toContain(own);
+    expect(partnerIds).not.toContain(foreign);
+    expect(hqIds).toEqual(expect.arrayContaining([own, foreign]));
   });
 });
 
