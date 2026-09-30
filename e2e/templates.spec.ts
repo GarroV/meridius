@@ -37,9 +37,6 @@ async function createPublishedTemplate(page: Page, title: string) {
 test.describe("раздел «Шаблоны»", () => {
   test.use({ locale: "ru-RU" });
 
-  // Последовательно — по той же причине, что в `stations.spec.ts` (#170).
-  test.describe.configure({ mode: "serial" });
-
   test.beforeEach(async ({ page }) => {
     await page.goto("/admin/login");
     await page.getByLabel("Пароль").fill(E2E_ADMIN_PASSWORD);

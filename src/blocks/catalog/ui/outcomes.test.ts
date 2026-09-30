@@ -108,9 +108,10 @@ describe("перевыпуск кода станции", () => {
     });
 
     const url = new URL(outcome.doneHref, "https://example.test");
-    expect(url.pathname).toBe("/admin/qr");
-    expect(url.searchParams.get("store")).toBe(REQUEST.storeId);
-    expect(url.searchParams.get("station")).toBe(REQUEST.stationId);
+    expect(url.pathname).toBe("/admin/stations/stickers");
+    expect(url.searchParams.getAll("stationIds")).toStrictEqual([
+      REQUEST.stationId,
+    ]);
   });
 });
 
