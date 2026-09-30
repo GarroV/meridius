@@ -32,15 +32,15 @@ import { itemCriticalSql, itemFailedSql } from "./stats-grading";
 import type { StatsPeriodDays } from "./stats-view";
 
 /** Сколько пунктов в списке чаще всего проваливаемых (D170). */
-export const TOP_FAILED_LIMIT = 5;
+const TOP_FAILED_LIMIT = 5;
 /** Сколько молчащих станций перечисляется поимённо; общее число отдаётся всегда. */
-export const SILENT_LIST_LIMIT = 20;
+const SILENT_LIST_LIMIT = 20;
 /** Порог молчания (D170). */
-export const SILENCE_HOURS = 24;
+const SILENCE_HOURS = 24;
 
 const HOUR_MS = 3_600_000;
 
-export interface FailedItemStat {
+interface FailedItemStat {
   readonly itemId: string;
   /** Название из самого свежего провала: методист мог его поправить. */
   readonly title: LocalizedText;
@@ -50,7 +50,7 @@ export interface FailedItemStat {
   readonly storeCount: number;
 }
 
-export interface SilentStation {
+interface SilentStation {
   readonly stationId: string;
   readonly stationName: string;
   readonly storeId: string;
@@ -288,7 +288,7 @@ async function loadSilent(
 }
 
 /** Доля; `null`, когда делить не на что. */
-export function shareOf(part: number, whole: number): number | null {
+function shareOf(part: number, whole: number): number | null {
   return whole === 0 ? null : part / whole;
 }
 

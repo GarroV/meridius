@@ -13,7 +13,7 @@ export const STATS_PERIOD_DAYS = [7, 30] as const;
 export type StatsPeriodDays = (typeof STATS_PERIOD_DAYS)[number];
 
 export const DAYS_PARAM = "days";
-export const DEFAULT_STATS_DAYS: StatsPeriodDays = 7;
+const DEFAULT_STATS_DAYS: StatsPeriodDays = 7;
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

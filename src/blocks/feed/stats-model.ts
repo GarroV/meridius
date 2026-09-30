@@ -10,14 +10,14 @@ export interface StatsSelection {
   readonly stores: readonly FeedStoreOption[];
 }
 
-export interface StatsFailedItem {
+interface StatsFailedItem {
   readonly itemId: string;
   readonly title: string;
   readonly failures: number;
   readonly storeCount: number;
 }
 
-export interface StatsSilentStation {
+interface StatsSilentStation {
   readonly stationId: string;
   readonly stationName: string;
   readonly storeName: string;
