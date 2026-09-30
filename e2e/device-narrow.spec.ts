@@ -78,7 +78,17 @@ async function overflowOf(page: Page): Promise<Overflow> {
     for (const element of document.querySelectorAll<HTMLElement>("body *")) {
       const { overflowX } = getComputedStyle(element);
       const scrolls = overflowX === "auto" || overflowX === "scroll";
-      if (scrolls && element.scrollWidth > element.clientWidth + 1) {
+      // Полоса меню ниже складки прокручивается вбок САМА — так она устроена (D092,
+      // T344): восемь разделов, поиск и подвал в 375 px не помещаются, и полоса едет
+      // внутри себя, а экран стоит. Это не прокрутка страницы. Что сама полоса не шире
+      // экрана, проверяет третья мера ниже: её родитель не прокручивается, и вылезший
+      // край попал бы в «за краем экрана».
+      const isMenuStrip = element.matches("nav.sidenav");
+      if (
+        scrolls &&
+        !isMenuStrip &&
+        element.scrollWidth > element.clientWidth + 1
+      ) {
         scrollers.push(
           `${label(element)} ${String(element.scrollWidth)} из ${String(element.clientWidth)} px`,
         );
