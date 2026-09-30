@@ -81,7 +81,12 @@ async function candidateFor(login: string | null): Promise<Candidate> {
 
 /** Исход попытки под очередью: прошла — кому выпускать куку; нет — ответ форме. */
 type AttemptOutcome =
-  | { readonly status: "passed"; readonly subject: string }
+  | {
+      readonly status: "passed";
+      readonly subject: string;
+      /** Когда прочитан хэш, с которым сошёлся пароль: это и есть время выпуска сессии. */
+      readonly issuedAt: Date;
+    }
   | Exclude<SignInResult, { readonly status: "ok" }>;
 
 /**
@@ -104,6 +109,10 @@ async function attemptSignIn(
     };
   }
 
+  // Время выпуска сессии — момент чтения хэша, а не момент после scrypt: сброс пароля,
+  // пришедшийся на проверку, иначе пропустил бы вход прежним паролем с сессией «после
+  // сброса» (#198). С отметкой раньше сброса такая сессия при чтении не принимается.
+  const issuedAt = new Date();
   const candidate = await candidateFor(normalizeLogin(rawLogin));
   const matches = await verifyPassword(password, candidate.hash);
   if (!matches || candidate.subject === null) {
@@ -112,7 +121,7 @@ async function attemptSignIn(
   }
 
   await forgetLoginAttempts(client);
-  return { status: "passed", subject: candidate.subject };
+  return { status: "passed", subject: candidate.subject, issuedAt };
 }
 
 /**
@@ -143,7 +152,7 @@ export async function signIn(
   const store = await cookies();
   store.set(
     SESSION_COOKIE_NAME,
-    createSessionToken(outcome.subject, secret, new Date()),
+    createSessionToken(outcome.subject, secret, outcome.issuedAt),
     {
       // httpOnly: куку не достать из JavaScript, XSS не уносит сессию.
       httpOnly: true,
