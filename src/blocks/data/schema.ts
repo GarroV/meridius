@@ -647,6 +647,43 @@ export const loginAttempts = pgTable(
   ],
 );
 
+/**
+ * Счёт попыток привязки планшета (блок `device`, #144, миграция 0018).
+ *
+ * Та же природа, что у `login_attempts`: состояние защиты, а не данные продукта, и в базе
+ * оно лежит ради одного — счёт обязан пережить перезапуск процесса и быть общим у всех
+ * копий приложения. В памяти процесса вторая копия молча удваивала предел.
+ *
+ * Строка — пара «бюджет — ключ» под отпечатком sha256: бюджет ввода кода на `/pair` и
+ * бюджет выпуска кода в кабинете не делят счёт. Своя таблица, а не `login_attempts`:
+ * публичной поверхности привязки знать о входе в кабинет запрещено (T187).
+ */
+export const deviceAttempts = pgTable(
+  "device_attempts",
+  {
+    attemptKey: text("attempt_key").primaryKey(),
+    // Имя бюджета открытой колонкой: уборка кончившихся окон идёт по бюджету, и чужое
+    // «сейчас» не сметает счёт другого бюджета. Константа кода, а не данные снаружи.
+    budget: text("budget").notNull(),
+    // Начало окна: отсчёт от первой попытки, поэтому отказ кончается в названный срок.
+    windowStartedAt: timestamp("window_started_at", {
+      withTimezone: true,
+    }).notNull(),
+    attempts: integer("attempts").notNull(),
+  },
+  () => [
+    // Ровно sha256 и ничего кроме: забытое хэширование в коде не должно означать, что база
+    // примет адрес клиента из подделываемого заголовка как есть.
+    check(
+      "device_attempts_attempt_key_shape",
+      sql`attempt_key ~ '^[0-9a-f]{64}$'`,
+    ),
+    // Строка заводится первой попыткой: ноль здесь — сбой счёта, а не «никто не пробовал».
+    check("device_attempts_attempts_positive", sql`attempts > 0`),
+    check("device_attempts_budget_shape", sql`budget ~ '^[a-z0-9-]{1,64}$'`),
+  ],
+);
+
 export type Country = typeof countries.$inferSelect;
 export type Tenant = typeof tenants.$inferSelect;
 export type Account = typeof accounts.$inferSelect;

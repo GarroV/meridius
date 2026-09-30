@@ -6,7 +6,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { getDb, stations } from "@/blocks/data";
+import { checklists, getDb, stations } from "@/blocks/data";
 import { createChecklist, createStation } from "@/blocks/data/testing/fixtures";
 import { WHOLE_NETWORK } from "@/blocks/auth/scope";
 
@@ -85,6 +85,33 @@ describe("станции и их планшеты", () => {
     // сравнение с нулём на экране как «чек-лист есть» (тот же случай в stations/overview).
     expect(bareEntry?.checklistCount).toBe(0);
     expect(coveredEntry?.checklistCount).toBe(1);
+  });
+
+  it("архивный чек-лист не считается: планшету он уже не откроется (#196)", async () => {
+    const { stationId } = await createStation();
+    await createChecklist({ stationId });
+    const archived = await createChecklist({ stationId });
+    await getDb()
+      .update(checklists)
+      .set({ archivedAt: NOW })
+      .where(eq(checklists.id, archived));
+
+    const [entry] = await entryOf(stationId);
+
+    expect(entry?.checklistCount).toBe(1);
+  });
+
+  it("станция только с архивными чек-листами — ноль, «планшету нечего показать»", async () => {
+    const { stationId } = await createStation();
+    const archived = await createChecklist({ stationId });
+    await getDb()
+      .update(checklists)
+      .set({ archivedAt: NOW })
+      .where(eq(checklists.id, archived));
+
+    const [entry] = await entryOf(stationId);
+
+    expect(entry?.checklistCount).toBe(0);
   });
 
   it("отвязанный планшет пропадает из станции, а сама станция остаётся", async () => {

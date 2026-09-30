@@ -73,7 +73,8 @@ describe("выпуск пина на базе без таблицы", () => {
     expect(outcome).toEqual({ kind: "failed", reason: "broken" });
     expect(log).toHaveBeenCalledTimes(1);
     const logged: unknown = log.mock.calls[0]?.[1];
-    expect(String(logged)).toMatch(/device_pairings/);
+    // Первой базу трогает частота выпуска (#144): на базе без таблиц журнал называет её.
+    expect(String(logged)).toMatch(/device_attempts/);
     log.mockRestore();
   });
 

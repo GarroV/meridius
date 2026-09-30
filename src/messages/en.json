@@ -859,6 +859,7 @@
       "failed": {
         "temporary": "Could not reach the database. Wait a minute and press again.",
         "stationGone": "This station no longer exists — it was deleted. Refresh the page.",
+        "tooOften": "Too many codes issued in a row. You can issue a new one in {minutes, plural, one {# minute} other {# minutes}}.",
         "broken": "A server fault stops the code from being issued, and retrying will not help. Tell whoever runs MERIDIUS: the cause is in the server log.",
         "offline": "No connection to the server. Check the internet and press again."
       }

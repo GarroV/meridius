@@ -127,6 +127,13 @@
       "when": 1789290000000,
       "tag": "0017_store_city_code",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789300000000,
+      "tag": "0018_device_attempts",
+      "breakpoints": true
     }
   ]
 }

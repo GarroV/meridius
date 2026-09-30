@@ -8,6 +8,7 @@ import { isUuid } from "../devices";
 import { classifyIssueFailure, type IssueFailure } from "../issue-failure";
 import { issuePairingPin } from "../pairing";
 import { PIN_TTL_SECONDS } from "../pin";
+import { checkIssueAllowed } from "../rate-limit";
 
 const SECONDS_IN_MINUTE = 60;
 
@@ -25,7 +26,12 @@ export type IssuePinOutcome =
    * Отказ с причиной (#162): экран говорит «попробуйте через минуту» только там, где
    * повтор помогает, а не на любую ошибку базы.
    */
-  | { readonly kind: "failed"; readonly reason: IssueFailure };
+  | { readonly kind: "failed"; readonly reason: IssueFailure }
+  /**
+   * Эта учётка выпустила слишком много кодов подряд (#144). Бюджет свой, а не общий с
+   * вводом на `/pair`: перебор на планшетной странице выпуск в кабинете не запирает.
+   */
+  | { readonly kind: "tooOften"; readonly minutes: number };
 
 /**
  * Выпускает пин для станции чек-листа.
@@ -56,7 +62,23 @@ export async function issuePinAction(
   }
 
   try {
-    const pin = await issuePairingPin(stationId, new Date());
+    const now = new Date();
+    // Учётка — из подписанной сессии, подделать её нельзя. У УК из окружения площадки
+    // строки учётки нет, и её счёт ведётся по логину.
+    const verdict = await checkIssueAllowed(
+      viewer.accountId ?? `login:${viewer.login}`,
+      now,
+    );
+    if (!verdict.allowed) {
+      return {
+        kind: "tooOften",
+        minutes: Math.max(
+          1,
+          Math.ceil(verdict.retryAfterSeconds / SECONDS_IN_MINUTE),
+        ),
+      };
+    }
+    const pin = await issuePairingPin(stationId, now);
     return {
       kind: "issued",
       code: pin.code,
