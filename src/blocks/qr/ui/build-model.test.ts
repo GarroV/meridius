@@ -3,11 +3,12 @@
 // с чужим кодом — самый дорогой вид ошибки в этом блоке.
 import { randomUUID } from "node:crypto";
 
-import { afterAll, describe, expect, test } from "vitest";
+import { afterAll, describe, expect, test, vi } from "vitest";
 
 import { createCountry, createStation, createStore } from "@/blocks/catalog";
 import { closeTestDb } from "@/blocks/data/testing/db";
-import { WHOLE_NETWORK } from "@/blocks/auth/scope";
+import { WHOLE_NETWORK, type Scope } from "@/blocks/auth/scope";
+import { getDb } from "@/blocks/data";
 
 import { buildQrModel, buildScreenModel } from "./build-model";
 import { CONFIRM_REISSUE } from "./view";
@@ -18,6 +19,7 @@ const ORIGIN = "http://localhost:3160";
 const TIMEZONE = "Asia/Almaty";
 
 interface Fixture {
+  countryId: string;
   countryName: string;
   storeName: string;
   storeId: string;
@@ -54,6 +56,7 @@ async function fixture(): Promise<Fixture> {
   }
 
   return {
+    countryId,
     countryName,
     storeName,
     storeId,
@@ -257,5 +260,146 @@ describe("что показывает экран планшета", () => {
     );
 
     expect(model).toBeNull();
+  });
+});
+
+/** Область партнёра, которому видны только эти страны (D145). */
+function partnerOf(...countryIds: string[]): Scope {
+  return { kind: "countries", countryIds: new Set(countryIds) };
+}
+
+async function emptyCountry(): Promise<string> {
+  return createCountry({
+    name: `Пустая ${randomUUID().slice(0, 8)}`,
+    locale: "ru",
+  });
+}
+
+describe("чужая пиццерия не находится (D145)", () => {
+  test("партнёр своей страны видит лист своей пиццерии", async () => {
+    const data = await fixture();
+
+    const model = await buildQrModel(
+      { storeId: data.storeId },
+      { origin: ORIGIN, scope: partnerOf(data.countryId) },
+    );
+
+    expect(model.store?.id).toBe(data.storeId);
+    expect(model.store?.countryName).toBe(data.countryName);
+    expect(model.stations).toHaveLength(data.stations.length);
+  });
+
+  test("партнёр другой страны не получает ни листа, ни пиццерии в списке", async () => {
+    const data = await fixture();
+    const scope = partnerOf(await emptyCountry());
+
+    const model = await buildQrModel(
+      { storeId: data.storeId },
+      { origin: ORIGIN, scope },
+    );
+
+    expect(model.store).toBeNull();
+    expect(model.stations).toHaveLength(0);
+    expect(model.stores.map((option) => option.id)).not.toContain(data.storeId);
+  });
+
+  test("партнёр другой страны не получает экрана планшета", async () => {
+    const data = await fixture();
+    const station = data.stations[0];
+    if (station === undefined) throw new Error("станция не завелась");
+
+    const model = await buildScreenModel(
+      { storeId: data.storeId, stationId: station.id },
+      { origin: ORIGIN, scope: partnerOf(await emptyCountry()) },
+    );
+
+    expect(model).toBeNull();
+  });
+
+  test("список выбора партнёра — только пиццерии его стран, со страной и числом станций", async () => {
+    const data = await fixture();
+    const other = await fixture();
+
+    const model = await buildQrModel(
+      {},
+      { origin: ORIGIN, scope: partnerOf(data.countryId) },
+    );
+
+    const ids = model.stores.map((option) => option.id);
+    expect(ids).toEqual(
+      expect.arrayContaining([data.storeId, data.otherStoreId]),
+    );
+    expect(ids).toHaveLength(2);
+    expect(ids).not.toContain(other.storeId);
+    const own = model.stores.find((option) => option.id === data.storeId);
+    expect(own?.countryName).toBe(data.countryName);
+    expect(own?.stationCount).toBe(data.stations.length);
+  });
+});
+
+/**
+ * Сколько запросов уходит в базу за время `run`. Считается на пуле: через него идёт
+ * каждый запрос вне транзакции, а модели экранов QR транзакций не открывают.
+ */
+/** Та часть пула, что нужна счёту: драйвер тесту не импортируется (границы модулей). */
+interface QueryPool {
+  query(...args: unknown[]): unknown;
+}
+
+async function countQueries(run: () => Promise<unknown>): Promise<number> {
+  getDb();
+  const pool = (globalThis as { meridiusPool?: QueryPool }).meridiusPool;
+  if (pool === undefined) throw new Error("пул базы не поднялся");
+  const spy = vi.spyOn(pool, "query");
+  try {
+    await run();
+    return spy.mock.calls.length;
+  } finally {
+    spy.mockRestore();
+  }
+}
+
+// T347: поиск пиццерии обходил страны запросом на каждую, и в общей тестовой базе,
+// где стран сотни, лист с выдуманной пиццерией уходил за 20 секунд. Проверяется не
+// время (оно зависит от машины), а причина: число запросов не зависит от числа стран.
+describe("число запросов не растёт с числом стран сети (T347)", () => {
+  const COUNTRIES_ADDED = 3;
+
+  async function growNetwork(): Promise<void> {
+    for (let index = 0; index < COUNTRIES_ADDED; index += 1) {
+      await emptyCountry();
+    }
+  }
+
+  test.each([
+    ["выдуманная пиццерия", () => ({ storeId: randomUUID() })],
+    ["пиццерия не задана", () => ({})],
+  ])("лист печати: %s", async (_name, view) => {
+    const request = { origin: ORIGIN, scope: WHOLE_NETWORK };
+    const before = await countQueries(() => buildQrModel(view(), request));
+    await growNetwork();
+    const after = await countQueries(() => buildQrModel(view(), request));
+
+    expect(after).toBe(before);
+  });
+
+  test("лист печати и экран планшета настоящей пиццерии", async () => {
+    const data = await fixture();
+    const station = data.stations[0];
+    if (station === undefined) throw new Error("станция не завелась");
+    const request = { origin: ORIGIN, scope: WHOLE_NETWORK };
+    const open = async (): Promise<void> => {
+      await buildQrModel({ storeId: data.storeId }, request);
+      await buildScreenModel(
+        { storeId: data.storeId, stationId: station.id },
+        request,
+      );
+    };
+
+    const before = await countQueries(open);
+    await growNetwork();
+    const after = await countQueries(open);
+
+    expect(after).toBe(before);
   });
 });

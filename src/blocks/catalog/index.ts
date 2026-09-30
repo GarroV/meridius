@@ -19,6 +19,9 @@ export {
   updateStore,
 } from "./stores";
 
+export type { StoreInCountry } from "./store-lookup";
+export { findStoreInScope, listStoresInScope } from "./store-lookup";
+
 export type {
   ExistingStore,
   NetworkStore,
