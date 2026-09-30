@@ -11,9 +11,15 @@
 // Источник у шаблона не записывается: `sourceChecklistId` у чек-листа значит «я копия
 // этого шаблона», и обратная ссылка с шаблона на станцию дала бы петлю, в которой
 // «шаблон обновился» пришёл бы самому шаблону.
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, exists, isNotNull, isNull } from "drizzle-orm";
 
-import { checklistVersions, checklists, getDb } from "@/blocks/data";
+import {
+  checklistVersions,
+  checklists,
+  getDb,
+  type LocalizedText,
+  stations,
+} from "@/blocks/data";
 
 import { isUuid } from "./validation";
 
@@ -24,9 +30,15 @@ export type MakeTemplateRefusal =
   "notChecklist" | "noPublishedVersion" | "alreadyFromTemplate";
 
 /** Отказ с причиной, которую можно показать человеку. */
+// Поле объявлено явно, а не свойством в параметре конструктора: скрипт пачки
+// (`templates-from-store.mjs`) грузит модуль node без сборки, а node разбирает TypeScript
+// только срезанием типов и свойства в параметрах не понимает.
 export class MakeTemplateError extends Error {
-  constructor(readonly reason: MakeTemplateRefusal) {
+  readonly reason: MakeTemplateRefusal;
+
+  constructor(reason: MakeTemplateRefusal) {
     super(reason);
+    this.reason = reason;
     this.name = "MakeTemplateError";
   }
 }
@@ -119,4 +131,50 @@ export async function makeTemplateFromChecklist(
 
     return template.id;
   });
+}
+
+export interface TemplateCandidate {
+  readonly checklistId: string;
+  readonly title: LocalizedText;
+  readonly stationName: string;
+}
+
+/**
+ * Чек-листы пиццерии, из которых можно сделать шаблоны пачкой (D169): живые, не шаблоны,
+ * без источника и с опубликованной версией — ровно те, кого примет
+ * `makeTemplateFromChecklist`. Пачкой пользуется скрипт `templates-from-store.mjs`.
+ */
+export async function listTemplateCandidates(
+  storeId: string,
+): Promise<readonly TemplateCandidate[]> {
+  if (!isUuid(storeId)) return [];
+
+  return getDb()
+    .select({
+      checklistId: checklists.id,
+      title: checklists.title,
+      stationName: stations.name,
+    })
+    .from(checklists)
+    .innerJoin(stations, eq(stations.id, checklists.stationId))
+    .where(
+      and(
+        eq(stations.storeId, storeId),
+        eq(checklists.isTemplate, false),
+        isNull(checklists.archivedAt),
+        isNull(checklists.sourceChecklistId),
+        exists(
+          getDb()
+            .select({ id: checklistVersions.id })
+            .from(checklistVersions)
+            .where(
+              and(
+                eq(checklistVersions.checklistId, checklists.id),
+                eq(checklistVersions.status, "published"),
+              ),
+            ),
+        ),
+      ),
+    )
+    .orderBy(stations.name);
 }
