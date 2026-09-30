@@ -55,8 +55,14 @@ export interface NetworkStation {
 // SQL. Иначе сравнение `checklistCount === 0` в `gaps.ts` ловит строку "0", молча не
 // срабатывает, и экран показывает «разрывов нет» ровно там, где станция стоит без
 // чек-листа. Поймано на себе: линт счёл обёртку `Number()` лишней, потому что верил типу.
+//
+// Считаются только действующие чек-листы. Удаление чек-листа с заполнениями лишь ставит
+// `archived_at` и оставляет `station_id` (`editor/removal.ts`), поэтому без условия станция
+// с одним снятым с работы чек-листом выглядела бы закрытой, хотя наклейка открывает пустоту
+// (#193).
 const checklistCount = sql<number>`(
-  select count(*)::int from ${checklists} where ${checklists.stationId} = ${stations.id}
+  select count(*)::int from ${checklists}
+  where ${checklists.stationId} = ${stations.id} and ${checklists.archivedAt} is null
 )`;
 
 const deviceCount = sql<number>`(
