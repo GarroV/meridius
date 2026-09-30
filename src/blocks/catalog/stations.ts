@@ -86,11 +86,10 @@ async function withFreshCode<T>(
 /** Чек-листы станций одним запросом: список станций иначе превратился бы в N+1. */
 async function checklistsOfStations(
   stationIds: string[],
-): Promise<Map<string, StationChecklist[]>> {
-  const grouped = new Map<string, StationChecklist[]>();
-  if (stationIds.length === 0) return grouped;
+): Promise<(StationChecklist & { stationId: string | null })[]> {
+  if (stationIds.length === 0) return [];
 
-  const rows = await getDb()
+  return await getDb()
     .select({
       id: checklists.id,
       stationId: checklists.stationId,
@@ -101,13 +100,6 @@ async function checklistsOfStations(
     // Порядок дня, а не алфавит: утренний чек-лист выше вечернего независимо от
     // языка интерфейса. Сортировка по названию требовала бы выбрать язык в запросе.
     .orderBy(asc(checklists.windowStart), asc(checklists.createdAt));
-
-  for (const row of rows) {
-    if (row.stationId === null) continue;
-    const list = grouped.get(row.stationId) ?? [];
-    grouped.set(row.stationId, [...list, { id: row.id, title: row.title }]);
-  }
-  return grouped;
 }
 
 /** Станции пиццерии с назначенными чек-листами. Неизвестная пиццерия — пустой список. */
@@ -126,11 +118,15 @@ export async function listStations(storeId: string): Promise<StationRow[]> {
     .where(eq(stations.storeId, storeId))
     .orderBy(asc(stations.name));
 
-  const grouped = await checklistsOfStations(rows.map((row) => row.id));
+  const attached = await checklistsOfStations(rows.map((row) => row.id));
 
+  // Раскладка по станциям — фильтром, а не словарём с `?? []`: у станции без
+  // чек-листов пустой список получается сам, без ветки. Порядок дня сохраняется.
   return rows.map((row) => ({
     ...row,
-    checklists: grouped.get(row.id) ?? [],
+    checklists: attached
+      .filter((item) => item.stationId === row.id)
+      .map((item) => ({ id: item.id, title: item.title })),
   }));
 }
 

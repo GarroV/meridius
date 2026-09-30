@@ -161,6 +161,22 @@ export async function publishVersion(
   checklistId: string,
 ): Promise<ChecklistVersion> {
   return getDb().transaction(async (tx) => {
+    // Станция чек-листа замораживается вместе с содержимым: она читается здесь,
+    // в транзакции публикации, и больше у этой версии не меняется (T056). Строка
+    // блокируется первой, в том же порядке, что у привязки к станции
+    // (`bindChecklistToStation`: чек-лист, потом версия): публикация с привязкой идут
+    // друг за другом, а не вперемешку и не во взаимной блокировке.
+    const checklistRows = await tx
+      .select({ stationId: checklists.stationId })
+      .from(checklists)
+      .where(eq(checklists.id, checklistId))
+      .limit(1)
+      .for("update");
+    const checklist = checklistRows[0];
+    if (checklist === undefined) {
+      throw new Error(`Чек-листа ${checklistId} нет: публиковать нечего`);
+    }
+
     const draftRows = await tx
       .select()
       .from(checklistVersions)
@@ -177,21 +193,6 @@ export async function publishVersion(
       throw new Error(
         `У чек-листа ${checklistId} нет черновика: публиковать нечего`,
       );
-    }
-
-    // Станция чек-листа замораживается вместе с содержимым: она читается здесь,
-    // в транзакции публикации, и больше у этой версии не меняется (T056). Строка
-    // блокируется: привязка к станции (`bindChecklistToStation`) держит ту же строку,
-    // и публикация с привязкой идут друг за другом, а не вперемешку.
-    const checklistRows = await tx
-      .select({ stationId: checklists.stationId })
-      .from(checklists)
-      .where(eq(checklists.id, checklistId))
-      .limit(1)
-      .for("update");
-    const checklist = checklistRows[0];
-    if (checklist === undefined) {
-      throw new Error(`Чек-листа ${checklistId} нет: публиковать нечего`);
     }
 
     const numbers = await tx
