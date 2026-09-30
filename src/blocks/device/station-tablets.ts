@@ -47,9 +47,13 @@ export interface StationTablets {
  * Подзапросом, а не соединением, и с `::int`: соединение с чек-листами размножило бы
  * строки планшетов, а `count()` без приведения приходит от драйвера строкой, и "0"
  * на экране читался бы как «чек-лист есть» (разбор — `stations/overview.ts`).
+ * Архивный чек-лист не считается (#196): на станции он уже не открывается, и планшет с
+ * одними архивными показал бы «нечего заполнять» под отметкой «чек-лист есть».
  */
 const checklistCount = sql<number>`(
-  select count(*)::int from ${checklists} where ${checklists.stationId} = ${stations.id}
+  select count(*)::int from ${checklists}
+   where ${checklists.stationId} = ${stations.id}
+     and ${checklists.archivedAt} is null
 )`;
 
 interface Row {
