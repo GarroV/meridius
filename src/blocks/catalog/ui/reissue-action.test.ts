@@ -117,7 +117,7 @@ describe("перевыпуск кода станции", () => {
       destination,
       "Обещание кнопки — «перевыпустить и открыть печать»: без второго шага " +
         "методист уходит со старой наклейкой на станции и новым кодом в базе.",
-    ).toContain("/admin/qr");
-    expect(destination).toContain(STORE);
+    ).toContain("/admin/stations/stickers?");
+    expect(destination).toContain(`stationIds=${STATION}`);
   });
 });

@@ -68,7 +68,7 @@ test.describe("переход из справочника к наклейкам"
     ).toHaveCount(STATION_NAMES.length);
   });
 
-  test("«QR» в строке станции ведёт на карточку именно этой станции", async ({
+  test("«QR» в строке станции ведёт на лист наклейки именно этой станции", async ({
     page,
   }) => {
     const store = await seedStore();
@@ -83,13 +83,14 @@ test.describe("переход из справочника к наклейкам"
     const row = page.getByTestId("station-row").filter({ hasText: targetName });
     await row.getByTestId("catalog-station-qr").click();
 
-    // Карточка именно этой станции: без параметра `station` старый адрес увёл бы на
-    // лист всей пиццерии, и такая потеря прошла бы тест незамеченной.
-    await expect(page).toHaveURL(
-      new RegExp(`/admin/stations/${store.stationIds[1] ?? ""}$`),
-    );
-    await expect(
-      page.getByRole("heading", { level: 1, name: targetName }),
-    ).toBeVisible();
+    // Лист с одной наклейкой — этой станции (T341). Карточка станции здесь была бы
+    // промахом: кнопка называется «QR», а на карточке QR нет, и цепочка критерия 3
+    // рвалась на лишнем шаге.
+    await expect(page).toHaveURL(/\/admin\/stations\/stickers\?/);
+    expect(new URL(page.url()).searchParams.getAll("stationIds")).toEqual([
+      store.stationIds[1],
+    ]);
+    await expect(page.getByTestId("qr-sticker")).toHaveCount(1);
+    await expect(page.getByTestId("qr-sticker")).toContainText(targetName);
   });
 });

@@ -150,17 +150,15 @@ describe("адрес раздела QR (T107)", () => {
     expect(qrStationsHref({ storeId: ID })).toBe(`/admin/qr?store=${ID}`);
   });
 
-  test("станция добавляется к пиццерии, а не вместо неё", () => {
+  test("станция ведёт на лист её наклейки, а не на карточку без QR (T341)", () => {
     expect(qrStationsHref({ storeId: ID, stationId: OTHER_ID })).toBe(
-      `/admin/qr?store=${ID}&station=${OTHER_ID}`,
+      `/admin/stations/stickers?stationIds=${OTHER_ID}`,
     );
   });
 
-  test("станция без пиццерии в адрес не попадает: половина ссылки никуда не ведёт", () => {
-    // Раздел QR ищет станцию внутри пиццерии и в одиночку её не находит — показал бы
-    // выбор пиццерии, молча забыв про станцию. Лучше не обещать того, чего не будет.
+  test("лист наклейки станции не зависит от того, выбрана ли пиццерия", () => {
     expect(qrStationsHref({ storeId: null, stationId: OTHER_ID })).toBe(
-      "/admin/qr",
+      `/admin/stations/stickers?stationIds=${OTHER_ID}`,
     );
   });
 });

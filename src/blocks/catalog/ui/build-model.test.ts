@@ -221,9 +221,7 @@ describe("что показывает экран справочника", () => 
     );
     expect(
       model.stations.find((item) => item.id === fixture.stationId)?.qrHref,
-    ).toBe(
-      `/admin/qr?store=${fixture.firstStoreId}&station=${fixture.stationId}`,
-    );
+    ).toBe(`/admin/stations/stickers?stationIds=${fixture.stationId}`);
   });
 });
 
