@@ -35,7 +35,11 @@ function accountIdOf(form: FormData): string | null {
 }
 
 function unexpected(error: unknown, what: string): PartnerFormState {
-  console.error(`Партнёры: непредвиденный сбой — ${what}`, error);
+  // В журнал — имя и сообщение, а не объект целиком: что драйвер базы или scrypt
+  // положат в свой объект ошибки, здесь не контролируется, а рядом лежит пароль.
+  const reason =
+    error instanceof Error ? `${error.name}: ${error.message}` : typeof error;
+  console.error(`Партнёры: непредвиденный сбой — ${what}`, reason);
   return { status: "failed", error: "unknown" };
 }
 

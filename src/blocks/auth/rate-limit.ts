@@ -219,7 +219,15 @@ export async function forgetLoginAttempts(client: string): Promise<void> {
  * Очереди клиентов: корзина → хвост её очереди. Запись живёт, пока в корзине кто-то
  * ждёт, и снимается последним ушедшим, поэтому записей не больше, чем корзин.
  */
-const turns = new Map<string, Promise<void>>();
+const turns = new Map<string, { tail: Promise<void>; depth: number }>();
+
+/**
+ * Сколько попыток одной корзины может ждать в очереди. Больше пяти верных входов разом
+ * одному клиенту и так не пройти, а сверх этого очередь работала бы на залп: честный
+ * вход ждал бы, пока пройдёт каждый запрос перебирающего. Попытка сверх глубины идёт
+ * сразу, мимо очереди, — предел держит место в базе, а не очередь.
+ */
+export const MAX_TURN_QUEUE = 2 * LOGIN_LIMITS.perClient.maxAttempts;
 
 function settled(): void {
   // Очередь ждёт только того, что попытка кончилась.
@@ -230,21 +238,30 @@ function settled(): void {
  * пароль по одной, попытки разных корзин друг друга не ждут (#170).
  *
  * Очередь ничего не пропускает мимо счёта: упавшая попытка очередь не рвёт, следующая
- * всё равно займёт своё место в базе и получит свой приговор.
+ * всё равно займёт своё место в базе и получит свой приговор. Глубина очереди
+ * ограничена (`MAX_TURN_QUEUE`): сверх неё попытка идёт сразу.
  */
 export async function inClientTurn<T>(
   client: string,
   attempt: () => Promise<T>,
 ): Promise<T> {
   const bucket = bucketOf(client);
-  const ahead = turns.get(bucket) ?? Promise.resolve();
+  const queue = turns.get(bucket);
+  if (queue !== undefined && queue.depth >= MAX_TURN_QUEUE) return attempt();
+
+  const ahead = queue?.tail ?? Promise.resolve();
   const mine = ahead.then(attempt);
   // Следующему в очереди нужен исход, а не значение: и удача, и отказ отпускают его.
-  const tail = mine.then(settled, settled);
-  turns.set(bucket, tail);
+  const entry = {
+    tail: mine.then(settled, settled),
+    depth: (queue?.depth ?? 0) + 1,
+  };
+  turns.set(bucket, entry);
   try {
     return await mine;
   } finally {
-    if (turns.get(bucket) === tail) turns.delete(bucket);
+    const current = turns.get(bucket);
+    if (current === entry) turns.delete(bucket);
+    else if (current !== undefined) current.depth -= 1;
   }
 }
