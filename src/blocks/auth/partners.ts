@@ -28,6 +28,10 @@ import { MIN_PARTNER_PASSWORD_LENGTH } from "./provision";
 export interface PartnerAccountRow {
   readonly accountId: string;
   readonly login: string;
+  /** Почта для входа через Google; `null` — не привязана (D176). */
+  readonly email: string | null;
+  /** Учётка сотрудника УК, а не партнёра: у неё нет стран, видна вся сеть. */
+  readonly isHq: boolean;
   readonly tenantName: string;
   readonly countryNames: readonly string[];
   readonly createdAt: Date;
@@ -55,7 +59,9 @@ export async function listPartnerAccounts(): Promise<PartnerAccountRow[]> {
     .select({
       accountId: accounts.id,
       login: accounts.login,
+      email: accounts.email,
       tenantId: tenants.id,
+      tenantKind: tenants.kind,
       tenantName: tenants.name,
       createdAt: accounts.createdAt,
       disabledAt: accounts.disabledAt,
@@ -70,8 +76,9 @@ export async function listPartnerAccounts(): Promise<PartnerAccountRow[]> {
     .innerJoin(countries, eq(countries.id, tenantCountries.countryId))
     .orderBy(asc(countries.name));
 
-  return rows.map(({ tenantId, ...row }) => ({
+  return rows.map(({ tenantId, tenantKind, ...row }) => ({
     ...row,
+    isHq: tenantKind === "hq",
     countryNames: owned
       .filter((country) => country.tenantId === tenantId)
       .map((country) => country.name),

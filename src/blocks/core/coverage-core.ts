@@ -45,6 +45,9 @@ const CORE_FILES = [
   "src/blocks/auth/access.ts",
   "src/blocks/auth/provision.ts",
   "src/blocks/auth/partners.ts",
+  "src/blocks/auth/google.ts",
+  "src/blocks/auth/emails.ts",
+  "src/blocks/auth/hq-members.ts",
 
   // Что засчитано и когда просрочено.
   "src/blocks/fill/answers.ts",

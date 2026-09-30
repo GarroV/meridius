@@ -10,6 +10,12 @@ import { AdminShell } from "@/blocks/core/ui/AdminShell";
 import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 
 import type { PartnerAccountRow } from "../partners";
+import {
+  BindEmail,
+  CreateHqMemberForm,
+  type BindEmailLabels,
+  type CreateHqMemberLabels,
+} from "./AccessForms";
 import { MIN_PARTNER_PASSWORD_LENGTH } from "../provision";
 import {
   AccountActions,
@@ -49,6 +55,8 @@ const ERROR_KEYS = [
   "login-shape",
   "login-taken",
   "short-password",
+  "email-shape",
+  "email-taken",
   "not-found",
   "removed",
   "unknown",
@@ -99,17 +107,42 @@ function actionLabels(t: Translate): AccountActionLabels {
   };
 }
 
+function emailLabels(t: Translate): BindEmailLabels {
+  return {
+    open: t("emailOpen"),
+    email: t("email"),
+    hint: t("emailHint"),
+    save: t("save"),
+    saving: t("saving"),
+    saved: t("emailSaved"),
+  };
+}
+
+function hqLabels(t: Translate): CreateHqMemberLabels {
+  return {
+    login: t("login"),
+    loginHint: t("hqLoginHint"),
+    email: t("hqEmail"),
+    emailHint: t("hqEmailHint"),
+    submit: t("hqCreate"),
+    submitting: t("creating"),
+    created: t("hqCreated", { login: "{login}" }),
+  };
+}
+
 function AccountRow({
   row,
   t,
   locale,
   labels,
+  email,
   errors,
 }: {
   readonly row: PartnerAccountRow;
   readonly t: Translate;
   readonly locale: string;
   readonly labels: AccountActionLabels;
+  readonly email: BindEmailLabels;
   readonly errors: PartnerErrorTexts;
 }): ReactElement {
   const isRemoved = row.disabledAt !== null;
@@ -123,6 +156,14 @@ function AccountRow({
       <div className="flex min-w-0 flex-col gap-[var(--space-3)]">
         <div className="flex flex-wrap items-center gap-[var(--space-4)]">
           <b className="font-mono">{row.login}</b>
+          {row.isHq ? (
+            <span
+              className={`${TAG_CLASS} text-[var(--accent)]`}
+              data-testid="account-hq"
+            >
+              {t("hqTag")}
+            </span>
+          ) : null}
           <span
             className={
               isRemoved
@@ -139,20 +180,33 @@ function AccountRow({
           </span>
         </div>
         <p className="m-0">{row.tenantName}</p>
-        <p className={META_CLASS}>
-          {row.countryNames.length === 0
-            ? t("noCountries")
-            : row.countryNames.join(", ")}
+        {row.isHq ? null : (
+          <p className={META_CLASS}>
+            {row.countryNames.length === 0
+              ? t("noCountries")
+              : row.countryNames.join(", ")}
+          </p>
+        )}
+        <p className={META_CLASS} data-testid="account-email-value">
+          {row.email ?? t("emailNone")}
         </p>
       </div>
       {isRemoved ? (
         <p className={META_CLASS}>{t("disabledNote")}</p>
       ) : (
-        <AccountActions
-          accountId={row.accountId}
-          labels={labels}
-          errors={errors}
-        />
+        <div className="flex flex-col gap-[var(--space-4)]">
+          <BindEmail
+            accountId={row.accountId}
+            email={row.email}
+            labels={email}
+            errors={errors}
+          />
+          <AccountActions
+            accountId={row.accountId}
+            labels={labels}
+            errors={errors}
+          />
+        </div>
       )}
     </div>
   );
@@ -168,6 +222,7 @@ export async function PartnersScreen({
   const t = await getTranslations("partners");
   const errors = errorTexts(t);
   const labels = actionLabels(t);
+  const email = emailLabels(t);
 
   return (
     <AdminShell
@@ -192,6 +247,13 @@ export async function PartnersScreen({
         />
       </section>
 
+      <section className={CARD_CLASS}>
+        <div className={CARD_HEAD_CLASS}>
+          <h2 className={CARD_TITLE_CLASS}>{t("hqTitle")}</h2>
+        </div>
+        <CreateHqMemberForm labels={hqLabels(t)} errors={errors} />
+      </section>
+
       <section className={CARD_CLASS} data-testid="partner-accounts">
         <div className={CARD_HEAD_CLASS}>
           <h2 className={CARD_TITLE_CLASS}>{t("listTitle")}</h2>
@@ -210,6 +272,7 @@ export async function PartnersScreen({
               t={t}
               locale={locale}
               labels={labels}
+              email={email}
               errors={errors}
             />
           ))

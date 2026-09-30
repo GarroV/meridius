@@ -8,7 +8,9 @@
 import { revalidatePath } from "next/cache";
 
 import { normalizeLogin } from "../accounts";
+import { bindAccountEmail } from "../emails";
 import { requireHq } from "../guard";
+import { provisionHqMember } from "../hq-members";
 import {
   changePartnerPassword,
   disablePartnerAccount,
@@ -132,4 +134,48 @@ export async function submitDisableAccount(
 
   revalidatePath(PARTNERS_PATH);
   return { status: "done" };
+}
+
+/** «Почта для входа через Google»: привязать, заменить или (пустым полем) отвязать. */
+export async function submitBindEmail(
+  previous: PartnerFormState,
+  form: FormData,
+): Promise<PartnerFormState> {
+  void previous;
+  await requireHq();
+
+  const accountId = accountIdOf(form);
+  if (accountId === null) return { status: "failed", error: "not-found" };
+  try {
+    const result = await bindAccountEmail(accountId, field(form, "email"));
+    if (!result.ok) return { status: "failed", error: result.reason };
+  } catch (error) {
+    return unexpected(error, "почта не привязана");
+  }
+
+  revalidatePath(PARTNERS_PATH);
+  return { status: "done" };
+}
+
+/** «Добавить сотрудника УК»: логин и рабочая почта, вход — через Google (D176). */
+export async function submitCreateHqMember(
+  previous: PartnerFormState,
+  form: FormData,
+): Promise<PartnerFormState> {
+  void previous;
+  await requireHq();
+
+  const login = field(form, "login");
+  try {
+    const result = await provisionHqMember({
+      login,
+      email: field(form, "email"),
+    });
+    if (!result.ok) return { status: "failed", error: result.reason };
+  } catch (error) {
+    return unexpected(error, "сотрудник УК не заведён");
+  }
+
+  revalidatePath(PARTNERS_PATH);
+  return { status: "done", login: normalizeLogin(login) ?? login };
 }
