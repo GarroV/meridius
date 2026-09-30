@@ -286,6 +286,14 @@ const PROBES: Record<string, Probe> = {
       `/admin/feed/report${params({ station: theirs.stationId })}`,
     ],
   },
+  "/admin/feed/stats": {
+    foreign: ({ theirs }) => [
+      "/admin/feed/stats",
+      `/admin/feed/stats${params({ country: theirs.countryId })}`,
+      `/admin/feed/stats${params({ store: theirs.storeId, days: "30" })}`,
+    ],
+    own: ({ mine }) => ({ url: "/admin/feed/stats", text: mine.countryName }),
+  },
   "/admin/library": { foreign: () => ["/admin/library"] },
   // Бывший лист QR — теперь перенаправление на карточку станции (T312): чужая
   // пиццерия и станция в адресе не должны довести до чужой карточки.

@@ -24,3 +24,9 @@ export function submissionPath(id: string): string {
  * они опознаются UUID.
  */
 export const ROUNDS_REPORT_PATH = `${FEED_PATH}/report`;
+
+/**
+ * Статистика по стране и пиццерии (D150, D170). Тоже внутри раздела ленты: те же
+ * заполнения, но взгляд сводный — «где плохо и что именно», а не «что заполнили».
+ */
+export const STATS_PATH = `${FEED_PATH}/stats`;

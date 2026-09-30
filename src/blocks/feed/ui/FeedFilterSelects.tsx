@@ -81,12 +81,14 @@ interface FilterFieldProps {
   readonly name: string;
   readonly label: string;
   readonly value: string;
-  readonly allLabel: string;
+  /** Пункт «Все» с пустым значением. Не задан — у списка его нет (так у периода). */
+  readonly allLabel?: string;
   readonly options: readonly { readonly id: string; readonly name: string }[];
   readonly live: boolean;
 }
 
-function FilterField({
+/** Один список фильтра. Выставлен наружу для экрана статистики: поля у него те же. */
+export function FilterField({
   name,
   label,
   value,
@@ -112,7 +114,7 @@ function FilterField({
         className={SELECT_CLASS}
         style={SELECT_ARROW}
       >
-        <option value="">{allLabel}</option>
+        {allLabel === undefined ? null : <option value="">{allLabel}</option>}
         {options.map((option) => (
           <option key={option.id} value={option.id}>
             {option.name}

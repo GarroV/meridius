@@ -99,6 +99,11 @@ const CORE_FILES = [
   "src/blocks/device/config.ts",
   "src/blocks/device/windows.ts",
   "src/blocks/device/params.ts",
+
+  // Статистика по стране и пиццерии (D150, D170): блок `feed` — обвязка, но эти числа
+  // управляющий читает как факт, и неверная доля выглядит ровно как верная.
+  "src/blocks/feed/stats.ts",
+  "src/blocks/feed/stats-grading.ts",
 ] as const;
 
 /** Тесты в покрытии не участвуют: они и есть проверка, а не проверяемое. */
