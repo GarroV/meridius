@@ -64,7 +64,7 @@ describe("выпуск пина", () => {
     });
   });
 
-  it("чистит истёкшие несъеденные пины тем же запросом, что выпускает новый", async () => {
+  it("чистит истёкшие несъеденные пины тем же выпуском, что выдаёт новый", async () => {
     const stale = await createStation();
     const fresh = await createStation();
     await issuePairingPin(stale.stationId, NOW);

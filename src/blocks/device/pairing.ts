@@ -43,41 +43,50 @@ function randomPin(): string {
 /**
  * Выпускает пин для станции.
  *
- * Тем же запросом уходят две вещи: прежний несъеденный пин ЭТОЙ станции (два живых кода на
- * одну станцию — повод ввести не тот) и истёкшие несъеденные пины вообще. Чистка живёт
+ * В одной транзакции уходят две вещи: прежний несъеденный пин ЭТОЙ станции (два живых кода
+ * на одну станцию — повод ввести не тот) и истёкшие несъеденные пины вообще. Чистка живёт
  * здесь, а не в планировщике, потому что уникальность кода стоит частичным индексом среди
  * несъеденных: `now()` для индекса не годится, и без чистки десять тысяч значений однажды
  * кончились бы, а выпуск начал бы отказывать на ровном месте.
+ *
+ * Чистка — отдельный запрос ДО вставки, а не часть того же запроса (#206): строка, снятая
+ * удалением внутри запроса вставки, место в индексе не освобождает, и совпадение с кодом
+ * истёкшего пина откатывало запрос вместе с чисткой и тратило попытку. Каждая попытка
+ * вставки идёт в своей точке сохранения: занятое значение откатывает только её. Не нашёлся
+ * свободный код — откатывается и чистка, прежний пин станции остаётся живым.
  */
 export async function issuePairingPin(
   stationId: string,
   now: Date,
 ): Promise<IssuedPin> {
-  const db = getDb();
   const expiresAt = new Date(now.getTime() + PIN_TTL_SECONDS * MILLISECONDS);
 
-  for (let attempt = 0; attempt < ISSUE_ATTEMPTS; attempt++) {
-    const code = randomPin();
-    try {
-      await db.execute(sql`
-        with cleared as (
-          delete from device_pairings
-           where used_at is null
-             and (expires_at <= ${now.toISOString()}::timestamptz
-                  or station_id = ${stationId}::uuid)
-        )
-        insert into device_pairings (code, station_id, expires_at)
-        values (${code}, ${stationId}::uuid, ${expiresAt.toISOString()}::timestamptz)
-      `);
-      return { code, expiresAt };
-    } catch (error) {
-      // Занятое значение — не сбой, а повод взять другое. Любая другая ошибка уходит
-      // вызывающему как есть: молча выданный пин, которого нет в базе, был бы хуже.
-      if (pgErrorCode(error) !== PG_UNIQUE_VIOLATION) throw error;
-    }
-  }
+  return getDb().transaction(async (tx) => {
+    await tx.execute(sql`
+      delete from device_pairings
+       where used_at is null
+         and (expires_at <= ${now.toISOString()}::timestamptz
+              or station_id = ${stationId}::uuid)
+    `);
 
-  throw new PinsExhaustedError();
+    for (let attempt = 0; attempt < ISSUE_ATTEMPTS; attempt++) {
+      const code = randomPin();
+      try {
+        await tx.transaction(async (savepoint) => {
+          await savepoint
+            .insert(devicePairings)
+            .values({ code, stationId, expiresAt });
+        });
+        return { code, expiresAt };
+      } catch (error) {
+        // Занятое значение — не сбой, а повод взять другое. Любая другая ошибка уходит
+        // вызывающему как есть: молча выданный пин, которого нет в базе, был бы хуже.
+        if (pgErrorCode(error) !== PG_UNIQUE_VIOLATION) throw error;
+      }
+    }
+
+    throw new PinsExhaustedError();
+  });
 }
 
 /**
