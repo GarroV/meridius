@@ -772,6 +772,7 @@
     "items": "{count, plural, one {# item} other {# items}}",
     "usedIn": "in {count}",
     "usedNowhere": "nowhere",
+    "readOnly": "Library blocks are created and edited by the management company: a change to a block reaches checklists across the whole network. You can insert a block into your own checklist from its editor.",
     "empty": "The library has no blocks yet",
     "emptyHint": "Create a block once — then insert it into any number of checklists and edit it in one place.",
     "blockTitleLabel": "Block title",

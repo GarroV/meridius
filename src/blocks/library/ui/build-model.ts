@@ -60,17 +60,23 @@ async function buildSelection(
  * Модель экрана. Блок из адреса открывается, если он ещё существует; иначе открывается
  * первый в списке — экран с пустой правой половиной при непустой библиотеке выглядел бы
  * сломанным, а не «ничего не выбрано».
+ *
+ * Партнёру блок не открывается ни из адреса, ни первым в списке: правит библиотеку
+ * только УК (D145, D169), а редактор с сохранением, отвечающим 404, выглядел как
+ * поломка (T338). Партнёр видит список — что в библиотеке есть, — без ссылок.
  */
 export async function buildLibraryModel(
   view: LibraryView,
   locale: string,
   viewer: Viewer,
 ): Promise<LibraryModel> {
+  const canEdit = viewer.tenantKind === "hq";
   const blocks = await listBlocks();
 
-  const requested =
-    view.blockId !== undefined &&
-    blocks.some((block) => block.id === view.blockId)
+  const requested = !canEdit
+    ? undefined
+    : view.blockId !== undefined &&
+        blocks.some((block) => block.id === view.blockId)
       ? view.blockId
       : blocks[0]?.id;
 
@@ -80,14 +86,14 @@ export async function buildLibraryModel(
       : await buildSelection(requested, locale, viewer);
 
   return {
-    canEdit: viewer.tenantKind === "hq",
+    canEdit,
     blocks: blocks.map((block) => ({
       id: block.id,
       title: pickText(block.title, locale),
       itemCount: block.itemCount,
       usageCount: block.usageCount,
       selected: block.id === selection?.id,
-      href: libraryBlockPath(block.id),
+      href: canEdit ? libraryBlockPath(block.id) : null,
     })),
     selection,
   };

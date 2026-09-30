@@ -8,7 +8,7 @@ import { createStation } from "@/blocks/data/testing/fixtures";
 import { createChecklist, saveDraft } from "@/blocks/editor/drafts";
 import { publish } from "@/blocks/editor/publish";
 import { checklistPath } from "@/blocks/editor/routes";
-import { hqViewer } from "@/blocks/auth/testing/viewers";
+import { hqViewer, partnerViewer } from "@/blocks/auth/testing/viewers";
 
 import { createBlock, saveBlock } from "../blocks";
 import { buildLibraryModel, pickText, usageLabel } from "./build-model";
@@ -100,6 +100,25 @@ describe("модель экрана библиотеки", () => {
     expect(row?.selected).toBe(true);
     expect(row?.itemCount).toBe(1);
     expect(row?.href).toContain(wanted);
+  });
+
+  test("партнёру блок не открывается: ни редактора, ни ссылки на него в списке", async () => {
+    // Блок общий на всю сеть, правит его только УК (D145, D169): редактор партнёру не
+    // показывается вовсе, а не показывается с сохранением, которое ответит 404 (T338).
+    const wanted = await newBlock("Санитария", [item("санитария")]);
+
+    const model = await buildLibraryModel(
+      { blockId: wanted },
+      "ru",
+      await partnerViewer([]),
+    );
+
+    expect(model.canEdit).toBe(false);
+    expect(model.selection).toBeNull();
+    const row = model.blocks.find((block) => block.id === wanted);
+    expect(row).toBeDefined();
+    expect(row?.href).toBeNull();
+    expect(row?.selected).toBe(false);
   });
 
   test("блока из адреса больше нет — открывается первый в списке, а не пустота", async () => {
