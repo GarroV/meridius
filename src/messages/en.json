@@ -861,7 +861,7 @@
       },
       "step3": {
         "title": "Type the code",
-        "text": "Type the four digits and press “Pair”. The code is valid for {minutes, plural, one {# minute} other {# minutes}} and works once."
+        "text": "The tablet shows a four-digit field: type the code the cabinet showed in step 1 and press “Pair”. The code is valid for {minutes, plural, one {# minute} other {# minutes}} and works once."
       },
       "step4": {
         "title": "Done",
