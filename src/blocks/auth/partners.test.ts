@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 
-import { accounts, countries, getDb } from "@/blocks/data";
+import { accounts, countries, getDb, tenants } from "@/blocks/data";
 
 import { findLoginAccount } from "./accounts";
 import {
@@ -13,6 +13,7 @@ import {
   disablePartnerAccount,
   generatePartnerPassword,
   listPartnerAccounts,
+  listPartnerTenantNames,
   resetPartnerPassword,
 } from "./partners";
 import { verifyPassword } from "./password";
@@ -221,5 +222,21 @@ describe("disablePartnerAccount", () => {
     await disablePartnerAccount(target.accountId);
 
     await expect(findLoginAccount(neighbour.login)).resolves.not.toBeNull();
+  });
+});
+
+describe("listPartnerTenantNames", () => {
+  test("подсказывает только партнёров: УК в списке двойников не появляется никогда", async () => {
+    const { tenantName } = await partner();
+    const hq = await getDb()
+      .select({ name: tenants.name })
+      .from(tenants)
+      .where(eq(tenants.kind, "hq"));
+
+    const names = await listPartnerTenantNames();
+
+    expect(names).toContain(tenantName);
+    expect(hq.length).toBeGreaterThan(0);
+    for (const { name } of hq) expect(names).not.toContain(name);
   });
 });
