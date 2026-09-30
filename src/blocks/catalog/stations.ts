@@ -5,7 +5,12 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import type { Viewer } from "@/blocks/auth/scope";
 import type { LocalizedText } from "@/blocks/data";
-import { checklists, getDb, stations } from "@/blocks/data";
+import {
+  bindChecklistToStation,
+  checklists,
+  getDb,
+  stations,
+} from "@/blocks/data";
 
 import {
   CatalogError,
@@ -231,20 +236,13 @@ export async function assignChecklist(
   if (station === undefined) throw notFound(WHAT);
 
   // Снятый с работы чек-лист привязать нельзя: методист убрал его из работы, и привязка
-  // вернула бы его на станцию молча. Условие стоит в самой записи, а не проверкой до неё:
-  // чек-лист снимают с работы и в ту минуту, когда справочник уже показал список.
-  const [row] = await getDb()
-    .update(checklists)
-    .set({ stationId })
-    .where(and(eq(checklists.id, checklistId), isNull(checklists.archivedAt)))
-    .returning({ id: checklists.id });
-  if (row === undefined) {
-    // Запись не тронута по двум разным причинам, и человеку они говорят разное.
-    const [existing] = await getDb()
-      .select({ archivedAt: checklists.archivedAt })
-      .from(checklists)
-      .where(eq(checklists.id, checklistId));
-    if (existing === undefined) throw notFound("чек-лист");
+  // вернула бы его на станцию молча. Условие проверяется в той же транзакции, что и
+  // запись: чек-лист снимают с работы и в ту минуту, когда справочник уже показал список.
+  // Уже опубликованный чек-лист слой данных там же переопубликует для этой станции —
+  // иначе её QR открывал бы «заполнять нечего» (T348).
+  const result = await bindChecklistToStation(checklistId, stationId);
+  if (result === "missing") throw notFound("чек-лист");
+  if (result === "archived") {
     throw new CatalogError(
       "checklistArchived",
       `чек-лист ${checklistId}: снят с работы, привязать его к станции нельзя`,

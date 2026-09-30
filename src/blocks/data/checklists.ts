@@ -180,12 +180,15 @@ export async function publishVersion(
     }
 
     // Станция чек-листа замораживается вместе с содержимым: она читается здесь,
-    // в транзакции публикации, и больше у этой версии не меняется (T056).
+    // в транзакции публикации, и больше у этой версии не меняется (T056). Строка
+    // блокируется: привязка к станции (`bindChecklistToStation`) держит ту же строку,
+    // и публикация с привязкой идут друг за другом, а не вперемешку.
     const checklistRows = await tx
       .select({ stationId: checklists.stationId })
       .from(checklists)
       .where(eq(checklists.id, checklistId))
-      .limit(1);
+      .limit(1)
+      .for("update");
     const checklist = checklistRows[0];
     if (checklist === undefined) {
       throw new Error(`Чек-листа ${checklistId} нет: публиковать нечего`);
@@ -227,5 +230,76 @@ export async function publishVersion(
       throw new Error("Версия не вставилась: публикация не состоялась");
     }
     return published;
+  });
+}
+
+/** Чем кончилась привязка чек-листа к станции. */
+export type BindChecklistResult = "bound" | "archived" | "missing";
+
+/**
+ * Вешает чек-лист на станцию — и, если у него уже есть опубликованная версия другой
+ * станции (или никакой), переопубликовывает её содержимое для этой станции.
+ *
+ * Зачем: версия замораживает станцию в момент публикации (T056), а чек-лист с T312
+ * вешают на станцию только на её карточке, то есть уже опубликованным. Без
+ * переопубликования QR станции показывал «заполнять нечего» до следующей публикации
+ * из редактора (T348). Новая версия, а не правка прежней: версии неизменяемы
+ * (принцип 3), и заполнения прежней версии остаются за прежней станцией.
+ *
+ * Переопубликуется ОПУБЛИКОВАННОЕ содержимое, а не черновик: привязка не публикует
+ * правки, которые методист ещё не выпускал. Всё — одной транзакцией с блокировкой
+ * строки чек-листа, чтобы одновременная публикация из редактора не дала двух
+ * активных версий и не потеряла номер.
+ *
+ * Снятый с работы чек-лист не привязывается (`archived`); несуществующий — `missing`.
+ */
+export async function bindChecklistToStation(
+  checklistId: string,
+  stationId: string,
+): Promise<BindChecklistResult> {
+  return getDb().transaction(async (tx) => {
+    const [checklist] = await tx
+      .select({ archivedAt: checklists.archivedAt })
+      .from(checklists)
+      .where(eq(checklists.id, checklistId))
+      .for("update");
+    if (checklist === undefined) return "missing";
+    if (checklist.archivedAt !== null) return "archived";
+
+    await tx
+      .update(checklists)
+      .set({ stationId })
+      .where(eq(checklists.id, checklistId));
+
+    const [published] = await tx
+      .select()
+      .from(checklistVersions)
+      .where(
+        and(
+          eq(checklistVersions.checklistId, checklistId),
+          eq(checklistVersions.status, "published"),
+        ),
+      )
+      .for("update");
+    // Публиковать нечего — версия получит станцию при первой публикации.
+    if (published === undefined || published.stationId === stationId) {
+      return "bound";
+    }
+
+    await tx
+      .update(checklistVersions)
+      .set({ status: "archived" })
+      .where(eq(checklistVersions.id, published.id));
+    await tx.insert(checklistVersions).values({
+      checklistId,
+      status: "published",
+      // Следующий номер считает сама вставка: строка чек-листа заблокирована выше, и
+      // номер между чтением и записью не уйдёт никому другому.
+      versionNumber: sql<number>`(select coalesce(max(${checklistVersions.versionNumber}), 0) + 1 from ${checklistVersions} where ${checklistVersions.checklistId} = ${checklistId})`,
+      stationId,
+      sections: published.sections,
+      publishedAt: sql`now()`,
+    });
+    return "bound";
   });
 }
