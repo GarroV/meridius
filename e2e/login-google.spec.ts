@@ -13,6 +13,8 @@ const START_PATH = "/admin/login/google";
 const CALLBACK_PATH = "/admin/login/google/callback";
 
 test.describe("вход через Google", () => {
+  test.use({ locale: "ru-RU" });
+
   test("кнопка стоит рядом с паролем, а не вместо него", async ({ page }) => {
     await page.goto(LOGIN_PATH);
 
