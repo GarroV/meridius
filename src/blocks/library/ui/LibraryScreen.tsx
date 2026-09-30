@@ -69,14 +69,8 @@ function BlockRow({
   readonly row: LibraryBlockRow;
   readonly t: Translate;
 }): ReactElement {
-  return (
-    <Link
-      href={row.href}
-      data-testid="library-block"
-      data-selected={row.selected ? "true" : "false"}
-      aria-current={row.selected ? "true" : undefined}
-      className={row.selected ? ROW_SELECTED_CLASS : ROW_CLASS}
-    >
+  const content = (
+    <>
       {row.title}
       <span className={ROW_META_CLASS}>
         {t("items", { count: row.itemCount })} ·{" "}
@@ -94,6 +88,28 @@ function BlockRow({
           t("usedIn", { count: row.usageCount })
         )}
       </span>
+    </>
+  );
+
+  // Партнёру блок не открыть (T338): строка — справка о том, что в библиотеке есть,
+  // а не ссылка в редактор, который ему не откроется.
+  if (row.href === null) {
+    return (
+      <div data-testid="library-block" className={ROW_CLASS}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={row.href}
+      data-testid="library-block"
+      data-selected={row.selected ? "true" : "false"}
+      aria-current={row.selected ? "true" : undefined}
+      className={row.selected ? ROW_SELECTED_CLASS : ROW_CLASS}
+    >
+      {content}
     </Link>
   );
 }
@@ -156,6 +172,17 @@ function UsagesCard({
         )}
       </div>
     </section>
+  );
+}
+
+/** Вместо редактора у партнёра: кто правит блоки и где их вставляют (T338). */
+function ReadOnlyNote({ t }: { readonly t: Translate }): ReactElement {
+  return (
+    <div className={CARD_CLASS} data-testid="library-read-only">
+      <p className="m-0 px-[var(--space-6)] py-[var(--space-6)] text-[var(--ink-2)]">
+        {t("readOnly")}
+      </p>
+    </div>
   );
 }
 
@@ -230,7 +257,7 @@ export async function LibraryScreen({
         <div>{t("notice")}</div>
       </div>
 
-      {model.selection === null ? (
+      {model.blocks.length === 0 ? (
         <EmptyLibrary t={t} />
       ) : (
         <div className={SPLIT_CLASS}>
@@ -245,18 +272,22 @@ export async function LibraryScreen({
             </div>
           </section>
 
-          <div className="flex min-w-0 flex-col gap-[var(--space-6)]">
-            <NextIntlClientProvider locale={locale} messages={clientMessages}>
-              <BlockEditor
-                key={model.selection.id}
-                blockId={model.selection.id}
-                locale={locale}
-                initialTitle={model.selection.title}
-                initialItems={model.selection.items}
-              />
-            </NextIntlClientProvider>
-            <UsagesCard selection={model.selection} t={t} />
-          </div>
+          {model.selection === null ? (
+            <ReadOnlyNote t={t} />
+          ) : (
+            <div className="flex min-w-0 flex-col gap-[var(--space-6)]">
+              <NextIntlClientProvider locale={locale} messages={clientMessages}>
+                <BlockEditor
+                  key={model.selection.id}
+                  blockId={model.selection.id}
+                  locale={locale}
+                  initialTitle={model.selection.title}
+                  initialItems={model.selection.items}
+                />
+              </NextIntlClientProvider>
+              <UsagesCard selection={model.selection} t={t} />
+            </div>
+          )}
         </div>
       )}
     </AdminShell>

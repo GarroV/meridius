@@ -44,6 +44,8 @@ interface World {
   /** Чек-лист соседнего партнёра без станции: ни в какой стране он не лежит. */
   readonly strangerChecklistId: string;
   readonly strangerChecklistTitle: string;
+  /** Блок библиотеки: он общий на сеть, и открывать его в редакторе партнёру нельзя. */
+  readonly libraryBlockId: string;
   readonly login: string;
 }
 
@@ -169,6 +171,12 @@ async function seedWorld(): Promise<World> {
       ],
     );
 
+    const libraryBlockId = await one(
+      pool,
+      "insert into blocks (title) values ($1) returning id",
+      [JSON.stringify({ ru: `Блок-${label}`, en: `Block-${label}` })],
+    );
+
     const login = `e2e-p-${label}`;
     await pool.query(
       "insert into accounts (tenant_id, login, password_hash) values ($1, $2, $3)",
@@ -188,6 +196,7 @@ async function seedWorld(): Promise<World> {
       theirs,
       strangerChecklistId,
       strangerChecklistTitle,
+      libraryBlockId,
       login,
     };
   } finally {
@@ -294,7 +303,14 @@ const PROBES: Record<string, Probe> = {
     ],
     own: ({ mine }) => ({ url: "/admin/feed/stats", text: mine.countryName }),
   },
-  "/admin/library": { foreign: () => ["/admin/library"] },
+  "/admin/library": {
+    foreign: (world) => [
+      "/admin/library",
+      `/admin/library${params({ block: world.libraryBlockId })}`,
+    ],
+  },
+  // Экран УК «Партнёры» (T337): партнёру — 404, и чужих учёток он не видит.
+  "/admin/partners": { foreign: () => ["/admin/partners"] },
   // Бывший лист QR — теперь перенаправление на карточку станции (T312): чужая
   // пиццерия и станция в адресе не должны довести до чужой карточки.
   "/admin/qr": {
@@ -420,6 +436,9 @@ test.describe("область видимости тенанта на весь к
       `/admin/stations/${world.theirs.stationId}`,
       `/admin/qr/code${params({ store: world.theirs.storeId, station: world.theirs.stationId })}`,
       "/admin/templates/new",
+      "/admin/partners",
+      // Редактор блока библиотеки: блок общий на сеть, правит его только УК (T338).
+      `/admin/library${params({ block: world.libraryBlockId })}`,
       // Бывшие разделы доводят до карточки станции — чужой она быть не может.
       `/admin/devices${params({ station: world.theirs.stationId })}`,
       `/admin/qr${params({ store: world.theirs.storeId, station: world.theirs.stationId })}`,
@@ -456,5 +475,14 @@ test.describe("область видимости тенанта на весь к
     await expect(page.getByTestId("templates-screen")).toBeVisible();
     await expect(page.getByTestId("new-template")).toHaveCount(0);
     await expect(page.getByTestId("template-edit")).toHaveCount(0);
+
+    // Библиотека партнёру — справка о том, что в ней есть: ни редактора блока, ни
+    // кнопки «Новый блок», ни ссылки на редактор из списка (T338).
+    await page.goto("/admin/library");
+    await expect(page.getByTestId("library-screen")).toBeVisible();
+    await expect(page.getByTestId("library-read-only")).toBeVisible();
+    await expect(page.getByTestId("block-editor")).toHaveCount(0);
+    await expect(page.getByTestId("new-block")).toHaveCount(0);
+    await expect(page.locator('a[data-testid="library-block"]')).toHaveCount(0);
   });
 });

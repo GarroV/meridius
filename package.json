@@ -20,8 +20,7 @@
     "db:rollback": "node scripts/db-rollback.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
     "import:checklists": "node scripts/import-checklists.mjs",
-    "import:network": "node scripts/import-network.mjs",
-    "partner:create": "node scripts/create-partner.mjs"
+    "import:network": "node scripts/import-network.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

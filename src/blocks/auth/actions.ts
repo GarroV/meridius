@@ -7,7 +7,11 @@ import { cookies, headers } from "next/headers";
 import { ROOT_LOGIN, findLoginAccount, normalizeLogin } from "./accounts";
 import { adminPasswordHash, sessionSecret } from "./config";
 import { hashPassword, verifyPassword } from "./password";
-import { forgetLoginAttempts, reserveLoginAttempt } from "./rate-limit";
+import {
+  forgetLoginAttempts,
+  inClientTurn,
+  reserveLoginAttempt,
+} from "./rate-limit";
 import {
   ROOT_SUBJECT,
   SESSION_COOKIE_NAME,
@@ -75,6 +79,42 @@ async function candidateFor(login: string | null): Promise<Candidate> {
   return { subject: account.id, hash: account.passwordHash };
 }
 
+/** Исход попытки под очередью: прошла — кому выпускать куку; нет — ответ форме. */
+type AttemptOutcome =
+  | { readonly status: "passed"; readonly subject: string }
+  | Exclude<SignInResult, { readonly status: "ok" }>;
+
+/**
+ * Счёт и пароль одной попытки. Выполняется в очереди клиента (`inClientTurn`): место
+ * занимается до scrypt, удачный вход снимает счёт до того, как в дело вступит следующий.
+ */
+async function attemptSignIn(
+  rawLogin: string,
+  password: string,
+  client: string,
+): Promise<AttemptOutcome> {
+  // Место в счёте занимается до scrypt, и занимается оно САМОЙ попыткой, а не её
+  // исходом: перебирающий не должен получать ни лишних попыток, ни даже той работы,
+  // которую сервер тратит на проверку пароля.
+  const verdict = await reserveLoginAttempt(client, new Date());
+  if (!verdict.allowed) {
+    return {
+      status: "throttled",
+      retryAfterSeconds: verdict.retryAfterSeconds,
+    };
+  }
+
+  const candidate = await candidateFor(normalizeLogin(rawLogin));
+  const matches = await verifyPassword(password, candidate.hash);
+  if (!matches || candidate.subject === null) {
+    // Считать промах отдельно нечего: попытка уже сосчитана до проверки пароля.
+    return { status: "rejected" };
+  }
+
+  await forgetLoginAttempts(client);
+  return { status: "passed", subject: candidate.subject };
+}
+
 /**
  * Проверяет логин и пароль и, если они верны, ставит сессионную куку на 30 дней.
  *
@@ -91,32 +131,19 @@ export async function signIn(
   const secret = sessionSecret();
 
   const client = await clientKey();
-  const now = new Date();
 
-  // Место в счёте занимается до scrypt, и занимается оно САМОЙ попыткой, а не её
-  // исходом: перебирающий не должен получать ни лишних попыток, ни даже той работы,
-  // которую сервер тратит на проверку пароля.
-  const verdict = await reserveLoginAttempt(client, now);
-  if (!verdict.allowed) {
-    return {
-      status: "throttled",
-      retryAfterSeconds: verdict.retryAfterSeconds,
-    };
-  }
-
-  const candidate = await candidateFor(normalizeLogin(rawLogin));
-  const matches = await verifyPassword(password, candidate.hash);
-  if (!matches || candidate.subject === null) {
-    // Считать промах отдельно нечего: попытка уже сосчитана до проверки пароля.
-    return { status: "rejected" };
-  }
-
-  await forgetLoginAttempts(client);
+  // Попытки одного клиента идут по очереди: иначе одновременные верные входы занимали
+  // места раньше, чем первый из них снимал счёт (#170). Предел держит не очередь, а
+  // место в базе — см. `rate-limit.ts`.
+  const outcome = await inClientTurn(client, () =>
+    attemptSignIn(rawLogin, password, client),
+  );
+  if (outcome.status !== "passed") return outcome;
 
   const store = await cookies();
   store.set(
     SESSION_COOKIE_NAME,
-    createSessionToken(candidate.subject, secret, new Date()),
+    createSessionToken(outcome.subject, secret, new Date()),
     {
       // httpOnly: куку не достать из JavaScript, XSS не уносит сессию.
       httpOnly: true,
