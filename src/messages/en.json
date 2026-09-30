@@ -190,7 +190,6 @@
       "items": "{count, plural, one {# item} other {# items}}",
       "back": "All checklists",
       "pickTitle": "Pick a checklist on the left",
-      "pickHint": "It opens right here, next to the list — no need to go to another page.",
       "close": "Close panel"
     },
     "form": {
@@ -951,8 +950,7 @@
     "rail": {
       "label": "Station list",
       "back": "All stations",
-      "pickTitle": "Pick a station on the left",
-      "pickHint": "Its card opens right here, next to the list: the station's checklist, sticker and tablet."
+      "pickTitle": "Pick a station on the left"
     },
     "checklists": "{count, plural, one {# checklist} other {# checklists}}",
     "tabletPaired": "Tablet paired",
@@ -1092,6 +1090,7 @@
   },
   "sectionIntro": {
     "label": "About this section",
+    "more": "More",
     "checklists": {
       "why": "A checklist is what a team member checks at a station during a shift.",
       "what": "This is where checklists are created and edited: items, the shift window, blocks from the library. The kitchen sees only the published version, so a draft is safe to edit.",
