@@ -7,6 +7,7 @@ import { eq, sql } from "drizzle-orm";
 import { afterAll, describe, expect, test } from "vitest";
 
 import {
+  checklistVersions,
   checklists,
   countries,
   getDb,
@@ -18,6 +19,7 @@ import {
 import { closeTestDb } from "@/blocks/data/testing/db";
 import {
   createChecklist,
+  createDraft,
   createPublishedVersion,
   createStation as createStationFixture,
   sampleSections,
@@ -304,6 +306,111 @@ describe("привязка чек-листа к станции (T017)", () => {
       .from(checklists)
       .where(eq(checklists.id, archived));
     expect(row?.stationId).toBeNull();
+  });
+});
+
+describe("привязка уже опубликованного чек-листа (T348)", () => {
+  // Версия замораживает станцию в момент публикации (T056), а с T312 чек-лист вешают
+  // на станцию только на её карточке — то есть ПОСЛЕ публикации. Привязка, не
+  // переопубликовавшая версию для станции, оставляла QR на «заполнять нечего»: главный
+  // путь продукта не проходил, и заметил это только сквозной смоук.
+
+  async function versionsOf(checklistId: string) {
+    return db
+      .select({
+        status: checklistVersions.status,
+        versionNumber: checklistVersions.versionNumber,
+        stationId: checklistVersions.stationId,
+        sections: checklistVersions.sections,
+      })
+      .from(checklistVersions)
+      .where(eq(checklistVersions.checklistId, checklistId))
+      .orderBy(checklistVersions.versionNumber);
+  }
+
+  test("чек-лист, опубликованный без станции, после привязки открывается по её коду", async () => {
+    const { stationId, stationCode } = await createStationFixture();
+    const checklistId = await createChecklist();
+    const sections = sampleSections("до привязки");
+    await createPublishedVersion(checklistId, sections);
+
+    await assignChecklist(stationId, checklistId);
+
+    const served = await getPublishedVersionForStation(
+      stationCode,
+      INSIDE_WINDOW,
+    );
+    expect(served?.checklist.id).toBe(checklistId);
+    expect(served?.version.stationId).toBe(stationId);
+    expect(served?.version.sections).toStrictEqual(sections);
+  });
+
+  test("на станцию уходит опубликованное содержимое, а не неопубликованный черновик", async () => {
+    const { stationId, stationCode } = await createStationFixture();
+    const checklistId = await createChecklist();
+    const published = sampleSections("опубликовано");
+    await createPublishedVersion(checklistId, published);
+    await createDraft(checklistId, sampleSections("черновик"));
+
+    await assignChecklist(stationId, checklistId);
+
+    const served = await getPublishedVersionForStation(
+      stationCode,
+      INSIDE_WINDOW,
+    );
+    expect(served?.version.sections).toStrictEqual(published);
+  });
+
+  test("перенос на другую станцию: новая отдаёт чек-лист, прежняя версия остаётся за прежней", async () => {
+    const first = await createStationFixture();
+    const second = await createStationFixture();
+    const checklistId = await createChecklist({ stationId: first.stationId });
+    await createPublishedVersion(checklistId, sampleSections("перенос"));
+
+    await assignChecklist(second.stationId, checklistId);
+
+    expect(
+      await getPublishedVersionForStation(first.stationCode, INSIDE_WINDOW),
+    ).toBeNull();
+    expect(
+      (await getPublishedVersionForStation(second.stationCode, INSIDE_WINDOW))
+        ?.version.stationId,
+    ).toBe(second.stationId);
+    // История не переписана: прежняя версия осталась со своей станцией, только в архиве.
+    expect(
+      (await versionsOf(checklistId)).map((row) => [
+        row.status,
+        row.versionNumber,
+        row.stationId,
+      ]),
+    ).toStrictEqual([
+      ["archived", 1, first.stationId],
+      ["published", 2, second.stationId],
+    ]);
+  });
+
+  test("повторная привязка к той же станции новой версии не выпускает", async () => {
+    const { stationId } = await createStationFixture();
+    const checklistId = await createChecklist({ stationId });
+    await createPublishedVersion(checklistId, sampleSections("та же"));
+
+    await assignChecklist(stationId, checklistId);
+
+    expect(
+      (await versionsOf(checklistId)).map((row) => row.versionNumber),
+    ).toStrictEqual([1]);
+  });
+
+  test("неопубликованный чек-лист привязывается без версии: публиковать нечего", async () => {
+    const { stationId } = await createStationFixture();
+    const checklistId = await createChecklist();
+    await createDraft(checklistId, sampleSections("только черновик"));
+
+    await assignChecklist(stationId, checklistId);
+
+    expect(
+      (await versionsOf(checklistId)).map((row) => row.status),
+    ).toStrictEqual(["draft"]);
   });
 });
 
