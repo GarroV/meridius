@@ -1,7 +1,13 @@
 // Разбор ответа Google (D176): ошибка здесь не падает, а тихо пускает чужую почту.
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { authorizationUrl, identityFromIdToken } from "./google";
+import {
+  authorizationUrl,
+  exchangeCode,
+  googleSettings,
+  identityFromIdToken,
+  newState,
+} from "./google";
 
 const CLIENT_ID = "meridius.apps.googleusercontent.com";
 const NOW = new Date("2026-09-30T12:00:00Z");
@@ -51,6 +57,10 @@ describe("id_token от Google", () => {
   test("мусор вместо токена — отказ, а не исключение", () => {
     expect(identityFromIdToken("не-токен", CLIENT_ID, NOW)).toBeNull();
     expect(identityFromIdToken("a.bm90LWpzb24.c", CLIENT_ID, NOW)).toBeNull();
+    // Разобранный JSON, но не объект с полями.
+    expect(
+      identityFromIdToken(`a.${part([GOOD])}.c`, CLIENT_ID, NOW),
+    ).toBeNull();
   });
 });
 
@@ -76,4 +86,103 @@ test("адрес Google несёт клиента, возврат, метку и
   });
   // Секрет клиента в адрес браузера не уходит никогда.
   expect(url.toString()).not.toContain("секрет");
+});
+
+const SETTINGS = {
+  clientId: CLIENT_ID,
+  clientSecret: "секрет-клиента",
+  redirectUri: "https://m.example/admin/login/google/callback",
+};
+
+function answer(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+describe("обмен кода на id_token", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  test("код уходит POST-ом вместе с секретом, в ответ — id_token", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(answer(200, { id_token: "токен" })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await exchangeCode(SETTINGS, "код")).toBe("токен");
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(url).toBe("https://oauth2.googleapis.com/token");
+    expect(init.method).toBe("POST");
+    expect(
+      Object.fromEntries(new URLSearchParams(init.body as string)),
+    ).toEqual({
+      code: "код",
+      client_id: CLIENT_ID,
+      client_secret: "секрет-клиента",
+      redirect_uri: SETTINGS.redirectUri,
+      grant_type: "authorization_code",
+    });
+  });
+
+  test("отказ Google — null, в журнал уходит статус, а не тело", async () => {
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve(answer(400, { error: "invalid_grant", secret: "тело" })),
+    );
+    const log = vi.spyOn(console, "error").mockImplementation(vi.fn());
+
+    expect(await exchangeCode(SETTINGS, "код")).toBeNull();
+    expect(JSON.stringify(log.mock.calls)).toContain("400");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("тело");
+  });
+
+  test.each([
+    ["без id_token", { access_token: "x" }],
+    ["id_token не строкой", { id_token: 42 }],
+    ["не объект", "строка"],
+  ])("ответ %s — null", async (_name, body) => {
+    vi.stubGlobal("fetch", () => Promise.resolve(answer(200, body)));
+    expect(await exchangeCode(SETTINGS, "код")).toBeNull();
+  });
+});
+
+describe("реквизиты клиента из окружения", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  test("все три заданы — вход через Google включён", () => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", ` ${CLIENT_ID} `);
+    vi.stubEnv("GOOGLE_CLIENT_SECRET", "секрет");
+    vi.stubEnv("GOOGLE_REDIRECT_URI", SETTINGS.redirectUri);
+    expect(googleSettings()).toEqual({
+      clientId: CLIENT_ID,
+      clientSecret: "секрет",
+      redirectUri: SETTINGS.redirectUri,
+    });
+  });
+
+  test.each([
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_REDIRECT_URI",
+  ])("пустой %s — вход через Google выключен целиком", (name) => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", CLIENT_ID);
+    vi.stubEnv("GOOGLE_CLIENT_SECRET", "секрет");
+    vi.stubEnv("GOOGLE_REDIRECT_URI", SETTINGS.redirectUri);
+    vi.stubEnv(name, "  ");
+    expect(googleSettings()).toBeNull();
+  });
+});
+
+test("метка похода к Google каждый раз новая и не короче 32 байт", () => {
+  const first = newState();
+  expect(first).not.toBe(newState());
+  expect(Buffer.from(first, "base64url").length).toBe(32);
 });

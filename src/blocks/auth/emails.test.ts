@@ -7,7 +7,12 @@ import { describe, expect, test } from "vitest";
 import { countries, getDb } from "@/blocks/data";
 
 import { loadViewer } from "./accounts";
-import { bindAccountEmail, findEmailAccount, normalizeEmail } from "./emails";
+import {
+  bindAccountEmail,
+  findEmailAccount,
+  isUniqueViolation,
+  normalizeEmail,
+} from "./emails";
 import { provisionHqMember } from "./hq-members";
 import { disablePartnerAccount } from "./partners";
 import { provisionPartner } from "./provision";
@@ -151,10 +156,34 @@ describe("сотрудник УК", () => {
       ),
     ).toEqual({ ok: false, reason: "root-login" });
     expect(
+      await provisionHqMember(
+        { login: "Не Логин", email: `${unique("c")}@x.io` },
+        CHEAP,
+      ),
+    ).toEqual({ ok: false, reason: "login-shape" });
+    expect(
       await provisionHqMember({ login, email: `${unique("b")}@x.io` }, CHEAP),
     ).toEqual({ ok: false, reason: "login-taken" });
     expect(
       await provisionHqMember({ login: unique("hq"), email }, CHEAP),
     ).toEqual({ ok: false, reason: "email-taken" });
+  });
+});
+
+test("сбой базы, не связанный с уникальностью, не выдаётся за «почта занята»", async () => {
+  await expect(
+    bindAccountEmail("не-uuid", `${unique("z")}@partner.example`),
+  ).rejects.toThrow();
+});
+
+describe("узнаём нарушение уникальности", () => {
+  test.each([
+    ["код на самой ошибке", { code: "23505" }, true],
+    ["код в cause (обёртка Drizzle)", { cause: { code: "23505" } }, true],
+    ["другая ошибка базы", { code: "23503" }, false],
+    ["не объект", "строка", false],
+    ["null", null, false],
+  ])("%s", (_name, error, expected) => {
+    expect(isUniqueViolation(error)).toBe(expected);
   });
 });
