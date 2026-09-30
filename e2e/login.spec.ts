@@ -130,7 +130,7 @@ test.describe("вход в админку", () => {
     expect(body).not.toMatch(/type="password"[^>]*value="[^"]+"/);
   });
 
-  test("экран входа собран как в Decimus: «Вход», поле, кнопка и строка про кухню", async ({
+  test("экран входа собран как в Decimus: «Вход», поле и кнопка", async ({
     page,
   }) => {
     await page.goto(LOGIN_PATH);
@@ -139,11 +139,8 @@ test.describe("вход в админку", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Вход");
     await expect(page.getByLabel("Пароль")).toHaveAttribute("type", "password");
     await expect(page.getByTestId("login-submit")).toHaveText("Войти");
-    await expect(
-      page.getByText(
-        "Сотрудникам на кухне вход не нужен: чек-лист открывается по QR-коду станции.",
-      ),
-    ).toBeVisible();
+    // Строки про кухню больше нет (решение владельца 30.09).
+    await expect(page.getByText("Сотрудникам на кухне")).toHaveCount(0);
   });
 
   test("форма входа работает с выключенным JavaScript", async ({ browser }) => {

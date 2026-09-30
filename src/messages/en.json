@@ -13,7 +13,6 @@
     "submitting": "Checking…",
     "failed": "Wrong login or password",
     "throttled": "Too many sign-in attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
-    "kitchenHint": "Kitchen staff do not need to sign in: the checklist opens from the station QR code.",
     "title": "Sign in",
     "lead": "Workspace for the management company and partners. Accounts are created by the management company.",
     "or": "or",

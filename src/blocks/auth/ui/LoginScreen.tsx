@@ -8,8 +8,6 @@ import { LoginForm } from "./LoginForm";
 
 const NOTE_CLASS =
   "m-0 rounded-[var(--r-control)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-5)] py-[var(--space-4)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)] text-err";
-const ASIDE_CLASS =
-  "m-0 border-t border-dashed border-[var(--line-control)] pt-[var(--space-4)] text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--ink-3)]";
 
 /**
  * Экран входа по образцу Decimus (#177, D176): карточка «Вход» с пояснением, логин и
@@ -18,8 +16,6 @@ const ASIDE_CLASS =
  * Google — РЯДОМ с паролем, а не вместо: пароль остаётся запасной дверью, учётка УК
  * `admin` входит только им. Реквизиты клиента не заданы — кнопки нет вовсе: мёртвая
  * «Войти через Google» выглядела бы поломкой продукта.
- *
- * Сотрудникам на кухне вход не нужен (D001) — об этом на экране сказано прямо.
  */
 export async function LoginScreen({
   googleFailed,
@@ -94,8 +90,6 @@ export async function LoginScreen({
               </p>
             </div>
           ) : null}
-
-          <p className={ASIDE_CLASS}>{t("kitchenHint")}</p>
         </div>
       </div>
     </main>
