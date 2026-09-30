@@ -17,6 +17,11 @@
 // - Сегменты `wide` рисуются без колонки и со своим пунктом меню: шаблон открывается
 //   тем же редактором по адресу чек-листа (T309), но в список чек-листов не входит, и
 //   колонка чек-листов рядом с ним звала бы не туда.
+//
+// Вводный блок раздела (D152, T316) выше складки стоит в пустой рабочей зоне — его
+// ставит страница раздела. Ниже складки этой зоны без выбранного элемента не видно вовсе,
+// и человек с телефона не узнал бы, зачем раздел: там блок стоит над колонкой списка.
+// Каркас получает его готовой разметкой (`intro`): он клиентский, а блок — серверный.
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
 import type { ReactElement, ReactNode } from "react";
@@ -51,6 +56,8 @@ export interface MasterDetailProps {
   /** Куда ведёт «назад к списку» ниже складки и как это подписано. */
   readonly backHref: string;
   readonly backLabel: string;
+  /** Вводный блок раздела над колонкой — только ниже складки и только без выбора. */
+  readonly intro?: ReactNode;
   /** Сегменты, открытые без колонки, и меню для них. */
   readonly wide?:
     | { readonly segments: readonly string[]; readonly nav: ReactNode }
@@ -65,6 +72,7 @@ export function MasterDetail({
   railLabel,
   backHref,
   backLabel,
+  intro,
   wide,
   children,
 }: MasterDetailProps): ReactElement {
@@ -88,6 +96,14 @@ export function MasterDetail({
           data-testid="master-rail"
           className={`${RAIL_CLASS}${hasDetail ? " max-md:hidden" : ""}`}
         >
+          {intro !== undefined && !hasDetail ? (
+            <div
+              className="px-[var(--space-6)] pt-[var(--space-6)] md:hidden"
+              data-testid="master-intro"
+            >
+              {intro}
+            </div>
+          ) : null}
           {rail}
         </aside>
       )}

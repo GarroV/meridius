@@ -3,6 +3,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
+import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 
 import type { FeedModel } from "../model";
 import { statsHref } from "../stats-view";
@@ -113,6 +114,7 @@ export async function FeedScreen({
         </TopbarActions>
       }
     >
+      <SectionIntro section="feed" />
       <FeedFilters
         selection={model.selection}
         timeZone={model.timeZone}

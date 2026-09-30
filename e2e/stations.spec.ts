@@ -34,7 +34,10 @@ test.describe("раздел «Станции»", () => {
     ).toBeVisible();
 
     // D152: раздел обязан сказать о себе прямо на экране, а не подсказкой в другом месте.
-    await expect(page.getByText("Здесь живут станции сети")).toBeVisible();
+    // Общий вводный блок разделов (T316); все разделы разом держит `section-intro.spec.ts`.
+    await expect(
+      page.getByTestId("section-intro").filter({ visible: true }),
+    ).toContainText("Станция — место на кухне");
   });
 
   test("станция без чек-листа помечена и попадает в свой фильтр", async ({
