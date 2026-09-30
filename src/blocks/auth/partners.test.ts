@@ -163,6 +163,20 @@ describe("resetPartnerPassword", () => {
       reason: "not-found",
     });
   });
+
+  test("снятой учётке новый пароль не выдаётся: сброс не возвращает её в строй", async () => {
+    const target = await partner();
+    await disablePartnerAccount(target.accountId);
+    const before = await storedHash(target.accountId);
+
+    await expect(
+      resetPartnerPassword(target.accountId, CHEAP),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "removed",
+    });
+    expect(await storedHash(target.accountId)).toBe(before);
+  });
 });
 
 describe("generatePartnerPassword", () => {
