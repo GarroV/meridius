@@ -102,6 +102,10 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
         href={ADMIN_HOME.path}
         className="sidenav__brand"
         data-testid="nav-brand"
+        // Ниже 1100 px меню свёрнуто в иконки и подпись `.sidenav__name` скрыта
+        // `display: none` — без явного имени ссылка остаётся безымянной (#195).
+        // Имя повторяет видимую подпись слово в слово (WCAG 2.5.3, label in name).
+        aria-label={`${t("nav.brand")} ${t("nav.brandMuted")}`}
       >
         <span className="sidenav__logo grid place-items-center bg-accent text-[var(--ink-inverse)]">
           <Icon name="check" strokeWidth={2.2} className="size-4" />

@@ -46,6 +46,7 @@ export {
   checklists,
   checks,
   countries,
+  deviceAttempts,
   devicePairings,
   devices,
   loginAttempts,

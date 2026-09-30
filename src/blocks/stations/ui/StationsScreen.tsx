@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 
 import { formActionPath } from "@/blocks/core/base-path";
 import { AdminPage } from "@/blocks/core/ui/AdminPage";
+import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 import { listTemplates } from "@/blocks/editor/templates";
 import type { LocalizedText } from "@/blocks/data";
 
@@ -25,8 +26,6 @@ import { ROLLOUT_FORM_ID, STICKERS_PATH } from "./view";
  * отмеченные в колонке станции. Галочки колонки — поля формы выбора отсюда (атрибут `form`).
  */
 
-const INTRO_CLASS =
-  "rounded-[var(--r-block)] border border-[var(--line-strong)] bg-[var(--surface-2)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)] text-[var(--ink-2)]";
 const PICK_CLASS =
   "bg-surface flex flex-col gap-[var(--space-3)] rounded-[var(--r-block)] border border-[var(--line-strong)] px-[var(--space-7)] py-[var(--space-6)] shadow-[var(--sh-xs)]";
 const PICK_TITLE_CLASS =
@@ -72,8 +71,9 @@ export async function StationsScreen({
       title={t("title")}
       topbarAction={null}
     >
-      {/* D152: раздел объясняет себя сам, строкой цели на самом экране. */}
-      <p className={INTRO_CLASS}>{t("intro")}</p>
+      {/* D152: раздел объясняет себя сам. Ниже складки этой зоны не видно — там блок
+          стоит над колонкой станций (`StationsWorkspace`). */}
+      <SectionIntro section="stations" />
 
       <div className={PICK_CLASS} data-testid="stations-pick">
         <p className={PICK_TITLE_CLASS}>{t("rail.pickTitle")}</p>

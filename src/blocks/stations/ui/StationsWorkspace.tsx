@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 
 import { AdminNav } from "@/blocks/core/ui/AdminNav";
 import { MasterDetail } from "@/blocks/core/ui/MasterDetail";
+import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 import { requireAdmin } from "@/blocks/auth/guard";
 import { scopeOf } from "@/blocks/auth/scope";
 
@@ -62,6 +63,7 @@ export async function StationsWorkspace({
         railLabel={t("rail.label")}
         backHref={STATIONS_PATH}
         backLabel={t("rail.back")}
+        intro={<SectionIntro section="stations" />}
       >
         {children}
       </MasterDetail>

@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
 import { ConfirmDialog } from "@/blocks/core/ui/ConfirmDialog";
+import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 
 import {
   submitDeleteCountry,
@@ -288,6 +289,7 @@ export async function CatalogScreen({
         </Link>
       }
     >
+      <SectionIntro section="catalog" />
       {model.errorCode !== null ? (
         <p data-testid="catalog-error" className={ERROR_NOTICE_CLASS}>
           {t(`errors.${model.errorCode}`)}
