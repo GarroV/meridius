@@ -215,7 +215,12 @@ const params = (entries: Record<string, string>) =>
   `?${new URLSearchParams(entries).toString()}`;
 
 const PROBES: Record<string, Probe> = {
-  "/admin": { foreign: () => ["/admin"] },
+  // Главная (T315) показывает «моё»: имя своего чек-листа видно (строкой чек-листов или
+  // заполнений — оба несут его, проверено порчей обоих), чужие имена — нет.
+  "/admin": {
+    foreign: () => ["/admin"],
+    own: ({ mine }) => ({ url: "/admin", text: mine.checklistTitle }),
+  },
   "/admin/[...unknown]": { foreign: () => ["/admin/sample"] },
   "/admin/catalog": {
     foreign: ({ theirs }) => [

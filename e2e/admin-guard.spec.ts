@@ -57,7 +57,7 @@ test.describe("админка закрыта: без сессии ни один 
     await expect(page).toHaveURL(new RegExp(`${LOGIN_PATH}$`));
     await expect(page.getByTestId("login-submit")).toBeVisible();
     await expect(page.getByTestId("admin-home")).toHaveCount(0);
-    expect(await page.content()).not.toContain("Выберите раздел");
+    expect(await page.content()).not.toContain("Мои чек-листы");
   });
 
   test("запрос клиентской навигации не увозит разметку админки", async ({
@@ -70,8 +70,8 @@ test.describe("админка закрыта: без сессии ни один 
     ).text();
 
     expect(body).not.toContain("admin-home");
-    expect(body).not.toContain("Choose a section");
-    expect(body).not.toContain("Выберите раздел");
+    expect(body).not.toContain("My checklists");
+    expect(body).not.toContain("Мои чек-листы");
   });
 
   test("предзагрузка ссылки роутером тоже не увозит разметку админки", async ({
@@ -84,7 +84,7 @@ test.describe("админка закрыта: без сессии ни один 
     ).text();
 
     expect(body).not.toContain("admin-home");
-    expect(body).not.toContain("Choose a section");
+    expect(body).not.toContain("My checklists");
   });
 
   test("HEAD-запрос экрана админки уводит на вход", async ({ request }) => {

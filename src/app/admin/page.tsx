@@ -1,45 +1,62 @@
-import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
+import { requireAdmin } from "@/blocks/auth/guard";
+import { scopeOf, visibleCountryIds } from "@/blocks/auth/scope";
 import { submitSignOut } from "@/blocks/auth/ui/sign-out-action";
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
+import { AdminHome } from "@/blocks/core/ui/AdminHome";
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
+import { listSubmissions } from "@/blocks/data";
+import { NO_FILTER } from "@/blocks/editor/filter";
+import { listChecklists } from "@/blocks/editor/listing";
+import { checklistPath } from "@/blocks/editor/routes";
+import { submissionPath } from "@/blocks/feed/routes";
+import { pickText } from "@/blocks/feed/text";
+import { countGaps, listNetworkStations } from "@/blocks/stations/overview";
+import { GAP_PARAM, STATIONS_PATH } from "@/blocks/stations/ui/view";
 
-// Первый экран после входа. Ведёт в каждый готовый раздел — до этого здесь были только
-// заголовок, строка «разделы появятся по мере готовности» и кнопка выхода, то есть вошедший
-// упирался в тупик: разделы работали, но попасть в них можно было только зная адрес наизусть
-// (#11). Вторая заглушка того же рода, что была на корне: заглушку сняли, а эту не заметили,
-// потому что сквозные сценарии открывают экраны прямым `goto`.
+// Первый экран после входа (D148): работа вошедшего, а не указатель разделов. До T315
+// здесь стояли карточки разделов со строкой «выберите раздел» — продукт встречал
+// человека словами «иди поищи», не сказав ни что у него есть, ни что от него ждут.
 //
-// T112: экран идёт в общем каркасе, как и все остальные экраны кабинета. До этого он
-// рисовался сам по себе — без меню и без верхней полосы, — и вошедший попадал на страницу,
-// которая выглядит как другое приложение. Заметил это не сценарий, а глаз: перебор
-// связности (`e2e/admin-nav.spec.ts`) идёт по РАЗДЕЛАМ, а главная разделом не является.
+// «Моё» — ровно то, что вошедший видит в разделах (D145): чек-листы — список раздела
+// «Чек-листы» (шаблоны туда не входят, D149), станции — дерево раздела «Станции»,
+// заполнения — лента. Экран спрашивает те же функции, что и разделы, а не пишет свои
+// запросы: главная, насчитавшая другое число дырок, чем раздел, куда она ведёт, —
+// первая причина перестать верить обоим.
 //
-// Карточки разделов остаются и при меню, и это не дубль. Меню — это «куда уйти отсюда»
-// одной строкой; карточка называет раздел вместе с тем, зачем в него идут («Напечатать
-// наклейки станций»). Первому экрану после входа второе нужно: методист приходит сюда
-// раз в неделю, а не живёт здесь.
-//
-// Порядок разделов — порядок работы методиста: завести чек-лист → напечатать коды →
-// посмотреть заполнения → поправить справочник. Что готово, решает `core/admin-sections`.
-const SECTIONS = [
-  { key: "checklists", section: ADMIN_SECTIONS.checklists },
-  { key: "stations", section: ADMIN_SECTIONS.stations },
-  { key: "templates", section: ADMIN_SECTIONS.templates },
-  { key: "library", section: ADMIN_SECTIONS.library },
-  { key: "feed", section: ADMIN_SECTIONS.feed },
-  { key: "catalog", section: ADMIN_SECTIONS.catalog },
-] as const;
+// Сборка — здесь, а не в `core`: границы модулей не пускают `core` ни в базу, ни в
+// чужие блоки. Разметку рисует `core/ui/AdminHome`, получая готовые строки.
 
-const CARD_CLASS =
-  "bg-surface flex flex-col gap-[var(--space-2)] rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-6)] py-[var(--space-5)] no-underline hover:border-[var(--accent)] hover:bg-[var(--surface-3)]";
+/** Сколько чек-листов показать строками; остальные — ссылкой в раздел. */
+const CHECKLISTS_SHOWN = 8;
+/** Сколько последних заполнений показать. */
+const SUBMISSIONS_SHOWN = 5;
 
 const SIGN_OUT_CLASS =
   "bg-surface text-ink flex h-[var(--control-h)] items-center justify-center rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium hover:border-[var(--line-control-2)]";
 
+function joinPlace(parts: readonly (string | null)[]): string | null {
+  const present = parts.filter((part): part is string => part !== null);
+  return present.length === 0 ? null : present.join(" · ");
+}
+
 export default async function AdminHomePage() {
+  const viewer = await requireAdmin();
+  const scope = scopeOf(viewer);
+  const locale = await getLocale();
   const t = await getTranslations("admin");
+  const now = new Date();
+
+  const countryIds = visibleCountryIds(scope);
+  const [checklists, stations, submissions] = await Promise.all([
+    listChecklists(NO_FILTER, viewer),
+    listNetworkStations(scope, now),
+    listSubmissions({
+      ...(countryIds === null ? {} : { countryIds }),
+      limit: SUBMISSIONS_SHOWN,
+    }),
+  ]);
 
   return (
     <AdminShell
@@ -60,32 +77,33 @@ export default async function AdminHomePage() {
           </button>
         </form>
       }
-      narrow
     >
-      {/* Метка `admin-home` осталась на содержимом, а не переехала на корень каркаса:
-          по ней сценарии считают ссылки разделов, и на корне в этот счёт попало бы ещё
-          и меню. */}
-      <div
-        data-testid="admin-home"
-        className="flex flex-col gap-[var(--space-6)]"
-      >
-        <p className="text-ink-2 m-0 text-[length:var(--fs-body)]">
-          {t("signedIn")}
-        </p>
-
-        <div className="flex flex-col gap-[var(--space-4)]">
-          {SECTIONS.map(({ key, section }) => (
-            <Link key={key} href={section.path} className={CARD_CLASS}>
-              <span className="text-ink text-[length:var(--fs-lead)] font-medium">
-                {t(`sections.${key}`)}
-              </span>
-              <span className="text-ink-2 text-[length:var(--fs-meta)] leading-[var(--lh-meta)]">
-                {t(`sections.${key}Hint`)}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </div>
+      <AdminHome
+        checklists={checklists.slice(0, CHECKLISTS_SHOWN).map((row) => ({
+          id: row.id,
+          href: checklistPath(row.id),
+          title: pickText(row.title, locale),
+          place: joinPlace([row.countryName, row.storeName, row.stationName]),
+          publishedNumber: row.publishedNumber,
+          hasUnpublishedChanges: row.hasUnpublishedChanges,
+        }))}
+        checklistTotal={checklists.length}
+        stationsWithoutChecklist={countGaps(stations).noChecklist}
+        submissions={submissions.map((row) => ({
+          id: row.id,
+          href: submissionPath(row.id),
+          title: pickText(row.checklistTitle, locale),
+          place: [row.storeName, row.stationName].join(" · "),
+          submittedAt: row.submittedAt,
+        }))}
+        now={now}
+        links={{
+          checklists: ADMIN_SECTIONS.checklists.path,
+          stationsWithoutChecklist: `${STATIONS_PATH}?${GAP_PARAM}=noChecklist`,
+          feed: ADMIN_SECTIONS.feed.path,
+          templates: ADMIN_SECTIONS.templates.path,
+        }}
+      />
     </AdminShell>
   );
 }
