@@ -17,6 +17,10 @@ import {
   createDeviceToken,
   readDeviceToken,
 } from "./session";
+import { holdPairingsLock } from "./testing/pairings-lock";
+
+// Строки `device_pairings` этого файла не должны встретить чужой выпуск посреди проверки (T346).
+holdPairingsLock();
 
 const jar = vi.hoisted(() => new Map<string, string>());
 

@@ -11,6 +11,10 @@ import { createStation } from "@/blocks/data/testing/fixtures";
 import { classifyIssueFailure } from "./issue-failure";
 import { consumePairingPin, issuePairingPin } from "./pairing";
 import { PinsExhaustedError } from "./pin-errors";
+import { holdPairingsLock } from "./testing/pairings-lock";
+
+// Выпуск чистит истёкшие пины всех станций: соседние файлы с пинами ждут своей очереди (T346).
+holdPairingsLock();
 
 /** Значение, которое генератор отдаёт на каждый вызов. */
 const FIXED_CODE = 4242;
@@ -20,8 +24,8 @@ vi.mock("node:crypto", async (importOriginal) => {
   return { ...original, randomInt: vi.fn(() => FIXED_CODE) };
 });
 
-// Мгновение далеко впереди соседних файлов: их выпуск чистит истёкшие пины по своему
-// «сейчас» и снял бы пин этого теста, будь он старше.
+// Мгновение впереди соседних файлов само по себе не защищает: оно же делает этот файл
+// тем, кто сметает их пины (T346). Разводит файлы блокировка выше, а не эпохи.
 const NOW = new Date("2030-01-01T10:00:00Z");
 const MISSING_STATION = "2f1c9a3e-0000-4000-8000-000000000000";
 

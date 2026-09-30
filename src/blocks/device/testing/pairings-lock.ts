@@ -1,0 +1,54 @@
+// Файлы тестов, которые пишут в `device_pairings`, идут по очереди, а не вперемешку.
+//
+// Выпуск пина чистит истёкшие несъеденные пины ВСЕХ станций по своему «сейчас» — так
+// устроен продукт (уборщика нет, чистка живёт в самом выпуске). Файлы тестов бегут в
+// параллельных воркерах над одной тестовой базой, и выпуск одного файла со «сейчас»
+// позже чужого срока снимал чужой пин посреди проверки (T346: `pairing.test.ts` падал с
+// `expected +0 to be 1`, когда рядом шёл `pairing-failures.test.ts` со «сейчас» 2030).
+// Разнести «сейчас» по эпохам нельзя: чья эпоха позже, тот сметает всех остальных, —
+// эта гонка уже трижды чинилась сдвигом мгновения и трижды возвращалась.
+//
+// Поэтому каждый такой файл держит на всё своё время одну advisory-блокировку базы —
+// внутри транзакции слоя data, открытой от начала файла до конца: транзакционная
+// блокировка живёт ровно столько, сколько транзакция, и снимается её завершением. Потолок
+// времени запроса в этой транзакции снят (`set local`), потому что очередь за блокировкой
+// может быть длиннее десяти секунд пула. Упал воркер — соединение закрылось, транзакция
+// откатилась, блокировка снялась сама.
+//
+// Правило: новый файл тестов, который выпускает пины или кладёт строки в
+// `device_pairings`, после импортов зовёт `holdPairingsLock()`.
+import { sql } from "drizzle-orm";
+import { afterAll, beforeAll } from "vitest";
+
+import { getDb } from "@/blocks/data";
+
+/** Ключ блокировки: произвольное, но одно на весь проект число. */
+const PAIRINGS_LOCK_KEY = 346_201;
+
+export function holdPairingsLock(): void {
+  let finish: (() => void) | undefined;
+  let held: Promise<void> | undefined;
+
+  beforeAll(async () => {
+    let acquired!: () => void;
+    const locked = new Promise<void>((resolve) => {
+      acquired = resolve;
+    });
+    const done = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    held = getDb().transaction(async (tx) => {
+      await tx.execute(sql`set local statement_timeout = 0`);
+      await tx.execute(sql`select pg_advisory_xact_lock(${PAIRINGS_LOCK_KEY})`);
+      acquired();
+      await done;
+    });
+    // Отказ базы при взятии блокировки должен уронить файл, а не повесить его.
+    await Promise.race([locked, held]);
+  });
+
+  afterAll(async () => {
+    finish?.();
+    await held;
+  });
+}
