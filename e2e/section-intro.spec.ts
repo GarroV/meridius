@@ -22,7 +22,7 @@ import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 type IntroTexts = Record<
   IntroSectionKey,
   Record<(typeof INTRO_PARTS)[number], string>
->;
+> & { readonly more: string };
 
 /** Словарь читается файлом: раннер сквозных не импортирует JSON без атрибута типа. */
 function introTexts(language: "ru" | "en"): IntroTexts {
@@ -35,6 +35,9 @@ function introTexts(language: "ru" | "en"): IntroTexts {
   };
   return dictionary.sectionIntro;
 }
+
+/** Граница D172: до 640 px включительно блок показывает только первую строку. */
+const PHONE_MAX = 640;
 
 const WIDTHS = [
   { name: "стол", width: 1280, height: 900 },
@@ -75,8 +78,29 @@ test.describe("вводный блок разделов кабинета (D152)"
             block,
             `раздел «${section}» без видимого вводного блока (${name}, ${locale})`,
           ).toHaveCount(1);
-          for (const part of INTRO_PARTS) {
-            await expect(block).toContainText(intro[section][part]);
+          const [first, ...rest] = INTRO_PARTS;
+          await expect(block.getByText(intro[section][first])).toBeVisible();
+
+          // D172: на телефоне «что здесь» и «что дальше» раскрываются по «Подробнее»,
+          // на широком экране видны сразу, а «Подробнее» там нет.
+          const more = block.locator("summary").filter({ visible: true });
+          if (width <= PHONE_MAX) {
+            for (const part of rest) {
+              await expect(
+                block.getByText(intro[section][part]).filter({ visible: true }),
+                `«${part}» раздела «${section}» виден до «Подробнее» (${name}, ${locale})`,
+              ).toHaveCount(0);
+            }
+            await expect(more).toHaveText(intro.more);
+            await more.click();
+          } else {
+            await expect(more).toHaveCount(0);
+          }
+          for (const part of rest) {
+            await expect(
+              block.getByText(intro[section][part]).filter({ visible: true }),
+              `«${part}» раздела «${section}» не виден (${name}, ${locale})`,
+            ).toHaveCount(1);
           }
         }
       }

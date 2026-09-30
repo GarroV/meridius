@@ -77,7 +77,6 @@ export async function StationsScreen({
 
       <div className={PICK_CLASS} data-testid="stations-pick">
         <p className={PICK_TITLE_CLASS}>{t("rail.pickTitle")}</p>
-        <p className={META_CLASS}>{t("rail.pickHint")}</p>
       </div>
 
       {/*

@@ -63,6 +63,11 @@ describe("вводные блоки разделов кабинета", () => {
     it(`текст есть у каждого раздела, все три части (${language})`, () => {
       const intro = introOf(dictionary);
       expect(intro["label"], "подпись блока для чтеца").toBeTypeOf("string");
+      // D172: на телефоне видна первая строка, остальное — под этой подписью.
+      expect(
+        typeof intro["more"] === "string" && intro["more"].trim().length > 0,
+        `sectionIntro.more (${language}) — подпись «Подробнее» пуста или отсутствует`,
+      ).toBe(true);
       for (const section of INTRO_SECTIONS) {
         const parts = intro[section] as Record<string, unknown> | undefined;
         expect(parts, `sectionIntro.${section} (${language})`).toBeTypeOf(
@@ -77,7 +82,7 @@ describe("вводные блоки разделов кабинета", () => {
         }
       }
       // Лишний раздел в словаре — след переименования, которое код уже не зовёт.
-      const known = new Set<string>(["label", ...INTRO_SECTIONS]);
+      const known = new Set<string>(["label", "more", ...INTRO_SECTIONS]);
       expect(Object.keys(intro).filter((key) => !known.has(key))).toEqual([]);
     });
   }

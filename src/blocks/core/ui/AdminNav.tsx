@@ -15,11 +15,13 @@ import type { ReactElement } from "react";
 
 import {
   ADMIN_HOME,
+  ADMIN_HQ_ONLY_SECTIONS,
   ADMIN_NAV_GROUPS,
   ADMIN_SECTIONS,
   type AdminSectionKey,
 } from "../admin-sections";
 import { asLocale } from "../locale";
+import { HqOnly, NavViewer } from "./admin-viewer";
 import { Icon, type IconName } from "./Icon";
 import { LocaleToggle } from "./LocaleToggle";
 import { NavSearch } from "./NavSearch";
@@ -29,8 +31,9 @@ import { ThemeToggle } from "./ThemeToggle";
 // поиск с ⌘K, пункты с иконкой, текущий — мягкая заливка и полоса слева; внизу тема,
 // язык и кто вошёл. Сами классы (`sidenav*`) — компонент ядра дизайн-системы, здесь
 // только разметка. Ширины тоже оттуда: 216 px, а уже 1100 px — 56 px иконок, подписи
-// уходят в `title`. Телефон получает ту же полосу иконок, а не верхнюю ленту: так
-// содержимому остаётся 319 px из 375 и тема с языком не прячутся.
+// уходят в `title`. Ниже складки (768 px) панель — верхняя полоса в одну строку со
+// своей прокруткой (D092, T344): колонка иконок отнимала у телефона 56 px из 375.
+// Вид полосы — `globals.css`, слой `components`.
 
 /** Иконка пункта — из набора линейки. Один факт на продукт, рядом с меню. */
 const SECTION_ICONS: Readonly<Record<AdminSectionKey, IconName>> = {
@@ -42,6 +45,7 @@ const SECTION_ICONS: Readonly<Record<AdminSectionKey, IconName>> = {
   catalog: "globe",
   qr: "tag",
   devices: "monitor",
+  partners: "team",
 };
 
 /** Где находится человек: раздел кабинета или его главная. */
@@ -93,7 +97,10 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
   const locale = useLocale();
 
   return (
-    <nav className="sidenav sticky top-0 h-screen" aria-label={t("nav.brand")}>
+    <nav
+      className="sidenav md:sticky md:top-0 md:h-screen"
+      aria-label={t("nav.brand")}
+    >
       {/*
         Марка — ссылка на главную кабинета (T124). Адрес берётся из `admin-sections`, а
         не пишется строкой, — тот же дубль вычищали трижды (T116, T118, T119).
@@ -132,16 +139,24 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
         {ADMIN_NAV_GROUPS.map((group) => (
           <div key={group.key} className="contents">
             <div className="sidenav__group">{t(`nav.groups.${group.key}`)}</div>
-            {group.items.map((key) => (
-              <NavItem
-                key={key}
-                href={ADMIN_SECTIONS[key].path}
-                icon={SECTION_ICONS[key]}
-                label={t(`sections.${key}`)}
-                isActive={key === active}
-                testId={`nav-${key}`}
-              />
-            ))}
+            {group.items.map((key) => {
+              const item = (
+                <NavItem
+                  key={key}
+                  href={ADMIN_SECTIONS[key].path}
+                  icon={SECTION_ICONS[key]}
+                  label={t(`sections.${key}`)}
+                  isActive={key === active}
+                  testId={`nav-${key}`}
+                />
+              );
+              // Раздел УК партнёру не показывается: адрес ему отвечает 404 (T344).
+              return ADMIN_HQ_ONLY_SECTIONS.includes(key) ? (
+                <HqOnly key={key}>{item}</HqOnly>
+              ) : (
+                item
+              );
+            })}
           </div>
         ))}
       </div>
@@ -164,18 +179,15 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
       </div>
 
       {/*
-        Кто вошёл. Личных учёток пока нет — вход общий (#177), поэтому вместо имени
-        роль; появятся учётки — здесь встанут имя и выход, как у Swarm.
+        Кто вошёл: роль — УК или партнёр (T344). Её знает разметка кабинета, меню
+        получает готовой (`admin-viewer.tsx`).
       */}
-      <div className="sidenav__user">
-        <span className="avatar" aria-hidden="true">
-          {t("nav.role").slice(0, 1).toUpperCase()}
-        </span>
-        <span className="sidenav__who">
-          <b>{t("nav.signedIn")}</b>
-          <small>{t("nav.role")}</small>
-        </span>
-      </div>
+      <NavViewer
+        labels={{
+          signedIn: t("nav.signedIn"),
+          roles: { hq: t("nav.roles.hq"), partner: t("nav.roles.partner") },
+        }}
+      />
     </nav>
   );
 }

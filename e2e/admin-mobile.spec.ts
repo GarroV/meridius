@@ -175,6 +175,42 @@ test.describe("каркас кабинета на 375 px", () => {
     });
     expect(dragged, `страницу утащило вбок на ${String(dragged)} px`).toBe(0);
   });
+  // D092, T344: ниже складки меню — верхняя полоса во всю ширину, а не колонка иконок,
+  // и содержимое начинается под ней.
+  test("меню — верхняя полоса во всю ширину, содержимое под ней", async ({
+    page,
+  }) => {
+    await signIn(page);
+    for (const screen of SCREENS) {
+      await page.goto(screen.path);
+      const nav = await page
+        .locator("nav.sidenav")
+        .first()
+        .evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          return { top: box.top, width: box.width, height: box.height };
+        });
+      const content = await page
+        .locator("[data-testid='admin-main'], [data-testid='master-rail']")
+        .filter({ visible: true })
+        .first()
+        .evaluate((element) => element.getBoundingClientRect().top);
+
+      expect(
+        Math.round(nav.width),
+        `${screen.name}: ширина меню ${String(Math.round(nav.width))} px — не полоса во всю ширину`,
+      ).toBe(PHONE.width);
+      expect(
+        nav.height,
+        `${screen.name}: высота меню ${String(Math.round(nav.height))} px — это колонка, а не полоса`,
+      ).toBeLessThan(80);
+      expect(
+        content,
+        `${screen.name}: содержимое начинается выше нижнего края меню`,
+      ).toBeGreaterThanOrEqual(nav.top + nav.height - 1);
+    }
+  });
+
   test("меню остаётся рабочим: все пять разделов достижимы", async ({
     page,
   }) => {
