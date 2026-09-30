@@ -949,5 +949,50 @@
     "takeAlone": "Take without a station",
     "preview": "Preview",
     "edit": "Edit"
+  },
+  "adminHome": {
+    "working": {
+      "value": "{working} of {total}",
+      "caption": "stations at work: a checklist and fills within a day"
+    },
+    "noStations": "No stations in the selected scope. Add a store and its stations in “Countries and stores”.",
+    "todo": {
+      "title": "Not closed yet",
+      "noChecklist": "{count, plural, one {station without a checklist — its sticker opens nothing} other {stations without a checklist — their stickers open nothing}}",
+      "silent": "{count, plural, one {station silent for over a day} other {stations silent for over a day}}",
+      "drafts": "{count, plural, one {checklist with an unpublished edit — the station still shows the old one} other {checklists with unpublished edits — stations still show the old ones}}"
+    },
+    "stations": {
+      "title": "Stations",
+      "count": "{count, plural, one {# station} other {# stations}}",
+      "columnStation": "Station",
+      "columnStatus": "State",
+      "columnTablet": "Tablet",
+      "columnLastFill": "Last fill",
+      "status": {
+        "working": "working",
+        "silent": "silent",
+        "noChecklist": "no checklist"
+      },
+      "noTablet": "none",
+      "tablets": "{count, plural, one {# tablet} other {# tablets}}",
+      "seen": "online {ago}",
+      "never": "never"
+    },
+    "stores": {
+      "title": "Stores",
+      "count": "{count, plural, one {# store} other {# stores}}",
+      "columnStore": "Store",
+      "columnWorking": "Stations at work",
+      "columnTablets": "With a tablet",
+      "columnLastFill": "Last fill",
+      "ofTotal": "{part} of {total}",
+      "never": "never"
+    },
+    "recent": {
+      "title": "What’s happening",
+      "all": "All fills",
+      "empty": "No fills in the selected period."
+    }
   }
 }
