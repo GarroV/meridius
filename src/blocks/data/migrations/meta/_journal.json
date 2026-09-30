@@ -134,6 +134,13 @@
       "when": 1789300000000,
       "tag": "0018_device_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789400000000,
+      "tag": "0019_account_password_changed_at",
+      "breakpoints": true
     }
   ]
 }

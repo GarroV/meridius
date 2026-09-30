@@ -109,8 +109,10 @@ async function stateOf(accountId: string): Promise<AccountState> {
 }
 
 /**
- * Записать хэш действующей учётке. Условие «не снята» стоит в самом запросе, а не только
- * в проверке перед ним: снятие, успевшее между ними, не должно отменяться сменой пароля.
+ * Записать хэш действующей учётке и отметить смену пароля: сессии, открытые до неё,
+ * больше не принимаются (`accounts.ts`). Условие «не снята» стоит в самом запросе, а не
+ * только в проверке перед ним: снятие, успевшее между ними, не должно отменяться сменой
+ * пароля.
  */
 async function storeHash(
   accountId: string,
@@ -118,7 +120,9 @@ async function storeHash(
 ): Promise<AccountChange> {
   const updated = await getDb()
     .update(accounts)
-    .set({ passwordHash })
+    // Отметка смены — тем же запросом, что и хэш: новый пароль без неё оставил бы
+    // живой сессию, ради закрытия которой пароль и сбрасывают (#198).
+    .set({ passwordHash, passwordChangedAt: new Date() })
     .where(and(eq(accounts.id, accountId), isNull(accounts.disabledAt)))
     .returning({ id: accounts.id });
   if (updated.length > 0) return { ok: true };
