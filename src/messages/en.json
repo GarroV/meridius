@@ -165,7 +165,8 @@
       "checklistArchived": "This checklist is withdrawn — it cannot be assigned to a station",
       "confirmationRequired": "Deletion needs confirmation",
       "notFound": "Record not found",
-      "codeCollision": "This QR code is already taken — try again"
+      "codeCollision": "This QR code is already taken — try again",
+      "storeCodeTaken": "Another pizzeria in this country already has this store code"
     }
   },
   "editor": {

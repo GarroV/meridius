@@ -1,5 +1,6 @@
 // Публичный вход в блок catalog. Отсюда справочник берут соседние блоки:
-// `qr` — код станции и его перевыпуск, `demo` — заведение показательного контура.
+// `qr` — код станции и его перевыпуск, `demo` — заведение показательного контура,
+// `scripts/import-network.mjs` — план импорта справочника сети.
 // Внутренние файлы блока (запросы, разметка экрана) наружу не выставляются.
 export type { CountryRow } from "./countries";
 export {
@@ -17,6 +18,19 @@ export {
   listStores,
   updateStore,
 } from "./stores";
+
+export type {
+  ExistingStore,
+  NetworkStore,
+  StoreCreate,
+  StoreImportPlan,
+  StoreUpdate,
+} from "./network-plan";
+export {
+  NetworkPlanError,
+  planStoreImport,
+  readNetworkStore,
+} from "./network-plan";
 
 export type { StationChecklist, StationCode, StationRow } from "./stations";
 export {

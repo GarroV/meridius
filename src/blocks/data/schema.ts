@@ -172,9 +172,26 @@ export const stores = pgTable(
     // Часовой пояс пиццерии: по нему окно чек-листа сравнивается с местным временем,
     // иначе утренний чек-лист в Казахстане открывался бы днём.
     timezone: text("timezone").notNull().default("UTC"),
+    // Город — отдельно от названия (#141): иначе его вклеивали в название, и справочник
+    // разъезжался между импортом и тем, что методист пишет руками.
+    city: text("city"),
+    // Код точки — опознаватель пиццерии в справочнике сети, уникален в пределах страны.
+    // Необязателен: пиццерии, заведённые до него, остаются валидными без кода.
+    code: text("code"),
     createdAt: serverTimestamp(CREATED_AT),
   },
-  (table) => [index("stores_country_idx").on(table.countryId)],
+  (table) => [
+    index("stores_country_idx").on(table.countryId),
+    check(
+      "stores_city_shape",
+      sql`city is null or (city = btrim(city) and length(city) between 1 and 120)`,
+    ),
+    check(
+      "stores_code_shape",
+      sql`code is null or (code = btrim(code) and length(code) between 1 and 64)`,
+    ),
+    uniqueIndex("stores_country_code_uq").on(table.countryId, table.code),
+  ],
 );
 
 export const stations = pgTable(

@@ -120,6 +120,13 @@
       "when": 1789280000000,
       "tag": "0016_tenants_and_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789290000000,
+      "tag": "0017_store_city_code",
+      "breakpoints": true
     }
   ]
 }

@@ -16,7 +16,13 @@ import {
   stores,
 } from "@/blocks/data";
 
-import { CatalogError, asDeletionConflict, requireName } from "./errors";
+import {
+  CatalogError,
+  PG_UNIQUE_VIOLATION,
+  asDeletionConflict,
+  pgErrorCode,
+  requireName,
+} from "./errors";
 import { assertKnownTimezone } from "./timezone";
 
 // Тот же приём, что в submissions.ts: некорректный id не должен доходить до драйвера
@@ -31,7 +37,60 @@ export interface StoreRow {
   countryId: string;
   name: string;
   timezone: string;
+  /** Город — отдельно от названия (#141). `null` — не заведён. */
+  city: string | null;
+  /** Код точки: опознаватель в справочнике сети, уникален в стране. `null` — нет кода. */
+  code: string | null;
   stationCount: number;
+}
+
+/**
+ * Город и код точки на записи. `undefined` — поле не трогается: форма экрана и сид
+ * о них не знают, и их правка не должна отвязать пиццерию от справочника сети (#141).
+ * Пустая строка и `null` — снять значение.
+ */
+interface StoreLocation {
+  city?: string | null;
+  code?: string | null;
+}
+
+/** Срезает пробелы по краям; пустое значение хранится как отсутствие. */
+function optionalText(
+  value: string | null | undefined,
+): string | null | undefined {
+  if (value === undefined || value === null) return value;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+function locationValues(input: StoreLocation): {
+  city?: string | null;
+  code?: string | null;
+} {
+  const city = optionalText(input.city);
+  const code = optionalText(input.code);
+  return {
+    ...(city === undefined ? {} : { city }),
+    ...(code === undefined ? {} : { code }),
+  };
+}
+
+/**
+ * Занятый в стране код точки — отказ `storeCodeTaken`, а не пятисотка: уникальность
+ * держит индекс `stores_country_code_uq`, и другого нарушения уникальности у `stores` нет.
+ */
+async function withCodeGuard<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if (pgErrorCode(error) === PG_UNIQUE_VIOLATION) {
+      throw new CatalogError(
+        "storeCodeTaken",
+        "Код точки уже занят другой пиццерией этой страны",
+      );
+    }
+    throw error;
+  }
 }
 
 function isUuid(value: string): boolean {
@@ -61,6 +120,8 @@ export async function listStores(countryId: string): Promise<StoreRow[]> {
       countryId: stores.countryId,
       name: stores.name,
       timezone: stores.timezone,
+      city: stores.city,
+      code: stores.code,
       stationCount: count(stations.id),
     })
     .from(stores)
@@ -70,11 +131,13 @@ export async function listStores(countryId: string): Promise<StoreRow[]> {
     .orderBy(asc(stores.name));
 }
 
-export async function createStore(input: {
-  countryId: string;
-  name: string;
-  timezone: string;
-}): Promise<string> {
+export async function createStore(
+  input: {
+    countryId: string;
+    name: string;
+    timezone: string;
+  } & StoreLocation,
+): Promise<string> {
   const name = requireName(input.name, WHAT_STORE);
   const timezone = await assertKnownTimezone(input.timezone);
   if (!isUuid(input.countryId)) throw countryNotFoundForStore(input.countryId);
@@ -86,27 +149,36 @@ export async function createStore(input: {
     .where(eq(countries.id, input.countryId));
   if (countryRows.length === 0) throw countryNotFoundForStore(input.countryId);
 
-  const [row] = await db
-    .insert(stores)
-    .values({ countryId: input.countryId, name, timezone })
-    .returning({ id: stores.id });
+  const [row] = await withCodeGuard(() =>
+    db
+      .insert(stores)
+      .values({
+        countryId: input.countryId,
+        name,
+        timezone,
+        ...locationValues(input),
+      })
+      .returning({ id: stores.id }),
+  );
   if (row === undefined) throw new Error("Пиццерия не сохранилась");
   return row.id;
 }
 
 export async function updateStore(
   id: string,
-  input: { name: string; timezone: string },
+  input: { name: string; timezone: string } & StoreLocation,
 ): Promise<void> {
   if (!isUuid(id)) throw storeNotFound(id);
   const name = requireName(input.name, WHAT_STORE);
   const timezone = await assertKnownTimezone(input.timezone);
 
-  const rows = await getDb()
-    .update(stores)
-    .set({ name, timezone })
-    .where(eq(stores.id, id))
-    .returning({ id: stores.id });
+  const rows = await withCodeGuard(() =>
+    getDb()
+      .update(stores)
+      .set({ name, timezone, ...locationValues(input) })
+      .where(eq(stores.id, id))
+      .returning({ id: stores.id }),
+  );
   if (rows.length === 0) throw storeNotFound(id);
 }
 
