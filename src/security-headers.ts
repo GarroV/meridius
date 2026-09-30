@@ -61,7 +61,10 @@ function contentSecurityPolicy(options: PolicyOptions): string {
     "font-src 'self'",
     `connect-src 'self'${isDevelopment ? " ws:" : ""}`,
     "base-uri 'self'",
-    "form-action 'self'",
+    // Google — ради входа (D176): кнопка «Войти через Google» — форма на наш адрес, а он
+    // перенаправляет к Google. Браузер применяет form-action и к перенаправлению после
+    // отправки, и с одним 'self' переход молча не случался.
+    "form-action 'self' https://accounts.google.com",
     "frame-ancestors 'none'",
     "object-src 'none'",
   ].join("; ");

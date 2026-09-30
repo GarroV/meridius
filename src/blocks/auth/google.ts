@@ -29,6 +29,13 @@ const TOKEN_TIMEOUT_MS = 10_000;
 const CLIENT_ID_VARIABLE = "GOOGLE_CLIENT_ID";
 const CLIENT_SECRET_VARIABLE = "GOOGLE_CLIENT_SECRET";
 const REDIRECT_URI_VARIABLE = "GOOGLE_REDIRECT_URI";
+const FRONT_REDIRECT_URI_VARIABLE = "GOOGLE_FRONT_REDIRECT_URI";
+
+/**
+ * Метка запроса, пришедшего через фронт Cloudflare (как у Decimus, D236): ставит её
+ * только Caddy площадки и только при верном ключе фронта, чужую — снимает.
+ */
+export const FRONT_MARKER_HEADER = "x-meridius-front";
 
 export interface GoogleSettings {
   readonly clientId: string;
@@ -42,11 +49,20 @@ function variable(name: string): string | null {
   return value === undefined || value === "" ? null : value;
 }
 
-/** Реквизиты клиента из окружения; null — хоть одного нет, и вход через Google выключен. */
-export function googleSettings(): GoogleSettings | null {
+/**
+ * Реквизиты клиента из окружения; null — хоть одного нет, и вход через Google выключен.
+ *
+ * Пришедшему через фронт Cloudflare — адрес возврата фронта (`GOOGLE_FRONT_REDIRECT_URI`):
+ * метка похода лежит в куке его адреса, и возврат на прямой адрес её бы не нашёл, а где
+ * прямой адрес заблокирован, человек до него и не доедет. Адреса фронта нет — прямой.
+ */
+export function googleSettings(viaFront = false): GoogleSettings | null {
   const clientId = variable(CLIENT_ID_VARIABLE);
   const clientSecret = variable(CLIENT_SECRET_VARIABLE);
-  const redirectUri = variable(REDIRECT_URI_VARIABLE);
+  const frontRedirectUri = viaFront
+    ? variable(FRONT_REDIRECT_URI_VARIABLE)
+    : null;
+  const redirectUri = frontRedirectUri ?? variable(REDIRECT_URI_VARIABLE);
   if (clientId === null || clientSecret === null || redirectUri === null) {
     return null;
   }

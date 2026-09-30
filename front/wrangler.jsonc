@@ -1,0 +1,11 @@
+// Фронт Meridius: https://meridius.vasiliy-garro.workers.dev — там, где sslip.io
+// заблокирован (как у Decimus, decimus D236). Выкладка: `npx wrangler deploy` из `front/`.
+// Ключ фронта — секретом: `npx wrangler secret put FRONT_KEY`; тот же ключ — в
+// `/srv/edge/sites/meridius-front.snippet` на VPS (вне git).
+{
+  "name": "meridius",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": true,
+  "vars": { "ORIGIN_HOST": "meridius.95-111-249-216.sslip.io" },
+}

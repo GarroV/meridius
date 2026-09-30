@@ -89,7 +89,7 @@ startGoogleSignIn() / finishGoogleSignIn(url)  // маршруты /admin/login/
 
 Имена и безопасные значения — в `.env.example`, рабочие — только в `.env`. `ADMIN_PASSWORD_HASH` (формат `scrypt.N.r.p.соль.ключ`) и `SESSION_SECRET` (не короче 32 знаков). Без любой вход никого не пускает; значения в ошибки не попадают. Значения из `.env.example` на `NODE_ENV=production` отказывают отдельной ошибкой.
 
-Вход через Google — `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (D176). Все три необязательны: не задан хоть один — кнопки на экране нет, маршруты Google уводят на форму входа. Клиент свой у Meridius (Web application, экран согласия External — иначе партнёры не с @dodobrands.io не войдут); адрес возврата — `<PUBLIC_BASE_URL><BASE_PATH>/admin/login/google/callback`, побуквенно как в консоли Google.
+Вход через Google — `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (D176). `GOOGLE_FRONT_REDIRECT_URI` — адрес возврата для запросов через фронт Cloudflare (метку `X-Meridius-Front` ставит Caddy только при верном ключе фронта, см. `deploy/README.md`); пусто — через фронт тот же прямой. Первые три необязательны: не задан хоть один — кнопки на экране нет, маршруты Google уводят на форму входа. Клиент свой у Meridius (Web application, экран согласия External — иначе партнёры не с @dodobrands.io не войдут); адрес возврата — `<PUBLIC_BASE_URL><BASE_PATH>/admin/login/google/callback`, побуквенно как в консоли Google.
 
 **Знак `$` в значениях запрещён:** загрузчик `.env` Next молча подставляет `$переменная`, поэтому разделитель в хэше — точка. Проверка — `env-file.test.ts` на настоящем загрузчике.
 

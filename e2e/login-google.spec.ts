@@ -27,6 +27,22 @@ test.describe("вход через Google", () => {
     await expect(page.getByTestId("login-submit")).toBeVisible();
   });
 
+  test("нажатие кнопки доводит браузер до Google, политика безопасности не мешает", async ({
+    page,
+  }) => {
+    // Сам Google не нужен: запрос к нему перехватывается, важно, что браузер его отправил.
+    await page.route("https://accounts.google.com/**", (route) =>
+      route.fulfill({ status: 200, contentType: "text/html", body: "google" }),
+    );
+    await page.goto(LOGIN_PATH);
+
+    await page.getByTestId("login-google").click();
+
+    await expect(page).toHaveURL(
+      /^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?/,
+    );
+  });
+
   test("начало входа уводит к Google с нашим клиентом и одноразовой меткой", async ({
     request,
   }) => {
