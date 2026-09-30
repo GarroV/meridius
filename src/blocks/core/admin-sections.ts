@@ -26,6 +26,7 @@ export const ADMIN_SECTIONS = {
   catalog: { path: "/admin/catalog", ready: true },
   qr: { path: "/admin/qr", ready: true },
   devices: { path: "/admin/devices", ready: true },
+  partners: { path: "/admin/partners", ready: true },
 } as const satisfies Record<string, AdminSection>;
 
 /**
@@ -54,6 +55,13 @@ export const ADMIN_REDIRECTED_SECTIONS: readonly AdminSectionKey[] = [
   "devices",
 ];
 
+/**
+ * Разделы только управляющей компании (D169, T337): учётки партнёров ведёт УК. Партнёру
+ * адрес отвечает 404, а меню этого пункта не рисует (T344) — ссылка вела бы в 404.
+ * Кто вошёл, меню узнаёт от разметки кабинета (`ui/admin-viewer.tsx`).
+ */
+export const ADMIN_HQ_ONLY_SECTIONS: readonly AdminSectionKey[] = ["partners"];
+
 /** Группа пунктов бокового меню: её заголовок и разделы по порядку. */
 export interface AdminNavGroup {
   readonly key: string;
@@ -80,5 +88,6 @@ export const ADMIN_NAV_GROUPS = [
   // «QR-коды» и «Устройства» в меню больше нет (T312, D163): наклейка и планшет —
   // свойства станции, с ними работают на её карточке. Адреса остались — они уводят в
   // «Станции», а вложенные адреса QR (экран кода, опрос, файл наклейки) работают.
-  { key: "reference", items: ["catalog"] },
+  // «Партнёры» — за справочником: учётки партнёров — опись сети, а не рабочее место.
+  { key: "reference", items: ["catalog", "partners"] },
 ] as const satisfies readonly AdminNavGroup[];

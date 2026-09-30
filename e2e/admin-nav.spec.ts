@@ -60,6 +60,13 @@ const READY = [
     name: "Шаблоны",
     screen: "templates-screen",
   },
+  {
+    // Вход сторожа — учёткой УК; партнёру пункта нет (`e2e/partner-cabinet.spec.ts`).
+    key: "partners",
+    path: "/admin/partners",
+    name: "Партнёры",
+    screen: "partners-screen",
+  },
 ] as const;
 
 /**

@@ -35,13 +35,14 @@ import { ADMIN_CONTENT_ID, SkipLink } from "./SkipLink";
  * а одинаковая колонка в двух продуктах линейки — прямое требование D164.
  */
 const FRAME_CLASS =
-  "grid min-h-screen items-start grid-cols-[auto_18rem_minmax(0,1fr)] max-md:grid-cols-[auto_minmax(0,1fr)]";
+  "grid min-h-screen items-start grid-cols-[auto_18rem_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_1fr]";
 const WIDE_FRAME_CLASS =
-  "grid min-h-screen items-start grid-cols-[auto_minmax(0,1fr)]";
+  "grid min-h-screen items-start grid-cols-[auto_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_1fr]";
 // Колонка липнет к верху и прокручивается своей прокруткой: длинный список сети не
 // утаскивает за собой рабочую зону, и выбранная строка остаётся там, где её нажали.
+// Ниже складки над колонкой стоит полоса меню (D092), и колонка — просто часть страницы.
 const RAIL_CLASS =
-  "bg-surface sticky top-0 flex h-screen min-w-0 flex-col overflow-y-auto border-r border-[var(--line)]";
+  "bg-surface flex min-w-0 flex-col border-[var(--line)] md:sticky md:top-0 md:h-screen md:overflow-y-auto md:border-r";
 const BACK_CLASS =
   "bg-surface flex items-center gap-[var(--space-3)] border-b border-[var(--line)] px-[var(--space-7)] py-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] no-underline hover:text-ink md:hidden";
 

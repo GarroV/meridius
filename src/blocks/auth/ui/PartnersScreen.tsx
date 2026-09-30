@@ -7,6 +7,7 @@ import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
+import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 
 import type { PartnerAccountRow } from "../partners";
 import { MIN_PARTNER_PASSWORD_LENGTH } from "../provision";
@@ -32,8 +33,6 @@ const CARD_HEAD_CLASS =
   "flex items-center gap-[var(--space-6)] rounded-t-[var(--r-block)] border-b border-[var(--line)] bg-[var(--surface-3)] px-[var(--space-7)] py-[var(--space-6)]";
 const CARD_TITLE_CLASS =
   "m-0 text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold";
-const NOTICE_CLASS =
-  "rounded-[var(--r-block)] border border-[var(--line-strong)] bg-[var(--surface-2)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)]";
 const ROW_CLASS =
   "grid gap-[var(--space-5)] border-b border-[var(--line)] px-[var(--space-7)] py-[var(--space-6)] [grid-template-columns:minmax(0,1fr)_minmax(0,1fr)] max-md:[grid-template-columns:minmax(0,1fr)]";
 const META_CLASS =
@@ -173,11 +172,13 @@ export async function PartnersScreen({
   return (
     <AdminShell
       testId="partners-screen"
+      active="partners"
       breadcrumb={t("crumbs")}
       title={t("title")}
       topbarAction={null}
     >
-      <p className={NOTICE_CLASS}>{t("notice")}</p>
+      {/* D152, T344: пояснение раздела — общий вводный блок, а не своя строка. */}
+      <SectionIntro section="partners" />
 
       <section className={CARD_CLASS}>
         <div className={CARD_HEAD_CLASS}>

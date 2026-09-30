@@ -234,7 +234,8 @@ export async function LibraryScreen({
     <AdminShell
       testId="library-screen"
       active="library"
-      breadcrumb={t("crumbs")}
+      // Партнёру библиотека только для чтения (D169) — для него это справочник (T344).
+      breadcrumb={model.canEdit ? t("crumbs") : t("crumbsReadOnly")}
       title={t("title")}
       topbarAction={
         model.canEdit ? (

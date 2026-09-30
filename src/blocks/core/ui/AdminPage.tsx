@@ -40,7 +40,10 @@ export function AdminPage({
       */}
       <header className="bg-surface flex items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)] max-md:flex-wrap max-md:gap-[var(--space-5)] max-md:px-[var(--space-7)]">
         <div className="flex min-w-0 flex-col gap-[var(--space-1)]">
-          <div className="text-[length:var(--fs-meta)] text-[var(--ink-3)]">
+          <div
+            className="text-[length:var(--fs-meta)] text-[var(--ink-3)]"
+            data-testid="admin-crumbs"
+          >
             {breadcrumb}
           </div>
           <h1 className={H1_CLASS}>{title}</h1>

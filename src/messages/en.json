@@ -56,20 +56,24 @@
       "feed": "Submissions",
       "catalog": "Countries and pizzerias",
       "library": "Block library",
-      "devices": "Devices"
+      "devices": "Devices",
+      "partners": "Partners"
     },
     "nav": {
       "brand": "MERIDIUS",
       "brandMuted": "Dodo",
       "soon": "Section is not ready yet",
       "signedIn": "Signed in",
-      "role": "methodologist",
       "groups": {
         "work": "Work",
         "reference": "Reference"
       },
       "home": "Home",
-      "search": "Find a checklist"
+      "search": "Find a checklist",
+      "roles": {
+        "hq": "HQ methodologist",
+        "partner": "partner"
+      }
     }
   },
   "catalog": {
@@ -790,6 +794,7 @@
   },
   "library": {
     "crumbs": "Work",
+    "crumbsReadOnly": "Reference",
     "title": "Block library",
     "new": "+ New block",
     "newTitle": "New block",
@@ -1041,7 +1046,6 @@
   "partners": {
     "crumbs": "Directory",
     "title": "Partners",
-    "notice": "A partner signs in with their own login and sees only the countries given to them here. The management company creates and removes accounts; hand the login and password to the partner yourself — the product does not send them.",
     "createTitle": "Add a partner",
     "tenant": "Partner",
     "tenantHint": "Partner name. If this partner already exists, the new account and the ticked countries are added to it — countries already given are not taken away.",
@@ -1120,6 +1124,11 @@
       "why": "The network directory: countries, pizzerias and their stations. Everything else relies on it.",
       "what": "Add a pizzeria and its stations. Head office edits the whole network; a partner edits the pizzerias and stations of their own countries.",
       "next": "A new station appears in Stations: put a checklist on it and print its sticker."
+    },
+    "partners": {
+      "why": "A partner is a pizzeria network that works in the cabinet with its own countries.",
+      "what": "Create a partner account here and give it countries: signed in with its own login, the partner sees only those. Passwords are changed and reset and accounts removed here too.",
+      "next": "Hand the login and password to the partner yourself — the product does not send them."
     }
   }
 }
