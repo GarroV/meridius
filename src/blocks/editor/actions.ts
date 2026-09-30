@@ -20,6 +20,7 @@ import {
 import type { EditorActionState } from "./action-state";
 import { createChecklist, saveDraft, updateChecklist } from "./drafts";
 import { duplicateChecklist } from "./duplicate";
+import { MakeTemplateError, makeTemplateFromChecklist } from "./make-template";
 import { publish } from "./publish";
 import { removeChecklist } from "./removal";
 import { CHECKLISTS_PATH, TEMPLATES_PATH, checklistPath } from "./routes";
@@ -179,4 +180,29 @@ export async function submitDuplicate(form: FormData): Promise<void> {
 
   revalidatePath(CHECKLISTS_PATH, "layout");
   redirect(checklistPath(copyId));
+}
+
+/**
+ * «Сделать шаблоном» в шапке редактора (D169): шаблон без станции и страны из
+ * опубликованного чек-листа, и сразу его редактор. Кнопка стоит только у опубликованного
+ * чек-листа без источника, поэтому отказ здесь — устаревшая вкладка: он пишется в журнал
+ * и возвращает методиста на чек-лист, где кнопки уже нет.
+ */
+export async function submitMakeTemplate(form: FormData): Promise<void> {
+  await requireAdmin();
+
+  const checklistId = formText(form, "checklistId");
+  let templateId: string;
+  try {
+    templateId = await makeTemplateFromChecklist(checklistId);
+  } catch (error) {
+    if (!(error instanceof MakeTemplateError)) throw error;
+    console.error("Редактор: шаблон не сделан", error.reason);
+    revalidatePath(CHECKLISTS_PATH, "layout");
+    redirect(checklistPath(checklistId));
+  }
+
+  revalidatePath(CHECKLISTS_PATH, "layout");
+  revalidatePath(TEMPLATES_PATH);
+  redirect(checklistPath(templateId));
 }

@@ -11,7 +11,6 @@ import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useRef, useState } from "react";
 import type {
   ClipboardEvent,
-  CSSProperties,
   KeyboardEvent,
   ReactNode,
   RefObject,
@@ -214,13 +213,11 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
   let ordinal = 0;
 
   return (
-    <div
-      className="@container flex min-w-0 flex-col"
-      style={{ [HEAD_HEIGHT_VAR]: `${String(headHeight)}px` } as CSSProperties}
-    >
+    <div className="@container flex min-w-0 flex-col">
       <header
         ref={headRef}
-        className="bg-surface sticky top-0 z-10 flex flex-wrap items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)] max-md:gap-[var(--space-5)] max-md:px-[var(--space-7)]">
+        className="bg-surface sticky top-0 z-10 flex flex-wrap items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)] max-md:gap-[var(--space-5)] max-md:px-[var(--space-7)]"
+      >
         <div className="flex min-w-0 flex-col gap-[var(--space-1)]">
           <div className="text-[length:var(--fs-meta)] text-[var(--ink-3)]">
             {props.crumbs}
@@ -455,7 +452,10 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
             </div>
           </div>
 
-          <aside className="sticky top-[calc(var(--editor-head-h)+var(--space-9))] flex w-[268px] flex-col gap-[var(--space-6)] self-start @max-5xl:static @max-5xl:w-full">
+          <aside
+            style={{ top: `calc(${String(headHeight)}px + var(--space-9))` }}
+            className="sticky flex w-[268px] flex-col gap-[var(--space-6)] self-start @max-5xl:static @max-5xl:w-full"
+          >
             <VersionsPanel versions={props.versions} />
             <LibraryPanel
               library={props.library}
@@ -528,8 +528,8 @@ function HiddenState({
 // Шапка редактора (название, статус, «Сохранить» и «Опубликовать») прилипает к верху:
 // чек-лист длинный, и без неё кнопки сохранения уезжали за край. Боковая колонка тоже
 // липкая, поэтому ей нужна настоящая высота шапки — а шапка переносится и на узком
-// экране становится выше. Высота меряется, а не угадывается константой.
-const HEAD_HEIGHT_VAR = "--editor-head-h";
+// экране становится выше. Высота меряется, а не угадывается константой, и уходит
+// колонке прямо в `top`: своя переменная CSS не прошла бы сторож токенов.
 
 function useHeight<T extends HTMLElement>(): [RefObject<T | null>, number] {
   const ref = useRef<T>(null);
@@ -538,7 +538,8 @@ function useHeight<T extends HTMLElement>(): [RefObject<T | null>, number] {
     const node = ref.current;
     if (node === null) return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry !== undefined) setHeight(entry.borderBoxSize[0]?.blockSize ?? 0);
+      if (entry !== undefined)
+        setHeight(entry.borderBoxSize[0]?.blockSize ?? 0);
     });
     observer.observe(node);
     return () => {

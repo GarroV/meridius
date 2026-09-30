@@ -57,6 +57,7 @@ const CORE_FILES = [
   "src/blocks/editor/publish.ts",
   "src/blocks/editor/validation.ts",
   "src/blocks/editor/duplicate.ts",
+  "src/blocks/editor/make-template.ts",
   "src/blocks/editor/library-links.ts",
   "src/blocks/editor/removal.ts",
   "src/blocks/editor/schedule-field.ts",
