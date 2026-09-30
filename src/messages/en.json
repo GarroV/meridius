@@ -17,7 +17,6 @@
     "lead": "Workspace for the management company and partners. Accounts are created by the management company.",
     "or": "or",
     "google": "Sign in with Google",
-    "googleHint": "Use the work email linked to your account. Unknown emails get no access.",
     "googleFailed": "Google sign-in did not work: the email is not linked to an account, or sign-in was interrupted. Try again or use your login and password."
   },
   "notFound": {

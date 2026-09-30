@@ -12,6 +12,11 @@ export interface LoginLabels {
   readonly failed: string;
 }
 
+const PRIMARY_BUTTON =
+  "bg-accent flex h-[var(--control-h)] w-full cursor-pointer items-center justify-center rounded-[var(--r-control)] border border-[var(--accent)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:opacity-45";
+const SECONDARY_BUTTON =
+  "bg-surface text-ink flex h-[var(--control-h)] w-full cursor-pointer items-center justify-center rounded-[var(--r-control)] border border-[var(--line-control)] text-[length:var(--fs-body)] font-medium hover:border-[var(--line-strong)] hover:bg-[var(--surface-3)] disabled:opacity-45";
+
 const INITIAL_STATE: LoginFormState = { failed: false, message: null };
 
 const LOGIN_FIELD_ID = "admin-login";
@@ -22,26 +27,31 @@ const ERROR_ID = "admin-password-error";
  * Форма входа. Действие серверное, поэтому форма работает и с выключенным JavaScript;
  * состояние нужно только чтобы показать отказ и заблокировать кнопку на время проверки.
  */
-export function LoginForm({ labels }: { readonly labels: LoginLabels }) {
+export function LoginForm({
+  labels,
+  isSecondary,
+}: {
+  readonly labels: LoginLabels;
+  /** Рядом есть вход через Google: он главный, кнопка пароля — второстепенная, как у Decimus. */
+  readonly isSecondary: boolean;
+}) {
   const [state, action, pending] = useActionState(submitLogin, INITIAL_STATE);
 
   return (
-    <form action={action} className="flex flex-col gap-[var(--space-6)]">
-      <div className="flex flex-col gap-[var(--space-3)]">
-        <label
-          htmlFor={LOGIN_FIELD_ID}
-          className="text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase"
-        >
+    <form action={action} className="flex flex-col gap-[var(--space-5)]">
+      <div className="flex flex-col">
+        <label htmlFor={LOGIN_FIELD_ID} className="sr-only">
           {labels.login}
         </label>
         <input
           id={LOGIN_FIELD_ID}
           name="login"
           type="text"
+          placeholder={labels.login}
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
-          autoFocus
+          autoFocus={!isSecondary}
           required
           aria-invalid={state.failed}
           aria-describedby={state.failed ? ERROR_ID : undefined}
@@ -49,17 +59,15 @@ export function LoginForm({ labels }: { readonly labels: LoginLabels }) {
         />
       </div>
 
-      <div className="flex flex-col gap-[var(--space-3)]">
-        <label
-          htmlFor={FIELD_ID}
-          className="text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase"
-        >
+      <div className="flex flex-col">
+        <label htmlFor={FIELD_ID} className="sr-only">
           {labels.password}
         </label>
         <input
           id={FIELD_ID}
           name="password"
           type="password"
+          placeholder={labels.password}
           autoComplete="current-password"
           required
           aria-invalid={state.failed}
@@ -83,7 +91,7 @@ export function LoginForm({ labels }: { readonly labels: LoginLabels }) {
         type="submit"
         disabled={pending}
         data-testid="login-submit"
-        className="bg-accent flex h-[var(--control-h)] w-full items-center justify-center rounded-[var(--r-control)] border border-[var(--accent)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:opacity-45"
+        className={isSecondary ? SECONDARY_BUTTON : PRIMARY_BUTTON}
       >
         {pending ? labels.submitting : labels.submit}
       </button>
