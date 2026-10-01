@@ -7,7 +7,10 @@
 // (#11, T074).
 import { ADMIN_SECTIONS } from "@/blocks/core/admin-sections";
 
-/** Лента заполнений. */
+/**
+ * Раздел «Статистика» (D179): страны слева, плитки пиццерий справа. Ключ раздела и адрес
+ * остались от «Заполнений» — по ним живут закладки и ссылки на карточки заполнений.
+ */
 export const FEED_PATH = ADMIN_SECTIONS.feed.path;
 
 /** Карточка одного заполнения. */
@@ -26,7 +29,9 @@ export function submissionPath(id: string): string {
 export const ROUNDS_REPORT_PATH = `${FEED_PATH}/report`;
 
 /**
- * Статистика по стране и пиццерии (D150, D170). Тоже внутри раздела ленты: те же
- * заполнения, но взгляд сводный — «где плохо и что именно», а не «что заполнили».
+ * Экран пиццерии (D179): её чек-листы со статистикой и статусом на сегодня, тревоги и
+ * лента заполнений. Статический отрезок `stores` сильнее `[id]` карточки заполнения.
  */
-export const STATS_PATH = `${FEED_PATH}/stats`;
+export function storeStatsPath(storeId: string): string {
+  return `${FEED_PATH}/stores/${encodeURIComponent(storeId)}`;
+}

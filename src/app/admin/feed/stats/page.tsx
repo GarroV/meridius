@@ -1,26 +1,22 @@
-import { getLocale } from "next-intl/server";
+import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/blocks/auth/guard";
-import type { Locale } from "@/blocks/core/locale";
-import { StatsScreen } from "@/blocks/feed/ui/StatsScreen";
-import { buildStatsModel } from "@/blocks/feed/ui/build-stats-model";
-import { parseStatsView } from "@/blocks/feed/stats-view";
+import { redirectPath } from "@/blocks/core/base-path";
+import { legacyStatsTarget } from "@/blocks/feed/stats-view";
 import type { SearchParams } from "@/blocks/feed/view";
 
 /**
- * Статистика по стране и по пиццерии (D150, D170). `requireAdmin()` — здесь, а не
- * только в разметке: разметка и страница рендерятся параллельно (см. отчёт по обходам).
+ * Бывший экран статистики (D150, D170). С D179 статистика — сам раздел: страна —
+ * плитками пиццерий, пиццерия — своим экраном. Адрес остаётся живым ради закладок:
+ * страна, пиццерия и период доезжают до нового места.
+ *
+ * `requireAdmin()` — первой строкой, как у любой страницы кабинета.
  */
-export default async function StatsPage({
+export default async function LegacyStatsPage({
   searchParams,
 }: {
   readonly searchParams: Promise<SearchParams>;
 }) {
-  const viewer = await requireAdmin();
-
-  const view = parseStatsView(await searchParams);
-  const locale = (await getLocale()) as Locale;
-  const model = await buildStatsModel(view, locale, viewer);
-
-  return <StatsScreen model={model} />;
+  await requireAdmin();
+  redirect(redirectPath(legacyStatsTarget(await searchParams)));
 }

@@ -55,11 +55,18 @@ const CONTENT: Record<
 
 export async function FeedEmpty({
   kind,
+  resetHref,
 }: {
   readonly kind: FeedEmptyKind;
+  /** Куда ведёт «Сбросить фильтры»: экран пиццерии сбрасывает фильтр у себя (D179). */
+  readonly resetHref?: string;
 }): Promise<ReactElement> {
   const t = await getTranslations("feed.empty");
-  const content = CONTENT[kind];
+  const base = CONTENT[kind];
+  const content =
+    kind === "period" && resetHref !== undefined
+      ? { ...base, href: resetHref }
+      : base;
 
   return (
     <div className={CARD_CLASS}>

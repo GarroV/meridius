@@ -46,7 +46,7 @@ const SECTION_ICONS: Readonly<Record<AdminSectionKey, IconName>> = {
   stations: "board",
   templates: "doc",
   library: "book",
-  feed: "check",
+  feed: "graph",
   catalog: "globe",
   qr: "tag",
   devices: "monitor",
