@@ -22,13 +22,24 @@
 //    опубликованной версией), но ни заполнения, ни отметки обхода не было дольше суток.
 //    Отсчёт — от последнего сигнала или от выхода первой версии, что позже: чек-лист,
 //    вышедший два часа назад, молчанием станции не делает.
-import { and, sql, type SQL } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/blocks/data";
 import type { LocalizedText } from "@/blocks/data";
 
-import { scopeConditions, type FeedScope } from "./scope";
-import { itemCriticalSql, itemFailedSql } from "./stats-grading";
+import type { FeedScope } from "./scope";
+import { itemFailedSql } from "./stats-grading";
+import {
+  FAILED_CRITICAL,
+  LAST_ANSWER,
+  PLACE_JOIN,
+  SNAPSHOT_ITEMS,
+  epochMs,
+  periodWindow,
+  scopeWhere,
+  submissionsInWindow,
+  type Window,
+} from "./stats-sql";
 import type { StatsPeriodDays } from "./stats-view";
 
 /** Сколько пунктов в списке чаще всего проваливаемых (D170). */
@@ -37,8 +48,6 @@ const TOP_FAILED_LIMIT = 5;
 const SILENT_LIST_LIMIT = 20;
 /** Порог молчания (D170). */
 const SILENCE_HOURS = 24;
-
-const HOUR_MS = 3_600_000;
 
 interface FailedItemStat {
   readonly itemId: string;
@@ -76,48 +85,6 @@ export interface Stats {
   readonly silentStations: readonly SilentStation[];
 }
 
-interface Window {
-  readonly from: SQL;
-  readonly to: SQL;
-}
-
-function timestamp(at: Date): SQL {
-  return sql`${at.toISOString()}::timestamptz`;
-}
-
-/** Время из базы числом миллисекунд: разбор строк времени драйвером здесь не нужен. */
-function epochMs(column: SQL): SQL {
-  return sql`(extract(epoch from ${column}) * 1000)::float8`;
-}
-
-function scopeWhere(scope: FeedScope): SQL {
-  return and(...scopeConditions(scope)) ?? sql`true`;
-}
-
-/** Станция → пиццерия: к ним цепляются условия области видимости. */
-const PLACE_JOIN = sql`join stations on stations.id = src.station_id
-  join stores on stores.id = stations.store_id`;
-
-/** Последний ответ на пункт в заполнении — как `answersByItem` в `data/grading.ts`. */
-const LAST_ANSWER = sql`cross join lateral (
-    select a.answer -> 'value' as value
-    from jsonb_array_elements(src.answers) with ordinality as a(answer, n)
-    where a.answer ->> 'itemId' = it.item ->> 'id'
-    order by a.n desc
-    limit 1
-  ) as ans`;
-
-/** Пункты снимка заполнения. */
-const SNAPSHOT_ITEMS = sql`cross join lateral jsonb_array_elements(src.snapshot) as sec(section)
-  cross join lateral jsonb_array_elements(sec.section -> 'items') as it(item)`;
-
-function submissionsInWindow(scope: FeedScope, window: Window): SQL {
-  return sql`${scopeWhere(scope)}
-    and not src.duplicate
-    and src.submitted_at >= ${window.from}
-    and src.submitted_at <= ${window.to}`;
-}
-
 interface SummaryRow extends Record<string, unknown> {
   readonly total: number;
   readonly critical_failed: number;
@@ -127,17 +94,9 @@ async function loadSummary(
   scope: FeedScope,
   window: Window,
 ): Promise<SummaryRow> {
-  const failedCritical = sql`exists (
-    select 1 from (select 1) as one
-    ${SNAPSHOT_ITEMS}
-    ${LAST_ANSWER}
-    where ${itemCriticalSql(sql`it.item`)}
-      and ${itemFailedSql(sql`it.item`, sql`ans.value`)}
-  )`;
-
   const result = await getDb().execute<SummaryRow>(sql`
     select count(*)::int as total,
-      count(*) filter (where ${failedCritical})::int as critical_failed
+      count(*) filter (where ${FAILED_CRITICAL})::int as critical_failed
     from submissions as src
     ${PLACE_JOIN}
     where ${submissionsInWindow(scope, window)}`);
@@ -301,8 +260,7 @@ export async function loadStats(
   days: StatsPeriodDays,
   now: Date,
 ): Promise<Stats> {
-  const from = new Date(now.getTime() - days * 24 * HOUR_MS);
-  const window: Window = { from: timestamp(from), to: timestamp(now) };
+  const { from, window } = periodWindow(days, now);
 
   const [summary, topFailedItems, alarmCount, silent] = await Promise.all([
     loadSummary(scope, window),
