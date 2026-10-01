@@ -26,9 +26,7 @@
 // Лента заполнений для этого не переиспользуется намеренно: у неё свой период и свой
 // предел выдачи в 200 строк, и тревога, пропавшая из-за выбранного периода, — это
 // именно та тихая потеря, ради которой тревоги и заводились.
-import { and, desc, eq, isNull, notExists, sql } from "drizzle-orm";
-import type { SQL } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import {
   checklistVersions,
@@ -36,9 +34,7 @@ import {
   countFailedCritical,
   countUnansweredCritical,
   getDb,
-  sectionsForMode,
   stations,
-  storeShiftModes,
   stores,
   submissions,
   timezoneNames,
@@ -51,6 +47,13 @@ import {
   countUnknownTimezoneStores,
   scopeConditions,
 } from "./scope";
+import { isMissedToday } from "./today-status";
+import { listLiveChecklists } from "./today-windows";
+import {
+  localNowSql,
+  submittedInPass,
+  windowPassEndingToday,
+} from "./window-pass";
 
 /**
  * Сколько строк читается на одну тревогу каждого вида. Провал виден только после
@@ -101,85 +104,12 @@ export interface AlarmList {
   readonly unknownTimezoneStores: number;
 }
 
+const MS_PER_SECOND = 1000;
+
 /** Промежуточный результат одного вида тревог: без общего счёта сломанных поясов. */
 interface Scanned {
   readonly alarms: Alarm[];
   readonly capped: boolean;
-}
-
-/** Режим по умолчанию — тот же, что на экране заполнения: полная смена (D055). */
-const DEFAULT_MODE: ShiftMode = "normal";
-
-const MS_PER_SECOND = 1000;
-
-/**
- * Местное время пиццерии для момента `at`. Считает база, а не JavaScript: сутки смены
- * заканчиваются там, где смена работает (D026).
- *
- * Пояс берётся из присоединённого списка зон, а НЕ из `stores.timezone`: эти выборки
- * идут по многим пиццериям сразу, и одно незнакомое базе имя роняло бы весь запрос —
- * то есть экран управляющего целиком. С присоединённым именем такая пиццерия даёт
- * NULL, выпадает из условий и попадает в отдельный счёт (`unknownTimezoneStores`),
- * который полоса тревог показывает вслух.
- */
-function localNowSql(at: Date) {
-  return sql`(${at.toISOString()}::timestamptz at time zone ${timezoneNames.name})`;
-}
-
-/**
- * Проход окна чек-листа, закончившийся СЕГОДНЯ по местному времени пиццерии.
- *
- * Один набор выражений на двоих: по нему считается и пропущенный чек-лист, и критичный
- * пункт, оставшийся без ответа. Держать их одним куском обязательно — правило подъёма
- * у них общее (D054), а две копии этого счёта разъехались бы на первой же правке, и
- * разъехались бы молча: обе продолжали бы что-то показывать.
- *
- * Берётся именно закончившийся проход, а не начавшийся: у окна через полночь
- * (20:00–00:00) проход, начатый сегодня, кончается завтра, и по началу вечернее
- * закрытие не порождало бы тревоги никогда — а именно оно и есть самое важное.
- */
-interface WindowPass {
-  /** Проход уже закрылся: раньше этого момента тревоге звучать не о чем. */
-  readonly closed: SQL;
-  /** Начало прохода в местном времени. У окна через полночь — вчерашние сутки. */
-  readonly startLocal: SQL;
-  /** Конец прохода в местном времени: сегодняшняя дата плюс конец окна. */
-  readonly endLocal: SQL;
-  /**
-   * Момент закрытия окна секундами эпохи, а не отметкой времени: для node-postgres
-   * drizzle отключает разбор дат драйвером и сам разбирает только СВОИ колонки, поэтому
-   * сырое выражение вернулось бы строкой «2026-09-06 12:00:00+00» (проверено на этой
-   * базе). Число же не зависит ни от разборщика, ни от локали.
-   */
-  readonly closedAtEpoch: SQL<number>;
-}
-
-function windowPassEndingToday(at: Date): WindowPass {
-  const localNow = localNowSql(at);
-  const localDate = sql`${localNow}::date`;
-  const localTime = sql`${localNow}::time`;
-
-  const startLocal = sql`(case
-        when ${checklists.windowStart} <= ${checklists.windowEnd}
-          then ${localDate} + ${checklists.windowStart}
-        else (${localDate} - 1) + ${checklists.windowStart}
-      end)`;
-  const endLocal = sql`(${localDate} + ${checklists.windowEnd})`;
-
-  return {
-    closed: sql`${localTime} >= ${checklists.windowEnd}`,
-    startLocal,
-    endLocal,
-    closedAtEpoch: sql<number>`extract(epoch from (${endLocal} at time zone ${timezoneNames.name}))::float8`,
-  };
-}
-
-/** Заполнение попало в этот проход окна: между открытием и закрытием. */
-function submittedInPass(pass: WindowPass): SQL[] {
-  return [
-    sql`(${submissions.submittedAt} at time zone ${timezoneNames.name}) >= ${pass.startLocal}`,
-    sql`(${submissions.submittedAt} at time zone ${timezoneNames.name}) < ${pass.endLocal}`,
-  ];
 }
 
 /** Провалы критичных пунктов в заполнениях за текущие местные сутки пиццерии. */
@@ -353,92 +283,27 @@ async function listUnansweredCritical(
 /**
  * Чек-листы, чьё окно за сегодня закрылось без заполнения.
  *
- * Проход окна — тот же, по которому поднимается критичный пункт без ответа
- * (`windowPassEndingToday`): закончившийся сегодня по местному времени.
+ * Своего запроса здесь нет: живые чек-листы и их проходы приносит `today-windows.ts`, а
+ * пропуск решает `isMissedToday` — то же правило, по которому статус чек-листа на экране
+ * пиццерии говорит «окно пропущено» (D179). Проход — закончившийся сегодня по местному
+ * времени, тот же, по которому поднимается критичный пункт без ответа.
  */
 async function listMissedChecklists(
   scope: FeedScope,
   at: Date,
 ): Promise<Scanned> {
-  const pass = windowPassEndingToday(at);
-  const { startLocal, closedAtEpoch } = pass;
-
-  // Режим смены берётся за те сутки, в которых окно НАЧАЛОСЬ: чек-лист ждали от той
-  // смены, которая его и открыла, а не от той, что пришла после полуночи (D055).
-  const shiftMode = sql<ShiftMode | null>`(
-      select ${storeShiftModes.mode}
-      from ${storeShiftModes}
-      where ${storeShiftModes.storeId} = ${stores.id}
-        and ${storeShiftModes.localDate} = ${startLocal}::date
-      order by ${storeShiftModes.setAt} desc
-      limit 1
-    )`;
-
-  // Заполнение этого чек-листа внутри именно этого прохода окна. Версия любая:
-  // сотрудник мог заполнять прежнюю, пока методист публиковал следующую (T041).
-  const filledVersion = alias(checklistVersions, "filled_version");
-  const notFilled = notExists(
-    getDb()
-      .select({ one: sql`1` })
-      .from(submissions)
-      .innerJoin(filledVersion, eq(submissions.versionId, filledVersion.id))
-      .where(
-        and(
-          eq(filledVersion.checklistId, checklists.id),
-          ...submittedInPass(pass),
-        ),
-      ),
-  );
-
-  const rows = await getDb()
-    .select({
-      checklistId: checklists.id,
-      checklistTitle: checklists.title,
-      sections: checklistVersions.sections,
-      countryId: stores.countryId,
-      storeId: stores.id,
-      storeName: stores.name,
-      stationId: stations.id,
-      stationName: stations.name,
-      timeZone: stores.timezone,
-      mode: shiftMode,
-      closedAtEpoch,
-    })
-    .from(checklists)
-    .innerJoin(stations, eq(checklists.stationId, stations.id))
-    .innerJoin(stores, eq(stations.storeId, stores.id))
-    .leftJoin(timezoneNames, ZONE_MATCHES)
-    // Та же проверка принадлежности, что и на экране заполнения: версия обязана быть
-    // опубликована для этой же станции, иначе после переноса чек-листа тревога
-    // приходила бы станции, которая его никогда не видела (T056).
-    .innerJoin(
-      checklistVersions,
-      and(
-        eq(checklistVersions.checklistId, checklists.id),
-        eq(checklistVersions.status, "published"),
-        eq(checklistVersions.stationId, stations.id),
-      ),
-    )
-    .where(
-      and(
-        ...scopeConditions(scope),
-        // Снятый с работы чек-лист не ждут: методист убрал его из работы сам.
-        isNull(checklists.archivedAt),
-        pass.closed,
-        notFilled,
-      ),
-    )
-    .orderBy(sql`${closedAtEpoch} desc`, desc(checklists.id))
-    .limit(MAX_SCANNED);
+  const { rows, capped } = await listLiveChecklists(scope, at);
 
   const alarms = rows
-    .map((row) => ({ row, mode: row.mode ?? DEFAULT_MODE }))
-    // Пункты фильтруются в памяти, а не в SQL: матрица «режим → уровни» живёт в одном
-    // месте (D056), и повторять её условием запроса значит завести ей второй дом.
-    .filter(({ row, mode }) => sectionsForMode(row.sections, mode).length > 0)
-    .map(({ row, mode }) => ({
-      kind: "missed" as const,
-      key: `missed:${row.checklistId}:${String(row.closedAtEpoch)}`,
+    .flatMap((row) => {
+      const pass = row.day?.endingToday;
+      return pass !== undefined && isMissedToday(pass, at)
+        ? [{ row, closedAt: pass.endAt }]
+        : [];
+    })
+    .map(({ row, closedAt }): Alarm => ({
+      kind: "missed",
+      key: `missed:${row.checklistId}:${String(closedAt.getTime() / MS_PER_SECOND)}`,
       countryId: row.countryId,
       storeId: row.storeId,
       storeName: row.storeName,
@@ -447,13 +312,19 @@ async function listMissedChecklists(
       checklistId: row.checklistId,
       checklistTitle: row.checklistTitle,
       timeZone: row.timeZone,
-      at: new Date(row.closedAtEpoch * MS_PER_SECOND),
+      at: closedAt,
       submissionId: null,
       itemCount: 0,
-      mode,
-    }));
+      mode: row.endingMode,
+    }))
+    // Свежие сверху, как и у остальных видов; при равенстве — устойчиво по чек-листу.
+    .toSorted(
+      (a, b) =>
+        b.at.getTime() - a.at.getTime() ||
+        b.checklistId.localeCompare(a.checklistId),
+    );
 
-  return { alarms, capped: rows.length === MAX_SCANNED };
+  return { alarms, capped };
 }
 
 /**
