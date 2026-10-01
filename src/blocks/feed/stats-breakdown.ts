@@ -55,7 +55,8 @@ interface SummaryRow extends Record<string, unknown> {
   readonly key: string;
   readonly total: number;
   readonly critical_failed: number;
-  readonly last_ms: number | null;
+  /** Группа есть только там, где заполнение было, — поэтому не `null`. */
+  readonly last_ms: number;
 }
 
 /** Доля; `null`, когда делить не на что. */
@@ -96,7 +97,7 @@ export async function loadSummariesBy(
         submissionCount: row.total,
         criticalFailedCount: row.critical_failed,
         criticalFailedShare: shareOf(row.critical_failed, row.total),
-        lastSubmittedAt: row.last_ms === null ? null : new Date(row.last_ms),
+        lastSubmittedAt: new Date(row.last_ms),
       },
     ]),
   );

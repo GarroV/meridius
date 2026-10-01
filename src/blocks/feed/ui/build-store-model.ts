@@ -99,6 +99,9 @@ export async function buildStoreModel(
     reportHref: roundsReportHref({
       countryId: store.countryId,
       storeId: store.id,
+      ...(feed.selection.stationId === null
+        ? {}
+        : { stationId: feed.selection.stationId }),
       period: feed.selection.period,
     }),
     stats,

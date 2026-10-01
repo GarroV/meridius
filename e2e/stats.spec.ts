@@ -1,12 +1,14 @@
-// Сквозной сценарий статистики (D150, D170): управляющий уходит из ленты пиццерии в
-// статистику с тем же выбором, видит числа за 7 дней, переключает период на 30 и
-// видит станцию, молчащую дольше суток. Сами числа сверяет тест ядра
-// (`src/blocks/feed/stats.test.ts`); здесь — что они доезжают до экрана и что экран
-// не уезжает вбок на телефоне.
+// Сквозной сценарий раздела «Статистика» (D179, состав D170): управляющий выбирает
+// страну слева, видит плитку пиццерии со статусом на сегодня, проваливается в неё и
+// видит все её чек-листы со статистикой и статусом, сводку за 7 дней, переключает
+// период на 30 и видит станцию, молчащую дольше суток. Сами числа сверяют тесты ядра
+// (`src/blocks/feed/stats*.test.ts`, `today-*.test.ts`); здесь — что они доезжают до
+// экрана, что старый адрес статистики ведёт в раздел и что экран не уезжает вбок на
+// телефоне.
 import { randomUUID } from "node:crypto";
 
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { Pool } from "pg";
 
 import { e2eDatabaseUrl } from "./database";
@@ -40,7 +42,9 @@ function sectionsOf(label: string) {
 
 interface Seeded {
   readonly label: string;
+  readonly countryId: string;
   readonly storeId: string;
+  readonly storeName: string;
   readonly silentStation: string;
 }
 
@@ -80,7 +84,9 @@ async function seed(): Promise<Seeded> {
         ],
       );
     };
-    await fill(2, false);
+    // Провал — только что: тревога «провален критичный» живёт в местных сутках, и
+    // «два часа назад» в первые часы суток UTC попадало бы во вчера.
+    await fill(0, false);
     await fill(5, true);
     await fill(20 * 24, true);
 
@@ -102,28 +108,89 @@ async function seed(): Promise<Seeded> {
       [checklist.rows[0]?.id, counter.rows[0]?.id, JSON.stringify(sections)],
     );
 
-    return { label, storeId: kitchen.storeId, silentStation };
+    return {
+      label,
+      countryId: kitchen.countryId,
+      storeId: kitchen.storeId,
+      storeName: kitchen.storeName,
+      silentStation,
+    };
   } finally {
     await pool.end();
   }
 }
 
-test.describe("статистика по пиццерии (D150)", () => {
+/** Нарушения axe вместе с элементом: по голому id не понять, что чинить. */
+async function axeViolations(page: Page): Promise<string[]> {
+  const axe = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
+  expect(axe.passes.length, "axe ничего не проверил").toBeGreaterThan(0);
+  return axe.violations.map(
+    (violation) =>
+      `${violation.id} → ${violation.nodes.map((node) => node.target.join(" ")).join(", ")}`,
+  );
+}
+
+async function pageWidth(page: Page): Promise<number> {
+  return page.evaluate(() => document.documentElement.scrollWidth);
+}
+
+test.describe("раздел «Статистика» (D179)", () => {
   // Тексты сценария и вход — на русском: язык кабинета берётся из браузера.
   test.use({ locale: "ru-RU" });
 
-  test("из ленты — в статистику с тем же выбором; 7 и 30 дней; молчащая станция", async ({
+  test("страна → плитка пиццерии → её чек-листы со статусом; 7 и 30 дней; молчащая станция", async ({
     page,
   }) => {
     const seeded = await seed();
     await signIn(page);
 
-    await page.goto(`/admin/feed?store=${seeded.storeId}`);
-    await page.getByTestId("feed-stats-link").click();
+    await page.goto(`/admin/feed?country=${seeded.countryId}`);
+    await expect(page.getByTestId("feed-screen")).toBeVisible();
 
-    await expect(page.getByTestId("stats-screen")).toBeVisible();
-    expect(page.url()).toContain(`store=${seeded.storeId}`);
-    await expect(page.getByTestId("stats-lead")).toBeVisible();
+    // Выбранная страна подсвечена в колонке слева.
+    await expect(
+      page
+        .getByTestId("country-rail")
+        .locator('[data-testid="country-row"][aria-current="page"]'),
+    ).toContainText(`Страна ${seeded.label}`);
+
+    // Плитка пиццерии: статус на сегодня и цифры за 7 дней.
+    const tile = page
+      .getByTestId("store-tile")
+      .filter({ hasText: seeded.storeName });
+    await expect(tile).toHaveCount(1);
+    await expect(tile).toContainText("За 7 дней: 2 заполнения");
+    // Провал газа сегодня — тревога на плитке.
+    await expect(tile.getByTestId("tile-alarms")).toBeVisible();
+    // Сводка страны — те же числа: в стране одна пиццерия.
+    await expect(page.getByTestId("stats-submissions")).toHaveText("2");
+
+    await tile.click();
+    await expect(page.getByTestId("store-stats-screen")).toBeVisible();
+    await expect(page).toHaveURL(
+      new RegExp(`/admin/feed/stores/${seeded.storeId}`),
+    );
+
+    // Все чек-листы пиццерии: кухня и касса, у каждого — статус на сегодня.
+    const rows = page.getByTestId("store-checklist-row");
+    await expect(rows).toHaveCount(2);
+    await expect(rows.getByTestId("today-status")).toHaveCount(2);
+    const kitchenRow = rows.filter({
+      hasText: `Открытие кухни ${seeded.label}`,
+    });
+    await expect(kitchenRow.getByTestId("checklist-submissions")).toHaveText(
+      "2",
+    );
+    await expect(kitchenRow.getByTestId("checklist-critical")).toContainText(
+      /50\s?%/,
+    );
+    // У кассы заполнений нет: статус — «открыто» или «пропущено», но не «заполнен».
+    const counterRow = rows.filter({ hasText: seeded.silentStation });
+    await expect(counterRow.getByTestId("today-status")).not.toHaveAttribute(
+      "data-kind",
+      "filled",
+    );
+
     await expect(page.getByTestId("stats-submissions")).toHaveText("2");
     await expect(page.getByTestId("stats-critical-share")).toHaveText(/50\s?%/);
 
@@ -139,48 +206,75 @@ test.describe("статистика по пиццерии (D150)", () => {
     await expect(silent.first()).toContainText(seeded.silentStation);
     await expect(page.getByTestId("stats-silent")).toHaveText("1");
 
-    const period = page.locator("#feed-filter-days");
-    await expect(period).toHaveAttribute("data-live", "true");
-    await period.selectOption("30");
+    // Лента заполнений переехала сюда: два заполнения кухни за сегодня видны строками.
+    await expect(page.getByTestId("store-feed")).toBeVisible();
+    await expect(page.getByTestId("alarm-strip")).toBeVisible();
+
+    await page.getByTestId("stats-days-30").click();
     await expect(page).toHaveURL(/days=30/);
     await expect(page.getByTestId("stats-submissions")).toHaveText("3");
     await expect(page.getByTestId("stats-critical-share")).toHaveText(
       /33[.,]3\s?%/,
     );
+    await expect(kitchenRow.getByTestId("checklist-submissions")).toHaveText(
+      "3",
+    );
 
-    await page.getByTestId("stats-feed-link").click();
+    // Назад — к плиткам той же страны, с тем же периодом.
+    await page.getByTestId("store-back").click();
     await expect(page.getByTestId("feed-screen")).toBeVisible();
-    expect(page.url()).toContain(`store=${seeded.storeId}`);
+    await expect(page).toHaveURL(new RegExp(`country=${seeded.countryId}`));
+    await expect(page).toHaveURL(/days=30/);
   });
 
-  test("на телефоне страница не шире окна; доступность без нарушений", async ({
+  test("бывший адрес статистики ведёт в раздел с той же страной и пиццерией", async ({
+    page,
+  }) => {
+    const seeded = await seed();
+    await signIn(page);
+
+    await page.goto(`/admin/feed/stats?country=${seeded.countryId}&days=30`);
+    await expect(page.getByTestId("feed-screen")).toBeVisible();
+    await expect(page).toHaveURL(
+      new RegExp(`/admin/feed\\?country=${seeded.countryId}&days=30`),
+    );
+
+    await page.goto(`/admin/feed/stats?store=${seeded.storeId}`);
+    await expect(page.getByTestId("store-stats-screen")).toBeVisible();
+    await expect(page).toHaveURL(
+      new RegExp(`/admin/feed/stores/${seeded.storeId}`),
+    );
+  });
+
+  test("на телефоне страна и пиццерия не шире окна; доступность без нарушений", async ({
     page,
   }) => {
     const seeded = await seed();
     await page.setViewportSize(PHONE);
     await signIn(page);
 
-    await page.goto(`/admin/feed/stats?store=${seeded.storeId}`);
-    await expect(page.getByTestId("stats-screen")).toBeVisible();
+    // Без выбранной страны на телефоне видна колонка стран, с выбранной — плитки.
+    await page.goto("/admin/feed");
+    await expect(page.getByTestId("country-rail")).toBeVisible();
 
-    const width = await page.evaluate(
-      () => document.documentElement.scrollWidth,
-    );
+    await page.goto(`/admin/feed?country=${seeded.countryId}`);
+    await expect(page.getByTestId("store-tiles")).toBeVisible();
+    await expect(page.getByTestId("country-rail")).toBeHidden();
     expect(
-      width,
-      "страница статистики уехала вбок на 375 px",
+      await pageWidth(page),
+      "экран страны уехал вбок на 375 px",
+    ).toBeLessThanOrEqual(PHONE.width);
+    expect(await axeViolations(page)).toEqual([]);
+
+    await page.goto(`/admin/feed/stores/${seeded.storeId}`);
+    await expect(page.getByTestId("store-stats-screen")).toBeVisible();
+    expect(
+      await pageWidth(page),
+      "экран пиццерии уехал вбок на 375 px",
     ).toBeLessThanOrEqual(PHONE.width);
 
     // Доступность — на той же ширине 375 px: здесь меню свёрнуто в иконки, и именно
     // здесь ссылка-логотип теряла видимую подпись (#195).
-    const axe = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
-    // Нарушение называется вместе с элементом: по голому id не понять, что чинить.
-    expect(
-      axe.violations.map(
-        (violation) =>
-          `${violation.id} → ${violation.nodes.map((node) => node.target.join(" ")).join(", ")}`,
-      ),
-    ).toEqual([]);
-    expect(axe.passes.length, "axe ничего не проверил").toBeGreaterThan(0);
+    expect(await axeViolations(page)).toEqual([]);
   });
 });

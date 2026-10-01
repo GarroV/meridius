@@ -415,12 +415,25 @@ test.describe("доступность: админка", () => {
     expectAccessible(await runAxe(page));
   });
 
-  test("лента заполнений без нарушений доступности", async ({ page }) => {
-    await seedAdminScreens("лента");
+  test("раздел «Статистика» без нарушений доступности", async ({ page }) => {
+    await seedAdminScreens("статистика");
     await signIn(page);
 
     await page.goto("/admin/feed");
     await page.getByTestId("feed-screen").waitFor();
+
+    expectAccessible(await runAxe(page));
+  });
+
+  // Лента заполнений с D179 живёт на экране пиццерии — проверяется там.
+  test("экран пиццерии с лентой заполнений без нарушений доступности", async ({
+    page,
+  }) => {
+    const seed = await seedAdminScreens("пиццерия");
+    await signIn(page);
+
+    await page.goto(`/admin/feed/stores/${seed.storeId}`);
+    await page.getByTestId("store-stats-screen").waitFor();
 
     expectAccessible(await runAxe(page));
   });

@@ -139,7 +139,7 @@ const CABINET_SCREENS: readonly CabinetScreen[] = [
     path: "/admin/library",
     testId: "library-screen",
   },
-  { name: "заполнения", path: "/admin/feed", testId: "feed-screen" },
+  { name: "статистика", path: "/admin/feed", testId: "feed-screen" },
   {
     name: "страны и пиццерии",
     path: "/admin/catalog",
