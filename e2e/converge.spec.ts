@@ -235,8 +235,11 @@ test.describe("цепочка критерия 3: справочник → че�
     await phone.close();
 
     // 8. Обратный конец цепочки: отправленное телефоном видно методисту в ленте —
-    // с тем же комментарием и той же отметкой о провале критичного пункта.
-    await page.goto(FEED_PATH);
+    // с тем же комментарием и той же отметкой о провале критичного пункта. Лента живёт
+    // на экране пиццерии раздела «Статистика» (D179): туда и ведёт плитка пиццерии.
+    await page.goto(`${FEED_PATH}?country=${countryId}`);
+    await page.getByTestId("store-tile").filter({ hasText: storeName }).click();
+    await expect(page.getByTestId("store-stats-screen")).toBeVisible();
     const row = page
       .getByTestId("submission-row")
       .filter({ hasText: stationName });

@@ -41,6 +41,10 @@ export interface FeedFiltersProps {
    * на адрес ленты значило бы после «Применить» тихо увести человека с отчёта.
    */
   readonly action?: string;
+  /** Списки страны и пиццерии; на экране пиццерии их задаёт адрес (D179). */
+  readonly withPlace?: boolean;
+  /** Параметры экрана, которые форма обязана донести, не показывая: период статистики. */
+  readonly hidden?: Readonly<Record<string, string>>;
 }
 
 export async function FeedFilters({
@@ -48,6 +52,8 @@ export async function FeedFilters({
   timeZone,
   timeZoneAmbiguous,
   action = FEED_PATH,
+  withPlace = true,
+  hidden = {},
 }: FeedFiltersProps): Promise<ReactElement> {
   const t = await getTranslations("feed.filters");
 
@@ -60,8 +66,12 @@ export async function FeedFilters({
           data-testid="feed-filters"
           className={ROW_CLASS}
         >
+          {Object.entries(hidden).map(([name, value]) => (
+            <input key={name} type="hidden" name={name} value={value} />
+          ))}
           <FeedFilterSelects
             selection={selection}
+            withPlace={withPlace}
             labels={{
               country: t("country"),
               store: t("store"),

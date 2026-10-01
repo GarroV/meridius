@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { feedHref, parseFeedView, submissionHref } from "./view";
+import {
+  feedHref,
+  parseFeedView,
+  roundsReportHref,
+  submissionHref,
+} from "./view";
 
 const COUNTRY = "0d6fdf4e-1f16-4f3f-9f27-9b6f8b0a1c11";
 const STORE = "3a2b7c1d-2e44-4b1a-8c5e-6f9d0a1b2c33";
@@ -58,7 +63,7 @@ describe("feedHref", () => {
     );
   });
 
-  it("собирает адрес со всеми фильтрами", () => {
+  it("с пиццерией ведёт на её экран: лента живёт там, страна задана самой пиццерией (D179)", () => {
     expect(
       feedHref({
         countryId: COUNTRY,
@@ -66,8 +71,12 @@ describe("feedHref", () => {
         stationId: STATION,
         period: "month",
       }),
-    ).toBe(
-      `/admin/feed?country=${COUNTRY}&store=${STORE}&station=${STATION}&period=month`,
+    ).toBe(`/admin/feed/stores/${STORE}?station=${STATION}&period=month`);
+  });
+
+  it("станция без пиццерии остаётся параметром раздела: он доведёт её до пиццерии", () => {
+    expect(feedHref({ stationId: STATION, period: "week" })).toBe(
+      `/admin/feed?station=${STATION}&period=week`,
     );
   });
 });
@@ -95,5 +104,13 @@ describe("submissionHref", () => {
         period: "today",
       }),
     ).toBe("/admin/feed/11111111-2222-4333-8444-555555555555");
+  });
+});
+
+describe("roundsReportHref", () => {
+  it("отчёт получает все четыре фильтра, а не адрес экрана пиццерии", () => {
+    expect(
+      roundsReportHref({ storeId: STORE, stationId: STATION, period: "week" }),
+    ).toBe(`/admin/feed/report?store=${STORE}&station=${STATION}&period=week`);
   });
 });

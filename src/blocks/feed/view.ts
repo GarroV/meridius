@@ -2,7 +2,12 @@
 // в чате, и она откроется тем же экраном. Всё, что приходит из адреса, разбирается
 // строго — это ввод от кого угодно, а не от нашей же формы.
 import { DEFAULT_PERIOD, isFeedPeriod, type FeedPeriod } from "./period";
-import { FEED_PATH, ROUNDS_REPORT_PATH, submissionPath } from "./routes";
+import {
+  FEED_PATH,
+  ROUNDS_REPORT_PATH,
+  storeStatsPath,
+  submissionPath,
+} from "./routes";
 
 export const COUNTRY_PARAM = "country";
 export const STORE_PARAM = "store";
@@ -55,8 +60,16 @@ export function parseFeedView(params: SearchParams): FeedView {
   return view;
 }
 
-/** Адрес ленты с заданным состоянием. Умолчание и пустые значения в адрес не попадают. */
-export function feedHref(view: FeedView): string {
+/** Параметры адреса ленты. Умолчание и пустые значения в адрес не попадают. */
+function feedQuery(
+  view: FeedView,
+  keys: readonly string[] = [
+    COUNTRY_PARAM,
+    STORE_PARAM,
+    STATION_PARAM,
+    PERIOD_PARAM,
+  ],
+): string {
   const query = new URLSearchParams();
   const entries: [string, string | undefined][] = [
     [COUNTRY_PARAM, view.countryId],
@@ -66,19 +79,35 @@ export function feedHref(view: FeedView): string {
   ];
 
   for (const [key, value] of entries) {
-    if (value !== undefined && value !== "") query.set(key, value);
+    if (keys.includes(key) && value !== undefined && value !== "") {
+      query.set(key, value);
+    }
   }
+  return query.toString();
+}
 
-  const search = query.toString();
-  return search === "" ? FEED_PATH : `${FEED_PATH}?${search}`;
+function withQuery(path: string, query: string): string {
+  return query === "" ? path : `${path}?${query}`;
+}
+
+/**
+ * Адрес ленты с заданным состоянием. Лента живёт на экране пиццерии (D179): с выбранной
+ * пиццерией адрес ведёт туда, станция и период — параметрами. Без пиццерии — в раздел
+ * «Статистика»; станцию без пиццерии раздел сам доведёт до её пиццерии.
+ */
+export function feedHref(view: FeedView): string {
+  if (view.storeId !== undefined && view.storeId !== "") {
+    return withQuery(
+      storeStatsPath(view.storeId),
+      feedQuery(view, [STATION_PARAM, PERIOD_PARAM]),
+    );
+  }
+  return withQuery(FEED_PATH, feedQuery(view));
 }
 
 /** Адрес отчёта об обходах с тем же состоянием фильтров, что у ленты. */
 export function roundsReportHref(view: FeedView): string {
-  const query = feedHref(view).split("?")[1];
-  return query === undefined
-    ? ROUNDS_REPORT_PATH
-    : `${ROUNDS_REPORT_PATH}?${query}`;
+  return withQuery(ROUNDS_REPORT_PATH, feedQuery(view));
 }
 
 /** Состояние фильтров в том виде, в каком его отдаёт модель экрана (незаданное — `null`). */
@@ -103,7 +132,5 @@ export function toFeedView(state: FeedFilterState): FeedView {
  * ленту, из которой пришли, а не в ленту «за сегодня по всей сети».
  */
 export function submissionHref(id: string, state: FeedFilterState): string {
-  const path = submissionPath(id);
-  const query = feedHref(toFeedView(state)).split("?")[1];
-  return query === undefined ? path : `${path}?${query}`;
+  return withQuery(submissionPath(id), feedQuery(toFeedView(state)));
 }

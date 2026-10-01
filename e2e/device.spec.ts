@@ -126,8 +126,10 @@ test.describe("привязанный планшет", () => {
     const stored = await lastSubmission(stand.stationId);
     expect(stored?.versionId).toBe(stand.versionId);
 
-    // Отметка видна управляющему — ради этого экран и ставили на станцию.
-    await admin.goto(FEED_PATH);
+    // Отметка видна управляющему — ради этого экран и ставили на станцию. Лента живёт
+    // на экране пиццерии (D179); адрес со станцией доводит туда сам.
+    await admin.goto(`${FEED_PATH}?station=${stand.stationId}`);
+    await expect(admin.getByTestId("store-stats-screen")).toBeVisible();
     await expect(admin.getByTestId("feed-table")).toContainText(
       stand.stationName,
     );

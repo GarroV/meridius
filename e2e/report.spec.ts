@@ -158,13 +158,16 @@ test.describe("отчёт об обходах", () => {
   // Эталон и тексты сценария русские, поэтому и браузер русский.
   test.use({ locale: "ru-RU" });
 
-  test("из ленты открывается отчёт с теми же фильтрами и показывает пропуски", async ({
+  test("с экрана пиццерии открывается отчёт с теми же фильтрами и показывает пропуски", async ({
     page,
   }) => {
     const seeded = await seed();
     await signIn(page);
 
+    // Старый адрес ленты со станцией доводит до экрана пиццерии (D179), а оттуда отчёт
+    // открывается ссылкой в верхней полосе.
     await page.goto(`${FEED_PATH}?station=${seeded.stationId}&period=week`);
+    await expect(page.getByTestId("store-stats-screen")).toBeVisible();
     await page.getByTestId("feed-report-link").click();
 
     await expect(page.getByTestId("rounds-report-screen")).toBeVisible();

@@ -27,6 +27,7 @@ export const PHONE = { width: 375, height: 800 } as const;
 
 export interface SeededKitchen {
   readonly label: string;
+  readonly countryId: string;
   readonly storeId: string;
   readonly storeName: string;
   readonly stationId: string;
@@ -92,6 +93,7 @@ export async function seedKitchenChecklist(
 
   return {
     label,
+    countryId: country.rows[0]?.id ?? "",
     storeId: storeId ?? "",
     storeName,
     stationId: stationId ?? "",

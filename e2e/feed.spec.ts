@@ -1,5 +1,6 @@
-// Сквозной сценарий ленты заполнений: управляющий открывает ленту, сужает её фильтрами,
-// открывает карточку и видит, что и когда заполнено.
+// Сквозной сценарий ленты заполнений: управляющий открывает ленту пиццерии (с D179 она
+// живёт на экране пиццерии раздела «Статистика»), сужает её станцией, открывает
+// карточку и видит, что и когда заполнено.
 //
 // Главная проверка здесь — последняя: правка и публикация НОВОЙ версии чек-листа не
 // меняют уже сохранённую карточку (принцип 3, D002). Это правило продукта, а не деталь
@@ -23,6 +24,12 @@ import {
 import { PHONE, seedKitchenChecklist, signIn } from "./feed-fixtures";
 
 const FEED_PATH = "/admin/feed";
+const REPORT_PATH = "/admin/feed/report";
+
+/** Экран пиццерии (D179): здесь теперь тревоги и лента заполнений. */
+function storePath(storeId: string): string {
+  return `${FEED_PATH}/stores/${storeId}`;
+}
 
 /** Пункты первой версии — те, которые сотрудник и видел. */
 const V1_SECTIONS = [
@@ -85,6 +92,7 @@ const V2_SECTIONS = [
 
 interface Seeded {
   readonly label: string;
+  readonly storeId: string;
   readonly storeName: string;
   readonly kitchenName: string;
   readonly cashName: string;
@@ -206,6 +214,7 @@ async function seed(): Promise<Seeded> {
 
     return {
       label,
+      storeId: kitchen.storeId,
       storeName: kitchen.storeName,
       kitchenName: `Кухня ${label}`,
       cashName: `Касса ${label}`,
@@ -260,8 +269,11 @@ async function publishSecondVersion(seeded: Seeded): Promise<void> {
   }
 }
 
-/** Списков в карточке фильтров четыре: страна, пиццерия, станция, период. */
-const FILTER_SELECT_COUNT = 4;
+/**
+ * Списков в карточке фильтров ленты на экране пиццерии два: станция и период. Страну и
+ * пиццерию задаёт адрес экрана (D179).
+ */
+const FILTER_SELECT_COUNT = 2;
 
 /**
  * Выбор в фильтре. Список сам отправляет форму (кнопки «Показать» на эталоне нет),
@@ -355,13 +367,12 @@ test.describe("лента заполнений", () => {
     const seeded = await seed();
     await signIn(page);
 
-    await page.goto(FEED_PATH);
-    await expect(page.getByTestId("feed-screen")).toBeVisible();
+    // Старый адрес ленты с пиццерией доводит до экрана пиццерии (D179): ссылки на
+    // ленту живут в закладках и в чатах.
+    await page.goto(`${FEED_PATH}?store=${seeded.storeId}`);
+    await expect(page.getByTestId("store-stats-screen")).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(storePath(seeded.storeId)));
 
-    // Сужаем до своей станции: в базе прогона лежат данные и других сценариев.
-    // Сначала пиццерия: пока она не выбрана, станции названы путём — «Кухня» есть
-    // в каждой пиццерии сети, и выбирать пришлось бы вслепую.
-    await pick(page, "Пиццерия", { label: seeded.storeName });
     await pick(page, "Станция", { label: seeded.kitchenName });
     await expect(page.getByTestId("submission-row")).toHaveCount(2);
 
@@ -390,9 +401,8 @@ test.describe("лента заполнений", () => {
     const seeded = await seed();
     await signIn(page);
 
-    await page.goto(FEED_PATH);
-    await expect(page.getByTestId("feed-screen")).toBeVisible();
-    await pick(page, "Пиццерия", { label: seeded.storeName });
+    await page.goto(storePath(seeded.storeId));
+    await expect(page.getByTestId("store-stats-screen")).toBeVisible();
     await pick(page, "Станция", { label: seeded.kitchenName });
 
     // Тревога одна: критичный пункт провален в одном заполнении из двух. Окно
@@ -431,9 +441,8 @@ test.describe("лента заполнений", () => {
     const seeded = await seed();
     await signIn(page);
 
-    await page.goto(FEED_PATH);
-    await expect(page.getByTestId("feed-screen")).toBeVisible();
-    await pick(page, "Пиццерия", { label: seeded.storeName });
+    await page.goto(storePath(seeded.storeId));
+    await expect(page.getByTestId("store-stats-screen")).toBeVisible();
 
     // На пиццерии тревожат обе станции: кухня и касса.
     const strip = page.getByTestId("alarm-strip");
@@ -456,8 +465,7 @@ test.describe("лента заполнений", () => {
     const seeded = await seed();
     await signIn(page);
 
-    await page.goto(FEED_PATH);
-    await pick(page, "Пиццерия", { label: seeded.storeName });
+    await page.goto(storePath(seeded.storeId));
     await expect(page.getByTestId("submission-row")).toHaveCount(3);
 
     await pick(page, "Станция", { label: seeded.cashName });
@@ -466,9 +474,11 @@ test.describe("лента заполнений", () => {
       seeded.cashName,
     );
 
+    // Сброс снимает станцию, но остаётся на экране той же пиццерии.
     await page.getByTestId("feed-reset").click();
-    await expect(page.getByTestId("feed-screen")).toBeVisible();
+    await expect(page.getByTestId("store-stats-screen")).toBeVisible();
     await expect(page.getByLabel("Станция")).toHaveValue("");
+    await expect(page.getByTestId("submission-row")).toHaveCount(3);
   });
 
   test("на телефоне лента не уезжает вбок вместе с меню и фильтрами", async ({
@@ -478,11 +488,11 @@ test.describe("лента заполнений", () => {
     // уехавшая вбок страница утаскивает и боковое меню, и полосу фильтров, и тревоги.
     // Ловится это только настоящим браузером на настоящей ширине: разметка при этом
     // остаётся той же самой, разъезжается вычисленная ширина колонки каркаса.
-    await seed();
+    const seeded = await seed();
     await signIn(page);
 
     await page.setViewportSize(PHONE);
-    await page.goto(FEED_PATH);
+    await page.goto(storePath(seeded.storeId));
     await expect(page.getByTestId("feed-metrics")).toBeVisible();
 
     const size = await page.evaluate(() => ({
@@ -507,8 +517,7 @@ test.describe("лента заполнений", () => {
     const seeded = await seed();
     await signIn(page);
 
-    await page.goto(FEED_PATH);
-    await pick(page, "Пиццерия", { label: seeded.storeName });
+    await page.goto(storePath(seeded.storeId));
     // Станция в справочнике есть, а заполняли на ней ни разу — это не «пустой период».
     await pick(page, "Станция", { label: seeded.idleName });
 
@@ -713,7 +722,9 @@ test.describe("лента заполнений", () => {
 
   /**
    * Подпись периода. Экран показывает сразу несколько пиццерий в разных поясах, общего
-   * «сегодня» у них нет, и границы периода считаются по поясу машины. Прежняя подпись
+   * «сегодня» у них нет, и границы периода считаются по поясу машины. С D179 лента
+   * живёт на экране одной пиццерии, где пояс один и подписи нет; фильтр со страной и
+   * всеми четырьмя списками остался у отчёта по обходам — там подпись и проверяется. Прежняя подпись
    * называла этот пояс временем пиццерии — врала ровно она: строки-то показаны верно,
    * каждая по поясу своей пиццерии (T183).
    */
@@ -730,7 +741,7 @@ test.describe("лента заполнений", () => {
         "иначе он не отличит общий пояс от пояса пиццерии.",
     ).not.toContain(platformZone);
 
-    await page.goto(`${FEED_PATH}?country=${mixed.countryId}`);
+    await page.goto(`${REPORT_PATH}?country=${mixed.countryId}`);
     const note = page.getByTestId("feed-timezone");
     await expect(note).toBeVisible();
 

@@ -36,7 +36,7 @@ const SCREENS = [
   { name: "главная", path: "/admin" },
   { name: "чек-листы", path: "/admin/checklists" },
   { name: "библиотека блоков", path: "/admin/library" },
-  { name: "заполнения", path: "/admin/feed" },
+  { name: "статистика", path: "/admin/feed" },
   { name: "справочник", path: "/admin/catalog" },
   { name: "станции", path: "/admin/stations" },
 ] as const;

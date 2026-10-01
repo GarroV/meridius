@@ -439,10 +439,13 @@ async function fillFromPhone(browser, code) {
   }
 }
 
-async function findInFeed(page) {
-  heading("Лента: заполнение видно управляющему");
+async function findInFeed(page, storeId) {
+  heading("Статистика: заполнение видно управляющему в ленте пиццерии");
 
-  await page.goto(`${BASE_URL}/admin/feed`, { waitUntil: "domcontentloaded" });
+  // Ленты на весь кабинет больше нет: она живёт на экране пиццерии (D179).
+  await page.goto(`${BASE_URL}/admin/feed/stores/${storeId}`, {
+    waitUntil: "domcontentloaded",
+  });
   const row = page.getByTestId("submission-row").filter({ hasText: STATION });
   await row.first().waitFor({ timeout: STEP_TIMEOUT });
   check((await row.count()) === 1, `в ленте одна строка станции «${STATION}»`);
@@ -576,7 +579,7 @@ try {
   await createChecklist(page, catalog);
   await printQr(page, catalog.stationId);
   await fillFromPhone(browser, catalog.code);
-  await findInFeed(page);
+  await findInFeed(page, catalog.storeId);
 } catch (error) {
   failure = error;
   try {

@@ -57,7 +57,7 @@
       "stations": "Stations",
       "templates": "Templates",
       "qr": "QR codes",
-      "feed": "Submissions",
+      "feed": "Statistics",
       "catalog": "Countries and pizzerias",
       "library": "Block library",
       "devices": "Devices",
@@ -68,10 +68,6 @@
       "brandMuted": "Dodo",
       "soon": "Section is not ready yet",
       "signedIn": "Signed in",
-      "groups": {
-        "work": "Work",
-        "reference": "Reference"
-      },
       "home": "Home",
       "search": "Find a checklist",
       "roles": {
@@ -618,7 +614,7 @@
     }
   },
   "feed": {
-    "title": "Submissions",
+    "title": "Statistics",
     "crumbs": {
       "allCountries": "Whole network",
       "allStores": "all stores"
@@ -697,7 +693,7 @@
       "noStationsAction": "Open the reference"
     },
     "card": {
-      "back": "Submissions",
+      "back": "Statistics",
       "title": "{checklist} · {store}",
       "checklistLink": "Checklist v{number}",
       "checklistLinkNoVersion": "Checklist",
@@ -733,7 +729,7 @@
     "report": {
       "title": "Rounds report",
       "link": "Rounds report",
-      "backToFeed": "Back to the feed",
+      "backToFeed": "Back to statistics",
       "lead": "Where and at which hours rounds are not getting done. The conversation here is about load and staffing, not about who is to blame.",
       "tableTitle": "Items × round hours",
       "item": "Item",
@@ -764,9 +760,6 @@
     },
     "stats": {
       "title": "Statistics",
-      "link": "Statistics",
-      "backToFeed": "Back to feed",
-      "lead": "A summary for a country or a single pizzeria: where things go wrong and what exactly. The numbers are counted from submissions, round marks and alarms over the selected period — the same data as the feed.",
       "period": "last {days} days: {from} to {to}",
       "days7": "7 days",
       "days30": "30 days",
@@ -792,9 +785,53 @@
       "silentNever": "never",
       "silentEmpty": "Every station with a working checklist sent a signal in the last 24 hours.",
       "silentMore": "Showing {shown} of {total}, longest silent first.",
-      "emptyTitle": "Nothing to count yet",
-      "emptyText": "For these filters there are no submissions or alarms in the period, and no station is expected to report. Set up a checklist on a station — or widen the period to 30 days.",
-      "emptyAction": "Open checklists"
+      "periodLabel": "Statistics period"
+    },
+    "country": {
+      "railTitle": "Countries",
+      "railLabel": "Country list",
+      "back": "All countries",
+      "storeCount": "{count, plural, one {# pizzeria} other {# pizzerias}}",
+      "noCountriesTitle": "No countries yet",
+      "noCountriesText": "Statistics are counted per pizzeria of a country. Add a country and a pizzeria in the reference, and their tiles appear here.",
+      "noCountriesAction": "Open the reference",
+      "tilesTitle": "Pizzerias",
+      "tilesLead": "Today’s checklist status and the figures for the period. A tile opens the pizzeria: its checklists, alarms and submission feed.",
+      "noStores": "There are no pizzerias in this country yet.",
+      "filled": "filled: {count}",
+      "waiting": "waiting: {count}",
+      "missed": "missed: {count}",
+      "alarms": "{count, plural, one {# alarm} other {# alarms}}",
+      "noChecklists": "no working checklists",
+      "periodFigures": "Last {days} days: {submissions, plural, one {# submission} other {# submissions}}, with a failed critical item — {failed}",
+      "unknownTimezone": "Pizzerias with a time zone the database does not know: {count}. Today’s status of their checklists cannot be computed.",
+      "capped": "There are more checklists or alarms than the screen reads at once: tile figures may be incomplete."
+    },
+    "store": {
+      "crumb": "Statistics",
+      "back": "Back to country",
+      "report": "Rounds report",
+      "checklistsTitle": "Checklists",
+      "checklistsLead": "All working checklists of the pizzeria by station: today’s status and statistics for the period.",
+      "colChecklist": "Checklist",
+      "colToday": "Today",
+      "colSubmissions": "Submissions",
+      "colCritical": "With a failed critical item",
+      "colLast": "Last submission",
+      "criticalValue": "{share} ({failed})",
+      "never": "never filled",
+      "noChecklists": "The pizzeria has no working checklists: none is published on its stations.",
+      "noChecklistsAction": "Open stations",
+      "feedTitle": "Alarms and submissions",
+      "feedLead": "What needs attention right now and the pizzeria’s submission feed — by station and period."
+    },
+    "today": {
+      "filled": "Filled at {time}",
+      "upcoming": "Window opens at {time}",
+      "open": "Window open until {time}",
+      "missed": "Missed: window closed at {time}",
+      "notExpected": "Not expected: shift mode",
+      "unknownZone": "Pizzeria time zone unknown"
     }
   },
   "library": {
@@ -1155,7 +1192,7 @@
     "checklists": {
       "why": "A checklist is what a team member checks at a station during a shift.",
       "what": "This is where checklists are created and edited: items, the shift window, blocks from the library. The kitchen sees only the published version, so a draft is safe to edit.",
-      "next": "Once published, the checklist opens from its station's QR sticker, and what gets filled in shows up in Submissions."
+      "next": "Once published, the checklist opens from its station's QR sticker, and what gets filled in shows up in Statistics."
     },
     "stations": {
       "why": "A station is the place in the kitchen where a checklist is filled in: by phone from the sticker, or from a paired tablet.",
@@ -1173,9 +1210,9 @@
       "next": "Insert the block into a checklist in the editor and publish a version — that is when the change reaches the kitchen."
     },
     "feed": {
-      "why": "This is where you see what was actually filled in at the stations.",
-      "what": "A feed of submissions by country and pizzeria: failed items, comments, alarms. Any submission opens as a card; a 7- and 30-day summary is behind the Statistics link.",
-      "next": "Found a weak spot? Fix the checklist in Checklists or look into the station in Stations."
+      "why": "This is where you see how checklists go in the pizzerias: what is filled today, what was missed and where critical items fail.",
+      "what": "Countries on the left, tiles of their pizzerias on the right with today’s status and figures for 7 or 30 days. A tile opens the pizzeria: all its checklists with statistics, alarms and the submission feed.",
+      "next": "Found a weak spot? Open the submission card, fix the checklist in Checklists or look into the station in Stations."
     },
     "catalog": {
       "why": "The network directory: countries, pizzerias and their stations. Everything else relies on it.",

@@ -16,7 +16,7 @@ import type { ReactElement } from "react";
 import {
   ADMIN_HOME,
   ADMIN_HQ_ONLY_SECTIONS,
-  ADMIN_NAV_GROUPS,
+  ADMIN_NAV_ITEMS,
   ADMIN_SECTIONS,
   type AdminSectionKey,
 } from "../admin-sections";
@@ -46,7 +46,7 @@ const SECTION_ICONS: Readonly<Record<AdminSectionKey, IconName>> = {
   stations: "board",
   templates: "doc",
   library: "book",
-  feed: "check",
+  feed: "graph",
   catalog: "globe",
   qr: "tag",
   devices: "monitor",
@@ -141,29 +141,24 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
           isActive={active === "home"}
           testId="nav-home"
         />
-        {ADMIN_NAV_GROUPS.map((group) => (
-          <div key={group.key} className="contents">
-            <div className="sidenav__group">{t(`nav.groups.${group.key}`)}</div>
-            {group.items.map((key) => {
-              const item = (
-                <NavItem
-                  key={key}
-                  href={ADMIN_SECTIONS[key].path}
-                  icon={SECTION_ICONS[key]}
-                  label={t(`sections.${key}`)}
-                  isActive={key === active}
-                  testId={`nav-${key}`}
-                />
-              );
-              // Раздел УК партнёру не показывается: адрес ему отвечает 404 (T344).
-              return ADMIN_HQ_ONLY_SECTIONS.includes(key) ? (
-                <HqOnly key={key}>{item}</HqOnly>
-              ) : (
-                item
-              );
-            })}
-          </div>
-        ))}
+        {ADMIN_NAV_ITEMS.map((key) => {
+          const item = (
+            <NavItem
+              key={key}
+              href={ADMIN_SECTIONS[key].path}
+              icon={SECTION_ICONS[key]}
+              label={t(`sections.${key}`)}
+              isActive={key === active}
+              testId={`nav-${key}`}
+            />
+          );
+          // Раздел УК партнёру не показывается: адрес ему отвечает 404 (T344).
+          return ADMIN_HQ_ONLY_SECTIONS.includes(key) ? (
+            <HqOnly key={key}>{item}</HqOnly>
+          ) : (
+            item
+          );
+        })}
       </div>
 
       <div className="sidenav__foot">

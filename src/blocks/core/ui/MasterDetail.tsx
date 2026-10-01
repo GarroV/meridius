@@ -8,6 +8,9 @@
 // между её страницами, поэтому меню и колонка списка остаются теми же узлами DOM —
 // с той же прокруткой и тем же вводом в поиске, — а меняется только `children` справа.
 //
+// Раздел, где выбор живёт в параметре адреса, а не в сегменте («Статистика», `?country=`,
+// D179), ставит каркас на страницу и сообщает о выборе пропом `hasDetail`.
+//
 // Какой элемент открыт, каркас узнаёт по сегменту адреса под собой
 // (`useSelectedLayoutSegment`): разметке сегмента параметров дочерних страниц Next не
 // отдаёт. От этого зависят две вещи.
@@ -63,6 +66,12 @@ export interface MasterDetailProps {
   readonly wide?:
     | { readonly segments: readonly string[]; readonly nav: ReactNode }
     | undefined;
+  /**
+   * Выбор живёт в параметре адреса, а не в сегменте («Статистика», `?country=`, D179):
+   * тогда каркас стоит на странице, сегмента под собой не видит и узнаёт о выборе отсюда.
+   * Не задан — смотрит на сегмент, как в разделах с разметкой сегмента.
+   */
+  readonly hasDetail?: boolean | undefined;
   readonly children: ReactNode;
 }
 
@@ -75,10 +84,11 @@ export function MasterDetail({
   backLabel,
   intro,
   wide,
+  hasDetail: detailFromQuery,
   children,
 }: MasterDetailProps): ReactElement {
   const segment = useSelectedLayoutSegment();
-  const hasDetail = segment !== null;
+  const hasDetail = detailFromQuery ?? segment !== null;
   const isWide =
     segment !== null && (wide?.segments.includes(segment) ?? false);
 

@@ -39,7 +39,7 @@ const READY = [
   {
     key: "feed",
     path: "/admin/feed",
-    name: "Заполнения",
+    name: "Статистика",
     screen: "feed-screen",
   },
   {
@@ -226,7 +226,7 @@ test.describe("связность разделов кабинета", () => {
     await page
       .locator("nav")
       .first()
-      .getByRole("link", { name: "Заполнения", exact: true })
+      .getByRole("link", { name: "Статистика", exact: true })
       .click();
     await expect(page).toHaveURL(/\/admin\/feed$/);
     await expect(page.getByTestId("feed-screen")).toBeVisible();

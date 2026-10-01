@@ -9,7 +9,7 @@ import type { StatsModel } from "../stats-model";
  * таблица прокручивается внутри своей карточки, а не уносит вбок страницу.
  */
 
-const CARD_CLASS =
+export const CARD_CLASS =
   "bg-surface rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
 const HEAD_CLASS =
   "rounded-t-[var(--r-block)] border-b border-[var(--line)] bg-[var(--surface-3)] px-[var(--space-7)] py-[var(--space-6)]";
@@ -17,17 +17,17 @@ const TITLE_CLASS =
   "m-0 text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold";
 const LEAD_CLASS =
   "m-0 mt-[var(--space-3)] text-[length:var(--fs-meta)] text-[var(--ink-3)]";
-const SCROLL_CLASS = "overflow-x-auto";
-const TABLE_CLASS =
+export const SCROLL_CLASS = "overflow-x-auto";
+export const TABLE_CLASS =
   "w-full border-collapse text-[length:var(--fs-dense)] leading-[var(--lh-dense)]";
-const TH_CLASS =
+export const TH_CLASS =
   "border-b border-[var(--line-strong)] bg-[var(--surface-3)] px-[var(--cell-pad-x)] py-[var(--space-4)] text-left text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-2)] uppercase whitespace-nowrap";
-const TH_NUM_CLASS = `${TH_CLASS} text-right`;
-const TD_CLASS =
+export const TH_NUM_CLASS = `${TH_CLASS} text-right`;
+export const TD_CLASS =
   "border-b border-[var(--line)] px-[var(--cell-pad-x)] py-[var(--space-5)] align-middle";
-const TD_NUM_CLASS = `${TD_CLASS} text-right font-[family-name:var(--font-num)] text-[length:var(--fs-num)] [font-variant-numeric:tabular-nums] whitespace-nowrap`;
-const META_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
-const NOTE_CLASS =
+export const TD_NUM_CLASS = `${TD_CLASS} text-right font-[family-name:var(--font-num)] text-[length:var(--fs-num)] [font-variant-numeric:tabular-nums] whitespace-nowrap`;
+export const META_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
+export const NOTE_CLASS =
   "px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 
 /**
@@ -35,7 +35,7 @@ const NOTE_CLASS =
  * и без фокуса её правую часть не прокрутить ничем, кроме пальца (axe,
  * `scrollable-region-focusable`).
  */
-function scrollRegion(labelledBy: string) {
+export function scrollRegion(labelledBy: string) {
   return {
     tabIndex: 0,
     role: "region",
@@ -49,7 +49,11 @@ interface SectionHeadProps {
   readonly lead: string;
 }
 
-function SectionHead({ id, title, lead }: SectionHeadProps): ReactElement {
+export function SectionHead({
+  id,
+  title,
+  lead,
+}: SectionHeadProps): ReactElement {
   return (
     <div className={HEAD_CLASS}>
       <h2 id={id} className={TITLE_CLASS}>

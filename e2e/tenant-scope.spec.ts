@@ -277,6 +277,8 @@ const PROBES: Record<string, Probe> = {
       `/admin/devices${params({ station: theirs.stationId })}`,
     ],
   },
+  // Раздел «Статистика» (D179): страны слева, плитки пиццерий справа. Старые адреса
+  // ленты с пиццерией или станцией уводят на экран пиццерии — проверяется, куда довели.
   "/admin/feed": {
     foreign: ({ theirs }) => [
       "/admin/feed",
@@ -284,7 +286,7 @@ const PROBES: Record<string, Probe> = {
       `/admin/feed${params({ store: theirs.storeId })}`,
       `/admin/feed${params({ station: theirs.stationId })}`,
     ],
-    own: ({ mine }) => ({ url: "/admin/feed", text: mine.stationName }),
+    own: ({ mine }) => ({ url: "/admin/feed", text: mine.storeName }),
   },
   "/admin/feed/[id]": {
     foreign: ({ theirs }) => [`/admin/feed/${theirs.submissionId}`],
@@ -295,13 +297,28 @@ const PROBES: Record<string, Probe> = {
       `/admin/feed/report${params({ station: theirs.stationId })}`,
     ],
   },
+  // Бывший экран статистики — перенаправление в раздел (D179).
   "/admin/feed/stats": {
     foreign: ({ theirs }) => [
       "/admin/feed/stats",
       `/admin/feed/stats${params({ country: theirs.countryId })}`,
       `/admin/feed/stats${params({ store: theirs.storeId, days: "30" })}`,
     ],
-    own: ({ mine }) => ({ url: "/admin/feed/stats", text: mine.countryName }),
+    own: ({ mine }) => ({
+      url: `/admin/feed/stats${params({ country: mine.countryId })}`,
+      text: mine.storeName,
+    }),
+  },
+  // Экран пиццерии (D179): её чек-листы, тревоги и лента.
+  "/admin/feed/stores/[storeId]": {
+    foreign: ({ theirs }) => [
+      `/admin/feed/stores/${theirs.storeId}`,
+      `/admin/feed/stores/${theirs.storeId}${params({ station: theirs.stationId, days: "30" })}`,
+    ],
+    own: ({ mine }) => ({
+      url: `/admin/feed/stores/${mine.storeId}`,
+      text: mine.stationName,
+    }),
   },
   "/admin/library": {
     foreign: (world) => [
@@ -433,6 +450,7 @@ test.describe("область видимости тенанта на весь к
       `/admin/checklists/${world.theirs.checklistId}`,
       `/admin/checklists/${world.strangerChecklistId}/preview`,
       `/admin/feed/${world.theirs.submissionId}`,
+      `/admin/feed/stores/${world.theirs.storeId}`,
       `/admin/stations/${world.theirs.stationId}`,
       `/admin/qr/code${params({ store: world.theirs.storeId, station: world.theirs.stationId })}`,
       "/admin/templates/new",

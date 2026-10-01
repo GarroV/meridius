@@ -71,6 +71,11 @@ interface FilterLabels {
 interface FeedFilterSelectsProps {
   readonly selection: FeedSelection;
   readonly labels: FilterLabels;
+  /**
+   * Списки страны и пиццерии. На экране пиццерии (D179) их нет: пиццерию задаёт адрес,
+   * и выбор другой в списке значил бы уйти с экрана.
+   */
+  readonly withPlace?: boolean;
 }
 
 function applyOnChange(event: { currentTarget: HTMLSelectElement }): void {
@@ -87,8 +92,8 @@ interface FilterFieldProps {
   readonly live: boolean;
 }
 
-/** Один список фильтра. Выставлен наружу для экрана статистики: поля у него те же. */
-export function FilterField({
+/** Один список фильтра. */
+function FilterField({
   name,
   label,
   value,
@@ -128,6 +133,7 @@ export function FilterField({
 export function FeedFilterSelects({
   selection,
   labels,
+  withPlace = true,
 }: FeedFilterSelectsProps): ReactElement {
   const live = useLive();
 
@@ -139,22 +145,26 @@ export function FeedFilterSelects({
 
   return (
     <>
-      <FilterField
-        live={live}
-        name={COUNTRY_PARAM}
-        label={labels.country}
-        value={selection.countryId ?? ""}
-        allLabel={labels.all}
-        options={selection.countries}
-      />
-      <FilterField
-        live={live}
-        name={STORE_PARAM}
-        label={labels.store}
-        value={selection.storeId ?? ""}
-        allLabel={labels.all}
-        options={selection.stores}
-      />
+      {withPlace ? (
+        <>
+          <FilterField
+            live={live}
+            name={COUNTRY_PARAM}
+            label={labels.country}
+            value={selection.countryId ?? ""}
+            allLabel={labels.all}
+            options={selection.countries}
+          />
+          <FilterField
+            live={live}
+            name={STORE_PARAM}
+            label={labels.store}
+            value={selection.storeId ?? ""}
+            allLabel={labels.all}
+            options={selection.stores}
+          />
+        </>
+      ) : null}
       <FilterField
         live={live}
         name={STATION_PARAM}
