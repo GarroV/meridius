@@ -65,8 +65,7 @@ const LEAD_CLASS =
 // чек-листа выше — без него две формы «подпись + время + Поставить» читались как одна
 // и та же, повторённая дважды (T354).
 // Набран тише заголовка панели: подпись к форме, а не второй заголовок над первым.
-const OWN_TITLE_CLASS =
-  "text-[length:var(--fs-meta)] text-[var(--ink-2)]";
+const OWN_TITLE_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-2)]";
 const HINT_CLASS =
   "px-[var(--space-7)] pb-[var(--space-6)] text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const NOTICE_CLASS =
