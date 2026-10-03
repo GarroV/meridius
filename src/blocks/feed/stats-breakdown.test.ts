@@ -6,6 +6,7 @@
 // пометка повтора, а их ставит база.
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { afterAll, describe, expect, test } from "vitest";
 
 import { stations, stores, submissions } from "@/blocks/data";
@@ -121,6 +122,7 @@ describe("по чек-листам", () => {
       { visible: WHOLE_NETWORK, storeId: station.storeId },
       7,
       NOW,
+      "UTC",
     );
 
     expect(summaryOf(byChecklist, morning.checklistId)).toStrictEqual({
@@ -147,6 +149,7 @@ describe("по чек-листам", () => {
       { visible: WHOLE_NETWORK, storeId: place.storeId },
       30,
       NOW,
+      "UTC",
     );
 
     expect(summaryOf(byChecklist, place.checklistId)).toMatchObject({
@@ -154,6 +157,28 @@ describe("по чек-листам", () => {
       criticalFailedCount: 1,
       criticalFailedShare: 0.5,
     });
+  });
+
+  test("неделя — календарные сутки в поясе пиццерии, а не 7×24 ч до просмотра", async () => {
+    const place = await checklistOn(await createStation());
+    await db
+      .update(stores)
+      .set({ timezone: "Asia/Almaty" })
+      .where(eq(stores.id, place.storeId));
+    // NOW — 17:00 20.09 в Алматы: неделя начинается 14.09 в 00:00 местного (13.09 19:00 UTC).
+    const weekStart = new Date("2026-09-13T19:00:00Z").getTime();
+    await fill(place, new Date(weekStart + 60_000), false);
+    await fill(place, new Date(weekStart - 60_000), false);
+
+    const byChecklist = await loadSummariesBy(
+      "checklist",
+      { visible: WHOLE_NETWORK, storeId: place.storeId },
+      7,
+      NOW,
+      "Asia/Almaty",
+    );
+
+    expect(summaryOf(byChecklist, place.checklistId).submissionCount).toBe(1);
   });
 
   test("последнее заполнение берётся и из-за пределов периода: «давно» — тоже ответ", async () => {
@@ -165,6 +190,7 @@ describe("по чек-листам", () => {
       { visible: WHOLE_NETWORK, storeId: place.storeId },
       7,
       NOW,
+      "UTC",
     );
 
     expect(summaryOf(byChecklist, place.checklistId)).toStrictEqual({
@@ -186,6 +212,7 @@ describe("по чек-листам", () => {
       { visible: WHOLE_NETWORK, storeId: place.storeId },
       7,
       NOW,
+      "UTC",
     );
 
     expect(summaryOf(byChecklist, place.checklistId)).toStrictEqual({
@@ -203,6 +230,7 @@ describe("по чек-листам", () => {
       { visible: WHOLE_NETWORK, storeId: place.storeId },
       7,
       NOW,
+      "UTC",
     );
     expect(summaryOf(byChecklist, place.checklistId)).toStrictEqual({
       submissionCount: 0,
@@ -226,6 +254,7 @@ describe("по пиццериям страны", () => {
       { visible: WHOLE_NETWORK, countryId: first.countryId },
       7,
       NOW,
+      "UTC",
     );
 
     expect(summaryOf(byStore, first.storeId)).toMatchObject({
@@ -249,6 +278,7 @@ describe("по пиццериям страны", () => {
       { visible: WHOLE_NETWORK, countryId: mine.countryId },
       7,
       NOW,
+      "UTC",
     );
 
     expect(byStore.has(theirs.storeId)).toBe(false);

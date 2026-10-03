@@ -65,7 +65,8 @@ function shareOf(part: number, whole: number): number | null {
 }
 
 /**
- * Заполнения области `scope`, сгруппированные по `by`, за `days` суток до `now`.
+ * Заполнения области `scope`, сгруппированные по `by`, за `days` местных суток в поясе
+ * `timeZone` (правило главной, `resolveDays`).
  * В выдаче только то, где заполнения были хоть раз; остальное — `summaryOf` с нулями.
  */
 export async function loadSummariesBy(
@@ -73,8 +74,9 @@ export async function loadSummariesBy(
   scope: FeedScope,
   days: StatsPeriodDays,
   now: Date,
+  timeZone: string,
 ): Promise<ReadonlyMap<string, SubmissionSummary>> {
-  const { window } = periodWindow(days, now);
+  const { window } = periodWindow(days, now, timeZone);
   const inPeriod = sql`src.submitted_at >= ${window.from}`;
 
   const result = await getDb().execute<SummaryRow>(sql`

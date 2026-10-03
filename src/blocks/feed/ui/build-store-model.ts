@@ -83,7 +83,7 @@ export async function buildStoreModel(
       now,
     ),
     listLiveChecklists(scope, now),
-    loadSummariesBy("checklist", scope, view.days, now),
+    loadSummariesBy("checklist", scope, view.days, now, store.timezone),
   ]);
   const context: RowContext = { locale, now, summaries };
 

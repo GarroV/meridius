@@ -46,8 +46,21 @@ export function resolvePeriod(
   now: Date,
   timeZone: string,
 ): DateRange {
+  return resolveDays(PERIOD_DAYS[period], now, timeZone);
+}
+
+/**
+ * «Последние N дней» — сегодня и N−1 предыдущих местных суток в поясе экрана. Одно
+ * правило на главную, ленту, обходы и «Статистику»: скользящее окно N×24 ч у одного
+ * экрана и календарные сутки у другого давали на одних данных разные числа (#216).
+ */
+export function resolveDays(
+  days: number,
+  now: Date,
+  timeZone: string,
+): DateRange {
   const todayStart = zonedDayStart(now, timeZone);
-  const daysBack = PERIOD_DAYS[period] - 1;
+  const daysBack = days - 1;
 
   // Отсчёт ведётся от местного полудня, а не от полуночи: сутки перевода часов длятся
   // 23 или 25 часов, и вычитание ровных 24 часов из полуночи попадает в предыдущий день

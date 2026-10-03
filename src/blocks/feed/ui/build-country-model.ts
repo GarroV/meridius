@@ -17,7 +17,7 @@ import type { FilterOption } from "../model";
 import { loadFeedCatalog, type FeedCatalog } from "../options";
 import { DEFAULT_PERIOD } from "../period";
 import type { FeedScope } from "../scope";
-import { resolveSelection } from "../selection";
+import { resolveSelection, screenTimeZone } from "../selection";
 import { loadSummariesBy, summaryOf } from "../stats-breakdown";
 import { storeStatsHref, type StatsPeriodDays } from "../stats-view";
 import { countToday, todayStatusOf } from "../today-status";
@@ -108,11 +108,18 @@ export async function buildCountryModel(
   }
 
   const scope: FeedScope = { visible, countryId };
+  const countrySelection = resolveSelection(
+    { period: DEFAULT_PERIOD, countryId },
+    catalog,
+  );
+  // Пояс тот же, по которому считает сводка страны (`buildStatsModel`): плитки обязаны
+  // складываться в её число.
+  const timeZone = screenTimeZone(countrySelection);
   const [summary, live, alarms, summaries] = await Promise.all([
     buildStatsModel({ countryId, days: view.days }, locale, viewer, now),
     listLiveChecklists(scope, now),
     listAlarms(scope, now),
-    loadSummariesBy("store", scope, view.days, now),
+    loadSummariesBy("store", scope, view.days, now, timeZone),
   ]);
   const sources: TileSources = {
     live: live.rows,
@@ -121,10 +128,7 @@ export async function buildCountryModel(
     days: view.days,
     now,
   };
-  const stores = resolveSelection(
-    { period: DEFAULT_PERIOD, countryId },
-    catalog,
-  ).stores;
+  const stores = countrySelection.stores;
 
   return {
     ...base,
