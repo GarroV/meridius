@@ -9,7 +9,6 @@ import { and, sql, type SQL } from "drizzle-orm";
 import { resolveDays } from "./period";
 import { scopeConditions, type FeedScope } from "./scope";
 import { itemCriticalSql, itemFailedSql } from "./stats-grading";
-import type { StatsPeriodDays } from "./stats-view";
 
 /** Границы периода выражениями SQL. */
 export interface Window {
@@ -27,7 +26,7 @@ function timestamp(at: Date): SQL {
  * (сдвинутые часы) в счёт не идёт.
  */
 export function periodWindow(
-  days: StatsPeriodDays,
+  days: number,
   now: Date,
   timeZone: string,
 ): { readonly from: Date; readonly window: Window } {
