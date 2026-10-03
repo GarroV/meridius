@@ -60,7 +60,7 @@ export async function HomeScreen({
             {t("working.caption", { total: model.working.total })}
           </div>
         </div>
-        <FeedMetrics metrics={feed.metrics} period={feed.selection.period} />
+        <FeedMetrics metrics={model.metrics} period={feed.selection.period} />
       </div>
 
       <HomeTodo gaps={model.gaps} drafts={model.drafts} />

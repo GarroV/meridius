@@ -1,5 +1,6 @@
-// Данные главной кабинета (D174). Своих запросов здесь нет: заполнения, метрики и
-// тревоги — у ленты, станции и их дырки — у раздела «Станции», планшеты — у
+// Данные главной кабинета (D174). Своих запросов здесь нет: последние заполнения и
+// тревоги — у ленты, цифры за период — агрегатом базы по правилу «Статистики»
+// (`loadPeriodMetrics`), станции и их дырки — у раздела «Станции», планшеты — у
 // блока `device`, черновики — у списка чек-листов. Главная только сводит их в одну
 // область фильтра, поэтому её цифры не могут разойтись с разделами, куда она ведёт.
 import { scopeOf, type Viewer } from "@/blocks/auth/scope";
@@ -7,7 +8,13 @@ import type { Locale } from "@/blocks/core/locale";
 import { listStationTablets } from "@/blocks/device/station-tablets";
 import { listChecklists } from "@/blocks/editor/listing";
 import { checklistPath } from "@/blocks/editor/routes";
-import type { FeedModel, FeedSelection } from "@/blocks/feed/model";
+import type {
+  FeedMetrics,
+  FeedModel,
+  FeedSelection,
+} from "@/blocks/feed/model";
+import { periodDayCount } from "@/blocks/feed/period";
+import { loadPeriodMetrics } from "@/blocks/feed/period-metrics";
 import { buildFeedModel } from "@/blocks/feed/ui/build-model";
 import { pickText } from "@/blocks/feed/text";
 import type { FeedView } from "@/blocks/feed/view";
@@ -40,6 +47,11 @@ export interface HomeChecklist {
 
 export interface HomeModel {
   readonly feed: FeedModel;
+  /**
+   * Цифры за период — по всем заполнениям области, а не по строкам ленты: лента
+   * обрезана на 200, и счёт по ней молча занижал бы главную.
+   */
+  readonly metrics: FeedMetrics;
   /** Станции выбранной области. */
   readonly stations: readonly HomeStation[];
   /** Сводка по пиццериям — когда пиццерия не выбрана. */
@@ -85,7 +97,14 @@ export async function loadHome(
   // Область видимости вошедшего (D145) — та же, что у разделов: партнёр видит станции и
   // чек-листы своих стран, УК — всю сеть.
   const visible = scopeOf(viewer);
-  const [network, tablets, checklists] = await Promise.all([
+  const scope = selectionScope(selection);
+  const [metrics, network, tablets, checklists] = await Promise.all([
+    loadPeriodMetrics(
+      { visible, ...scope },
+      periodDayCount(selection.period),
+      now,
+      feed.timeZone,
+    ),
     listNetworkStations(visible, now),
     listStationTablets(visible),
     listChecklists(
@@ -98,13 +117,11 @@ export async function loadHome(
     ),
   ]);
 
-  const stations = inScope(
-    mergeStations(network, tablets),
-    selectionScope(selection),
-  );
+  const stations = inScope(mergeStations(network, tablets), scope);
 
   return {
     feed,
+    metrics,
     stations,
     stores: summarizeStores(stations),
     isStoreLevel: selection.storeId !== null || selection.stationId !== null,
