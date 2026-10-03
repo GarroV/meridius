@@ -43,11 +43,11 @@ export default function AdminError({
       narrow
       breadcrumb={
         <Link href={ADMIN_HOME.path} className="underline">
-          {admin("crumbs")}
+          {admin("nav.home")}
         </Link>
       }
       // В шапке — своё слово: не заголовок карточки и не крошка (тот же дефект, что
-      // T251 нашла у «такого раздела нет»: «Кабинет» дважды подряд).
+      // T251 нашла у «такого раздела нет»: одно слово дважды подряд).
       title={admin("failureTopbar")}
       topbarAction={null}
     >

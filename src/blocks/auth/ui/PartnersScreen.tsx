@@ -228,7 +228,6 @@ export async function PartnersScreen({
     <AdminShell
       testId="partners-screen"
       active="partners"
-      breadcrumb={t("crumbs")}
       title={t("title")}
       topbarAction={null}
     >

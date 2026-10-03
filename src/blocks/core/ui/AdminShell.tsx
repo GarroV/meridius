@@ -22,7 +22,7 @@ export interface AdminShellProps {
   readonly testId: string;
   /** Раздел меню, в котором находится человек. */
   readonly active?: AdminNavActive | undefined;
-  readonly breadcrumb: ReactNode;
+  readonly breadcrumb?: ReactNode;
   readonly title: string;
   readonly topbarAction: ReactNode;
   readonly children: ReactNode;

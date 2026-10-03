@@ -45,7 +45,6 @@ export default async function AdminHomePage({
       testId="admin-home-screen"
       // Раздел не выбран намеренно: главная — единственный экран кабинета, который
       // не является разделом, и подсвечивать в меню ей нечего.
-      breadcrumb={t("crumbs")}
       title={t("home")}
       topbarAction={
         <form action={submitSignOut}>

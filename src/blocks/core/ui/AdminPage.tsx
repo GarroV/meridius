@@ -17,7 +17,12 @@ import {
 export interface AdminPageProps {
   /** Тестовый идентификатор корня. У полного экрана его несёт каркас, а не страница. */
   readonly testId?: string | undefined;
-  readonly breadcrumb: ReactNode;
+  /**
+   * Крошка над заголовком — только там, где она ведёт куда-то или уточняет место
+   * (страна, пиццерия, родительский раздел). У разделов верхнего уровня её нет: прежние
+   * надзаголовки групп меню «Работа» и «Справочник» сняты вместе с группами (D178).
+   */
+  readonly breadcrumb?: ReactNode;
   readonly title: string;
   readonly topbarAction: ReactNode;
   readonly children: ReactNode;
@@ -37,12 +42,14 @@ export function AdminPage({
     <div data-testid={testId} className="flex min-w-0 flex-col">
       <header className={ADMIN_HEADER_CLASS}>
         <div className="flex min-w-0 flex-col gap-[var(--space-1)]">
-          <div
-            className="text-[length:var(--fs-meta)] text-[var(--ink-3)]"
-            data-testid="admin-crumbs"
-          >
-            {breadcrumb}
-          </div>
+          {breadcrumb === undefined ? null : (
+            <div
+              className="text-[length:var(--fs-meta)] text-[var(--ink-3)]"
+              data-testid="admin-crumbs"
+            >
+              {breadcrumb}
+            </div>
+          )}
           <h1 className={ADMIN_TITLE_CLASS}>{title}</h1>
         </div>
         <div className="ml-auto flex items-center gap-[var(--space-4)]">

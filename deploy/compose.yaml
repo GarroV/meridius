@@ -10,10 +10,21 @@
 # база не видна даже с самого сервера.
 name: meridius
 
+# Журнал контейнеров — драйвер json-file с ротацией: не больше 5 файлов по 10 МБ на сервис
+# (50 МБ), старое уходит само. Журнал переживает перезапуск контейнера (`restart`, ребут
+# сервера), но не пересоздание: `up -d --build` заводит новый контейнер, и журнал прежнего
+# удаляется вместе с ним — нужное снимать ДО обновления (deploy/README.md, «Журнал»).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
 services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?задайте POSTGRES_USER в deploy/.env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в deploy/.env}
@@ -35,6 +46,7 @@ services:
       context: ..
       target: migrate
     restart: "no"
+    logging: *logging
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     depends_on:
@@ -51,6 +63,7 @@ services:
         PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?задайте PUBLIC_BASE_URL в deploy/.env}
         BUILD_COMMIT: ${BUILD_COMMIT:-}
     restart: unless-stopped
+    logging: *logging
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       BASE_PATH: ${BASE_PATH:-}

@@ -252,15 +252,17 @@ function shareOf(part: number, whole: number): number | null {
 }
 
 /**
- * Статистика области `scope` за `days` суток до `now`. `now` приходит параметром:
- * границы периода и порог молчания иначе не проверить, не подменяя часы.
+ * Статистика области `scope` за `days` местных суток в поясе `timeZone`, считая
+ * сегодняшние. `now` приходит параметром: границы периода и порог молчания иначе не
+ * проверить, не подменяя часы.
  */
 export async function loadStats(
   scope: FeedScope,
   days: StatsPeriodDays,
   now: Date,
+  timeZone: string,
 ): Promise<Stats> {
-  const { from, window } = periodWindow(days, now);
+  const { from, window } = periodWindow(days, now, timeZone);
 
   const [summary, topFailedItems, alarmCount, silent] = await Promise.all([
     loadSummary(scope, window),

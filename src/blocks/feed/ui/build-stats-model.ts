@@ -51,8 +51,9 @@ export async function buildStatsModel(
     ...(selection.countryId === null ? {} : { countryId: selection.countryId }),
     ...(selection.storeId === null ? {} : { storeId: selection.storeId }),
   };
-  const stats = await loadStats(scope, view.days, now);
+  // Пояс экрана — тот же, по которому главная режет «последние 7 дней» (#216).
   const timeZone = screenTimeZone(feedSelection);
+  const stats = await loadStats(scope, view.days, now, timeZone);
 
   return {
     selection,

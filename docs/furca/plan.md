@@ -144,6 +144,7 @@ JUnit XML в `reports/`: `reports/vitest.junit.xml` (`vitest run --reporter=juni
 | Состав | `deploy/compose.yaml`: `db` → одноразовый `migrate` → `app`. Приложение стартует только после успешного наката миграций |
 | Сеть наружу | Порты не публикуются. Общий Caddy (TLS) ходит на `app:3000` через сеть `edge-meridius`, алиас `meridius-app`. Надстройка сети — канон в `GarroV/vps-infra`, `projects/meridius/` |
 | Обновление | `git pull`, затем `up -d --build` (команда целиком — `deploy/README.md`). Раскатка — только по явному «да» владельца |
+| Журнал | Журнал контейнеров с ротацией (`json-file`, 5 × 10 МБ на сервис); упавший запрос оставляет стек с кодом, который показывает экран. Не переживает `up -d --build` — как читать и сохранять, `deploy/README.md`, «Журнал» |
 | Секреты | `deploy/.env` на сервере, в git не попадает. Ключи — `deploy/.env.example` |
 | Бэкап | Ночной: VPS → restic на MUSPELHEIM (`GarroV/vps-infra`, `backup/`) |
 | Смоук | `node scripts/mvp-smoke.mjs --url <адрес> --password <пароль>` — только на демо-контуре, на боевой базе не гонять |

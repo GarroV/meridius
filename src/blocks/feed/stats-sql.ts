@@ -6,11 +6,10 @@
 // В запросах заполнение называется `src`: к нему цепляются станция и пиццерия.
 import { and, sql, type SQL } from "drizzle-orm";
 
+import { resolveDays } from "./period";
 import { scopeConditions, type FeedScope } from "./scope";
 import { itemCriticalSql, itemFailedSql } from "./stats-grading";
 import type { StatsPeriodDays } from "./stats-view";
-
-const HOUR_MS = 3_600_000;
 
 /** Границы периода выражениями SQL. */
 export interface Window {
@@ -23,14 +22,16 @@ function timestamp(at: Date): SQL {
 }
 
 /**
- * Скользящий период: `days` × 24 часа до `now`, а не местные сутки — у страны пиццерии в
- * разных поясах, и «последние 7 дней» по одному поясу отрезали бы у соседнего часы наугад.
+ * Период статистики — те же календарные сутки в поясе экрана, что у главной и ленты
+ * (`resolveDays`), а верхняя граница — момент просмотра: заполнение «из будущего»
+ * (сдвинутые часы) в счёт не идёт.
  */
 export function periodWindow(
   days: StatsPeriodDays,
   now: Date,
+  timeZone: string,
 ): { readonly from: Date; readonly window: Window } {
-  const from = new Date(now.getTime() - days * 24 * HOUR_MS);
+  const { from } = resolveDays(days, now, timeZone);
   return { from, window: { from: timestamp(from), to: timestamp(now) } };
 }
 

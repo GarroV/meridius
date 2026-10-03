@@ -277,7 +277,6 @@ export async function CatalogScreen({
     <AdminShell
       testId="catalog-screen"
       active="catalog"
-      breadcrumb={t("breadcrumb")}
       title={t("title")}
       topbarAction={
         <Link

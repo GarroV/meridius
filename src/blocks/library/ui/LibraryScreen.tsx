@@ -235,7 +235,6 @@ export async function LibraryScreen({
       testId="library-screen"
       active="library"
       // Партнёру библиотека только для чтения (D169) — для него это справочник (T344).
-      breadcrumb={model.canEdit ? t("crumbs") : t("crumbsReadOnly")}
       title={t("title")}
       topbarAction={
         model.canEdit ? (
