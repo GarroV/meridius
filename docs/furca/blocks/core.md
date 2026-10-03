@@ -116,6 +116,10 @@
 1280 проверок; сквозные `partner-cabinet`, `templates`, `not-found`, `stations`,
 `checklists-filter`, `section-intro` — 30 зелёных, пропусков нет. Сверка `norma` не
 делалась: правка только убирает строки, вид проверен сквозными по разметке.
+T320 (#151): ротация журнала в `deploy/compose.yaml` (`x-logging`, json-file 5 × 10 МБ),
+раздел «Журнал» в `deploy/README.md`. Проверено: `config --quiet` зелёный, порча (лишний
+ключ в `logging`) — красный; `next start` с мёртвой базой — `/s/<код>` 500, в stdout стек и
+`digest`. На VPS не раскатано и не проверено — раскатка за диспетчером.
 
 T352 (визуал DECIMUS, #159) и T353 (строка колонки — `core/ui/rail-row.ts`) — приняты;
 сверка с DECIMUS — getComputedStyle на 1440/1024/740/390.
