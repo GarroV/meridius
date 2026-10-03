@@ -149,7 +149,7 @@ function noteText(item: SubmissionItemView, t: Translate): string | null {
 }
 
 /**
- * Значение ответа в его собственном виде: да/нет, число, текст или «без ответа».
+ * Значение ответа в его собственном виде: да/нет, число, текст, будильник или «без ответа».
  * Таблицу с хотя бы одной строкой сюда не отдают — она рисуется своей разметкой,
  * а не этой строкой (см. `AnswerRow`); пустая же таблица здесь и превращается
  * в привычное «без ответа» через тот же запасной путь, что и `kind: "none"`.
@@ -158,6 +158,7 @@ function valueText(answer: AnswerView, t: Translate): string {
   if (answer.kind === "bool") return answer.value ? t("yes") : t("no");
   if (answer.kind === "number") return String(answer.value);
   if (answer.kind === "text") return answer.value;
+  if (answer.kind === "alarm") return t("alarmAt", { time: answer.at });
   return t("noAnswer");
 }
 

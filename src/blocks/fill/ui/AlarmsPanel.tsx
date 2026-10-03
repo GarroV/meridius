@@ -59,6 +59,13 @@ const INPUT_CLASS =
   "min-h-[var(--tap-min)] rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface px-[var(--space-5)] text-[length:var(--fs-lead)] text-ink focus:border-[var(--accent)] focus:outline-none";
 const BUTTON_CLASS =
   "min-h-[var(--tap-min)] cursor-pointer rounded-[var(--r-control)] border border-[var(--accent)] bg-surface px-[var(--space-6)] text-[length:var(--fs-lead)] text-[var(--accent)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-45";
+const LEAD_CLASS =
+  "px-[var(--space-7)] pb-[var(--space-5)] text-[length:var(--fs-meta)] text-[var(--ink-3)]";
+// Подзаголовок формы ручного будильника: отделяет её от списка и от пункта-будильника
+// чек-листа выше — без него две формы «подпись + время + Поставить» читались как одна
+// и та же, повторённая дважды (T354).
+// Набран тише заголовка панели: подпись к форме, а не второй заголовок над первым.
+const OWN_TITLE_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-2)]";
 const HINT_CLASS =
   "px-[var(--space-7)] pb-[var(--space-6)] text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const NOTICE_CLASS =
@@ -202,6 +209,13 @@ export function AlarmsPanel({
   return (
     <section data-testid="alarms-panel" className={PANEL_CLASS}>
       <h2 className={HEAD_CLASS}>{t("title")}</h2>
+      {/* Пояснение о том, что в списке, — только когда список есть: над пустым оно
+          обещало бы строки, которых нет. */}
+      {list.length === 0 ? null : (
+        <p data-testid="alarms-lead" className={LEAD_CLASS}>
+          {t("lead")}
+        </p>
+      )}
 
       {ringingAlarms.map((alarm) => (
         <div
@@ -261,6 +275,9 @@ export function AlarmsPanel({
       ))}
 
       <div className={FORM_CLASS}>
+        <h3 data-testid="alarms-own-title" className={OWN_TITLE_CLASS}>
+          {t("ownTitle")}
+        </h3>
         <div className={FIELD_CLASS}>
           <label
             className={FIELD_LABEL_CLASS}

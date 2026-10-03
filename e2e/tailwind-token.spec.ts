@@ -58,7 +58,10 @@ test.describe("Tailwind 4 поверх токенов дизайн-систем�
     expect(color).toBe(tokenRgb("--accent"));
   });
 
-  test("фон страницы берётся из токена --canvas", async ({ page }) => {
+  // Холст светлой темы — токен поверхности, как у DECIMUS (T352, `globals.css`).
+  test("фон страницы берётся из токена --surface (белый холст)", async ({
+    page,
+  }) => {
     await page.goto("/");
 
     const background = await page
@@ -67,6 +70,6 @@ test.describe("Tailwind 4 поверх токенов дизайн-систем�
         (element) => globalThis.getComputedStyle(element).backgroundColor,
       );
 
-    expect(background).toBe(tokenRgb("--canvas"));
+    expect(background).toBe(tokenRgb("--surface"));
   });
 });

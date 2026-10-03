@@ -31,8 +31,50 @@
 @import "../../docs/furca/design/reference/domain.css" layer(base);
 
 /* Токены дизайн-системы названы не по конвенции Tailwind, поэтому прокидываются
-   в нужные namespace через @theme inline: значения остаются в ядре. */
+   в нужные namespace через @theme inline: значения остаются в ядре.
+
+   Радиусы, размеры текста и межстрочные — тоже отсюда (T352, #159), и шкалы Tailwind в
+   этих namespace СБРОШЕНЫ (`initial`): `rounded-lg`, `text-2xl`, `leading-snug` больше
+   не порождают ни одного правила. Своё значение Tailwind разъезжался с системой молча —
+   `text-2xl` давал 19,5px там, где система говорит 20px, голое `rounded` — 4px там, где
+   контролу положено 8px. Теперь утилита либо роль системы (`rounded-control`,
+   `text-display`), либо ничего. Что голые утилиты не пишутся вовсе, сторожит
+   `design-utilities.test.ts` — пустой класс иначе остался бы незамеченным. Шкалу
+   отступов не трогаем: `--spacing` Tailwind — множитель 4px, и его шаги совпадают со
+   шкалой системы там, где разметка ими пользуется (`size-4`, `h-6`). */
+@theme {
+  --radius-*: initial;
+  --text-*: initial;
+  --leading-*: initial;
+}
+
 @theme inline {
+  --radius-mark: var(--r-mark);
+  --radius-control: var(--r-control);
+  --radius-block: var(--r-block);
+  --radius-screen: var(--r-screen);
+  --radius-pill: var(--r-pill);
+  --text-display: var(--fs-display);
+  --text-display--line-height: var(--lh-display);
+  --text-title: var(--fs-title);
+  --text-title--line-height: var(--lh-title);
+  --text-lead: var(--fs-lead);
+  --text-lead--line-height: var(--lh-lead);
+  --text-body: var(--fs-body);
+  --text-body--line-height: var(--lh-body);
+  --text-dense: var(--fs-dense);
+  --text-dense--line-height: var(--lh-dense);
+  --text-meta: var(--fs-meta);
+  --text-meta--line-height: var(--lh-meta);
+  --text-micro: var(--fs-micro);
+  --text-micro--line-height: var(--lh-micro);
+  --leading-display: var(--lh-display);
+  --leading-title: var(--lh-title);
+  --leading-lead: var(--lh-lead);
+  --leading-body: var(--lh-body);
+  --leading-dense: var(--lh-dense);
+  --leading-meta: var(--lh-meta);
+  --leading-micro: var(--lh-micro);
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-ink: var(--ink);
@@ -101,73 +143,136 @@
   }
 }
 
-/* Меню кабинета ниже складки — верхняя полоса (D092, T344).
-   Ядро (`.sidenav`, эталон Swarm) знает две ширины: колонка 216 px и уже 1100 px
-   колонка иконок 56 px. На телефоне колонка иконок отнимала 56 px из 375 при каждом
-   экране, а D092 требует схлопывающееся меню и всю ширину содержимому. Поэтому ниже
-   `--page-fold` (768 px; число продублировано, у медиазапроса нет доступа к
-   переменным) панель ложится полосой в одну строку со своей горизонтальной
-   прокруткой — тот же приём, что у полосы эталона экранов (`design/app.css`, `.nav`).
-   Шторки по кнопке нет сознательно: это состояние, то есть скрипт на каждом экране.
-   Подписи, группы и имя уже скрыты правилом ядра «уже 1100 px» — здесь только
-   раскладка. Слой `components` сильнее `base`, куда импортировано ядро. */
+/* Меню кабинета ниже складки — как у DECIMUS и Swarm (T352): полоса марки сверху и
+   нижняя панель разделов под большой палец; левой панели нет.
+   До T352 панель ложилась верхней полосой в одну строку со своей прокруткой (D092,
+   T344): 71 px высоты против 46 px у DECIMUS, разделы — иконками без подписей, и два
+   продукта линейки на телефоне выглядели разными программами (владелец 01.10.2026:
+   «размеры панели навигации в децимусе и меридиусе разные, приведи к единству»).
+   Значения — из `decimus-web.css` (`.mbar`, `.tabbar`), все токенами ядра.
+
+   Граница — складка кабинета `--page-fold` (768 px; число продублировано, у
+   медиазапроса нет доступа к переменным), а не 720 px DECIMUS: по складке раскладывается
+   и всё содержимое (`admin-frame.ts`), и меню обязано меняться вместе с ним.
+   Слой `components` сильнее `base`, куда импортировано ядро. */
 @layer components {
+  .mbar,
+  .tabbar {
+    display: none;
+  }
+
   @media (max-width: 767.98px) {
     .sidenav {
-      flex-direction: row;
+      display: none;
+    }
+
+    .mbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      display: flex;
       align-items: center;
-      width: auto;
-      overflow-x: auto;
-      border-right: 0;
+      gap: var(--space-4);
+      padding: var(--space-3) var(--space-7);
+      padding-top: calc(var(--space-3) + env(safe-area-inset-top, 0px));
+      background: var(--surface-2);
       border-bottom: 1px solid var(--line);
     }
-    .sidenav__brand {
-      flex-shrink: 0;
-      padding: var(--space-4) var(--space-5);
-      border-bottom: 0;
-    }
-    .sidenav__search {
-      flex-shrink: 0;
-      padding: 0 var(--space-2);
-    }
-    .sidenav__field {
-      width: 34px;
-    }
-    .sidenav__list {
-      flex-direction: row;
-      flex: none;
-      overflow: visible;
-      padding: var(--space-4) var(--space-2);
-    }
-    .sidenav__item,
-    .sidenav__current {
-      width: 34px;
-      flex-shrink: 0;
-    }
-    /* Текущий пункт — полоса снизу, а не слева: полоса слева читается как
-       разделитель соседних иконок. */
-    .sidenav__current {
-      box-shadow: inset 0 -2px 0 var(--accent);
-    }
-    .sidenav__foot {
-      flex-direction: row;
-      flex-shrink: 0;
+    .mbar__brand {
+      display: inline-flex;
       align-items: center;
-      border-top: 0;
+      gap: var(--space-4);
+      color: var(--ink);
+      font-weight: var(--w-bold);
+      letter-spacing: 0.04em;
     }
-    .sidenav__theme {
+    .mbar__brand:hover {
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .mbar__logo {
+      width: 24px;
+      height: 24px;
+      flex: none;
+      border-radius: var(--r-control);
+    }
+    .mbar__spacer {
+      flex: 1;
+      min-width: 0.5rem;
+    }
+    /* Ядро ставит тему и язык столбиком при свёрнутой панели (уже 1100 px); в полосе
+       места вдоль строки хватает. */
+    .mbar .sidenav__theme,
+    .mbar .sidenav__lang,
+    .mbar .sidenav__lang .langpill {
       flex-direction: row;
-      margin-bottom: 0;
+      margin: 0;
+      padding: 0;
     }
-    .sidenav__user {
-      flex-shrink: 0;
-      border-top: 0;
-      padding: 0 var(--space-5);
+    .mbar .sidenav__lang .langpill {
+      padding: 2px;
+    }
+
+    .tabbar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      display: flex;
+      gap: var(--space-1);
+      padding: var(--space-2) var(--space-3);
+      padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+      background: var(--surface-2);
+      border-top: 1px solid var(--line);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tabbar::-webkit-scrollbar {
+      display: none;
+    }
+    .tabbar__item {
+      flex: 1 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      min-height: var(--tap-min);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--r-control);
+      font-size: var(--fs-micro);
+      font-weight: var(--w-medium);
+      color: var(--ink-3);
+      white-space: nowrap;
+    }
+    .tabbar__item svg {
+      width: 18px;
+      height: 18px;
+    }
+    .tabbar__item:hover {
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .tabbar__item[aria-current] {
+      background: var(--accent-soft);
+      color: var(--accent);
     }
   }
 }
 
 @layer base {
+  /* Холст светлой темы — белый, как у DECIMUS (T352, #159: «берем децимус за основу.
+     шрифты, цвета, отступы»). Свой хекс не заводится: холст берёт значение токена
+     поверхности, то есть остаётся значением ядра — тем же приёмом, что у DECIMUS
+     (`decimus-web.css`, решение его владельца 24.09.2026 «замени серый фон на белый»).
+     Только светлая тема: в тёмной холст ядра темнее карточек, и белый сравнял бы их.
+     Правильное место — канон forma; пока он серый, правило живёт здесь и снимается,
+     когда forma примет белый холст для всей линейки. */
+  :root:not([data-theme="dark"]) {
+    --canvas: var(--surface);
+  }
+
   html {
     /* Поворот телефона на кухне не должен раздувать текст: эталон задаёт размеры сам. */
     -webkit-text-size-adjust: 100%;

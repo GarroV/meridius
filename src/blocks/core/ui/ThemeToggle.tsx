@@ -1,19 +1,22 @@
 "use client";
 
-import type { ReactElement } from "react";
+import { type KeyboardEvent, type ReactElement, useRef } from "react";
 
 import { THEME_CHOICES, type ThemeChoice } from "../theme";
 import { Icon, type IconName } from "./Icon";
-import { SEG_CLASS, segOptionClass } from "./seg-option";
 import { useThemeChoice } from "./ThemeProvider";
 
 /**
  * Переключатель темы (D106). Три положения, а не два: «Авто» — это не третья тема, а
  * возврат к системной настройке, и без него выбор был бы дорогой в один конец.
  *
- * Вид — пилюля канонического переключателя среза `.seg` (D164), как у срезов в задачах
- * Swarm: три иконки на дорожке, выбранная — белой плашкой. Видимой подписи нет — иконки
- * говорят сами за себя, а слово «Тема» остаётся чтецу в `aria-label` группы.
+ * Вид — капсула темы ядра (`.sidenav__theme[role="radiogroup"]`, forma), та же, что у
+ * DECIMUS (T352, #159): три иконки, выбранная залита мягким акцентом, как текущий пункт
+ * меню. Видимой подписи нет — слово «Тема» остаётся чтецу в `aria-label` группы.
+ *
+ * Это группа радиокнопок и по поведению, а не только по роли: выбор ровно один,
+ * в группу ведёт один шаг табуляции (на выбранное положение), а стрелки двигают выбор
+ * по кругу. Обещать стрелки ролью и не дать их хуже, чем не обещать.
  *
  * Слова приходят готовыми от меню (`AdminNav`), а не из клиентского словаря (T254).
  * Клиентский словарь — это ближайший `NextIntlClientProvider`, и вложенный провайдер
@@ -28,42 +31,68 @@ const ICONS: Readonly<Record<ThemeChoice, IconName>> = {
   dark: "moon",
 };
 
+/** Стрелки группы радиокнопок: вперёд — вправо и вниз, назад — влево и вверх. */
+const ARROW_STEP: Readonly<Record<string, number>> = {
+  ArrowRight: 1,
+  ArrowDown: 1,
+  ArrowLeft: -1,
+  ArrowUp: -1,
+};
+
 /** Подписи переключателя: заголовок и по слову на каждое положение. */
 export type ThemeToggleLabels = Readonly<Record<"label" | ThemeChoice, string>>;
 
 export function ThemeToggle({
   labels,
+  testIdPrefix = "",
 }: {
   readonly labels: ThemeToggleLabels;
+  /** Приставка тестовых идентификаторов: переключатель стоит и в панели, и в полосе телефона. */
+  readonly testIdPrefix?: string;
 }): ReactElement {
   const { choice, choose } = useThemeChoice();
+  const buttons = useRef<(HTMLButtonElement | null)[]>([]);
+
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    const step = ARROW_STEP[event.key];
+    if (step === undefined) return;
+    event.preventDefault();
+    const count = THEME_CHOICES.length;
+    const next = (THEME_CHOICES.indexOf(choice) + step + count) % count;
+    const option = THEME_CHOICES[next];
+    if (option === undefined) return;
+    choose(option);
+    buttons.current[next]?.focus();
+  }
 
   return (
-    <div data-testid="theme-toggle">
-      {/*
-        `role="group"`, а не `radiogroup`: стрелками между положениями здесь не ходят,
-        каждое положение — обычная кнопка, и чтец называет её нажатой через
-        `aria-pressed`. Обещать клавиатурное поведение, которого нет, хуже, чем не
-        обещать его вовсе.
-      */}
-      <div role="group" aria-label={labels.label} className={SEG_CLASS}>
-        {THEME_CHOICES.map((option) => (
-          <button
-            key={option}
-            type="button"
-            data-testid={`theme-${option}`}
-            className={segOptionClass(option === choice)}
-            aria-pressed={option === choice}
-            aria-label={labels[option]}
-            title={labels[option]}
-            onClick={() => {
-              choose(option);
-            }}
-          >
-            <Icon name={ICONS[option]} />
-          </button>
-        ))}
-      </div>
+    <div
+      role="radiogroup"
+      aria-label={labels.label}
+      className="sidenav__theme"
+      data-testid={`${testIdPrefix}theme-toggle`}
+      onKeyDown={onKeyDown}
+    >
+      {THEME_CHOICES.map((option, index) => (
+        <button
+          key={option}
+          ref={(node) => {
+            buttons.current[index] = node;
+          }}
+          type="button"
+          role="radio"
+          data-testid={`${testIdPrefix}theme-${option}`}
+          aria-checked={option === choice}
+          tabIndex={option === choice ? 0 : -1}
+          aria-label={labels[option]}
+          title={labels[option]}
+          onClick={() => {
+            choose(option);
+          }}
+        >
+          <Icon name={ICONS[option]} />
+        </button>
+      ))}
     </div>
   );
 }

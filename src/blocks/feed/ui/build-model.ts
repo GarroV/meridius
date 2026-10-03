@@ -294,6 +294,9 @@ export async function buildSubmissionModel(
   };
 }
 
+/** Ответ пункта-будильника — «ЧЧ:ММ»; другое — расхождение типа, оно идёт текстом. */
+const ALARM_TIME = /^\d{2}:\d{2}$/;
+
 /** Ответ в том виде, в каком его дал сотрудник; тип берётся у пункта снимка. */
 function toAnswerView(
   item: Section["items"][number],
@@ -306,6 +309,13 @@ function toAnswerView(
   }
   if (item.type === "number" && typeof value === "number") {
     return { kind: "number", value };
+  }
+  if (
+    item.type === "alarm" &&
+    typeof value === "string" &&
+    ALARM_TIME.test(value)
+  ) {
+    return { kind: "alarm", at: value };
   }
   if (item.type === "table" && Array.isArray(value)) {
     return tableAnswerView(item.columns, value, locale);

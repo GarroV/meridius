@@ -3,7 +3,7 @@
 // У системы свои шкалы — `--fs-*` для размеров и `--r-*` для скруглений, — и продукты
 // линейки узнаются именно по ним. Голая утилита Tailwind (`text-2xl`, `rounded-lg`)
 // приносит СВОЁ значение: `text-2xl` это 19,5px там, где система говорит 20px, а
-// `rounded` — 4px там, где контролу положено 10px. Разойтись так можно на один экран, и
+// `rounded` — 4px там, где контролу положено 8px. Разойтись так можно на один экран, и
 // заметит это не прогон, а владелец, сравнив два продукта глазами. Он и заметил.
 //
 // Проверка узкая нарочно: она стережёт ДВЕ шкалы, которые несут узнаваемость, и не
@@ -20,6 +20,9 @@ import { withoutComments } from "./source-text";
 
 /** Размеры текста Tailwind: `text-xs` … `text-9xl`. Цвета (`text-ink`) сюда не попадают. */
 const BARE_TEXT_SIZE = /\btext-(?:xs|sm|base|lg|xl|[2-9]xl)\b/g;
+/** Межстрочные из шкалы Tailwind. `leading-none` — не шкала, см. шапку файла. */
+const BARE_LEADING =
+  /\bleading-(?:tight|snug|normal|relaxed|loose|[3-9]|10)\b/g;
 /** Скругления Tailwind, кроме записи через токен: `rounded-[var(--r-…)]`. */
 const BARE_RADIUS =
   /\brounded(?:-(?:none|sm|md|lg|xl|[2-9]xl|full|t|b|l|r|tl|tr|bl|br))?(?![-[])\b/g;
@@ -64,13 +67,24 @@ describe("разметка держится шкал дизайн-системы
     ).toEqual([]);
   });
 
+  test("межстрочный задаётся токеном --lh-*, а не утилитой Tailwind", () => {
+    expect(
+      offenders(BARE_LEADING),
+      "Межстрочный взят из шкалы Tailwind. Пишется так: " +
+        'className="leading-title" или "leading-[var(--lh-title)]". Шкала Tailwind в ' +
+        "globals.css сброшена: такая утилита не даёт ничего, и строка молча получает " +
+        "межстрочный родителя.",
+    ).toEqual([]);
+  });
+
   test("скругление задаётся токеном --r-*, а не утилитой Tailwind", () => {
     expect(
       offenders(BARE_RADIUS),
       "Скругление взято из Tailwind вместо дизайн-системы. Роли системы: " +
-        "--r-mark 4px (метки, чекбоксы), --r-control 10px (кнопки и поля), " +
-        "--r-block 12px (карточки и таблицы), --r-screen 18px (диалоги), " +
-        '--r-pill 999px (срез). Пишется так: className="rounded-[var(--r-control)]".',
+        "--r-mark (метки, чекбоксы), --r-control (кнопки и поля), " +
+        "--r-block (карточки и таблицы), --r-screen (диалоги), --r-pill (срез). " +
+        'Пишется так: className="rounded-control" или "rounded-[var(--r-control)]". ' +
+        "Шкала Tailwind в globals.css сброшена: голая утилита не даёт НИЧЕГО, а не 4px.",
     ).toEqual([]);
   });
 });

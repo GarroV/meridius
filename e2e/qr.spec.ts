@@ -110,7 +110,10 @@ test.describe("наклейки станций", () => {
 
     await expect(page.getByTestId("qr-sheet").first()).toBeVisible();
     await expect(page.getByTestId("qr-sticker").first()).toBeVisible();
-    await expect(page.locator("nav")).toBeHidden();
+    // Меню два: боковое и нижняя панель телефона (T352) — скрыто должно быть каждое.
+    const menus = await page.locator("nav").all();
+    expect(menus.length).toBeGreaterThan(0);
+    for (const menu of menus) await expect(menu).toBeHidden();
     await expect(page.getByTestId("qr-print")).toBeHidden();
   });
 

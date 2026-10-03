@@ -2,7 +2,8 @@
 // закладывает будильник в редакторе, пункт доезжает до опубликованной версии, на
 // станции он показан кнопкой «Поставить будильник» с подставленными подписью и
 // временем, поставленный будильник закрывает пункт и встаёт в панель будильников
-// станции рядом с ручными, а ручной будильник D070 заводится как прежде.
+// станции рядом с ручными, а ручной будильник D070 заводится как прежде. В карточке
+// заполнения ответ пункта читается «Будильник на ЧЧ:ММ», а не голым временем.
 //
 // Правила разбора и ответа закрыты тестами (`editor/validation.test.ts`,
 // `fill/validation.test.ts`, `fill/answers.test.ts`); здесь то, чего они не видят:
@@ -30,17 +31,25 @@ async function login(page: Page) {
   await expect(page.getByTestId("admin-home")).toBeVisible();
 }
 
-/** Значения ответов последнего заполнения станции — то, что легло в базу. */
-async function storedValues(code: string): Promise<unknown[]> {
+/** Последнее заполнение станции: его адрес и значения ответов — то, что легло в базу. */
+async function lastSubmission(
+  code: string,
+): Promise<{ id: string | undefined; values: unknown[] }> {
   const { Pool } = await import("pg");
   const pool = new Pool({ connectionString: e2eDatabaseUrl() });
   try {
-    const { rows } = await pool.query<{ answers: { value: unknown }[] }>(
-      `select s.answers from submissions s join stations st on st.id = s.station_id
+    const { rows } = await pool.query<{
+      id: string;
+      answers: { value: unknown }[];
+    }>(
+      `select s.id, s.answers from submissions s join stations st on st.id = s.station_id
         where st.code = $1 order by s.submitted_at desc limit 1`,
       [code],
     );
-    return (rows[0]?.answers ?? []).map((answer) => answer.value);
+    return {
+      id: rows[0]?.id,
+      values: (rows[0]?.answers ?? []).map((answer) => answer.value),
+    };
   } finally {
     await pool.end();
   }
@@ -99,6 +108,14 @@ test.describe("будильник как пункт чек-листа", () => {
     );
     const alarmItem = kitchen.getByTestId("fill-alarm");
     await expect(alarmItem).toBeVisible();
+    // Две формы будильника на одном экране различимы словами (T354): пункт говорит,
+    // что будильник заложен в чек-лист, панель — что ниже свой, ручной.
+    await expect(kitchen.getByTestId("fill-alarm-hint")).toContainText(
+      "заложен в чек-лист",
+    );
+    await expect(kitchen.getByTestId("alarms-own-title")).toContainText(
+      "Свой будильник",
+    );
     await expect(kitchen.getByTestId("fill-alarm-label")).toHaveValue(LABEL);
     const suggested = await kitchen.getByTestId("fill-alarm-time").inputValue();
     // Серверное «сейчас» + 5 минут; минута на границе счёта допускается.
@@ -128,7 +145,15 @@ test.describe("будильник как пункт чек-листа", () => {
     // Пункт закрыт будильником — чек-лист отправляется, в ответе время будильника.
     await kitchen.getByTestId("fill-submit").click();
     await expect(kitchen.getByTestId("fill-sent")).toBeVisible();
-    expect(await storedValues(station.code)).toStrictEqual([suggested]);
+    const submission = await lastSubmission(station.code);
+    expect(submission.values).toStrictEqual([suggested]);
     await kitchen.close();
+
+    // Карточка заполнения называет ответ будильником, а не голым временем (T355).
+    expect(submission.id).toBeDefined();
+    await page.goto(`/admin/feed/${String(submission.id)}`);
+    await expect(page.getByTestId("answers-card")).toContainText(
+      `Будильник на ${suggested}`,
+    );
   });
 });

@@ -2,7 +2,6 @@ import type { ReactElement } from "react";
 
 import { LOCALE_NAMES, LOCALES, type Locale } from "../locale";
 import { chooseLocale } from "./locale-action";
-import { SEG_CLASS, segOptionClass } from "./seg-option";
 
 /**
  * Переключатель языка кабинета (#161).
@@ -12,8 +11,8 @@ import { SEG_CLASS, segOptionClass } from "./seg-option";
  * сервере, язык решается там же, и переключателю нечего держать в состоянии — он
  * сообщает выбор и получает перерисованную страницу. Заодно он работает без JavaScript.
  *
- * Вид взят у переключателя темы, чтобы два переключателя в одной строке подвала меню не
- * выглядели как две разные вещи: пилюля `.seg`, выбранное — белой плашкой (D164).
+ * Вид — капсула языка ядра (`.sidenav__lang > .langpill`, forma), та же, что у DECIMUS
+ * (T352, #159), и парная капсуле темы рядом: выбранный язык залит мягким акцентом.
  *
  * Язык экрана заполнения этим не трогается — его задаёт пиццерия (D122). Переключатель
  * стоит только в кабинете и меняет язык только кабинета.
@@ -21,18 +20,26 @@ import { SEG_CLASS, segOptionClass } from "./seg-option";
 export function LocaleToggle({
   current,
   label,
+  testIdPrefix = "",
 }: {
   readonly current: Locale;
   readonly label: string;
+  /** Приставка тестовых идентификаторов: переключатель стоит и в панели, и в полосе телефона. */
+  readonly testIdPrefix?: string;
 }): ReactElement {
   return (
-    <form action={chooseLocale} data-testid="locale-toggle">
+    <div className="sidenav__lang">
       {/*
-        `role="group"`, а не `radiogroup`: стрелками между положениями здесь не ходят,
-        каждое положение — обычная кнопка отправки, и чтец называет её нажатой через
-        `aria-pressed`.
+        `role="group"`, а не `radiogroup`: каждое положение — обычная кнопка отправки, и
+        чтец называет её нажатой через `aria-pressed`.
       */}
-      <div role="group" aria-label={label} className={SEG_CLASS}>
+      <form
+        action={chooseLocale}
+        className="langpill"
+        role="group"
+        aria-label={label}
+        data-testid={`${testIdPrefix}locale-toggle`}
+      >
         {LOCALES.map((code) => (
           <button
             key={code}
@@ -40,16 +47,16 @@ export function LocaleToggle({
             name="locale"
             value={code}
             lang={code}
-            data-testid={`locale-${code}`}
+            className="langpill__item"
+            data-testid={`${testIdPrefix}locale-${code}`}
             aria-pressed={code === current}
             aria-label={LOCALE_NAMES[code]}
             title={LOCALE_NAMES[code]}
-            className={`${segOptionClass(code === current)} font-mono text-[11px] uppercase`}
           >
             {code}
           </button>
         ))}
-      </div>
-    </form>
+      </form>
+    </div>
   );
 }
