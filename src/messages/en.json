@@ -352,6 +352,7 @@
     },
     "preview": {
       "alarm": "Alarm “{label}” — {when}",
+      "alarmAt": "at {time}",
       "alarmAfter": "{minutes} min after opening",
       "title": "Preview",
       "notice": "This is what an employee sees. It only shows: the employee answers and submits on their own phone, opening the checklist by the station QR code.",
@@ -717,6 +718,7 @@
       "yes": "yes",
       "no": "no",
       "noAnswer": "no answer",
+      "alarmAt": "Alarm at {time}",
       "notFoundTitle": "Submission not found",
       "notFoundText": "The link points to a submission that does not exist: the address may have a typo.",
       "notFoundAction": "Back to the feed",
