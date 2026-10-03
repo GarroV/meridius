@@ -91,9 +91,10 @@ test.describe("кабинет УК и партнёра", () => {
       page.locator('[data-testid="section-intro"][data-section="partners"]'),
     ).toBeVisible();
 
-    // Библиотека у УК — рабочий раздел, крошка прежняя.
+    // Надзаголовков групп меню больше нет (D178): у раздела верхнего уровня крошки нет.
     await page.goto("/admin/library");
-    await expect(page.getByTestId("admin-crumbs")).toHaveText("Работа");
+    await expect(page.getByTestId("library-screen")).toBeVisible();
+    await expect(page.getByTestId("admin-crumbs")).toHaveCount(0);
     await page.context().close();
   });
 
@@ -110,7 +111,7 @@ test.describe("кабинет УК и партнёра", () => {
 
     await page.goto("/admin/library");
     await expect(page.getByTestId("library-screen")).toBeVisible();
-    await expect(page.getByTestId("admin-crumbs")).toHaveText("Справочник");
+    await expect(page.getByTestId("admin-crumbs")).toHaveCount(0);
     await page.context().close();
   });
 });

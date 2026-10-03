@@ -185,7 +185,7 @@ test.describe("раздел «Станции»", () => {
     const second = await seedStationWithoutChecklist("колонки-2", "ru");
 
     await page.goto("/admin/stations?gap=noChecklist");
-    await expect(page.getByTestId("stations-pick")).toBeVisible();
+    await expect(page.getByTestId("stations-home")).toBeVisible();
     await page.evaluate(() => {
       const rail = document.querySelector('[data-testid="stations-rail"]');
       if (rail !== null) {

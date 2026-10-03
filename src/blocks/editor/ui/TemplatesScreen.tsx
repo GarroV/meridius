@@ -135,7 +135,6 @@ export async function TemplatesScreen(): Promise<ReactElement> {
     <AdminShell
       testId="templates-screen"
       active="templates"
-      breadcrumb={t("breadcrumb")}
       title={t("title")}
       topbarAction={
         canEdit ? (

@@ -26,10 +26,6 @@ import { ROLLOUT_FORM_ID, STICKERS_PATH } from "./view";
  * отмеченные в колонке станции. Галочки колонки — поля формы выбора отсюда (атрибут `form`).
  */
 
-const PICK_CLASS =
-  "bg-surface flex flex-col gap-[var(--space-3)] rounded-[var(--r-block)] border border-[var(--line-strong)] px-[var(--space-7)] py-[var(--space-6)] shadow-[var(--sh-xs)]";
-const PICK_TITLE_CLASS =
-  "m-0 text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold text-ink";
 const ROLLOUT_CLASS =
   "bg-surface flex flex-wrap items-center gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--line-strong)] px-[var(--space-7)] py-[var(--space-5)] shadow-[var(--sh-xs)]";
 const SELECT_CLASS =
@@ -65,19 +61,10 @@ export async function StationsScreen({
     templates.find((row) => row.id === template)?.id ?? templates[0]?.id;
 
   return (
-    <AdminPage
-      testId="stations-home"
-      breadcrumb={t("breadcrumb")}
-      title={t("title")}
-      topbarAction={null}
-    >
+    <AdminPage testId="stations-home" title={t("title")} topbarAction={null}>
       {/* D152: раздел объясняет себя сам. Ниже складки этой зоны не видно — там блок
           стоит над колонкой станций (`StationsWorkspace`). */}
       <SectionIntro section="stations" />
-
-      <div className={PICK_CLASS} data-testid="stations-pick">
-        <p className={PICK_TITLE_CLASS}>{t("rail.pickTitle")}</p>
-      </div>
 
       {/*
         Форма выбора стоит всегда, даже без шаблонов: галочки колонки ссылаются на неё

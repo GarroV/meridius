@@ -28,13 +28,12 @@ export default async function AdminNotFoundPage(): Promise<ReactElement> {
       narrow
       breadcrumb={
         <Link href={ADMIN_HOME.path} className="underline">
-          {admin("crumbs")}
+          {admin("nav.home")}
         </Link>
       }
       // В шапке — своё слово: не заголовок карточки и не крошка. Шапка, повторившая
-      // соседа, печатала «Кабинет» дважды подряд (T251) — одно и то же слово рядом
-      // читается как сбой вёрстки. Обычный кабинетный приём — крошка и заголовок
-      // разными словами (`/admin/library`: «Работа» и «Библиотека блоков»).
+      // соседа, печатала одно слово дважды подряд (T251) — это читается как сбой
+      // вёрстки. Крошка — ссылка на «Главную», заголовок — своё слово.
       title={t("topbar")}
       topbarAction={null}
     >

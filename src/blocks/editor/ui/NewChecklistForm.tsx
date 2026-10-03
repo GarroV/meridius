@@ -48,6 +48,7 @@ export interface NewChecklistLabels {
   readonly windowOwnToShort: string;
   readonly windowOwnHint: string;
   readonly create: string;
+  readonly createTemplate: string;
   readonly cancel: string;
   /** Отказы, которых ждём от `submitCreateChecklist`; `{limit}` в них уже подставлен. */
   readonly errors: Partial<Record<EditorErrorCode | "unknown", string>> & {
@@ -256,7 +257,7 @@ export function NewChecklistForm({
             data-live={live ? "true" : undefined}
             className={BTN_PRIMARY_CLASS}
           >
-            {labels.create}
+            {kind === "template" ? labels.createTemplate : labels.create}
           </button>
           <Link
             href={kind === "template" ? TEMPLATES_PATH : CHECKLISTS_PATH}

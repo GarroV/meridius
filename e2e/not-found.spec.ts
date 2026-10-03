@@ -53,6 +53,8 @@ test.describe("неизвестный адрес кабинета", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Страница не найдена",
     );
+    // Крошка ведёт на «Главную» и называется как пункт меню, а не снятым «Кабинет» (#217).
+    await expect(page.getByTestId("admin-crumbs")).toHaveText("Главная");
     // Из тупика есть выход — ссылка обратно в кабинет.
     await page.getByTestId("admin-not-found-home").click();
     await expect(page.getByTestId("admin-home")).toBeVisible();

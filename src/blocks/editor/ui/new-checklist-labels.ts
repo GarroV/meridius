@@ -27,6 +27,7 @@ export async function newChecklistLabels(): Promise<NewChecklistLabels> {
     windowOwnToShort: t("form.windowOwnToShort"),
     windowOwnHint: t("form.windowOwnHint"),
     create: t("form.create"),
+    createTemplate: t("form.createTemplate"),
     cancel: t("form.cancel"),
     errors: {
       badFormat: t("errors.badFormat"),

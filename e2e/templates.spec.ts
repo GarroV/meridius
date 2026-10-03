@@ -17,6 +17,10 @@ async function createPublishedTemplate(page: Page, title: string) {
   // У шаблона станции не бывает — и поля для неё нет.
   await expect(page.locator("#new-checklist-station")).toHaveCount(0);
 
+  // Кнопка говорит, что заводится шаблон, а не чек-лист (#217).
+  await expect(page.getByTestId("create-checklist")).toHaveText(
+    "Завести шаблон",
+  );
   await page.getByTestId("new-checklist-title").fill(title);
   await page.getByTestId("create-checklist").click();
 

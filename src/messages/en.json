@@ -41,7 +41,6 @@
     "locale": {
       "label": "Language"
     },
-    "crumbs": "Workspace",
     "skipToContent": "Skip to content",
     "notFound": {
       "title": "No such section",
@@ -78,7 +77,6 @@
   },
   "catalog": {
     "title": "Countries and pizzerias",
-    "breadcrumb": "Directory",
     "columns": {
       "countries": "Countries",
       "stores": "Pizzerias",
@@ -194,7 +192,6 @@
       "countNarrowed": "{shown} of {total}",
       "items": "{count, plural, one {# item} other {# items}}",
       "back": "All checklists",
-      "pickTitle": "Pick a checklist on the left",
       "close": "Close panel"
     },
     "form": {
@@ -214,6 +211,7 @@
       "windowOwnToShort": "to",
       "windowOwnHint": "No such shift in the list? Set both bounds of your own window — it wins over the list.",
       "create": "Create checklist",
+      "createTemplate": "Create template",
       "cancel": "Cancel"
     },
     "screen": {
@@ -462,7 +460,7 @@
       "title": "Pick a store",
       "hint": "A sheet is printed per store: it carries stickers for all of its stations.",
       "stations": "{count, plural, one {# station} other {# stations}}",
-      "empty": "No stores yet — add them in the reference."
+      "empty": "No stores yet — add them in Countries and pizzerias."
     },
     "errors": {
       "notFound": "That station is gone: refresh the page.",
@@ -694,8 +692,8 @@
       "periodText": "There are submissions for these filters, just on other days: widen the period or clear the filters.",
       "periodAction": "Clear filters",
       "noStationsTitle": "Nothing to fill yet",
-      "noStationsText": "First add a store and a station in the reference, then print the station QR code — that is what the employee scans to fill the checklist.",
-      "noStationsAction": "Open the reference"
+      "noStationsText": "First add a store and a station in Countries and pizzerias, then print the station QR code — that is what the employee scans to fill the checklist.",
+      "noStationsAction": "Open Countries and pizzerias"
     },
     "card": {
       "back": "Statistics",
@@ -799,8 +797,8 @@
       "back": "All countries",
       "storeCount": "{count, plural, one {# pizzeria} other {# pizzerias}}",
       "noCountriesTitle": "No countries yet",
-      "noCountriesText": "Statistics are counted per pizzeria of a country. Add a country and a pizzeria in the reference, and their tiles appear here.",
-      "noCountriesAction": "Open the reference",
+      "noCountriesText": "Statistics are counted per pizzeria of a country. Add a country and a pizzeria in Countries and pizzerias, and their tiles appear here.",
+      "noCountriesAction": "Open Countries and pizzerias",
       "tilesTitle": "Pizzerias",
       "tilesLead": "Today’s checklist status and the figures for the period. A tile opens the pizzeria: its checklists, alarms and submission feed.",
       "noStores": "There are no pizzerias in this country yet.",
@@ -841,8 +839,6 @@
     }
   },
   "library": {
-    "crumbs": "Work",
-    "crumbsReadOnly": "Reference",
     "title": "Block library",
     "new": "+ New block",
     "newTitle": "New block",
@@ -933,7 +929,7 @@
     "admin": {
       "title": "Devices",
       "notice": "See which station each tablet stands at, and pair or unpair it right here. A paired tablet survives a QR sticker reissue: only unpairing stops it. A tablet you do not recognise in this list is a reason to unpair it.",
-      "empty": "There are no stations in the directory yet. Add the pizzeria and its stations in Directory — then pair tablets here.",
+      "empty": "There are no stations yet. Add the pizzeria and its stations in Countries and pizzerias — then pair tablets here.",
       "summary": "{stations, plural, one {# station} other {# stations}} · with a tablet {paired} · without {unpaired}",
       "paired": "Tablet paired",
       "pairedMany": "{count, plural, one {# tablet} other {# tablets}}",
@@ -1000,11 +996,9 @@
   },
   "stations": {
     "title": "Stations",
-    "breadcrumb": "Work",
     "rail": {
       "label": "Station list",
-      "back": "All stations",
-      "pickTitle": "Pick a station on the left"
+      "back": "All stations"
     },
     "checklists": "{count, plural, one {# checklist} other {# checklists}}",
     "tabletPaired": "Tablet paired",
@@ -1018,7 +1012,7 @@
       "noChecklist": "No checklist · {count}",
       "silent": "Silent · {count}"
     },
-    "empty": "No stations yet. Add them in the countries and pizzerias reference.",
+    "empty": "No stations yet. Add them in Countries and pizzerias.",
     "emptyFiltered": "No stations match — which is good news.",
     "card": {
       "checklist": "Checklist",
@@ -1063,7 +1057,6 @@
   },
   "templates": {
     "title": "Templates",
-    "breadcrumb": "Work",
     "new": "New template",
     "empty": "No templates yet. Create the first one or make one from a ready checklist — the “Make a template” button in its editor. Every country will be able to take it.",
     "untitled": "Untitled",
@@ -1130,7 +1123,6 @@
     "emptyAction": "Make one from a template"
   },
   "partners": {
-    "crumbs": "Directory",
     "title": "Partners",
     "createTitle": "Add a partner",
     "tenant": "Partner",
@@ -1140,7 +1132,7 @@
     "password": "Password",
     "passwordHint": "At least {min} characters.",
     "countries": "Partner countries",
-    "countriesEmpty": "There are no countries in the directory yet — add them in the Directory section first.",
+    "countriesEmpty": "There are no countries yet — add them in Countries and pizzerias first.",
     "create": "Add",
     "creating": "Adding…",
     "created": "Account “{login}” created. Hand the login and password to the partner.",
@@ -1168,7 +1160,7 @@
       "tenant-name": "The partner name is empty or longer than 120 characters.",
       "hq-tenant": "That is the management company's name — a partner cannot be called that.",
       "no-countries": "Tick at least one country.",
-      "unknown-country": "One of the ticked countries is no longer in the directory. Reload the page.",
+      "unknown-country": "One of the ticked countries no longer exists. Reload the page.",
       "root-login": "The login admin belongs to the management company account.",
       "login-shape": "Login has the wrong form: lowercase Latin letters, digits, dot, hyphen and underscore, 3 to 64 characters.",
       "login-taken": "This login is already taken.",
@@ -1221,7 +1213,7 @@
       "next": "Found a weak spot? Open the submission card, fix the checklist in Checklists or look into the station in Stations."
     },
     "catalog": {
-      "why": "The network directory: countries, pizzerias and their stations. Everything else relies on it.",
+      "why": "Countries, pizzerias and their stations — the base of the network: everything else relies on them.",
       "what": "Add a pizzeria and its stations. Head office edits the whole network; a partner edits the pizzerias and stations of their own countries.",
       "next": "A new station appears in Stations: put a checklist on it and print its sticker."
     },
