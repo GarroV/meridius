@@ -175,39 +175,65 @@ test.describe("каркас кабинета на 375 px", () => {
     });
     expect(dragged, `страницу утащило вбок на ${String(dragged)} px`).toBe(0);
   });
-  // D092, T344: ниже складки меню — верхняя полоса во всю ширину, а не колонка иконок,
-  // и содержимое начинается под ней.
-  test("меню — верхняя полоса во всю ширину, содержимое под ней", async ({
+  // T352: ниже складки — как у DECIMUS и Swarm: сверху полоса марки во всю ширину,
+  // снизу панель разделов, левой панели нет; содержимое между ними и под панель
+  // разделов не уходит.
+  test("сверху полоса марки, снизу панель разделов, содержимое между ними", async ({
     page,
   }) => {
     await signIn(page);
     for (const screen of SCREENS) {
       await page.goto(screen.path);
-      const nav = await page
-        .locator("nav.sidenav")
-        .first()
-        .evaluate((element) => {
-          const box = element.getBoundingClientRect();
-          return { top: box.top, width: box.width, height: box.height };
-        });
-      const content = await page
-        .locator("[data-testid='admin-main'], [data-testid='master-rail']")
-        .filter({ visible: true })
-        .first()
-        .evaluate((element) => element.getBoundingClientRect().top);
-
+      await expect(
+        page.locator("nav.sidenav"),
+        `${screen.name}: левая панель видна на телефоне`,
+      ).toBeHidden();
+      const bar = await page
+        .getByTestId("admin-mbar")
+        .evaluate(
+          (element) => element.getBoundingClientRect().toJSON() as DOMRect,
+        );
       expect(
-        Math.round(nav.width),
-        `${screen.name}: ширина меню ${String(Math.round(nav.width))} px — не полоса во всю ширину`,
+        Math.round(bar.width),
+        `${screen.name}: ширина полосы марки ${String(Math.round(bar.width))} px — не во всю ширину`,
       ).toBe(PHONE.width);
       expect(
-        nav.height,
-        `${screen.name}: высота меню ${String(Math.round(nav.height))} px — это колонка, а не полоса`,
-      ).toBeLessThan(80);
+        bar.height,
+        `${screen.name}: высота полосы марки ${String(Math.round(bar.height))} px`,
+      ).toBeLessThan(60);
+
+      const content = page
+        .locator("[data-testid='admin-main'], [data-testid='master-rail']")
+        .filter({ visible: true })
+        .first();
+      const top = await content.evaluate(
+        (element) => element.getBoundingClientRect().top,
+      );
       expect(
-        content,
-        `${screen.name}: содержимое начинается выше нижнего края меню`,
-      ).toBeGreaterThanOrEqual(nav.top + nav.height - 1);
+        top,
+        `${screen.name}: содержимое начинается выше нижнего края полосы марки`,
+      ).toBeGreaterThanOrEqual(bar.top + bar.height - 1);
+
+      // Прокрученное до конца содержимое заканчивается над панелью разделов, а не под ней.
+      await page.evaluate(() => {
+        window.scrollTo(0, document.documentElement.scrollHeight);
+      });
+      const tabs = await page
+        .getByTestId("admin-tabbar")
+        .evaluate(
+          (element) => element.getBoundingClientRect().toJSON() as DOMRect,
+        );
+      expect(
+        Math.round(tabs.bottom),
+        `${screen.name}: панель разделов не прибита к низу экрана`,
+      ).toBe(PHONE.height);
+      const bottom = await content.evaluate(
+        (element) => element.getBoundingClientRect().bottom,
+      );
+      expect(
+        bottom,
+        `${screen.name}: конец содержимого уходит под панель разделов`,
+      ).toBeLessThanOrEqual(tabs.top + 1);
     }
   });
 
@@ -224,8 +250,8 @@ test.describe("каркас кабинета на 375 px", () => {
       "feed",
       "catalog",
     ]) {
-      const item = page.getByTestId(`nav-${key}`);
-      await expect(item, `пункт меню ${key}`).toBeVisible();
+      const item = page.getByTestId(`tab-${key}`);
+      await expect(item, `пункт панели разделов ${key}`).toBeVisible();
     }
   });
 });
@@ -238,8 +264,7 @@ test.describe("каркас кабинета на настольной шири�
     await page.goto("/admin");
 
     const nav = await page
-      .locator("nav")
-      .first()
+      .locator("nav.sidenav")
       .evaluate((element) => element.getBoundingClientRect().width);
 
     expect(Math.round(nav)).toBe(NAV_COLUMN);

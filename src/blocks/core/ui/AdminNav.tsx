@@ -31,14 +31,9 @@ import { ThemeToggle } from "./ThemeToggle";
 // поиск с ⌘K, пункты с иконкой, текущий — мягкая заливка и полоса слева; внизу тема,
 // язык и кто вошёл. Сами классы (`sidenav*`) — компонент ядра дизайн-системы, здесь
 // только разметка. Ширины тоже оттуда: 216 px, а уже 1100 px — 56 px иконок, подписи
-// уходят в `title`. Ниже складки (768 px) панель — верхняя полоса в одну строку со
-// своей прокруткой (D092, T344): колонка иконок отнимала у телефона 56 px из 375.
-// Вид полосы — `globals.css`, слой `components`.
-
-// Тема и язык — две пилюли в одну строку, без подписей: иконки и коды языков понятны
-// сами, а слова остаются чтецу. На полосе иконок (уже 1100 px) — столбцом.
-const PREFS_ROW_CLASS =
-  "mb-[var(--space-2)] flex items-center justify-between gap-[var(--space-3)] px-[var(--space-2)] md:max-[1099px]:flex-col md:max-[1099px]:px-0";
+// уходят в `title`. Ниже складки (768 px) левой панели нет — как у DECIMUS и Swarm
+// (T352): сверху полоса марки с темой и языком (`.mbar`), снизу панель разделов под
+// большой палец (`.tabbar`). Вид обеих — `globals.css`, слой `components`.
 
 /** Иконка пункта — из набора линейки. Один факт на продукт, рядом с меню. */
 const SECTION_ICONS: Readonly<Record<AdminSectionKey, IconName>> = {
@@ -92,6 +87,47 @@ function NavItem({
   );
 }
 
+function TabItem({
+  href,
+  icon,
+  label,
+  isActive,
+  testId,
+}: {
+  readonly href: string;
+  readonly icon: IconName;
+  readonly label: string;
+  readonly isActive: boolean;
+  readonly testId: string;
+}): ReactElement {
+  return (
+    <Link
+      className="tabbar__item"
+      href={href}
+      data-testid={testId}
+      {...(isActive ? { "aria-current": "page" as const } : {})}
+    >
+      <Icon name={icon} />
+      <span>{label}</span>
+    </Link>
+  );
+}
+
+/** Логотип марки: галочка на акцентной заливке. Один и тот же в панели и в полосе. */
+function BrandLogo({
+  className,
+}: {
+  readonly className: string;
+}): ReactElement {
+  return (
+    <span
+      className={`${className} grid place-items-center bg-accent text-[var(--ink-inverse)]`}
+    >
+      <Icon name="check" strokeWidth={2.2} className="size-4" />
+    </span>
+  );
+}
+
 /**
  * Меню кабинета. Экран говорит только, где находится человек, — всё остальное меню
  * знает само.
@@ -100,96 +136,147 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
   // Словарь `admin`, а не свой на меню: название раздела — один текст на продукт.
   const t = useTranslations("admin");
   const locale = useLocale();
+  const brand = t("nav.brand");
+  const brandName = `${brand} ${t("nav.brandMuted")}`;
+  const themeLabels = {
+    label: t("theme.label"),
+    system: t("theme.system"),
+    light: t("theme.light"),
+    dark: t("theme.dark"),
+  };
+  const sections = [
+    { key: "home", href: ADMIN_HOME.path, icon: "home", label: t("nav.home") },
+    ...ADMIN_NAV_ITEMS.map((key) => ({
+      key,
+      href: ADMIN_SECTIONS[key].path,
+      icon: SECTION_ICONS[key],
+      label: t(`sections.${key}`),
+    })),
+  ] as const satisfies readonly {
+    key: AdminNavActive;
+    href: string;
+    icon: IconName;
+    label: string;
+  }[];
+  // Раздел УК партнёру не показывается: адрес ему отвечает 404 (T344).
+  const visibleTo = (key: AdminNavActive, item: ReactElement): ReactElement =>
+    key !== "home" && ADMIN_HQ_ONLY_SECTIONS.includes(key) ? (
+      <HqOnly key={key}>{item}</HqOnly>
+    ) : (
+      item
+    );
 
   return (
-    <nav
-      className="sidenav md:sticky md:top-0 md:h-screen"
-      aria-label={t("nav.brand")}
-    >
-      {/*
+    <>
+      {/* Полоса телефона (ниже складки): марка, тема и язык — те же переключатели, что
+          в подвале панели, а не свои копии. */}
+      <header className="mbar" data-testid="admin-mbar">
+        <Link
+          href={ADMIN_HOME.path}
+          className="mbar__brand"
+          data-testid="mbar-brand"
+          aria-label={brandName}
+        >
+          <BrandLogo className="mbar__logo" />
+          <span>{brand}</span>
+        </Link>
+        <span className="mbar__spacer" />
+        <ThemeToggle labels={themeLabels} testIdPrefix="mbar-" />
+        <LocaleToggle
+          current={asLocale(locale)}
+          label={t("locale.label")}
+          testIdPrefix="mbar-"
+        />
+      </header>
+      <nav
+        className="sidenav md:sticky md:top-0 md:h-screen"
+        aria-label={brand}
+      >
+        {/*
         Марка — ссылка на главную кабинета (T124). Адрес берётся из `admin-sections`, а
         не пишется строкой, — тот же дубль вычищали трижды (T116, T118, T119).
       */}
-      <Link
-        href={ADMIN_HOME.path}
-        className="sidenav__brand"
-        data-testid="nav-brand"
-        // Ниже 1100 px меню свёрнуто в иконки и подпись `.sidenav__name` скрыта
-        // `display: none` — без явного имени ссылка остаётся безымянной (#195).
-        // Имя повторяет видимую подпись слово в слово (WCAG 2.5.3, label in name).
-        aria-label={`${t("nav.brand")} ${t("nav.brandMuted")}`}
-      >
-        <span className="sidenav__logo grid place-items-center bg-accent text-[var(--ink-inverse)]">
-          <Icon name="check" strokeWidth={2.2} className="size-4" />
-        </span>
-        <span className="sidenav__name">
-          <b>{t("nav.brand")}</b>
-          <small>{t("nav.brandMuted")}</small>
-        </span>
-      </Link>
-
-      <NavSearch
-        action={ADMIN_SECTIONS.checklists.path}
-        label={t("nav.search")}
-      />
-
-      <div className="sidenav__list">
-        <NavItem
+        <Link
           href={ADMIN_HOME.path}
-          icon="home"
-          label={t("nav.home")}
-          isActive={active === "home"}
-          testId="nav-home"
-        />
-        {ADMIN_NAV_ITEMS.map((key) => {
-          const item = (
-            <NavItem
-              key={key}
-              href={ADMIN_SECTIONS[key].path}
-              icon={SECTION_ICONS[key]}
-              label={t(`sections.${key}`)}
-              isActive={key === active}
-              testId={`nav-${key}`}
-            />
-          );
-          // Раздел УК партнёру не показывается: адрес ему отвечает 404 (T344).
-          return ADMIN_HQ_ONLY_SECTIONS.includes(key) ? (
-            <HqOnly key={key}>{item}</HqOnly>
-          ) : (
-            item
-          );
-        })}
-      </div>
+          className="sidenav__brand"
+          data-testid="nav-brand"
+          // Ниже 1100 px меню свёрнуто в иконки и подпись `.sidenav__name` скрыта
+          // `display: none` — без явного имени ссылка остаётся безымянной (#195).
+          // Имя повторяет видимую подпись слово в слово (WCAG 2.5.3, label in name).
+          aria-label={brandName}
+        >
+          <BrandLogo className="sidenav__logo" />
+          <span className="sidenav__name">
+            <b>{brand}</b>
+            <small>{t("nav.brandMuted")}</small>
+          </span>
+        </Link>
 
-      <div className="sidenav__foot">
-        {/*
+        <NavSearch
+          action={ADMIN_SECTIONS.checklists.path}
+          label={t("nav.search")}
+        />
+
+        <div className="sidenav__list">
+          {sections.map(({ key, href, icon, label }) =>
+            visibleTo(
+              key,
+              <NavItem
+                key={key}
+                href={href}
+                icon={icon}
+                label={label}
+                isActive={key === active}
+                testId={`nav-${key}`}
+              />,
+            ),
+          )}
+        </div>
+
+        <div className="sidenav__foot">
+          {/*
           Тема (T236, D106) и язык (#161) — управление, а не справка, поэтому стоят на
           каждом экране кабинета. Слова переводит меню, а не сами переключатели (T254):
           см. `ThemeToggle.tsx`.
         */}
-        <div className={PREFS_ROW_CLASS}>
-          <ThemeToggle
-            labels={{
-              label: t("theme.label"),
-              system: t("theme.system"),
-              light: t("theme.light"),
-              dark: t("theme.dark"),
-            }}
-          />
-          <LocaleToggle current={asLocale(locale)} label={t("locale.label")} />
+          {/* Тема и язык — две капсулы ядра одной строкой (`.sidenav__prefs`), без подписей. */}
+          <div className="sidenav__prefs">
+            <ThemeToggle labels={themeLabels} />
+            <LocaleToggle
+              current={asLocale(locale)}
+              label={t("locale.label")}
+            />
+          </div>
         </div>
-      </div>
 
-      {/*
+        {/*
         Кто вошёл: роль — УК или партнёр (T344). Её знает разметка кабинета, меню
         получает готовой (`admin-viewer.tsx`).
       */}
-      <NavViewer
-        labels={{
-          signedIn: t("nav.signedIn"),
-          roles: { hq: t("nav.roles.hq"), partner: t("nav.roles.partner") },
-        }}
-      />
-    </nav>
+        <NavViewer
+          labels={{
+            signedIn: t("nav.signedIn"),
+            roles: { hq: t("nav.roles.hq"), partner: t("nav.roles.partner") },
+          }}
+        />
+      </nav>
+
+      {/* Нижняя панель разделов телефона — те же пункты, что в левой панели. */}
+      <nav className="tabbar" aria-label={brand} data-testid="admin-tabbar">
+        {sections.map(({ key, href, icon, label }) =>
+          visibleTo(
+            key,
+            <TabItem
+              key={key}
+              href={href}
+              icon={icon}
+              label={label}
+              isActive={key === active}
+              testId={`tab-${key}`}
+            />,
+          ),
+        )}
+      </nav>
+    </>
   );
 }

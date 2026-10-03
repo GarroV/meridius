@@ -38,9 +38,9 @@ import { ADMIN_CONTENT_ID, SkipLink } from "./SkipLink";
  * а одинаковая колонка в двух продуктах линейки — прямое требование D164.
  */
 const FRAME_CLASS =
-  "grid min-h-screen items-start grid-cols-[auto_18rem_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_1fr]";
+  "grid min-h-screen items-start grid-cols-[auto_18rem_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_1fr] max-md:pb-[calc(var(--tap-min)+var(--space-5)+env(safe-area-inset-bottom,0px))]";
 const WIDE_FRAME_CLASS =
-  "grid min-h-screen items-start grid-cols-[auto_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_1fr]";
+  "grid min-h-screen items-start grid-cols-[auto_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_1fr] max-md:pb-[calc(var(--tap-min)+var(--space-5)+env(safe-area-inset-bottom,0px))]";
 // Колонка липнет к верху и прокручивается своей прокруткой: длинный список сети не
 // утаскивает за собой рабочую зону, и выбранная строка остаётся там, где её нажали.
 // Ниже складки над колонкой стоит полоса меню (D092), и колонка — просто часть страницы.

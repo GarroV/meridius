@@ -8,10 +8,11 @@
 // копия заголовка на продукт одна.
 import type { ReactElement, ReactNode } from "react";
 
-import { ADMIN_CONTENT_CLASS } from "./admin-frame";
-
-const H1_CLASS =
-  "text-[length:var(--fs-display)] leading-[var(--lh-display)] font-semibold";
+import {
+  ADMIN_CONTENT_CLASS,
+  ADMIN_HEADER_CLASS,
+  ADMIN_TITLE_CLASS,
+} from "./admin-frame";
 
 export interface AdminPageProps {
   /** Тестовый идентификатор корня. У полного экрана его несёт каркас, а не страница. */
@@ -34,11 +35,7 @@ export function AdminPage({
 }: AdminPageProps): ReactElement {
   return (
     <div data-testid={testId} className="flex min-w-0 flex-col">
-      {/*
-        Ниже складки верхняя полоса переносит действие на следующую строку, а не сжимает
-        заголовок до нечитаемого: кнопка раздела шире половины экрана на 375 px.
-      */}
-      <header className="bg-surface flex items-center gap-[var(--space-7)] border-b border-[var(--line-strong)] px-[var(--space-9)] py-[var(--space-7)] max-md:flex-wrap max-md:gap-[var(--space-5)] max-md:px-[var(--space-7)]">
+      <header className={ADMIN_HEADER_CLASS}>
         <div className="flex min-w-0 flex-col gap-[var(--space-1)]">
           <div
             className="text-[length:var(--fs-meta)] text-[var(--ink-3)]"
@@ -46,7 +43,7 @@ export function AdminPage({
           >
             {breadcrumb}
           </div>
-          <h1 className={H1_CLASS}>{title}</h1>
+          <h1 className={ADMIN_TITLE_CLASS}>{title}</h1>
         </div>
         <div className="ml-auto flex items-center gap-[var(--space-4)]">
           {topbarAction}

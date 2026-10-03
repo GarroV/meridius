@@ -115,8 +115,10 @@ function tokenRgb(theme: "light" | "dark", name: string): string {
   return rgbOf(value);
 }
 
+// Холст светлой темы — белый, как у DECIMUS (T352): `globals.css` назначает ему токен
+// поверхности. В тёмной холст остаётся своим токеном ядра.
 const canvasRgb = (theme: "light" | "dark"): string =>
-  tokenRgb(theme, "--canvas");
+  tokenRgb(theme, theme === "light" ? "--surface" : "--canvas");
 
 interface CabinetScreen {
   readonly name: string;
@@ -410,7 +412,7 @@ test.describe("явный выбор перебивает автоматику �
       expect(state.attribute).toBe("light");
       expect(state.canvas).toBe(canvasRgb("light"));
       await expect(page.getByTestId("theme-light")).toHaveAttribute(
-        "aria-pressed",
+        "aria-checked",
         "true",
       );
     });
@@ -431,7 +433,7 @@ test.describe("явный выбор перебивает автоматику �
       expect(state.attribute).toBe("dark");
       expect(state.canvas).toBe(canvasRgb("dark"));
       await expect(page.getByTestId("theme-dark")).toHaveAttribute(
-        "aria-pressed",
+        "aria-checked",
         "true",
       );
     });
@@ -481,7 +483,7 @@ test.describe("переключатель работает и выбор пер�
     // Assert: выбор пережил переход — его поставил уже сервер по куке.
     await expect(page.locator("html")).toHaveAttribute(THEME_ATTRIBUTE, "dark");
     await expect(page.getByTestId("theme-dark")).toHaveAttribute(
-      "aria-pressed",
+      "aria-checked",
       "true",
     );
 
