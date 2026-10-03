@@ -108,13 +108,13 @@
 **Где стою.** T352 (визуал как у DECIMUS, #159): ядро обновлено из forma (капсулы темы и
 языка `.sidenav__prefs`), мост `@theme inline` несёт радиусы/размеры/межстрочные, шкалы
 Tailwind сброшены; холст светлой темы белый; ниже складки `.mbar` + `.tabbar`; шапка и поля
-— как `.page` DECIMUS (`ADMIN_HEADER_CLASS`, `ADMIN_TITLE_CLASS`). Дальше — T353 (#184).
+— как `.page` DECIMUS (`ADMIN_HEADER_CLASS`, `ADMIN_TITLE_CLASS`). T353: строка колонки
+мастер-детали — `core/ui/rail-row.ts` (чек-листы и станции), выбранная = `.sidenav__current`.
 
-**Чем проверено.** getComputedStyle панели, поиска, пунктов, полос, h1 на 1440/1024/740/390;
-DECIMUS — его CSS (как на проде) на разметке `base.html`, не живой кабинет.
+**Чем проверено.** getComputedStyle на 1440/1024/740/390; DECIMUS — его CSS (как на проде)
+на разметке `base.html`, не живой кабинет.
 
 **Что открыто.**
 
-- Складка: DECIMUS 720 px, MERIDIUS 768 px (`--page-fold`) — не сводил.
+- Складка: DECIMUS 720 px, MERIDIUS 768 px — не сводил. #204, #205, #193 — как были.
 - Заголовок редактора (`editor`, `ChecklistEditor`) — свой класс, не `ADMIN_TITLE_CLASS`.
-- #204 (снимок провала смоука), #205 (`pairing-failures`), #193 (счёт дырок).

@@ -16,6 +16,11 @@ import type { ReactElement } from "react";
 
 import { formActionPath } from "@/blocks/core/base-path";
 import { Icon } from "@/blocks/core/ui/Icon";
+import {
+  RAIL_ROW_META_CLASS,
+  RAIL_ROW_NAME_CLASS,
+  railRowClass,
+} from "@/blocks/core/ui/rail-row";
 import { useStickyQuery } from "@/blocks/core/ui/use-sticky-query";
 
 import { COUNTRY_PARAM, STATION_PARAM, STORE_PARAM } from "../filter";
@@ -48,16 +53,11 @@ const LIST_CLASS =
   "flex flex-col gap-[var(--space-1)] px-[var(--space-4)] py-[var(--space-4)]";
 const GROUP_CLASS =
   "px-[var(--space-5)] pt-[var(--space-6)] pb-[var(--space-2)] text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase first:pt-[var(--space-2)]";
-const ROW_BASE_CLASS =
-  "flex flex-col gap-[var(--space-1)] rounded-[var(--r-control)] px-[var(--space-5)] py-[var(--space-4)] text-ink no-underline transition-[background] duration-[var(--t-state)] hover:text-ink hover:no-underline focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] focus-visible:outline-none";
-const ROW_IDLE_CLASS = `${ROW_BASE_CLASS} hover:bg-[var(--surface-2)]`;
-// Полоса — 2 px, как у текущего пункта левой панели (`.sidenav__current`): два
-// «выбранных» на одном экране обязаны выглядеть одинаково.
-const ROW_CURRENT_CLASS = `${ROW_BASE_CLASS} bg-[var(--accent-soft)] shadow-[inset_2px_0_0_var(--accent)]`;
-const ROW_NAME_CLASS =
-  "text-[length:var(--fs-body)] leading-[var(--lh-body)] font-medium [overflow-wrap:anywhere]";
-const ROW_META_CLASS =
-  "flex flex-wrap items-center gap-x-[var(--space-3)] gap-y-[var(--space-1)] text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--ink-3)]";
+// Строка — общая строка колонки ядра (`core/ui/rail-row.ts`, T353): та же, что у
+// станций, выбранная — как текущий пункт левой панели. Здесь только кольцо фокуса:
+// строка чек-листа сама ссылка.
+const ROW_FOCUS_CLASS =
+  "focus-visible:shadow-[inset_0_0_0_2px_var(--accent)] focus-visible:outline-none";
 const TAG_BASE =
   "inline-flex h-[18px] items-center rounded-[var(--r-mark)] border px-[var(--space-3)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] whitespace-nowrap uppercase";
 const TAG_OK = `${TAG_BASE} border-[var(--ok-line)] bg-[var(--ok-soft)] text-[var(--ok)]`;
@@ -125,13 +125,13 @@ function RailRow({
     <Link
       href={href}
       data-testid="checklist-row"
-      className={isCurrent ? ROW_CURRENT_CLASS : ROW_IDLE_CLASS}
+      className={`${railRowClass(isCurrent, "column")} ${ROW_FOCUS_CLASS}`}
       {...(isCurrent ? { "aria-current": "page" as const } : {})}
     >
-      <span className={ROW_NAME_CLASS}>
+      <span className={RAIL_ROW_NAME_CLASS}>
         {pickEditorText(row.title, locale)}
       </span>
-      <span className={ROW_META_CLASS}>
+      <span className={RAIL_ROW_META_CLASS}>
         <span>{row.stationName ?? t("list.noStation")}</span>
         <span aria-hidden="true">·</span>
         <span>{formatWindow(row, t)}</span>

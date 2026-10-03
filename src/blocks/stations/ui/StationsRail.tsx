@@ -17,6 +17,11 @@ import {
 } from "next/navigation";
 import type { ReactElement } from "react";
 
+import {
+  RAIL_ROW_META_CLASS,
+  RAIL_ROW_NAME_CLASS,
+  railRowClass,
+} from "@/blocks/core/ui/rail-row";
 import { useStickyQuery } from "@/blocks/core/ui/use-sticky-query";
 
 import type { StationGap } from "../gaps";
@@ -63,16 +68,10 @@ const COUNTRY_CLASS =
   "px-[var(--space-5)] pt-[var(--space-6)] pb-[var(--space-1)] text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
 const STORE_CLASS =
   "px-[var(--space-5)] pt-[var(--space-3)] pb-[var(--space-1)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)] font-medium text-[var(--ink-2)]";
-const ROW_BASE_CLASS =
-  "flex items-start gap-[var(--space-4)] rounded-[var(--r-control)] px-[var(--space-5)] py-[var(--space-4)] transition-[background] duration-[var(--t-state)]";
-const ROW_IDLE_CLASS = `${ROW_BASE_CLASS} hover:bg-[var(--surface-2)]`;
-const ROW_CURRENT_CLASS = `${ROW_BASE_CLASS} bg-[var(--accent-soft)] shadow-[inset_2px_0_0_var(--accent)]`;
+// Строка — общая строка колонки ядра (`core/ui/rail-row.ts`, T353): та же, что у
+// чек-листов. Ссылка внутри наследует цвет строки, чтобы выбранное имя было акцентным.
 const LINK_CLASS =
-  "flex min-w-0 flex-1 flex-col gap-[var(--space-1)] rounded-[var(--r-mark)] text-ink no-underline hover:text-ink hover:no-underline focus-visible:shadow-[0_0_0_2px_var(--accent)] focus-visible:outline-none";
-const NAME_CLASS =
-  "text-[length:var(--fs-body)] leading-[var(--lh-body)] font-medium [overflow-wrap:anywhere]";
-const META_CLASS =
-  "flex flex-wrap items-center gap-x-[var(--space-3)] gap-y-[var(--space-1)] text-[length:var(--fs-meta)] leading-[var(--lh-meta)] text-[var(--ink-3)]";
+  "flex min-w-0 flex-1 flex-col gap-[var(--space-1)] rounded-[var(--r-mark)] text-[inherit] no-underline hover:text-[inherit] hover:no-underline focus-visible:shadow-[0_0_0_2px_var(--accent)] focus-visible:outline-none";
 const GAP_CLASS =
   "text-err rounded-[var(--r-mark)] bg-[var(--err-soft)] px-[var(--space-3)] text-[length:var(--fs-meta)] font-medium";
 const EMPTY_CLASS =
@@ -127,10 +126,7 @@ function StationRow({
   readonly t: Translate;
 }): ReactElement {
   return (
-    <div
-      className={isCurrent ? ROW_CURRENT_CLASS : ROW_IDLE_CLASS}
-      data-testid="station-row"
-    >
+    <div className={railRowClass(isCurrent, "row")} data-testid="station-row">
       {/*
         Галочка — поле формы выбора (раскатка и печать наклеек) справа, на экране раздела
         (атрибут `form`). Своего состояния у неё нет намеренно: выбор живёт в DOM
@@ -155,8 +151,8 @@ function StationRow({
         data-testid="station-link"
         {...(isCurrent ? { "aria-current": "page" as const } : {})}
       >
-        <span className={NAME_CLASS}>{station.name}</span>
-        <span className={META_CLASS}>
+        <span className={RAIL_ROW_NAME_CLASS}>{station.name}</span>
+        <span className={RAIL_ROW_META_CLASS}>
           {station.checklistCount === 0 ? (
             <span className={GAP_CLASS} data-testid="gap-noChecklist">
               {t("gaps.noChecklist")}
