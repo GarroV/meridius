@@ -41,6 +41,7 @@ const BUTTON_CLASS =
 const NOTICE_CLASS =
   "rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-6)] py-[var(--space-5)] text-[length:var(--fs-dense)] text-[var(--err)]";
 const SET_CLASS = "text-[length:var(--fs-dense)] text-[var(--ink-2)]";
+const HINT_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 
 export interface AlarmItemProps {
   readonly itemId: string;
@@ -139,9 +140,14 @@ export function AlarmItem({
 
   return (
     <div className={WRAP_CLASS} data-testid="fill-alarm" data-item-id={itemId}>
+      {/* Чем пункт отличается от формы «Свой будильник» в панели ниже (T354): этот
+          будильник заложил составитель, сотруднику остаётся проверить и поставить. */}
+      <p data-testid="fill-alarm-hint" className={HINT_CLASS}>
+        {t("itemHint")}
+      </p>
       <div className={ROW_CLASS}>
         <label className={`${FIELD_CLASS} min-w-[180px] flex-1`}>
-          <span className={FIELD_LABEL_CLASS}>{t("labelLabel")}</span>
+          <span className={FIELD_LABEL_CLASS}>{t("itemLabelLabel")}</span>
           <input
             data-testid="fill-alarm-label"
             className={INPUT_CLASS}
@@ -153,7 +159,7 @@ export function AlarmItem({
           />
         </label>
         <label className={FIELD_CLASS}>
-          <span className={FIELD_LABEL_CLASS}>{t("timeLabel")}</span>
+          <span className={FIELD_LABEL_CLASS}>{t("itemTimeLabel")}</span>
           <input
             type="time"
             data-testid="fill-alarm-time"

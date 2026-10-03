@@ -352,7 +352,6 @@
     },
     "preview": {
       "alarm": "Alarm “{label}” — {when}",
-      "alarmAt": "at {time}",
       "alarmAfter": "{minutes} min after opening",
       "title": "Preview",
       "notice": "This is what an employee sees. It only shows: the employee answers and submits on their own phone, opening the checklist by the station QR code.",
@@ -590,13 +589,18 @@
       }
     },
     "alarms": {
-      "title": "Alarms",
+      "title": "Station alarms",
+      "lead": "All of the station’s alarms are here: those set from checklist items and those added by hand.",
       "timeLabel": "At what time",
       "labelLabel": "What for",
       "labelPlaceholder": "For example: take out the dough",
+      "ownTitle": "Your own alarm — one the checklist does not have",
       "add": "Set",
+      "itemHint": "This alarm is built into the checklist. Adjust the label or the time if needed, then set it.",
+      "itemLabelLabel": "Label",
+      "itemTimeLabel": "Rings at",
       "itemAdd": "Set the alarm",
-      "itemSet": "The alarm is set for {time} — it is in the alarms panel below.",
+      "itemSet": "The alarm is set for {time} — it is in the «Station alarms» list below.",
       "drop": "Remove the alarm «{label}»",
       "ringing": "Alarm for {time}",
       "acknowledge": "Got it",
