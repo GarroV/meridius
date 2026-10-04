@@ -24,6 +24,18 @@
   `admin-frame.test.ts`. Выше складки меню — колонка ядра (216 px, уже 1100 px — 56 px
   иконок, D164), ниже — полоса марки `.mbar` и нижняя панель разделов `.tabbar`, как у
   DECIMUS (T352): `globals.css`, слой `components`; сторож — `e2e/admin-mobile.spec.ts`.
+- **Меню делится надвое, как в Swarm** (D183, T359) — порядок и состав в
+  `core/admin-sections.ts`: `ADMIN_NAV_WORK` (Чек-листы, Станции, Статистика; Главная
+  перед ними всегда) — строками рейки; `ADMIN_NAV_TOOLS` (Шаблоны, Библиотека блоков,
+  Страны и пиццерии, Партнёры) — пиктограммами внизу рейки над подвалом
+  (`.sidenav__tools` / `.sidenav__tool`, подпись — `title` и `aria-label`). Телефон:
+  четыре таба — Главная, `ADMIN_PHONE_TABS` (Станции, Статистика) и «Ещё»
+  (`core/ui/MoreSheet.tsx`, родной `<dialog>` `.sheet`); в листе — `ADMIN_PHONE_MORE`
+  (Чек-листы и вспомогательные), тема и язык. Поиск на телефоне — пиктограммой в `.mbar`
+  (`core/ui/MobileSearch.tsx`, тот же GET `?q=` в «Чек-листы»). Тема и язык ушли из
+  `.mbar` в лист: рядом с поиском не помещались в 375 px (388 px). Тест-иды: `nav-<раздел>`
+  в рейке, `tab-home|stations|feed|more`, `more-<раздел>`, `more-theme-*`,
+  `mbar-search`. Сторожа — `e2e/admin-mobile.spec.ts`, `e2e/admin-nav.spec.ts`.
 - **Меню знает роль вошедшего** (T344) — `core/ui/admin-viewer.tsx`: разметка кабинета
   отдаёт роль (`hq` | `partner`) в `AdminViewerProvider`; `HqOnly` прячет разделы
   `ADMIN_HQ_ONLY_SECTIONS` (сейчас «Партнёры»), `NavViewer` пишет роль в подвале

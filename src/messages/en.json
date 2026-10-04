@@ -69,6 +69,9 @@
       "signedIn": "Signed in",
       "home": "Home",
       "search": "Find a checklist",
+      "more": "More",
+      "moreTitle": "Other sections",
+      "close": "Close",
       "roles": {
         "hq": "HQ methodologist",
         "partner": "partner"

@@ -155,6 +155,55 @@
    медиазапроса нет доступа к переменным), а не 720 px DECIMUS: по складке раскладывается
    и всё содержимое (`admin-frame.ts`), и меню обязано меняться вместе с ним.
    Слой `components` сильнее `base`, куда импортировано ядро. */
+/* Вспомогательные разделы внизу рейки (D183) — строкой пиктограмм 28 px справа, как
+   «Настройки» и «Админ» у Swarm (`RoyRail.tsx`, `FootTools`): тот же квадрат, что у
+   кнопок темы. В узкой рейке (уже 1100 px) строка встаёт столбцом во всю ширину, как
+   остальные пункты. Текущий — мягкий акцент, как текущий пункт рейки. */
+@layer components {
+  .sidenav__tools {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    padding: 0 var(--space-2);
+  }
+  .sidenav__tool {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    color: var(--ink-3);
+    transition:
+      background var(--t-state) var(--ease),
+      color var(--t-state) var(--ease);
+  }
+  .sidenav__tool svg {
+    width: 15px;
+    height: 15px;
+  }
+  .sidenav__tool:hover {
+    background: var(--surface);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .sidenav__tool[aria-current] {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  @media (max-width: 1099px) {
+    .sidenav__tools {
+      flex-direction: column;
+      padding: 0;
+    }
+    .sidenav__tool {
+      width: 100%;
+      height: 34px;
+      border-radius: var(--r-control);
+    }
+  }
+}
+
 @layer components {
   .mbar,
   .tabbar {
@@ -232,7 +281,12 @@
       display: none;
     }
     .tabbar__item {
-      flex: 1 0 auto;
+      flex: 1 1 0;
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      font-family: inherit;
+      cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -254,9 +308,118 @@
       color: var(--ink);
       text-decoration: none;
     }
-    .tabbar__item[aria-current] {
+    .tabbar__item[aria-current],
+    .tabbar__item[data-active] {
       background: var(--accent-soft);
       color: var(--accent);
+    }
+
+    /* Поиск в полосе марки (D183): пиктограмма с тач-целью 44 px, поле раскрывается
+       под полосой во всю ширину. */
+    .mbar__icon {
+      width: var(--tap-min);
+      height: var(--tap-min);
+      margin: calc(var(--space-3) * -1) 0;
+    }
+    .mbar__search {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      padding: var(--space-3) var(--space-7);
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--line);
+    }
+    .mbar__search[hidden] {
+      display: none;
+    }
+    .mbar__search .sidenav__field {
+      height: var(--tap-min);
+    }
+    .mbar__search .sidenav__field input {
+      font-size: 16px; /* меньше 16 px — iOS увеличивает страницу при фокусе */
+    }
+
+    /* Лист «Ещё» (D183) — родной <dialog>, прижатый к низу экрана над подложкой. */
+    .sheet {
+      position: fixed;
+      inset: auto 0 0 0;
+      width: 100%;
+      max-width: none;
+      max-height: 85dvh;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-top: 1px solid var(--line);
+      border-radius: var(--r-block) var(--r-block) 0 0;
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: var(--sh-pop);
+    }
+    .sheet::backdrop {
+      background: var(--overlay);
+    }
+    .sheet__body {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      padding: var(--space-5) var(--space-7);
+      padding-bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px));
+    }
+    .sheet__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .sheet__title {
+      margin: 0;
+      font-size: var(--fs-lead);
+      font-weight: var(--w-semibold);
+    }
+    .sheet__close {
+      width: var(--tap-min);
+      height: var(--tap-min);
+    }
+    .sheet__list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .sheet__item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-5);
+      min-height: var(--tap-min);
+      padding: 0 var(--space-5);
+      border-radius: var(--r-control);
+      color: var(--ink);
+      font-size: var(--fs-body);
+    }
+    .sheet__item svg {
+      width: 18px;
+      height: 18px;
+      color: var(--ink-3);
+    }
+    .sheet__item:hover {
+      background: var(--surface-2);
+      text-decoration: none;
+    }
+    .sheet__item[aria-current] {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: var(--w-semibold);
+    }
+    .sheet__item[aria-current] svg {
+      color: var(--accent);
+    }
+    .sheet__prefs {
+      padding-top: var(--space-4);
+      border-top: 1px solid var(--line);
+    }
+    .sheet__prefs .sidenav__prefs {
+      justify-content: flex-start;
+      gap: var(--space-5);
+      margin: 0;
     }
   }
 }

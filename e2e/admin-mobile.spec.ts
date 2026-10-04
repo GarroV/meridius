@@ -237,22 +237,89 @@ test.describe("каркас кабинета на 375 px", () => {
     }
   });
 
-  test("меню остаётся рабочим: все пять разделов достижимы", async ({
+  // D183: внизу четыре таба, как в Swarm, — Главная, Станции, Статистика, «Ещё»;
+  // остальные разделы, тема и язык — в листе «Ещё». Путь новичка «где шаблоны?» —
+  // два тапа. Тач-цели не меньше 44 px (`--tap-min`).
+  test("четыре таба, остальное в «Ещё»: шаблоны за два тапа", async ({
     page,
   }) => {
     await signIn(page);
     await page.goto("/admin");
 
+    const tabs = page.getByTestId("admin-tabbar");
+    for (const id of ["tab-home", "tab-stations", "tab-feed", "tab-more"]) {
+      const tab = page.getByTestId(id);
+      await expect(tab, `таб ${id}`).toBeVisible();
+      const box = await tab.evaluate(
+        (element) => element.getBoundingClientRect().toJSON() as DOMRect,
+      );
+      expect(box.height, `${id}: высота тач-цели`).toBeGreaterThanOrEqual(44);
+    }
+    await expect(tabs.locator(":scope > a, :scope > button")).toHaveCount(4);
+    // Панель больше не прокручивается вбок: все четыре таба помещаются.
+    expect(
+      await tabs.evaluate(
+        (element) => element.scrollWidth - element.clientWidth,
+      ),
+      "панель табов шире экрана",
+    ).toBeLessThanOrEqual(0);
+
+    await page.getByTestId("tab-more").click();
+    const sheet = page.getByTestId("more-sheet");
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toHaveAccessibleName("Остальные разделы");
     for (const key of [
       "checklists",
-      "stations",
+      "templates",
       "library",
-      "feed",
       "catalog",
+      "partners",
     ]) {
-      const item = page.getByTestId(`tab-${key}`);
-      await expect(item, `пункт панели разделов ${key}`).toBeVisible();
+      const item = page.getByTestId(`more-${key}`);
+      await expect(item, `пункт «Ещё» ${key}`).toBeVisible();
+      const height = await item.evaluate(
+        (element) => element.getBoundingClientRect().height,
+      );
+      expect(height, `${key}: высота тач-цели`).toBeGreaterThanOrEqual(44);
     }
+    await expect(page.getByTestId("more-theme-toggle")).toBeVisible();
+    await expect(page.getByTestId("more-locale-toggle")).toBeVisible();
+
+    await page.getByTestId("more-templates").click();
+    await expect(page).toHaveURL(/\/admin\/templates$/);
+    await expect(sheet).toBeHidden();
+    // Раздел из листа подсвечивает «Ещё» — человек видит, где он.
+    await expect(page.getByTestId("tab-more")).toHaveAttribute(
+      "data-active",
+      "",
+    );
+
+    // Esc закрывает лист, как любое окно.
+    await page.getByTestId("tab-more").click();
+    await expect(sheet).toBeVisible();
+    await expect(page.getByTestId("more-templates")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+  });
+
+  test("поиск — пиктограммой в полосе марки", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/admin/stations");
+
+    const toggle = page.getByTestId("mbar-search");
+    await expect(toggle).toHaveAccessibleName("Поиск чек-листа");
+    const field = page.getByTestId("mbar-search-field");
+    await expect(field).toBeHidden();
+
+    await toggle.click();
+    await expect(field).toBeFocused();
+    await field.fill("смена");
+    await field.press("Enter");
+    await expect(page).toHaveURL(/\/admin\/checklists\?q=/);
+    await expect(page.getByTestId("checklists-screen")).toBeVisible();
   });
 });
 
@@ -268,5 +335,34 @@ test.describe("каркас кабинета на настольной шири�
       .evaluate((element) => element.getBoundingClientRect().width);
 
     expect(Math.round(nav)).toBe(NAV_COLUMN);
+  });
+
+  // D183: вспомогательные разделы — пиктограммами внизу рейки, с подписью при
+  // наведении и доступным именем; рабочие — строками. «Где шаблоны?» — один клик.
+  test("вспомогательные разделы — пиктограммами внизу рейки", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.goto("/admin");
+
+    const list = page.locator("nav.sidenav .sidenav__list");
+    for (const key of ["home", "checklists", "stations", "feed"]) {
+      await expect(list.getByTestId(`nav-${key}`)).toBeVisible();
+    }
+    const tools = page.getByTestId("nav-tools");
+    for (const [key, name] of [
+      ["templates", "Шаблоны"],
+      ["library", "Библиотека блоков"],
+      ["catalog", "Страны и пиццерии"],
+      ["partners", "Партнёры"],
+    ] as const) {
+      const tool = tools.getByTestId(`nav-${key}`);
+      await expect(tool).toHaveAccessibleName(name);
+      await expect(tool).toHaveAttribute("title", name);
+    }
+    await expect(list.getByTestId("nav-templates")).toHaveCount(0);
+
+    await tools.getByRole("link", { name: "Шаблоны" }).click();
+    await expect(page.getByTestId("templates-screen")).toBeVisible();
   });
 });
