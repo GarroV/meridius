@@ -8,7 +8,6 @@ import { AlarmStrip } from "@/blocks/feed/ui/AlarmStrip";
 import type { HomeModel } from "../load";
 import { HomeChecklists } from "./HomeChecklists";
 import { HomeTodo } from "./HomeTodo";
-import { META_CLASS } from "./style";
 
 const STATS_LINK_CLASS =
   "font-medium text-[var(--accent)] no-underline hover:underline";
@@ -31,7 +30,20 @@ export async function HomeScreen({
       data-testid="admin-home"
       className="flex flex-col gap-[var(--space-7)]"
     >
-      <AlarmStrip alarms={model.alarms} selection={model.selection} />
+      <div className="flex flex-col gap-[var(--space-3)]">
+        <AlarmStrip alarms={model.alarms} selection={model.selection} />
+        {model.moreAlarms > 0 || model.isMoreUncounted ? (
+          <Link
+            href={ADMIN_SECTIONS.feed.path}
+            className={`${STATS_LINK_CLASS} text-[length:var(--fs-body)]`}
+            data-testid="home-alarms-more"
+          >
+            {model.isMoreUncounted
+              ? t("alarmsMoreUncounted")
+              : t("alarmsMore", { count: model.moreAlarms })}
+          </Link>
+        ) : null}
+      </div>
 
       <HomeTodo gaps={model.gaps} drafts={model.drafts} />
 
@@ -40,7 +52,7 @@ export async function HomeScreen({
         total={model.checklistTotal}
       />
 
-      <p className={`${META_CLASS} m-0`}>
+      <p className="m-0 text-[length:var(--fs-body)] text-[var(--ink-2)]">
         {t("statsHint")}{" "}
         <Link
           href={ADMIN_SECTIONS.feed.path}

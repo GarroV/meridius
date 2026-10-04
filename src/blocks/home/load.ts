@@ -16,6 +16,13 @@ import { countGaps, listNetworkStations } from "@/blocks/stations/overview";
 /** Сколько чек-листов показать строками; остальные — ссылкой в раздел. */
 const CHECKLISTS_SHOWN = 8;
 
+/**
+ * Сколько тревог показать строками. Меньше, чем у полосы экрана пиццерии (6): на
+ * телефоне строка тревоги — около 150 px, и шесть строк уводили «Что не закрыто» на
+ * третий экран. Остальные — ссылкой в «Статистику».
+ */
+const ALARMS_SHOWN = 3;
+
 /** Чек-лист строкой «Моих чек-листов» (D148). */
 export interface HomeChecklist {
   readonly id: string;
@@ -28,8 +35,15 @@ export interface HomeChecklist {
 }
 
 export interface HomeModel {
-  /** Тревоги на сейчас: провал критичного и незаполненное в срок (D053). */
+  /** Тревоги на сейчас: провал критичного и незаполненное в срок (D053), первые строки. */
   readonly alarms: FeedAlarms;
+  /**
+   * Сколько тревог не показано строками; `isMoreUncounted` — выдача упёрлась в предел и
+   * тревог может быть больше. Подсказку полосы «сузьте фильтры» главная не показывает:
+   * фильтров у неё нет, — вместо неё ссылка в «Статистику».
+   */
+  readonly moreAlarms: number;
+  readonly isMoreUncounted: boolean;
   /** Область ленты — из тревоги открывают карточку заполнения в той же области. */
   readonly selection: FeedSelection;
   readonly gaps: { readonly noChecklist: number; readonly silent: number };
@@ -59,8 +73,17 @@ export async function loadHome(
     listChecklists({ countryId: null, storeId: null, stationId: null }, viewer),
   ]);
 
+  const { alarms } = feed;
   return {
-    alarms: feed.alarms,
+    alarms: {
+      ...alarms,
+      rows: alarms.rows.slice(0, ALARMS_SHOWN),
+      hiddenCount: 0,
+      capped: false,
+    },
+    moreAlarms:
+      Math.max(0, alarms.rows.length - ALARMS_SHOWN) + alarms.hiddenCount,
+    isMoreUncounted: alarms.capped,
     selection: feed.selection,
     gaps: countGaps(network),
     drafts: checklists.filter((row) => row.hasUnpublishedChanges).length,

@@ -1088,7 +1088,9 @@
     "emptyText": "Start from a head-office template: take a copy, adjust it to your pizzerias and put it on your stations.",
     "emptyAction": "Make one from a template",
     "statsHint": "Numbers for a period — submissions, failures, time — are in",
-    "statsLink": "Statistics"
+    "statsLink": "Statistics",
+    "alarmsMore": "{count, plural, one {# more alarm} other {# more alarms}} — in Statistics",
+    "alarmsMoreUncounted": "More alarms than fit here — see Statistics"
   },
   "partners": {
     "title": "Partners",
