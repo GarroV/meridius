@@ -30,7 +30,10 @@ import { isUuid } from "./validation";
 const FIRST_VERSION = 1;
 
 export type MakeTemplateRefusal =
-  "notChecklist" | "noPublishedVersion" | "alreadyFromTemplate";
+  | "notChecklist"
+  | "noPublishedVersion"
+  | "alreadyFromTemplate"
+  | "foreignTenant";
 
 /** Отказ с причиной, которую можно показать человеку. */
 // Поле объявлено явно, а не свойством в параметре конструктора: скрипт пачки
@@ -59,6 +62,7 @@ async function readSource(checklistId: string) {
       isTemplate: checklists.isTemplate,
       archivedAt: checklists.archivedAt,
       sourceChecklistId: checklists.sourceChecklistId,
+      tenantId: checklists.tenantId,
     })
     .from(checklists)
     .where(eq(checklists.id, checklistId))
@@ -100,9 +104,14 @@ export async function makeTemplateFromChecklist(
   now: Date = new Date(),
 ): Promise<string> {
   const source = await readSource(checklistId);
-  // Шаблоны — общее для всей сети и принадлежат УК (D145, D149), чей бы чек-лист ни был
-  // исходником.
+  // Шаблоны — общее для всей сети и принадлежат УК (D145, D149). Исходником может быть
+  // только чек-лист самой УК (D183 п.8): чек-лист станции партнёра — его работа, и
+  // раздать её всей сети шаблоном УК значило бы унести чужое. Отказ здесь, а не только
+  // скрытая кнопка: действие зовут и устаревшая вкладка, и скрипт пачки.
   const tenantId = await hqTenantId();
+  if (source.tenantId !== tenantId) {
+    throw new MakeTemplateError("foreignTenant");
+  }
   // Идентификатор задаётся здесь, а не читается из `returning`: версии и обратной ссылке
   // исходника он нужен сразу, и ветки «база не вернула строку» просто нет.
   const templateId = randomUUID();
@@ -144,14 +153,16 @@ export interface TemplateCandidate {
 }
 
 /**
- * Чек-листы пиццерии, из которых можно сделать шаблоны пачкой (D174): живые, не шаблоны,
- * без источника и с опубликованной версией — ровно те, кого примет
+ * Чек-листы пиццерии, из которых можно сделать шаблоны пачкой (D174): чек-листы УК,
+ * живые, не шаблоны, без источника и с опубликованной версией — ровно те, кого примет
  * `makeTemplateFromChecklist`. Пачкой пользуется скрипт `templates-from-store.mjs`.
  */
 export async function listTemplateCandidates(
   storeId: string,
 ): Promise<readonly TemplateCandidate[]> {
   if (!isUuid(storeId)) return [];
+  // Только чек-листы УК — как в `makeTemplateFromChecklist` (D183 п.8).
+  const tenantId = await hqTenantId();
 
   return getDb()
     .select({
@@ -164,6 +175,7 @@ export async function listTemplateCandidates(
     .where(
       and(
         eq(stations.storeId, storeId),
+        eq(checklists.tenantId, tenantId),
         eq(checklists.isTemplate, false),
         isNull(checklists.archivedAt),
         isNull(checklists.sourceChecklistId),

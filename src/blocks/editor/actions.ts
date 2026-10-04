@@ -27,7 +27,11 @@ import {
 import type { EditorActionState } from "./action-state";
 import { createChecklist, saveDraft, updateChecklist } from "./drafts";
 import { duplicateChecklist } from "./duplicate";
-import { MakeTemplateError, makeTemplateFromChecklist } from "./make-template";
+import {
+  MakeTemplateError,
+  makeTemplateFromChecklist,
+  type MakeTemplateRefusal,
+} from "./make-template";
 import { publish } from "./publish";
 import { removeChecklist } from "./removal";
 import {
@@ -224,13 +228,22 @@ export async function submitDuplicate(form: FormData): Promise<void> {
   redirect(checklistPath(copyId));
 }
 
+/** Итог «Сделать шаблоном»: успех уводит в редактор шаблона, отказ — с причиной. */
+export interface MakeTemplateState {
+  readonly refused: MakeTemplateRefusal | null;
+}
+
 /**
  * «Сделать шаблоном» в шапке редактора (D174): шаблон без станции и страны из
- * опубликованного чек-листа, и сразу его редактор. Кнопка стоит только у опубликованного
- * чек-листа без источника, поэтому отказ здесь — устаревшая вкладка: он пишется в журнал
- * и возвращает методиста на чек-лист, где кнопки уже нет.
+ * опубликованного чек-листа УК, и сразу его редактор. Кнопка стоит только там, где шаблон
+ * сделать можно, поэтому отказ здесь — устаревшая вкладка или чек-лист тенанта партнёра
+ * (D183 п.8): он пишется в журнал и возвращается экрану причиной, которую тот называет
+ * словами, а не молчаливым возвратом на чек-лист.
  */
-export async function submitMakeTemplate(form: FormData): Promise<void> {
+export async function submitMakeTemplate(
+  _previous: MakeTemplateState,
+  form: FormData,
+): Promise<MakeTemplateState> {
   const viewer = await requireAdmin();
   // Шаблоны общие для сети — их делает только УК (D149); партнёр берёт копию.
   requireHqViewer(viewer);
@@ -244,7 +257,7 @@ export async function submitMakeTemplate(form: FormData): Promise<void> {
     if (!(error instanceof MakeTemplateError)) throw error;
     console.error("Редактор: шаблон не сделан", error.reason);
     revalidatePath(CHECKLISTS_PATH, "layout");
-    redirect(checklistPath(checklistId));
+    return { refused: error.reason };
   }
 
   revalidatePath(CHECKLISTS_PATH, "layout");

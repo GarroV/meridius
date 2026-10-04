@@ -422,6 +422,12 @@
       "takeHint": "They go into the draft — publish once you have looked them over.",
       "stale": "The template was updated again — the differences below are against its latest version.",
       "untitled": "Untitled"
+    },
+    "makeTemplate": {
+      "foreignTenant": "A network template can only be made from a management company checklist. This checklist belongs to a partner — take a template or make a copy instead.",
+      "notChecklist": "Template not made: the checklist is archived or is already a template.",
+      "noPublishedVersion": "Template not made: the checklist has no published version — publish it first.",
+      "alreadyFromTemplate": "Template not made: this checklist already has a template."
     }
   },
   "qr": {
