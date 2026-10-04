@@ -4,17 +4,13 @@ import { requireAdmin } from "@/blocks/auth/guard";
 import { submitSignOut } from "@/blocks/auth/ui/sign-out-action";
 import type { Locale } from "@/blocks/core/locale";
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
-import type { SearchParams } from "@/blocks/feed/view";
 import { loadHome } from "@/blocks/home/load";
 import { HomeScreen } from "@/blocks/home/ui/HomeScreen";
-import { parseHomeView } from "@/blocks/home/view";
 
-// Первый экран после входа — пульт сети (D174): цифры, дырки и станции выбранной
-// области. До D174 здесь стояли карточки-ссылки на разделы (#11, T112); владелец снял их
-// вопросом «смысл что она показывает ссылки на другие разделы?» — меню слева и так ведёт
-// в каждый раздел, а главная обязана отвечать, что в сети происходит. «Мои чек-листы»
-// прежней главной (D148, T315) живут на пульте блоком, в той же области видимости
-// вошедшего (D145).
+// Первый экран после входа — «что требует внимания» (D183): тревоги, что не закрыто и
+// свои чек-листы. До D174 здесь стояли карточки-ссылки на разделы (#11, T112), с D174 —
+// пульт сети с цифрами за период; D183 снял и цифры: у одного числа одно место —
+// «Статистика», главная ведёт туда ссылкой.
 //
 // T112 остаётся в силе: экран идёт в общем каркасе, как и все остальные экраны кабинета.
 
@@ -26,18 +22,12 @@ const SIGN_OUT_CLASS =
  * разметка и страница рендерятся параллельно, и без этой строки главная успела бы
  * сходить в базу до того, как охрана уведёт гостя на вход.
  */
-export default async function AdminHomePage({
-  searchParams,
-}: {
-  readonly searchParams: Promise<SearchParams>;
-}) {
+export default async function AdminHomePage() {
   const viewer = await requireAdmin();
 
   const t = await getTranslations("admin");
-  const view = parseHomeView(await searchParams);
   const locale = (await getLocale()) as Locale;
-  const now = new Date();
-  const model = await loadHome(view, locale, viewer, now);
+  const model = await loadHome(locale, viewer);
 
   return (
     <AdminShell
@@ -58,7 +48,7 @@ export default async function AdminHomePage({
         </form>
       }
     >
-      <HomeScreen model={model} view={view} now={now} locale={locale} />
+      <HomeScreen model={model} />
     </AdminShell>
   );
 }

@@ -1,9 +1,9 @@
-// Главная кабинета — пульт сети (D174) с «Моими чек-листами» вошедшего (D148, T315).
+// Главная кабинета — «что требует внимания» (D183) с «Моими чек-листами» вошедшего (D148).
 //
 // Что держит сценарий. После входа человек видит своё и из каждой строки попадает туда,
 // куда она зовёт: «станции без чек-листа» в «Что не закрыто» — в «Станции», уже
-// отфильтрованные; строка чек-листа — в его редактор; строка заполнения в «Что
-// происходит» — в его карточку; пиццерия сводки сужает пульт до своих станций. Чек-листов нет —
+// отфильтрованные; строка чек-листа — в его редактор; цифр-итогов на главной нет, их
+// место — «Статистика», и ссылка ведёт туда. Чек-листов нет —
 // на экране один призыв, и он ведёт в «Шаблоны». Проверяется так, как пользуются: от формы
 // входа и дальше по ссылкам, а не прямым `page.goto` в экран (находка #11 — тупик после
 // входа, которого не ловил ни один сценарий, открывавший экраны по адресу).
@@ -26,7 +26,6 @@ import {
 import { hashPassword } from "../src/blocks/auth/password";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { e2eDatabaseUrl } from "./database";
-import { seedStore } from "./station-fixtures";
 
 const PASSWORD = "e2e-пароль-главной-длинный";
 
@@ -187,10 +186,12 @@ test.describe("главная кабинета — пульт сети", () => {
     // Призыва «с нуля» нет: чек-лист у партнёра есть, и два первых шага не спорят.
     await expect(home.getByTestId("home-from-template")).toHaveCount(0);
 
-    // Пульт: область, цифры, заполнения.
-    await expect(home.getByTestId("feed-filters")).toBeVisible();
-    await expect(home.getByTestId("home-working")).toBeVisible();
-    await expect(home.getByTestId("feed-metrics")).toBeVisible();
+    // Своих цифр-итогов у главной нет (D183): ни фильтра периода, ни плиток, ни сводки.
+    await expect(home.getByTestId("feed-filters")).toHaveCount(0);
+    await expect(home.getByTestId("feed-metrics")).toHaveCount(0);
+    await expect(home.getByTestId("home-working")).toHaveCount(0);
+    // В мире партнёра ровно одна станция без чек-листа — её и считает строка.
+    await expect(home.getByTestId("home-todo-noChecklist")).toContainText("1");
 
     // Дырка в «Что не закрыто», и её ссылка открывает «Станции» уже отфильтрованными.
     await home.getByTestId("home-todo-noChecklist").click();
@@ -210,14 +211,9 @@ test.describe("главная кабинета — пульт сети", () => {
     );
     await backHome(page);
 
-    // Заполнение на его станции — строкой, и она открывает карточку заполнения.
-    await home
-      .getByTestId("home-recent")
-      .getByRole("link", { name: new RegExp(world.checklistTitle) })
-      .click();
-    await expect(page).toHaveURL(
-      new RegExp(`/admin/feed/${world.submissionId}(\\?|$)`),
-    );
+    // Цифры — в «Статистике»: ссылка ведёт туда.
+    await home.getByTestId("home-stats-link").click();
+    await expect(page).toHaveURL(/\/admin\/feed$/);
     await backHome(page);
   });
 
@@ -233,31 +229,6 @@ test.describe("главная кабинета — пульт сети", () => {
     await home.getByTestId("home-from-template").click();
     await expect(page).toHaveURL(/\/admin\/templates$/);
     await expect(page.getByTestId("templates-screen")).toBeVisible();
-  });
-
-  test("пиццерия из сводки сужает главную до её станций", async ({ page }) => {
-    const store = await seedStore();
-    await signInAs(page, "admin", E2E_ADMIN_PASSWORD);
-
-    const row = page
-      .getByTestId("home-store")
-      .filter({ hasText: store.storeName });
-    await expect(row).toHaveCount(1);
-    await row.getByRole("link", { name: store.storeName }).click();
-
-    await expect(page).toHaveURL(/[?&]store=/);
-    const stations = page.getByTestId("home-station");
-    await expect(stations).toHaveCount(store.stationNames.length);
-    // Станции только что заведены и без чек-листа — это и есть первая дырка.
-    await expect(stations.first()).toContainText("нет чек-листа");
-    await expect(page.getByTestId("home-todo-noChecklist")).toContainText(
-      String(store.stationNames.length),
-    );
-    // Строка станции ведёт на её карточку в «Станциях», своей копии карточки нет.
-    await expect(stations.first().getByRole("link").first()).toHaveAttribute(
-      "href",
-      /^\/admin\/stations\/[0-9a-f-]+$/,
-    );
   });
 
   test("из главной меню ведёт в каждый раздел, а выйти по-прежнему можно", async ({
