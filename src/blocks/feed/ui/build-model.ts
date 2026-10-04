@@ -45,7 +45,7 @@ import type {
 } from "../model";
 import { loadFeedCatalog, stationTimeZone } from "../options";
 import { outcomeOf } from "../outcome";
-import { relativeDay, resolvePeriod } from "../period";
+import { rangeBounds, relativeDay } from "../period";
 import {
   isTimeZoneAmbiguous,
   resolveSelection,
@@ -104,9 +104,9 @@ export async function buildFeedModel(
 ): Promise<FeedModel> {
   const visible = scopeOfViewer(viewer);
   const catalog = await loadFeedCatalog(visible);
-  const selection = resolveSelection(view, catalog);
+  const selection = resolveSelection(view, catalog, now);
   const timeZone = screenTimeZone(selection);
-  const { from, to } = resolvePeriod(selection.period, now, timeZone);
+  const { from, to } = rangeBounds(selection.period, timeZone);
 
   const rows = await listSubmissions({
     ...submissionScope(selection, visible),

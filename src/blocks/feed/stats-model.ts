@@ -1,11 +1,11 @@
 // Модель экрана статистики: что посчитано для разметки (D150, D170).
 import type { FeedStoreOption, FilterOption } from "./model";
-import type { StatsPeriodDays } from "./stats-view";
+import type { DayRange } from "./period";
 
 export interface StatsSelection {
   readonly countryId: string | null;
   readonly storeId: string | null;
-  readonly days: StatsPeriodDays;
+  readonly period: DayRange;
   readonly countries: readonly FilterOption[];
   readonly stores: readonly FeedStoreOption[];
 }

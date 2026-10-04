@@ -11,7 +11,7 @@ import {
 
 import type { FeedSelection } from "../model";
 import { loadFeedCatalog } from "../options";
-import { periodDayCount, resolvePeriod } from "../period";
+import { rangeBounds } from "../period";
 import { buildRoundsDays } from "../rounds-days";
 import type { RoundsCell, RoundsGridRow } from "../rounds-grid";
 import { buildRoundsGrid } from "../rounds-grid";
@@ -31,6 +31,12 @@ import {
 } from "../selection";
 import { pickText } from "../text";
 import type { FeedView } from "../view";
+
+/**
+ * Самый длинный период отчёта: сетка «пункты × часы» на каждый день, и больше месяца
+ * на экране не читается. Длиннее — обрезается до последнего месяца, считая от «по».
+ */
+const MAX_REPORT_DAYS = 31;
 
 /** Фильтры экрана в том виде, в каком их принимают запросы: незаданное не передаётся. */
 function scopeOf(selection: FeedSelection, visible: Scope): FeedScope {
@@ -102,14 +108,13 @@ export async function buildRoundsModel(
 ): Promise<RoundsReportModel> {
   const visible = scopeOfViewer(viewer);
   const catalog = await loadFeedCatalog(visible);
-  const selection = resolveSelection(view, catalog);
+  const selection = resolveSelection(view, catalog, now, MAX_REPORT_DAYS);
   const timeZone = screenTimeZone(selection);
-  const { from, to } = resolvePeriod(selection.period, now, timeZone);
+  const { from, to } = rangeBounds(selection.period, timeZone);
 
-  const dayCount = periodDayCount(selection.period);
   const source = await loadRoundsSource(
     scopeOf(selection, visible),
-    dayCount,
+    selection.period,
     now,
   );
 
@@ -117,7 +122,7 @@ export async function buildRoundsModel(
     checklists: source.checklists,
     versions: source.versions,
     shiftModes: source.shiftModes,
-    dayCount,
+    period: selection.period,
   });
   const grid = buildRoundsGrid(days, source.marks);
 

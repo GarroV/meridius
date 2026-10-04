@@ -7,7 +7,6 @@ import type { Locale } from "@/blocks/core/locale";
 import { scopeOf as scopeOfViewer, type Viewer } from "@/blocks/auth/scope";
 
 import { loadFeedCatalog } from "../options";
-import { DEFAULT_PERIOD } from "../period";
 import type { FeedScope } from "../scope";
 import { resolveSelection, screenTimeZone, storeTimeZone } from "../selection";
 import { loadStats } from "../stats";
@@ -29,19 +28,20 @@ export async function buildStatsModel(
 ): Promise<StatsModel> {
   const visible = scopeOfViewer(viewer);
   const catalog = await loadFeedCatalog(visible);
-  // Период ленты здесь не читается: у статистики свой, а станции у неё нет вовсе.
+  // Станции у статистики нет; период — тот же один на экран, разобранный в поясе экрана.
   const feedSelection = resolveSelection(
     {
-      period: DEFAULT_PERIOD,
+      ...(view.period === undefined ? {} : { period: view.period }),
       ...(view.countryId === undefined ? {} : { countryId: view.countryId }),
       ...(view.storeId === undefined ? {} : { storeId: view.storeId }),
     },
     catalog,
+    now,
   );
   const selection: StatsSelection = {
     countryId: feedSelection.countryId,
     storeId: feedSelection.storeId,
-    days: view.days,
+    period: feedSelection.period,
     countries: feedSelection.countries,
     stores: feedSelection.stores,
   };
@@ -53,7 +53,7 @@ export async function buildStatsModel(
   };
   // Пояс экрана — тот же, по которому главная режет «последние 7 дней» (#216).
   const timeZone = screenTimeZone(feedSelection);
-  const stats = await loadStats(scope, view.days, now, timeZone);
+  const stats = await loadStats(scope, selection.period, now, timeZone);
 
   return {
     selection,

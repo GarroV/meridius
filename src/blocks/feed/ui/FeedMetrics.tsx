@@ -3,10 +3,11 @@ import type { ReactElement } from "react";
 
 import { formatDuration } from "../../core/duration";
 import type { FeedMetrics as FeedMetricsModel } from "../model";
-import type { FeedPeriod } from "../period";
 
 /**
- * Три показателя за выбранный период (эталон `.kpi` в feed.html).
+ * Три показателя за период экрана (эталон `.kpi` в feed.html): заполнения, из них с
+ * проваленным критичным пунктом — та же мера, что у сводки и плиток (D183 п.5, D170), —
+ * и среднее время.
  *
  * Числа приходят готовыми из модели, посчитанные по тому же массиву строк, который
  * показан в ленте (T045). Здесь их не пересчитывают и не досчитывают: собственный
@@ -29,15 +30,8 @@ const VALUE_CLASS =
 const CAPTION_CLASS =
   "mt-[var(--space-3)] text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 
-const PERIOD_CAPTION: Record<FeedPeriod, string> = {
-  today: "periodToday",
-  week: "periodWeek",
-  month: "periodMonth",
-};
-
 export interface FeedMetricsProps {
   readonly metrics: FeedMetricsModel;
-  readonly period: FeedPeriod;
 }
 
 interface CellProps {
@@ -73,7 +67,6 @@ function Cell({
 
 export async function FeedMetrics({
   metrics,
-  period,
 }: FeedMetricsProps): Promise<ReactElement> {
   const t = await getTranslations("feed.metrics");
 
@@ -83,10 +76,7 @@ export async function FeedMetrics({
         <Cell
           testId="metric-submissions"
           value={String(metrics.submissionCount)}
-          caption={t("submissions", {
-            count: metrics.submissionCount,
-            period: t(PERIOD_CAPTION[period]),
-          })}
+          caption={t("submissions", { count: metrics.submissionCount })}
         />
         <Cell
           testId="metric-critical"

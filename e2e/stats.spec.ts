@@ -130,6 +130,21 @@ async function axeViolations(page: Page): Promise<string[]> {
   );
 }
 
+/** Пара дат периода в адресе экрана. */
+const DATES_IN_URL = /from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}/;
+
+function periodOf(url: string): { from: string; to: string } {
+  const params = new URL(url).searchParams;
+  return { from: params.get("from") ?? "", to: params.get("to") ?? "" };
+}
+
+/** Местная дата со сдвигом на целые сутки — по календарю. */
+function shiftDate(date: string, days: number): string {
+  const at = new Date(`${date}T00:00:00Z`);
+  at.setUTCDate(at.getUTCDate() + days);
+  return at.toISOString().slice(0, 10);
+}
+
 async function pageWidth(page: Page): Promise<number> {
   return page.evaluate(() => document.documentElement.scrollWidth);
 }
@@ -138,14 +153,22 @@ test.describe("раздел «Статистика» (D179)", () => {
   // Тексты сценария и вход — на русском: язык кабинета берётся из браузера.
   test.use({ locale: "ru-RU" });
 
-  test("страна → плитка пиццерии → её чек-листы со статусом; 7 и 30 дней; молчащая станция", async ({
+  test("страна → плитка пиццерии → её чек-листы со статусом; период «с — по»; молчащая станция", async ({
     page,
   }) => {
     const seeded = await seed();
     await signIn(page);
 
-    await page.goto(`/admin/feed?country=${seeded.countryId}`);
+    // Старый адрес «7 дней» открывается тем же отрезком, но уже парой дат (D183 п.4).
+    await page.goto(`/admin/feed?country=${seeded.countryId}&days=7`);
     await expect(page.getByTestId("feed-screen")).toBeVisible();
+    await expect(page).toHaveURL(DATES_IN_URL);
+    const week = periodOf(page.url());
+    // Отрезок кончается сегодня — вперёд листать некуда.
+    await expect(page.getByTestId("period-next")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
 
     // Выбранная страна подсвечена в колонке слева.
     await expect(
@@ -154,12 +177,12 @@ test.describe("раздел «Статистика» (D179)", () => {
         .locator('[data-testid="country-row"][aria-current="page"]'),
     ).toContainText(`Страна ${seeded.label}`);
 
-    // Плитка пиццерии: статус на сегодня и цифры за 7 дней.
+    // Плитка пиццерии: статус на сегодня и цифры за период.
     const tile = page
       .getByTestId("store-tile")
       .filter({ hasText: seeded.storeName });
     await expect(tile).toHaveCount(1);
-    await expect(tile).toContainText("За 7 дней: 2 заполнения");
+    await expect(tile).toContainText("За период: 2 заполнения");
     // Провал газа сегодня — тревога на плитке.
     await expect(tile.getByTestId("tile-alarms")).toBeVisible();
     // Сводка страны — те же числа: в стране одна пиццерия.
@@ -168,7 +191,9 @@ test.describe("раздел «Статистика» (D179)", () => {
     await tile.click();
     await expect(page.getByTestId("store-stats-screen")).toBeVisible();
     await expect(page).toHaveURL(
-      new RegExp(`/admin/feed/stores/${seeded.storeId}`),
+      new RegExp(
+        `/admin/feed/stores/${seeded.storeId}\\?from=${week.from}&to=${week.to}`,
+      ),
     );
 
     // Все чек-листы пиццерии: кухня и касса, у каждого — статус на сегодня.
@@ -210,8 +235,13 @@ test.describe("раздел «Статистика» (D179)", () => {
     await expect(page.getByTestId("store-feed")).toBeVisible();
     await expect(page.getByTestId("alarm-strip")).toBeVisible();
 
-    await page.getByTestId("stats-days-30").click();
-    await expect(page).toHaveURL(/days=30/);
+    // Календарь «с — по»: те же 30 дней, что раньше давала кнопка «30 дней».
+    const month = { from: shiftDate(week.to, -29), to: week.to };
+    await page.getByTestId("period-from").fill(month.from);
+    await page.getByTestId("period-apply").click();
+    await expect(page).toHaveURL(
+      new RegExp(`from=${month.from}&to=${month.to}`),
+    );
     await expect(page.getByTestId("stats-submissions")).toHaveText("3");
     await expect(page.getByTestId("stats-critical-share")).toHaveText(
       /33[.,]3\s?%/,
@@ -224,7 +254,9 @@ test.describe("раздел «Статистика» (D179)", () => {
     await page.getByTestId("store-back").click();
     await expect(page.getByTestId("feed-screen")).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`country=${seeded.countryId}`));
-    await expect(page).toHaveURL(/days=30/);
+    await expect(page).toHaveURL(
+      new RegExp(`from=${month.from}&to=${month.to}`),
+    );
   });
 
   test("бывший адрес статистики ведёт в раздел с той же страной и пиццерией", async ({
@@ -236,8 +268,10 @@ test.describe("раздел «Статистика» (D179)", () => {
     await page.goto(`/admin/feed/stats?country=${seeded.countryId}&days=30`);
     await expect(page.getByTestId("feed-screen")).toBeVisible();
     await expect(page).toHaveURL(
-      new RegExp(`/admin/feed\\?country=${seeded.countryId}&days=30`),
+      new RegExp(`/admin/feed\\?country=${seeded.countryId}&from=`),
     );
+    const legacy = periodOf(page.url());
+    expect(legacy.from).toBe(shiftDate(legacy.to, -29));
 
     await page.goto(`/admin/feed/stats?store=${seeded.storeId}`);
     await expect(page.getByTestId("store-stats-screen")).toBeVisible();

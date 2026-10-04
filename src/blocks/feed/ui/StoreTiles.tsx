@@ -22,6 +22,8 @@ const FIGURES_CLASS =
 const H2_CLASS =
   "m-0 text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold";
 const META_CLASS = "m-0 text-[length:var(--fs-meta)] text-[var(--ink-3)]";
+const TODAY_CLASS =
+  "self-center text-[length:var(--fs-meta)] font-medium text-[var(--ink-3)]";
 
 type Translate = Awaited<ReturnType<typeof getTranslations>>;
 
@@ -98,11 +100,13 @@ export async function StoreTiles({
                   <span className="card__title">{tile.name}</span>
                 </div>
                 <div className={TAGS_CLASS}>
+                  {/* Свой горизонт у плитки — «сегодня», а не период экрана: так и
+                      подписано (interface-logic п.3). */}
+                  <span className={TODAY_CLASS}>{t("todayLabel")}</span>
                   <TodayTags tile={tile} t={t} />
                 </div>
                 <p className={`m-0 ${FIGURES_CLASS}`}>
                   {t("periodFigures", {
-                    days: model.days,
                     submissions: tile.submissionCount,
                     failed: tile.criticalFailedCount,
                   })}

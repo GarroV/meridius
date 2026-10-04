@@ -5,7 +5,7 @@ import type { Severity, ShiftMode } from "@/blocks/data";
 
 import type { AlarmKind } from "./alarms";
 import type { Outcome } from "./outcome";
-import type { FeedPeriod, RelativeDay } from "./period";
+import type { DayRange, PeriodNav, RelativeDay } from "./period";
 
 /** Строка ленты. Порядок строк задаёт слой доступа, экран его не меняет. */
 export interface FeedRow {
@@ -84,7 +84,10 @@ export interface FeedSelection {
   readonly countryId: string | null;
   readonly storeId: string | null;
   readonly stationId: string | null;
-  readonly period: FeedPeriod;
+  /** Период экрана датами: умолчание (текущий месяц) и старые адреса уже разобраны. */
+  readonly period: DayRange;
+  /** Куда ведут стрелки ← → выбора периода. */
+  readonly periodNav: PeriodNav;
   readonly countries: readonly FilterOption[];
   readonly stores: readonly FeedStoreOption[];
   readonly stations: readonly FeedStationOption[];

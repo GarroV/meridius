@@ -9,9 +9,9 @@ export function computeMetrics(rows: readonly FeedRow[]): FeedMetrics {
 
   for (const row of rows) {
     totalDurationMs += row.durationMs;
-    if (row.outcome.kind === "criticalFailed") {
-      failedCriticalCount += row.outcome.count;
-    }
+    // Заполнение, а не пункт: мера «заполнений с проваленным критичным пунктом» одна на
+    // ленту, сводку и плитки (D183 п.5, D170).
+    if (row.outcome.kind === "criticalFailed") failedCriticalCount += 1;
   }
 
   return {

@@ -34,7 +34,7 @@ import type {
   ReportShiftMode,
   ReportVersion,
 } from "./rounds-days";
-import { shiftLocalDate } from "./rounds-days";
+import { shiftLocalDate, type DayRange } from "./period";
 import type { RoundsMark } from "./rounds-grid";
 import type { FeedScope } from "./scope";
 import {
@@ -241,20 +241,25 @@ async function loadMarks(
 
 /**
  * Границы дат, за которые вообще имеет смысл читать отметки и режимы: от самых ранних
- * суток отчёта самой ранней пиццерии до самых поздних «сегодня».
+ * суток периода до его конца, но не дальше самого позднего «сегодня» среди пиццерий.
  *
  * На сутки глубже периода — ровно как у разбора проходов: проход окна через полночь,
  * начатый накануне, ещё может задеть период, и его отметки нужны.
  */
 function rangeOf(
   checklists: readonly RoundsChecklist[],
-  dayCount: number,
+  period: DayRange,
 ): DateRange | null {
-  const dates = checklists.map((row) => row.localDate).sort();
-  const first = dates[0];
-  const last = dates.at(-1);
-  if (first === undefined || last === undefined) return null;
-  return { from: shiftLocalDate(first, -dayCount), to: last };
+  const last = checklists
+    .map((row) => row.localDate)
+    .sort()
+    .at(-1);
+  if (last === undefined) return null;
+  const to = period.to < last ? period.to : last;
+  const from = shiftLocalDate(period.from, -1);
+  // Период целиком в будущем даёт пустой отрезок (`from` позже `to`): запросы ничего не
+  // найдут, а чек-листы области останутся — отчёт скажет «обходов не было», а не «нечего».
+  return { from, to };
 }
 
 /**
@@ -265,11 +270,11 @@ function rangeOf(
  */
 export async function loadRoundsSource(
   scope: FeedScope,
-  dayCount: number,
+  period: DayRange,
   at: Date,
 ): Promise<RoundsSource> {
   const rows = await loadChecklists(scope, at);
-  const range = rangeOf(rows, dayCount);
+  const range = rangeOf(rows, period);
   if (range === null) {
     return {
       ...EMPTY,

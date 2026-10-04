@@ -1,13 +1,21 @@
 import Link from "next/link";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
 
 import type { RoundsReportModel } from "../rounds-model";
 import { ROUNDS_REPORT_PATH } from "../routes";
-import { feedHref, toFeedView } from "../view";
+import {
+  COUNTRY_PARAM,
+  STATION_PARAM,
+  STORE_PARAM,
+  feedHref,
+  roundsReportHref,
+  toFeedView,
+} from "../view";
 import { FeedFilters } from "./FeedFilters";
+import { PeriodPicker } from "./PeriodPicker";
 import { RoundsEmpty } from "./RoundsEmpty";
 import { RoundsGridTable } from "./RoundsGridTable";
 import { TopbarActions } from "./TopbarActions";
@@ -19,12 +27,10 @@ import { TopbarActions } from "./TopbarActions";
  * а не выносятся в общий модуль ради одной короткой функции.
  */
 
-const META_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const LEAD_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const BACK_CLASS =
   "inline-flex h-[var(--control-h-sm)] items-center justify-center gap-[var(--space-4)] rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] no-underline hover:bg-[var(--surface-3)] hover:text-ink";
 
-type Formatter = Awaited<ReturnType<typeof getFormatter>>;
 type Translate = Awaited<ReturnType<typeof getTranslations>>;
 
 /** Крошка: та же логика, что `breadcrumbOf` в `FeedScreen.tsx`, — оба экрана читают
@@ -49,26 +55,17 @@ function breadcrumbOf(model: RoundsReportModel, t: Translate): string {
   return parts.join(" · ");
 }
 
-/** Подпись периода в верхней полосе — тот же приём, что в `FeedScreen.tsx`. */
-function periodText(
-  model: RoundsReportModel,
-  format: Formatter,
-  t: Translate,
-): string {
-  const day = (at: Date): string =>
-    format.dateTime(at, {
-      day: "numeric",
-      month: "long",
-      timeZone: model.timeZone,
-    });
-
-  if (model.selection.period === "today") {
-    return t("range.day", { day: day(model.periodFrom) });
-  }
-  return t("range.span", {
-    from: day(model.periodFrom),
-    to: day(model.periodTo),
-  });
+/** Выбор места, который календарь периода обязан донести до отчёта. */
+function placeParams(model: RoundsReportModel): Record<string, string> {
+  const { countryId, storeId, stationId } = model.selection;
+  const entries: [string, string | null][] = [
+    [COUNTRY_PARAM, countryId],
+    [STORE_PARAM, storeId],
+    [STATION_PARAM, stationId],
+  ];
+  return Object.fromEntries(
+    entries.filter((entry): entry is [string, string] => entry[1] !== null),
+  );
 }
 
 export async function RoundsReportScreen({
@@ -77,7 +74,7 @@ export async function RoundsReportScreen({
   readonly model: RoundsReportModel;
 }): Promise<ReactElement> {
   const t = await getTranslations("feed");
-  const format = await getFormatter();
+  const view = toFeedView(model.selection);
 
   return (
     <AdminShell
@@ -87,11 +84,16 @@ export async function RoundsReportScreen({
       title={t("report.title")}
       topbarAction={
         <TopbarActions>
-          <span className={META_CLASS} data-testid="feed-period">
-            {periodText(model, format, t)}
-          </span>
+          <PeriodPicker
+            nav={model.selection.periodNav}
+            hrefOf={(range) =>
+              roundsReportHref({ ...view, period: { kind: "range", range } })
+            }
+            action={ROUNDS_REPORT_PATH}
+            hidden={placeParams(model)}
+          />
           <Link
-            href={feedHref(toFeedView(model.selection))}
+            href={feedHref(view)}
             data-testid="rounds-feed-link"
             className={BACK_CLASS}
           >

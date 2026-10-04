@@ -1,90 +1,76 @@
-// Адреса раздела «Статистика» (D179): страна и период в 7 или 30 дней (D170).
+// Адреса раздела «Статистика» (D179): страна, пиццерия и один период на экран (D183 п.4).
 //
-// Страна, пиццерия, станция и период ленты читаются разбором ленты (`parseFeedView`):
-// имена параметров у них общие, поэтому старые ссылки ленты и бывшей статистики
-// доезжают до нового раздела с тем же выбором. Своё здесь — только период статистики.
+// Страна, пиццерия, станция и период читаются разбором ленты (`parseFeedView`): имена
+// параметров у них общие, поэтому старые ссылки ленты и бывшей статистики доезжают до
+// нового раздела с тем же выбором.
 //
 // Модуль чистый — без базы.
-import { FEED_PATH } from "./routes";
-import { DEFAULT_PERIOD } from "./period";
+import type { DayRange, PeriodAsk } from "./period";
 import {
-  COUNTRY_PARAM,
   feedHref,
   parseFeedView,
   type FeedView,
   type SearchParams,
 } from "./view";
 
-/** Два периода статистики (D170). */
-export const STATS_PERIOD_DAYS = [7, 30] as const;
-export type StatsPeriodDays = (typeof STATS_PERIOD_DAYS)[number];
-
 /** Что считает сводка: область и период. */
 export interface StatsView {
   readonly countryId?: string;
   readonly storeId?: string;
-  readonly days: StatsPeriodDays;
+  readonly period?: PeriodAsk | undefined;
 }
 
-export const DAYS_PARAM = "days";
-const DEFAULT_STATS_DAYS: StatsPeriodDays = 7;
-
-function single(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-/** Период статистики из адреса. Непонятное — умолчание: это мусор, а не ошибка. */
-export function parseStatsDays(params: SearchParams): StatsPeriodDays {
-  const raw = single(params[DAYS_PARAM]);
-  return (
-    STATS_PERIOD_DAYS.find((days) => String(days) === raw) ?? DEFAULT_STATS_DAYS
-  );
-}
-
-function withDays(href: string, days: StatsPeriodDays | undefined): string {
-  if (days === undefined || days === DEFAULT_STATS_DAYS) return href;
-  return `${href}${href.includes("?") ? "&" : "?"}${DAYS_PARAM}=${String(days)}`;
+function asRange(period: DayRange | undefined): PeriodAsk | undefined {
+  return period === undefined ? undefined : { kind: "range", range: period };
 }
 
 /** Экран страны: список стран слева, плитки её пиццерий справа. */
 export function countryStatsHref(view: {
   readonly countryId?: string | null | undefined;
-  readonly days?: StatsPeriodDays | undefined;
+  readonly period?: DayRange | undefined;
 }): string {
-  const href =
+  const country =
     view.countryId === undefined || view.countryId === null
-      ? FEED_PATH
-      : `${FEED_PATH}?${COUNTRY_PARAM}=${encodeURIComponent(view.countryId)}`;
-  return withDays(href, view.days);
+      ? {}
+      : { countryId: view.countryId };
+  const period = asRange(view.period);
+  return feedHref({ ...country, ...(period === undefined ? {} : { period }) });
 }
 
-/** Экран пиццерии: период статистики, а для ленты — станция и её период. */
+/** Экран пиццерии: период и станция ленты. */
 export function storeStatsHref(
   storeId: string,
   view: {
-    readonly days?: StatsPeriodDays | undefined;
+    readonly period?: DayRange | undefined;
     readonly stationId?: string | null | undefined;
-    readonly period?: FeedView["period"] | undefined;
   } = {},
 ): string {
+  const period = asRange(view.period);
   const feed: FeedView = {
     storeId,
-    period: view.period ?? DEFAULT_PERIOD,
+    ...(period === undefined ? {} : { period }),
     ...(view.stationId === undefined || view.stationId === null
       ? {}
       : { stationId: view.stationId }),
   };
-  return withDays(feedHref(feed), view.days);
+  return feedHref(feed);
 }
 
 /**
  * Куда ведёт бывший адрес статистики `/admin/feed/stats` (D179): с пиццерией — на её
- * экран, иначе — в раздел с той же страной. Период переезжает как есть.
+ * экран, иначе — в раздел с той же страной. Период переезжает как есть: старый `days=`
+ * экран сам переведёт в даты, когда узнает свой пояс.
  */
 export function legacyStatsTarget(params: SearchParams): string {
   const view = parseFeedView(params);
-  const days = parseStatsDays(params);
-  return view.storeId === undefined
-    ? countryStatsHref({ countryId: view.countryId, days })
-    : storeStatsHref(view.storeId, { days });
+  const place: FeedView =
+    view.storeId === undefined
+      ? view.countryId === undefined
+        ? {}
+        : { countryId: view.countryId }
+      : { storeId: view.storeId };
+  return feedHref({
+    ...place,
+    ...(view.period === undefined ? {} : { period: view.period }),
+  });
 }

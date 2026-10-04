@@ -6,7 +6,8 @@ import { describe, expect, test } from "vitest";
 import type { Section } from "@/blocks/data";
 
 import type { ReportChecklist, ReportVersion } from "./rounds-days";
-import { buildRoundsDays, shiftLocalDate } from "./rounds-days";
+import { shiftLocalDate, type DayRange } from "./period";
+import { buildRoundsDays } from "./rounds-days";
 
 const WINDOW = { start: "08:00", end: "12:00" } as const;
 /** Окно через полночь: проход, начатый вечером, кончается на следующих сутках. */
@@ -39,6 +40,14 @@ function sections(title: string): Section[] {
   ];
 }
 
+/** «Сегодня» пиццерии по умолчанию у `checklist()`. */
+const TODAY = "2026-09-06";
+
+/** Последние `count` суток по сегодняшние включительно — как прежний «N дней». */
+function lastDays(count: number): DayRange {
+  return { from: shiftLocalDate(TODAY, -(count - 1)), to: TODAY };
+}
+
 function checklist(over: Partial<ReportChecklist> = {}): ReportChecklist {
   return {
     checklistId: "c-1",
@@ -60,7 +69,7 @@ describe("сутки отчёта", () => {
       checklists: [checklist({ window: ALL_DAY_WINDOW })],
       versions: [version("2026-09-01")],
       shiftModes: [],
-      dayCount: 3,
+      period: lastDays(3),
     });
 
     // Без суток чек-лист не попадает в сетку ВООБЩЕ: экран показывает пустое
@@ -78,7 +87,7 @@ describe("сутки отчёта", () => {
       checklists: [checklist()],
       versions: [version("2026-09-01")],
       shiftModes: [],
-      dayCount: 3,
+      period: lastDays(3),
     });
 
     expect(days.map((day) => day.localDate)).toEqual([
@@ -93,7 +102,7 @@ describe("сутки отчёта", () => {
       checklists: [checklist()],
       versions: [version("2026-09-05")],
       shiftModes: [],
-      dayCount: 3,
+      period: lastDays(3),
     });
 
     // 4 сентября чек-листа ещё не существовало: ждать в этот день было нечего,
@@ -112,7 +121,7 @@ describe("сутки отчёта", () => {
         version("2026-09-06", "Новое"),
       ],
       shiftModes: [],
-      dayCount: 3,
+      period: lastDays(3),
     });
 
     const titles = days.map((day) => day.sections[0]?.items[0]?.title["ru"]);
@@ -127,7 +136,7 @@ describe("сутки отчёта", () => {
         { storeId: "st-1", localDate: "2026-09-05", mode: "reduced" },
         { storeId: "st-2", localDate: "2026-09-06", mode: "critical" },
       ],
-      dayCount: 3,
+      period: lastDays(3),
     });
 
     expect(days.map((day) => day.mode)).toEqual([
@@ -145,7 +154,7 @@ describe("сутки отчёта", () => {
         { storeId: "st-1", localDate: "2026-09-06", mode: "reduced" },
         { storeId: "st-1", localDate: "2026-09-06", mode: "critical" },
       ],
-      dayCount: 1,
+      period: lastDays(1),
     });
 
     expect(days[0]?.mode).toBe("critical");
@@ -156,7 +165,7 @@ describe("сутки отчёта", () => {
       checklists: [checklist({ localTime: "09:30" })],
       versions: [version("2026-09-01")],
       shiftModes: [],
-      dayCount: 2,
+      period: lastDays(2),
     });
 
     // Вчера: сутки назад плюс полтора часа от 08:00 — проход давно закрыт.
@@ -169,7 +178,7 @@ describe("сутки отчёта", () => {
       checklists: [checklist({ localTime: "03:00" })],
       versions: [version("2026-09-01")],
       shiftModes: [],
-      dayCount: 1,
+      period: lastDays(1),
     });
 
     // Ноль, а не отрицательное число: «ещё не начался» и «начался только что» —
@@ -182,7 +191,7 @@ describe("сутки отчёта", () => {
       checklists: [checklist({ window: NIGHT_WINDOW, localTime: "01:00" })],
       versions: [version("2026-09-01")],
       shiftModes: [],
-      dayCount: 1,
+      period: lastDays(1),
     });
 
     // Вчерашний проход (20:00 → 02:00) идёт прямо сейчас, сегодняшний начнётся вечером.
@@ -208,7 +217,7 @@ describe("сутки отчёта", () => {
         { ...version("2026-09-01"), checklistId: "c-2" },
       ],
       shiftModes: [],
-      dayCount: 1,
+      period: lastDays(1),
     });
 
     expect(days.map((day) => `${day.checklistId} ${day.localDate}`)).toEqual([
@@ -218,7 +227,7 @@ describe("сутки отчёта", () => {
     ]);
   });
 
-  test("у каждой пиццерии свой «сегодня»", () => {
+  test("период — местные даты каждой пиццерии, и сутки позже её «сегодня» в него не попадают", () => {
     const days = buildRoundsDays({
       checklists: [
         checklist(),
@@ -233,13 +242,51 @@ describe("сутки отчёта", () => {
         { ...version("2026-09-01"), checklistId: "c-2" },
       ],
       shiftModes: [],
-      dayCount: 1,
+      period: { from: "2026-09-06", to: "2026-09-07" },
     });
 
+    // У первой пиццерии 7 сентября ещё не наступило — его сутки не выдумываются.
     expect(days.map((day) => `${day.checklistId} ${day.localDate}`)).toEqual([
       "c-1 2026-09-06",
+      "c-2 2026-09-06",
       "c-2 2026-09-07",
     ]);
+  });
+
+  test("прошедший период — ровно его сутки, без сегодняшних", () => {
+    const days = buildRoundsDays({
+      checklists: [checklist()],
+      versions: [version("2026-08-01")],
+      shiftModes: [],
+      period: { from: "2026-08-30", to: "2026-08-31" },
+    });
+
+    expect(days.map((day) => day.localDate)).toEqual([
+      "2026-08-30",
+      "2026-08-31",
+    ]);
+  });
+
+  test("период целиком в будущем — ни одних суток", () => {
+    const days = buildRoundsDays({
+      checklists: [checklist()],
+      versions: [version("2026-08-01")],
+      shiftModes: [],
+      period: { from: "2026-10-01", to: "2026-10-31" },
+    });
+
+    expect(days).toEqual([]);
+  });
+
+  test("завтрашний период пуст и для ночного окна, чей сегодняшний проход заходит в завтра", () => {
+    const days = buildRoundsDays({
+      checklists: [checklist({ window: NIGHT_WINDOW })],
+      versions: [version("2026-08-01")],
+      shiftModes: [],
+      period: { from: "2026-09-07", to: "2026-09-07" },
+    });
+
+    expect(days).toEqual([]);
   });
 });
 

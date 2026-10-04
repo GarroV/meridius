@@ -1,6 +1,6 @@
 // Модель экрана страны раздела «Статистика» (D179): что посчитано для разметки.
 import type { StatsModel } from "./stats-model";
-import type { StatsPeriodDays } from "./stats-view";
+import type { DayRange, PeriodNav } from "./period";
 import type { TodayCounts } from "./today-status";
 
 /** Строка колонки стран. */
@@ -17,7 +17,7 @@ export interface StoreTile {
   readonly href: string;
   /** Статусы её живых чек-листов на сегодня. */
   readonly today: TodayCounts;
-  /** Тревоги на сейчас (D053): та же полоса, что на экране пиццерии. */
+  /** Тревоги на сейчас (D053): та же полоса, что на экране пиццерии; у плитки это горизонт «сегодня», подписанный на ней. */
   readonly alarmCount: number;
   readonly submissionCount: number;
   readonly criticalFailedCount: number;
@@ -30,7 +30,9 @@ export interface CountryStatsModel {
   readonly countryName: string | null;
   /** Страна выбрана в адресе, а не подставлена первой: на телефоне открыта рабочая зона. */
   readonly isExplicit: boolean;
-  readonly days: StatsPeriodDays;
+  /** Период экрана датами и куда ведут стрелки. */
+  readonly period: DayRange;
+  readonly periodNav: PeriodNav;
   /** Сводка по стране (D150, D170); `null` — стран нет. */
   readonly summary: StatsModel | null;
   readonly stores: readonly StoreTile[];

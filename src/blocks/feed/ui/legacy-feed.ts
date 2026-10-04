@@ -5,8 +5,7 @@
 import { scopeOf, type Viewer } from "@/blocks/auth/scope";
 
 import { loadFeedCatalog } from "../options";
-import { storeStatsHref } from "../stats-view";
-import type { FeedView } from "../view";
+import { feedHref, type FeedView } from "../view";
 
 /**
  * Куда вести старый адрес ленты; `null` — вести некуда, это адрес самого раздела.
@@ -17,16 +16,14 @@ export async function legacyFeedTarget(
   view: FeedView,
   viewer: Viewer,
 ): Promise<string | null> {
-  const filters = {
-    stationId: view.stationId,
-    period: view.period,
-  };
-  if (view.storeId !== undefined) return storeStatsHref(view.storeId, filters);
+  // Станция и период переезжают как пришли (страну адрес пиццерии не несёт): старый
+  // `period=` экран пиццерии сам переведёт в даты, когда узнает пояс пиццерии.
+  if (view.storeId !== undefined) return feedHref(view);
   if (view.stationId === undefined) return null;
 
   const catalog = await loadFeedCatalog(scopeOf(viewer));
   const station = catalog.stations.find((row) => row.id === view.stationId);
   return station === undefined
     ? null
-    : storeStatsHref(station.storeId, filters);
+    : feedHref({ ...view, storeId: station.storeId });
 }

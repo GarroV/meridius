@@ -17,9 +17,10 @@ import {
   PLACE_JOIN,
   epochMs,
   periodWindow,
+  timestampSql,
   scopeWhere,
 } from "./stats-sql";
-import type { StatsPeriodDays } from "./stats-view";
+import type { DayRange } from "./period";
 
 /** Заполнения одной пиццерии или одного чек-листа. */
 export interface SubmissionSummary {
@@ -65,19 +66,20 @@ function shareOf(part: number, whole: number): number | null {
 }
 
 /**
- * Заполнения области `scope`, сгруппированные по `by`, за `days` местных суток в поясе
- * `timeZone` (правило главной, `resolveDays`).
+ * Заполнения области `scope`, сгруппированные по `by`, за период `period` — местные
+ * даты в поясе `timeZone` (`rangeWindow`). Последнее заполнение — за всю историю до
+ * момента просмотра, а не до конца периода: это состояние «сейчас».
  * В выдаче только то, где заполнения были хоть раз; остальное — `summaryOf` с нулями.
  */
 export async function loadSummariesBy(
   by: SummaryKey,
   scope: FeedScope,
-  days: StatsPeriodDays,
+  period: DayRange,
   now: Date,
   timeZone: string,
 ): Promise<ReadonlyMap<string, SubmissionSummary>> {
-  const { window } = periodWindow(days, now, timeZone);
-  const inPeriod = sql`src.submitted_at >= ${window.from}`;
+  const { window } = periodWindow(period, now, timeZone);
+  const inPeriod = sql`src.submitted_at >= ${window.from} and src.submitted_at <= ${window.to}`;
 
   const result = await getDb().execute<SummaryRow>(sql`
     select ${KEY_SQL[by]} as key,
@@ -89,7 +91,7 @@ export async function loadSummariesBy(
     ${PLACE_JOIN}
     where ${scopeWhere(scope)}
       and not src.duplicate
-      and src.submitted_at <= ${window.to}
+      and src.submitted_at <= ${timestampSql(now)}
     group by 1`);
 
   return new Map(
