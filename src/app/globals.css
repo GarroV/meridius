@@ -314,29 +314,52 @@
       color: var(--accent);
     }
 
-    /* Поиск в полосе марки (D183): пиктограмма с тач-целью 44 px, поле раскрывается
-       под полосой во всю ширину. */
+    /* Поиск в полосе марки (D183): пиктограмма с тач-целью 44 px; поле раскрывается
+       второй строкой той же полосы во всю ширину и сдвигает экран вниз, а не ложится
+       поверх заголовка. Своё поле, а не `.sidenav__field`: ядро уже 1100 px сворачивает
+       то в пиктограмму и в фокусе выносит поверх содержимого. */
+    .mbar {
+      flex-wrap: wrap;
+    }
     .mbar__icon {
       width: var(--tap-min);
       height: var(--tap-min);
       margin: calc(var(--space-3) * -1) 0;
     }
     .mbar__search {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      padding: var(--space-3) var(--space-7);
-      background: var(--surface-2);
-      border-bottom: 1px solid var(--line);
+      flex: 1 0 100%;
     }
     .mbar__search[hidden] {
       display: none;
     }
-    .mbar__search .sidenav__field {
+    .mbar__field {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
       height: var(--tap-min);
+      padding: 0 var(--space-5);
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--ink-3);
     }
-    .mbar__search .sidenav__field input {
+    .mbar__field:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--focus-soft);
+    }
+    .mbar__field svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .mbar__field input {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
       font-size: 16px; /* меньше 16 px — iOS увеличивает страницу при фокусе */
     }
 
@@ -364,7 +387,7 @@
       flex-direction: column;
       gap: var(--space-4);
       padding: var(--space-5) var(--space-7);
-      padding-bottom: calc(var(--space-7) + env(safe-area-inset-bottom, 0px));
+      padding-bottom: calc(var(--space-10) + env(safe-area-inset-bottom, 0px));
     }
     .sheet__head {
       display: flex;
@@ -416,10 +439,19 @@
       padding-top: var(--space-4);
       border-top: 1px solid var(--line);
     }
+    /* Ядро ставит капсулы столбиком при свёрнутой панели (уже 1100 px); в листе
+       места вдоль строки хватает — как в полосе марки до D183. */
+    .sheet__prefs .sidenav__prefs,
+    .sheet__prefs .sidenav__theme,
+    .sheet__prefs .sidenav__lang,
+    .sheet__prefs .sidenav__lang .langpill {
+      flex-direction: row;
+      margin: 0;
+    }
     .sheet__prefs .sidenav__prefs {
       justify-content: flex-start;
       gap: var(--space-5);
-      margin: 0;
+      padding: 0;
     }
   }
 }

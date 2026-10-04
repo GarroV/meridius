@@ -67,7 +67,7 @@ export function MobileSearch({
         className="mbar__search"
         hidden={!isOpen}
       >
-        <label className="sidenav__field">
+        <label className="mbar__field">
           <Icon name="search" />
           <input
             ref={field}
