@@ -117,7 +117,6 @@ export async function PeriodPicker({
         {nav.next === null ? (
           <span
             className={ARROW_OFF_CLASS}
-            aria-disabled="true"
             title={t("nextNone")}
             data-testid="period-next"
           >

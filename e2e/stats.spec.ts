@@ -165,10 +165,8 @@ test.describe("раздел «Статистика» (D179)", () => {
     await expect(page).toHaveURL(DATES_IN_URL);
     const week = periodOf(page.url());
     // Отрезок кончается сегодня — вперёд листать некуда.
-    await expect(page.getByTestId("period-next")).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    // Это не ссылка, а подпись «следующий период ещё не начался».
+    await expect(page.getByTestId("period-next")).not.toHaveAttribute("href");
 
     // Выбранная страна подсвечена в колонке слева.
     await expect(
