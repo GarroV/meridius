@@ -6,11 +6,13 @@ import { formActionPath } from "@/blocks/core/base-path";
 
 import type { FeedSelection } from "../model";
 import { FEED_PATH } from "../routes";
+import { FROM_PARAM, TO_PARAM } from "../view";
 import { FeedFilterSelects } from "./FeedFilterSelects";
 
 /**
- * Карточка фильтров (эталон `docs/furca/design/screens/feed.html`): четыре списка и
- * «Сбросить» справа. Форма — обычная GET-форма: состояние ленты живёт в адресе, поэтому
+ * Карточка фильтров (эталон `docs/furca/design/screens/feed.html`): списки страны,
+ * пиццерии и станции и «Сбросить» справа. Периода среди них нет: он один на экран и
+ * выбирается календарём в верхней полосе (D183 п.4), а форма лишь несёт его дальше. Форма — обычная GET-форма: состояние ленты живёт в адресе, поэтому
  * ссылкой на «Кухню Алматы за неделю» можно поделиться, и она откроется тем же экраном.
  *
  * Под фильтрами подписан часовой пояс, в котором посчитан период. Без этой строки
@@ -43,8 +45,6 @@ export interface FeedFiltersProps {
   readonly action?: string;
   /** Списки страны и пиццерии; на экране пиццерии их задаёт адрес (D179). */
   readonly withPlace?: boolean;
-  /** Параметры экрана, которые форма обязана донести, не показывая: период статистики. */
-  readonly hidden?: Readonly<Record<string, string>>;
 }
 
 export async function FeedFilters({
@@ -53,7 +53,6 @@ export async function FeedFilters({
   timeZoneAmbiguous,
   action = FEED_PATH,
   withPlace = true,
-  hidden = {},
 }: FeedFiltersProps): Promise<ReactElement> {
   const t = await getTranslations("feed.filters");
 
@@ -66,9 +65,14 @@ export async function FeedFilters({
           data-testid="feed-filters"
           className={ROW_CLASS}
         >
-          {Object.entries(hidden).map(([name, value]) => (
-            <input key={name} type="hidden" name={name} value={value} />
-          ))}
+          {/* Период выбирается календарём экрана (D183 п.4), а списки применяются сразу:
+              без этих двух полей смена станции сбрасывала бы период на умолчание. */}
+          <input
+            type="hidden"
+            name={FROM_PARAM}
+            value={selection.period.from}
+          />
+          <input type="hidden" name={TO_PARAM} value={selection.period.to} />
           <FeedFilterSelects
             selection={selection}
             withPlace={withPlace}
@@ -76,11 +80,7 @@ export async function FeedFilters({
               country: t("country"),
               store: t("store"),
               station: t("station"),
-              period: t("period"),
               all: t("all"),
-              periodToday: t("periodToday"),
-              periodWeek: t("periodWeek"),
-              periodMonth: t("periodMonth"),
             }}
           />
 

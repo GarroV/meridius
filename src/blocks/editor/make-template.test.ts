@@ -2,9 +2,10 @@
 // и страны, а сам чек-лист становится копией этого шаблона. Смысл в SQL и в
 // ограничениях базы, поэтому подмен нет.
 import { afterAll, describe, expect, test } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { checklistVersions, checklists, getDb } from "@/blocks/data";
+import { partnerViewer } from "@/blocks/auth/testing/viewers";
 import { closeTestDb } from "@/blocks/data/testing/db";
 import {
   createChecklist,
@@ -68,6 +69,38 @@ async function refusal(promise: Promise<unknown>): Promise<string> {
 }
 
 describe("сделать шаблоном", () => {
+  test("чек-лист тенанта партнёра шаблоном УК не становится — отказ, ничего не записано (D183 п.8)", async () => {
+    const station = await createStation();
+    const partner = await partnerViewer([station.countryId]);
+    const label = `Чужая кухня ${station.stationId.slice(0, 8)}`;
+    const source = await createChecklist({
+      stationId: station.stationId,
+      tenantId: partner.tenantId,
+      title: { ru: label, en: label },
+    });
+    await createPublishedVersion(source, sampleSections(label), 1);
+
+    expect(await refusal(makeTemplateFromChecklist(source))).toBe(
+      "foreignTenant",
+    );
+    // Шаблона с этим названием нет: счёт всех шаблонов здесь не годится — соседние
+    // файлы прогона заводят свои шаблоны параллельно.
+    const templates = await getDb()
+      .select({ id: checklists.id })
+      .from(checklists)
+      .where(
+        and(
+          eq(checklists.isTemplate, true),
+          sql`${checklists.title} ->> 'ru' = ${label}`,
+        ),
+      );
+    expect(templates).toEqual([]);
+    expect((await checklistRow(source))?.sourceChecklistId).toBeNull();
+    // И пачка скрипта его не предлагает: в кандидатах ровно те, кого примет действие.
+    const candidates = await listTemplateCandidates(station.storeId);
+    expect(candidates.map((row) => row.checklistId)).not.toContain(source);
+  });
+
   test("шаблон без станции, с последней опубликованной версией чек-листа", async () => {
     const source = await stationChecklist("Касса и зал");
 

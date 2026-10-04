@@ -55,7 +55,7 @@ export async function CountryRail({
                 <Link
                   href={countryStatsHref({
                     countryId: country.id,
-                    days: model.days,
+                    period: model.period,
                   })}
                   className={isCurrent ? ROW_CURRENT_CLASS : ROW_IDLE_CLASS}
                   data-testid="country-row"

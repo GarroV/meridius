@@ -30,7 +30,7 @@ import {
   uniqueStationCode,
 } from "@/blocks/data/testing/fixtures";
 
-import { resolvePeriod } from "./period";
+import { lastDays, rangeBounds } from "./period";
 import type { FeedScope } from "./scope";
 import { loadStats, type Stats } from "./stats";
 
@@ -222,7 +222,12 @@ describe("заполнения за период", () => {
     );
     await fill(place, ago(5 * DAY), { [id.tables]: true }, { items });
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.submissionCount).toBe(4);
     expect(stats.criticalFailedCount).toBe(1);
@@ -250,10 +255,33 @@ describe("заполнения за период", () => {
       { items },
     );
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.criticalFailedCount).toBe(1);
     expect(stats.criticalFailedShare).toBeCloseTo(0.5, 10);
+  });
+
+  test("прошедший период считается от первого до конца последнего дня, без сегодняшних", async () => {
+    const id = ids();
+    const items = [bool(id.gas, "Газ", "critical")];
+    const place = await placeWith(items);
+
+    await fill(place, ago(1 * DAY), { [id.gas]: false }, { items });
+    await fill(place, ago(25 * DAY), { [id.gas]: false }, { items });
+    await fill(place, ago(26 * DAY), { [id.gas]: true }, { items });
+
+    const august = { from: "2026-08-01", to: "2026-08-31" };
+    const stats = await loadStats(storeScope(place), august, NOW, "UTC");
+
+    expect(stats.submissionCount).toBe(2);
+    expect(stats.criticalFailedCount).toBe(1);
+    expect(stats.from).toStrictEqual(new Date("2026-08-01T00:00:00Z"));
+    expect(stats.to).toStrictEqual(new Date("2026-08-31T23:59:59.999Z"));
   });
 
   test("критичный пункт без ответа — не провал", async () => {
@@ -263,7 +291,12 @@ describe("заполнения за период", () => {
 
     await fill(place, ago(1 * DAY), {}, { items });
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.submissionCount).toBe(1);
     expect(stats.criticalFailedCount).toBe(0);
@@ -314,8 +347,18 @@ describe("заполнения за период", () => {
       { items },
     );
 
-    const week = await loadStats(storeScope(place), 7, NOW, "Asia/Almaty");
-    const month = await loadStats(storeScope(place), 30, NOW, "Asia/Almaty");
+    const week = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "Asia/Almaty"),
+      NOW,
+      "Asia/Almaty",
+    );
+    const month = await loadStats(
+      storeScope(place),
+      lastDays(30, NOW, "Asia/Almaty"),
+      NOW,
+      "Asia/Almaty",
+    );
 
     expect(week.submissionCount).toBe(1);
     expect(week.criticalFailedCount).toBe(1);
@@ -330,11 +373,25 @@ describe("заполнения за период", () => {
     const place = await placeWith([]);
     const zone = "Europe/Berlin";
 
-    const week = await loadStats(storeScope(place), 7, NOW, zone);
-    const month = await loadStats(storeScope(place), 30, NOW, zone);
+    const week = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, zone),
+      NOW,
+      zone,
+    );
+    const month = await loadStats(
+      storeScope(place),
+      lastDays(30, NOW, zone),
+      NOW,
+      zone,
+    );
 
-    expect(week.from).toStrictEqual(resolvePeriod("week", NOW, zone).from);
-    expect(month.from).toStrictEqual(resolvePeriod("month", NOW, zone).from);
+    expect(week.from).toStrictEqual(
+      rangeBounds(lastDays(7, NOW, zone), zone).from,
+    );
+    expect(month.from).toStrictEqual(
+      rangeBounds(lastDays(30, NOW, zone), zone).from,
+    );
   });
 
   test("повтор заполнения (пометка duplicate) не считается вторым заполнением", async () => {
@@ -350,7 +407,12 @@ describe("заполнения за период", () => {
       { items, duplicate: true },
     );
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.submissionCount).toBe(1);
     expect(stats.criticalFailedCount).toBe(1);
@@ -360,7 +422,12 @@ describe("заполнения за период", () => {
   test("нет заполнений — доля не ноль, а «нечего считать»", async () => {
     const place = await placeWith([bool(ids().gas, "Газ", "critical")]);
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.submissionCount).toBe(0);
     expect(stats.criticalFailedShare).toBeNull();
@@ -375,7 +442,12 @@ describe("заполнения за период", () => {
 
     await fill(place, ago(1 * DAY), { [id.gas]: false }, { items: snapshot });
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.criticalFailedCount).toBe(1);
   });
@@ -422,7 +494,12 @@ describe("пять чаще всего проваливаемых пунктов
     await mark(place, id.fridge, 7, ago(2 * DAY));
     await mark(place, id.fridge, 3, ago(3 * DAY));
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(
       stats.topFailedItems.map((row) => [row.title["ru"], row.failures]),
@@ -447,7 +524,12 @@ describe("пять чаще всего проваливаемых пунктов
 
     await fill(place, ago(1 * DAY), answers, { items });
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.topFailedItems).toHaveLength(5);
   });
@@ -466,8 +548,18 @@ describe("пять чаще всего проваливаемых пунктов
     await fill(second, ago(1 * DAY), { [id.gas]: false }, { items });
     await fill(second, ago(2 * DAY), { [id.gas]: false }, { items });
 
-    const country = await loadStats(countryScope(first), 7, NOW, "UTC");
-    const store = await loadStats(storeScope(second), 7, NOW, "UTC");
+    const country = await loadStats(
+      countryScope(first),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
+    const store = await loadStats(
+      storeScope(second),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(country.topFailedItems).toHaveLength(1);
     expect(country.topFailedItems[0]?.failures).toBe(3);
@@ -494,7 +586,12 @@ describe("пять чаще всего проваливаемых пунктов
       { items: [bool(id.gas, "Газ новый", "critical")] },
     );
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(titles(stats)).toEqual(["Газ новый"]);
   });
@@ -505,7 +602,12 @@ describe("пять чаще всего проваливаемых пунктов
 
     await mark(place, id.gas, false, ago(8 * DAY));
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.topFailedItems).toEqual([]);
   });
@@ -519,8 +621,18 @@ describe("будильники", () => {
     await alarm(place, ago(6 * DAY));
     await alarm(place, ago(8 * DAY));
 
-    const week = await loadStats(storeScope(place), 7, NOW, "UTC");
-    const month = await loadStats(storeScope(place), 30, NOW, "UTC");
+    const week = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
+    const month = await loadStats(
+      storeScope(place),
+      lastDays(30, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(week.alarmCount).toBe(2);
     expect(month.alarmCount).toBe(3);
@@ -535,7 +647,12 @@ describe("станции, молчащие дольше суток", () => {
     const last = ago(30 * HOUR);
     await fill(place, last, { [id.gas]: true }, { items });
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.silentStationCount).toBe(1);
     expect(stats.silentStations[0]?.stationId).toBe(place.stationId);
@@ -550,7 +667,12 @@ describe("станции, молчащие дольше суток", () => {
     const place = await placeWith(items);
     await fill(place, ago(2 * HOUR), { [id.gas]: true }, { items });
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.silentStationCount).toBe(0);
   });
@@ -560,7 +682,12 @@ describe("станции, молчащие дольше суток", () => {
     const place = await placeWith([bool(id.gas, "Газ", "critical")]);
     await mark(place, id.gas, true, ago(2 * HOUR));
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.silentStationCount).toBe(0);
   });
@@ -571,7 +698,12 @@ describe("станции, молчащие дольше суток", () => {
       ago(3 * DAY),
     );
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.silentStationCount).toBe(1);
     expect(stats.silentStations[0]?.lastSignalAt).toBeNull();
@@ -586,7 +718,12 @@ describe("станции, молчащие дольше суток", () => {
       ago(2 * HOUR),
     );
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.silentStationCount).toBe(0);
   });
@@ -603,7 +740,12 @@ describe("станции, молчащие дольше суток", () => {
       .where(eq(checklists.stationId, old.stationId));
     await attach(old, items, ago(2 * HOUR));
 
-    const stats = await loadStats(storeScope(old), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(old),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.silentStationCount).toBe(0);
   });
@@ -611,7 +753,12 @@ describe("станции, молчащие дольше суток", () => {
   test("станция без чек-листа не молчит: от неё ничего и не ждут", async () => {
     const station = await createStation();
 
-    const stats = await loadStats(storeScope(station), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(station),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.silentStationCount).toBe(0);
   });
@@ -628,7 +775,12 @@ describe("станции, молчащие дольше суток", () => {
       { items },
     );
 
-    const stats = await loadStats(storeScope(place), 7, NOW, "UTC");
+    const stats = await loadStats(
+      storeScope(place),
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.silentStationCount).toBe(1);
   });
@@ -646,7 +798,12 @@ describe("область видимости", () => {
       visible: { kind: "countries", countryIds: new Set([randomUUID()]) },
       countryId: place.countryId,
     };
-    const stats = await loadStats(stranger, 7, NOW, "UTC");
+    const stats = await loadStats(
+      stranger,
+      lastDays(7, NOW, "UTC"),
+      NOW,
+      "UTC",
+    );
 
     expect(stats.submissionCount).toBe(0);
     expect(stats.topFailedItems).toEqual([]);
@@ -664,7 +821,7 @@ describe("область видимости", () => {
       visible: { kind: "countries", countryIds: new Set([place.countryId]) },
       countryId: place.countryId,
     };
-    const stats = await loadStats(partner, 7, NOW, "UTC");
+    const stats = await loadStats(partner, lastDays(7, NOW, "UTC"), NOW, "UTC");
 
     expect(stats.submissionCount).toBe(1);
     expect(stats.criticalFailedCount).toBe(1);

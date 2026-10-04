@@ -6,7 +6,7 @@
 // В запросах заполнение называется `src`: к нему цепляются станция и пиццерия.
 import { and, sql, type SQL } from "drizzle-orm";
 
-import { resolveDays } from "./period";
+import { rangeWindow, type DayRange } from "./period";
 import { scopeConditions, type FeedScope } from "./scope";
 import { itemCriticalSql, itemFailedSql } from "./stats-grading";
 
@@ -21,17 +21,22 @@ function timestamp(at: Date): SQL {
 }
 
 /**
- * Период статистики — те же календарные сутки в поясе экрана, что у главной и ленты
- * (`resolveDays`), а верхняя граница — момент просмотра: заполнение «из будущего»
- * (сдвинутые часы) в счёт не идёт.
+ * Окно статистики: местные даты периода в поясе экрана (`rangeWindow`), а верхняя
+ * граница — не дальше момента просмотра: заполнение «из будущего» (сдвинутые часы) в
+ * счёт не идёт.
  */
 export function periodWindow(
-  days: number,
+  period: DayRange,
   now: Date,
   timeZone: string,
-): { readonly from: Date; readonly window: Window } {
-  const { from } = resolveDays(days, now, timeZone);
-  return { from, window: { from: timestamp(from), to: timestamp(now) } };
+): { readonly from: Date; readonly to: Date; readonly window: Window } {
+  const { from, to } = rangeWindow(period, now, timeZone);
+  return { from, to, window: { from: timestamp(from), to: timestamp(to) } };
+}
+
+/** Момент выражением SQL. */
+export function timestampSql(at: Date): SQL {
+  return timestamp(at);
 }
 
 /** Время из базы числом миллисекунд: разбор строк времени драйвером здесь не нужен. */

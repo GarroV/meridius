@@ -25,7 +25,7 @@ function row(durationMs: number, criticalFailed = 0): FeedRow {
 }
 
 describe("computeMetrics", () => {
-  it("считает заполнения, проваленные критичные пункты и среднее время по одному и тому же списку", () => {
+  it("считает заполнения, из них с проваленным критичным пунктом, и среднее время по одному и тому же списку", () => {
     const metrics = computeMetrics([
       row(204_000, 1),
       row(72_000),
@@ -33,7 +33,9 @@ describe("computeMetrics", () => {
     ]);
 
     expect(metrics.submissionCount).toBe(3);
-    expect(metrics.failedCriticalCount).toBe(3);
+    // Мера одна на всех экранах (D183 п.5, D170): заполнения, а не пункты — заполнение
+    // с двумя проваленными критичными считается один раз, как у сводки и плиток.
+    expect(metrics.failedCriticalCount).toBe(2);
     expect(metrics.averageDurationMs).toBe(133_667);
   });
 

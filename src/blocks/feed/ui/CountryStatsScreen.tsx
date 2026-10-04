@@ -12,8 +12,9 @@ import { SectionIntro } from "@/blocks/core/ui/SectionIntro";
 import type { CountryStatsModel } from "../country-model";
 import { FEED_PATH } from "../routes";
 import { countryStatsHref } from "../stats-view";
+import { COUNTRY_PARAM } from "../view";
 import { CountryRail } from "./CountryRail";
-import { PeriodSwitch } from "./PeriodSwitch";
+import { PeriodPicker } from "./PeriodPicker";
 import { StatsMetrics } from "./StatsMetrics";
 import { StoreTiles } from "./StoreTiles";
 import { TopbarActions } from "./TopbarActions";
@@ -60,9 +61,11 @@ async function CountryDetail({
       topbarAction={
         countryId === null ? null : (
           <TopbarActions>
-            <PeriodSwitch
-              days={model.days}
-              hrefOf={(days) => countryStatsHref({ countryId, days })}
+            <PeriodPicker
+              nav={model.periodNav}
+              hrefOf={(period) => countryStatsHref({ countryId, period })}
+              action={FEED_PATH}
+              hidden={{ [COUNTRY_PARAM]: countryId }}
             />
           </TopbarActions>
         )

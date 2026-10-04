@@ -174,7 +174,9 @@ test.describe("отчёт об обходах", () => {
     // Фильтры доехали: отчёт открылся по той же станции и тому же периоду, а не
     // «по всей сети за сегодня».
     await expect(page).toHaveURL(
-      new RegExp(`station=${seeded.stationId}.*period=week`),
+      new RegExp(
+        `station=${seeded.stationId}.*from=\\d{4}-\\d{2}-\\d{2}&to=\\d{4}-\\d{2}-\\d{2}`,
+      ),
     );
 
     const table = page.getByTestId("rounds-scroller");

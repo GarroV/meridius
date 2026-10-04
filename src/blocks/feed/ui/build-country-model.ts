@@ -15,18 +15,18 @@ import type {
 } from "../country-model";
 import type { FilterOption } from "../model";
 import { loadFeedCatalog, type FeedCatalog } from "../options";
-import { DEFAULT_PERIOD } from "../period";
+import type { DayRange, PeriodAsk } from "../period";
 import type { FeedScope } from "../scope";
 import { resolveSelection, screenTimeZone } from "../selection";
 import { loadSummariesBy, summaryOf } from "../stats-breakdown";
-import { storeStatsHref, type StatsPeriodDays } from "../stats-view";
+import { storeStatsHref } from "../stats-view";
 import { countToday, todayStatusOf } from "../today-status";
 import { listLiveChecklists, type LiveChecklist } from "../today-windows";
 import { buildStatsModel } from "./build-stats-model";
 
 export interface CountryView {
   readonly countryId?: string | undefined;
-  readonly days: StatsPeriodDays;
+  readonly period?: PeriodAsk | undefined;
 }
 
 function countryRows(
@@ -45,7 +45,7 @@ interface TileSources {
   readonly live: readonly LiveChecklist[];
   readonly alarms: readonly Alarm[];
   readonly summaries: Awaited<ReturnType<typeof loadSummariesBy>>;
-  readonly days: StatsPeriodDays;
+  readonly period: DayRange;
   readonly now: Date;
 }
 
@@ -54,7 +54,7 @@ function tileOf(store: FilterOption, sources: TileSources): StoreTile {
   return {
     storeId: store.id,
     name: store.name,
-    href: storeStatsHref(store.id, { days: sources.days }),
+    href: storeStatsHref(store.id, { period: sources.period }),
     today: countToday(
       sources.live
         .filter((row) => row.storeId === store.id)
@@ -80,11 +80,9 @@ export async function buildCountryModel(
   const visible = scopeOfViewer(viewer);
   const catalog = await loadFeedCatalog(visible);
   const asked = resolveSelection(
-    {
-      period: DEFAULT_PERIOD,
-      ...(view.countryId === undefined ? {} : { countryId: view.countryId }),
-    },
+    view.countryId === undefined ? {} : { countryId: view.countryId },
     catalog,
+    now,
   );
   // Чужая или несуществующая страна в адресе отбрасывается — как в ленте (D145), и
   // тогда открывается первая из своих.
@@ -95,11 +93,12 @@ export async function buildCountryModel(
     countryId,
     countryName: countries.find((row) => row.id === countryId)?.name ?? null,
     isExplicit: asked.countryId !== null,
-    days: view.days,
   };
   if (countryId === null) {
     return {
       ...base,
+      period: asked.period,
+      periodNav: asked.periodNav,
       summary: null,
       stores: [],
       capped: false,
@@ -108,30 +107,44 @@ export async function buildCountryModel(
   }
 
   const scope: FeedScope = { visible, countryId };
+  // Период разбирается в поясе страны, а не в поясе всей видимой сети: «текущий месяц»
+  // и стрелки — по тем суткам, что показывают плитки.
   const countrySelection = resolveSelection(
-    { period: DEFAULT_PERIOD, countryId },
+    {
+      countryId,
+      ...(view.period === undefined ? {} : { period: view.period }),
+    },
     catalog,
+    now,
   );
+  const { period, periodNav } = countrySelection;
   // Пояс тот же, по которому считает сводка страны (`buildStatsModel`): плитки обязаны
   // складываться в её число.
   const timeZone = screenTimeZone(countrySelection);
   const [summary, live, alarms, summaries] = await Promise.all([
-    buildStatsModel({ countryId, days: view.days }, locale, viewer, now),
+    buildStatsModel(
+      { countryId, period: { kind: "range", range: period } },
+      locale,
+      viewer,
+      now,
+    ),
     listLiveChecklists(scope, now),
     listAlarms(scope, now),
-    loadSummariesBy("store", scope, view.days, now, timeZone),
+    loadSummariesBy("store", scope, period, now, timeZone),
   ]);
   const sources: TileSources = {
     live: live.rows,
     alarms: alarms.alarms,
     summaries,
-    days: view.days,
+    period,
     now,
   };
   const stores = countrySelection.stores;
 
   return {
     ...base,
+    period,
+    periodNav,
     summary,
     stores: stores.map((store) => tileOf(store, sources)),
     capped: live.capped || alarms.capped,

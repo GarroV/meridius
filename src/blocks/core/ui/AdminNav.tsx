@@ -16,7 +16,10 @@ import type { ReactElement } from "react";
 import {
   ADMIN_HOME,
   ADMIN_HQ_ONLY_SECTIONS,
-  ADMIN_NAV_ITEMS,
+  ADMIN_NAV_TOOLS,
+  ADMIN_NAV_WORK,
+  ADMIN_PHONE_MORE,
+  ADMIN_PHONE_TABS,
   ADMIN_SECTIONS,
   type AdminSectionKey,
 } from "../admin-sections";
@@ -24,6 +27,8 @@ import { asLocale } from "../locale";
 import { HqOnly, NavViewer } from "./admin-viewer";
 import { Icon, type IconName } from "./Icon";
 import { LocaleToggle } from "./LocaleToggle";
+import { MobileSearch } from "./MobileSearch";
+import { MoreSheet } from "./MoreSheet";
 import { NavSearch } from "./NavSearch";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -32,8 +37,14 @@ import { ThemeToggle } from "./ThemeToggle";
 // язык и кто вошёл. Сами классы (`sidenav*`) — компонент ядра дизайн-системы, здесь
 // только разметка. Ширины тоже оттуда: 216 px, а уже 1100 px — 56 px иконок, подписи
 // уходят в `title`. Ниже складки (768 px) левой панели нет — как у DECIMUS и Swarm
-// (T352): сверху полоса марки с темой и языком (`.mbar`), снизу панель разделов под
-// большой палец (`.tabbar`). Вид обеих — `globals.css`, слой `components`.
+// (T352): сверху полоса марки (`.mbar`), снизу панель разделов под большой палец
+// (`.tabbar`). Вид обеих — `globals.css`, слой `components`.
+//
+// Пункты делятся надвое (D183, как в Swarm): рабочие — строками рейки, вспомогательные —
+// пиктограммами внизу, над темой и языком, подпись — при наведении и в доступном имени.
+// На телефоне — четыре таба (Главная, Станции, Статистика, «Ещё»), остальное в листе
+// «Ещё» вместе с темой и языком: в полосе марки шириной 375 px рядом с поиском они не
+// помещаются (марка, поиск, тема и язык — 388 px).
 
 /** Иконка пункта — из набора линейки. Один факт на продукт, рядом с меню. */
 const SECTION_ICONS: Readonly<Record<AdminSectionKey, IconName>> = {
@@ -83,6 +94,34 @@ function NavItem({
     >
       <Icon name={icon} />
       <span className="sidenav__label">{label}</span>
+    </Link>
+  );
+}
+
+/** Вспомогательный пункт внизу рейки: пиктограмма, подпись — при наведении и для читалки. */
+function ToolItem({
+  href,
+  icon,
+  label,
+  isActive,
+  testId,
+}: {
+  readonly href: string;
+  readonly icon: IconName;
+  readonly label: string;
+  readonly isActive: boolean;
+  readonly testId: string;
+}): ReactElement {
+  return (
+    <Link
+      className="sidenav__tool"
+      href={href}
+      title={label}
+      aria-label={label}
+      data-testid={testId}
+      {...(isActive ? { "aria-current": "page" as const } : {})}
+    >
+      <Icon name={icon} />
     </Link>
   );
 }
@@ -144,32 +183,48 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
     light: t("theme.light"),
     dark: t("theme.dark"),
   };
-  const sections = [
-    { key: "home", href: ADMIN_HOME.path, icon: "home", label: t("nav.home") },
-    ...ADMIN_NAV_ITEMS.map((key) => ({
-      key,
-      href: ADMIN_SECTIONS[key].path,
-      icon: SECTION_ICONS[key],
-      label: t(`sections.${key}`),
-    })),
-  ] as const satisfies readonly {
-    key: AdminNavActive;
-    href: string;
-    icon: IconName;
-    label: string;
-  }[];
+  const item = (key: AdminSectionKey) => ({
+    key,
+    href: ADMIN_SECTIONS[key].path,
+    icon: SECTION_ICONS[key],
+    label: t(`sections.${key}`),
+  });
+  const home = {
+    key: "home",
+    href: ADMIN_HOME.path,
+    icon: "home",
+    label: t("nav.home"),
+  } as const;
+  const work = [home, ...ADMIN_NAV_WORK.map(item)];
+  const tools = ADMIN_NAV_TOOLS.map(item);
+  const tabs = [home, ...ADMIN_PHONE_TABS.map(item)];
+  const more = ADMIN_PHONE_MORE.map(item);
+  const isMoreActive = more.some(({ key }) => key === active);
   // Раздел УК партнёру не показывается: адрес ему отвечает 404 (T344).
-  const visibleTo = (key: AdminNavActive, item: ReactElement): ReactElement =>
+  const visibleTo = (
+    key: AdminNavActive,
+    element: ReactElement,
+  ): ReactElement =>
     key !== "home" && ADMIN_HQ_ONLY_SECTIONS.includes(key) ? (
-      <HqOnly key={key}>{item}</HqOnly>
+      <HqOnly key={key}>{element}</HqOnly>
     ) : (
-      item
+      element
     );
+  const prefs = (testIdPrefix = ""): ReactElement => (
+    // Тема (T236, D106) и язык (#161) — две капсулы ядра одной строкой, без подписей.
+    <div className="sidenav__prefs">
+      <ThemeToggle labels={themeLabels} testIdPrefix={testIdPrefix} />
+      <LocaleToggle
+        current={asLocale(locale)}
+        label={t("locale.label")}
+        testIdPrefix={testIdPrefix}
+      />
+    </div>
+  );
 
   return (
     <>
-      {/* Полоса телефона (ниже складки): марка, тема и язык — те же переключатели, что
-          в подвале панели, а не свои копии. */}
+      {/* Полоса телефона (ниже складки): марка и поиск пиктограммой, как шапка Swarm. */}
       <header className="mbar" data-testid="admin-mbar">
         <Link
           href={ADMIN_HOME.path}
@@ -181,11 +236,9 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
           <span>{brand}</span>
         </Link>
         <span className="mbar__spacer" />
-        <ThemeToggle labels={themeLabels} testIdPrefix="mbar-" />
-        <LocaleToggle
-          current={asLocale(locale)}
-          label={t("locale.label")}
-          testIdPrefix="mbar-"
+        <MobileSearch
+          action={ADMIN_SECTIONS.checklists.path}
+          label={t("nav.search")}
         />
       </header>
       <nav
@@ -218,34 +271,43 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
         />
 
         <div className="sidenav__list">
-          {sections.map(({ key, href, icon, label }) =>
-            visibleTo(
-              key,
-              <NavItem
-                key={key}
-                href={href}
-                icon={icon}
-                label={label}
-                isActive={key === active}
-                testId={`nav-${key}`}
-              />,
-            ),
-          )}
+          {work.map(({ key, href, icon, label }) => (
+            <NavItem
+              key={key}
+              href={href}
+              icon={icon}
+              label={label}
+              isActive={key === active}
+              testId={`nav-${key}`}
+            />
+          ))}
         </div>
 
         <div className="sidenav__foot">
           {/*
-          Тема (T236, D106) и язык (#161) — управление, а не справка, поэтому стоят на
-          каждом экране кабинета. Слова переводит меню, а не сами переключатели (T254):
-          см. `ThemeToggle.tsx`.
+          Тема и язык — управление, а не справка, поэтому стоят на каждом экране
+          кабинета. Слова переводит меню, а не сами переключатели (T254).
         */}
-          {/* Тема и язык — две капсулы ядра одной строкой (`.sidenav__prefs`), без подписей. */}
-          <div className="sidenav__prefs">
-            <ThemeToggle labels={themeLabels} />
-            <LocaleToggle
-              current={asLocale(locale)}
-              label={t("locale.label")}
-            />
+          {prefs()}
+          {/*
+          Вспомогательные разделы (D183) — строкой пиктограмм, как «Настройки» и «Админ»
+          у Swarm. Подпись — в `title` (при наведении) и в `aria-label`: без неё ссылка
+          из одной картинки для читалки безымянна.
+        */}
+          <div className="sidenav__tools" data-testid="nav-tools">
+            {tools.map(({ key, href, icon, label }) =>
+              visibleTo(
+                key,
+                <ToolItem
+                  key={key}
+                  href={href}
+                  icon={icon}
+                  label={label}
+                  isActive={key === active}
+                  testId={`nav-${key}`}
+                />,
+              ),
+            )}
           </div>
         </div>
 
@@ -261,21 +323,45 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
         />
       </nav>
 
-      {/* Нижняя панель разделов телефона — те же пункты, что в левой панели. */}
+      {/* Нижняя панель телефона: четыре таба, остальное — в листе «Ещё» (D183). */}
       <nav className="tabbar" aria-label={brand} data-testid="admin-tabbar">
-        {sections.map(({ key, href, icon, label }) =>
-          visibleTo(
-            key,
-            <TabItem
-              key={key}
-              href={href}
-              icon={icon}
-              label={label}
-              isActive={key === active}
-              testId={`tab-${key}`}
-            />,
-          ),
-        )}
+        {tabs.map(({ key, href, icon, label }) => (
+          <TabItem
+            key={key}
+            href={href}
+            icon={icon}
+            label={label}
+            isActive={key === active}
+            testId={`tab-${key}`}
+          />
+        ))}
+        <MoreSheet
+          label={t("nav.more")}
+          title={t("nav.moreTitle")}
+          closeLabel={t("nav.close")}
+          isActive={isMoreActive}
+        >
+          <div className="sheet__list">
+            {more.map(({ key, href, icon, label }) =>
+              visibleTo(
+                key,
+                <Link
+                  key={key}
+                  href={href}
+                  className="sheet__item"
+                  data-testid={`more-${key}`}
+                  {...(key === active
+                    ? { "aria-current": "page" as const }
+                    : {})}
+                >
+                  <Icon name={icon} />
+                  <span>{label}</span>
+                </Link>,
+              ),
+            )}
+          </div>
+          <div className="sheet__prefs">{prefs("more-")}</div>
+        </MoreSheet>
       </nav>
     </>
   );

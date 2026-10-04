@@ -2,7 +2,6 @@
 import type { FeedModel } from "./model";
 import type { SubmissionSummary } from "./stats-breakdown";
 import type { StatsModel } from "./stats-model";
-import type { StatsPeriodDays } from "./stats-view";
 import type { TodayStatus } from "./today-status";
 
 /** Строка чек-листа: статистика за период и статус на сегодня. */
@@ -25,7 +24,6 @@ export interface StoreStatsModel {
   readonly countryName: string | null;
   /** Пояс пиццерии: в нём подписано всё время экрана. */
   readonly timeZone: string;
-  readonly days: StatsPeriodDays;
   /** Назад — к плиткам её страны. */
   readonly backHref: string;
   /** Отчёт по обходам этой пиццерии. */

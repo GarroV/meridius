@@ -69,6 +69,9 @@
       "signedIn": "Signed in",
       "home": "Home",
       "search": "Find a checklist",
+      "more": "More",
+      "moreTitle": "Other sections",
+      "close": "Close",
       "roles": {
         "hq": "HQ methodologist",
         "partner": "partner"
@@ -419,6 +422,12 @@
       "takeHint": "They go into the draft — publish once you have looked them over.",
       "stale": "The template was updated again — the differences below are against its latest version.",
       "untitled": "Untitled"
+    },
+    "makeTemplate": {
+      "foreignTenant": "A network template can only be made from a management company checklist. This checklist belongs to a partner — take a template or make a copy instead.",
+      "notChecklist": "Template not made: the checklist is archived or is already a template.",
+      "noPublishedVersion": "Template not made: the checklist has no published version — publish it first.",
+      "alreadyFromTemplate": "Template not made: this checklist already has a template."
     }
   },
   "qr": {
@@ -626,25 +635,14 @@
       "country": "Country",
       "store": "Store",
       "station": "Station",
-      "period": "Period",
       "all": "All",
       "reset": "Reset",
       "apply": "Show",
-      "periodToday": "Today",
-      "periodWeek": "7 days",
-      "periodMonth": "Month",
       "timeZoneMixed": "The stores in this filter are in different time zones: period boundaries are counted in a single zone for all of them — {zone} — not in the time of any one store. Times in the rows are shown in each store's own time."
     },
-    "range": {
-      "day": "for {day}",
-      "span": "from {from} to {to}"
-    },
     "metrics": {
-      "submissions": "{count, plural, one {submission} other {submissions}} {period}",
-      "periodToday": "today",
-      "periodWeek": "over 7 days",
-      "periodMonth": "over a month",
-      "failedCritical": "{count, plural, one {failed critical item} other {failed critical items}}",
+      "submissions": "{count, plural, one {submission} other {submissions}} in the period",
+      "failedCritical": "of them with a failed critical item",
       "averageDuration": "average time to fill",
       "noValue": "—"
     },
@@ -764,9 +762,6 @@
     },
     "stats": {
       "title": "Statistics",
-      "period": "last {days} days: {from} to {to}",
-      "days7": "7 days",
-      "days30": "30 days",
       "submissions": "{count, plural, one {submission} other {submissions}} in the period",
       "criticalShare": "submissions with a failed critical item: {failed} of {total}",
       "criticalShareEmpty": "share with a failed critical item — no submissions",
@@ -788,8 +783,7 @@
       "silentDays": "{days} d {hours} h",
       "silentNever": "never",
       "silentEmpty": "Every station with a working checklist sent a signal in the last 24 hours.",
-      "silentMore": "Showing {shown} of {total}, longest silent first.",
-      "periodLabel": "Statistics period"
+      "silentMore": "Showing {shown} of {total}, longest silent first."
     },
     "country": {
       "railTitle": "Countries",
@@ -807,9 +801,10 @@
       "missed": "missed: {count}",
       "alarms": "{count, plural, one {# alarm} other {# alarms}}",
       "noChecklists": "no working checklists",
-      "periodFigures": "Last {days} days: {submissions, plural, one {# submission} other {# submissions}}, with a failed critical item — {failed}",
+      "periodFigures": "In the period: {submissions, plural, one {# submission} other {# submissions}}, with a failed critical item — {failed}",
       "unknownTimezone": "Pizzerias with a time zone the database does not know: {count}. Today’s status of their checklists cannot be computed.",
-      "capped": "There are more checklists or alarms than the screen reads at once: tile figures may be incomplete."
+      "capped": "There are more checklists or alarms than the screen reads at once: tile figures may be incomplete.",
+      "todayLabel": "Today:"
     },
     "store": {
       "crumb": "Statistics",
@@ -827,7 +822,7 @@
       "noChecklists": "The pizzeria has no working checklists: none is published on its stations.",
       "noChecklistsAction": "Open stations",
       "feedTitle": "Alarms and submissions",
-      "feedLead": "What needs attention right now and the pizzeria’s submission feed — by station and period."
+      "feedLead": "What needs attention right now and the pizzeria's submissions for the screen's period — by station."
     },
     "today": {
       "filled": "Filled at {time}",
@@ -836,6 +831,15 @@
       "missed": "Missed: window closed at {time}",
       "notExpected": "Not expected: shift mode",
       "unknownZone": "Pizzeria time zone unknown"
+    },
+    "period": {
+      "label": "Period",
+      "from": "from",
+      "to": "to",
+      "apply": "Show",
+      "previous": "Previous period",
+      "next": "Next period",
+      "nextNone": "The next period has not started yet"
     }
   },
   "library": {
@@ -1069,48 +1073,11 @@
     "edit": "Edit"
   },
   "adminHome": {
-    "working": {
-      "value": "{working} of {total}",
-      "caption": "stations at work: a checklist and fills within a day"
-    },
-    "noStations": "No stations in the selected scope. Add a store and its stations in “Countries and stores”.",
     "todo": {
       "title": "Not closed yet",
       "noChecklist": "{count, plural, one {station without a checklist — its sticker opens nothing} other {stations without a checklist — their stickers open nothing}}",
       "silent": "{count, plural, one {station silent for over a day} other {stations silent for over a day}}",
       "drafts": "{count, plural, one {checklist with an unpublished edit — the station still shows the old one} other {checklists with unpublished edits — stations still show the old ones}}"
-    },
-    "stations": {
-      "title": "Stations",
-      "count": "{count, plural, one {# station} other {# stations}}",
-      "columnStation": "Station",
-      "columnStatus": "State",
-      "columnTablet": "Tablet",
-      "columnLastFill": "Last fill",
-      "status": {
-        "working": "working",
-        "silent": "silent",
-        "noChecklist": "no checklist"
-      },
-      "noTablet": "none",
-      "tablets": "{count, plural, one {# tablet} other {# tablets}}",
-      "seen": "online {ago}",
-      "never": "never"
-    },
-    "stores": {
-      "title": "Stores",
-      "count": "{count, plural, one {# store} other {# stores}}",
-      "columnStore": "Store",
-      "columnWorking": "Stations at work",
-      "columnTablets": "With a tablet",
-      "columnLastFill": "Last fill",
-      "ofTotal": "{part} of {total}",
-      "never": "never"
-    },
-    "recent": {
-      "title": "What’s happening",
-      "all": "All fills",
-      "empty": "No fills in the selected period."
     },
     "checklistsTitle": "My checklists",
     "checklistsAll": "All checklists ({count})",
@@ -1120,7 +1087,11 @@
     "unpublished": "Not published",
     "emptyTitle": "You have no checklists yet",
     "emptyText": "Start from a head-office template: take a copy, adjust it to your pizzerias and put it on your stations.",
-    "emptyAction": "Make one from a template"
+    "emptyAction": "Make one from a template",
+    "statsHint": "Numbers for a period — submissions, failures, time — are in",
+    "statsLink": "Statistics",
+    "alarmsMore": "{count, plural, one {# more alarm} other {# more alarms}} — in Statistics",
+    "alarmsMoreUncounted": "More alarms than fit here — see Statistics"
   },
   "partners": {
     "title": "Partners",
@@ -1209,7 +1180,7 @@
     },
     "feed": {
       "why": "This is where you see how checklists go in the pizzerias: what is filled today, what was missed and where critical items fail.",
-      "what": "Countries on the left, tiles of their pizzerias on the right with today’s status and figures for 7 or 30 days. A tile opens the pizzeria: all its checklists with statistics, alarms and the submission feed.",
+      "what": "Countries on the left, tiles of their pizzerias on the right with today’s status and figures for the chosen period — the current month by default. A tile opens the pizzeria: all its checklists with statistics, alarms and the submission feed.",
       "next": "Found a weak spot? Open the submission card, fix the checklist in Checklists or look into the station in Stations."
     },
     "catalog": {

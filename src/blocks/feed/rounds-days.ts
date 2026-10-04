@@ -7,6 +7,7 @@
 import type { ChecklistWindow, Section, ShiftMode } from "@/blocks/data";
 import { parseLocalTime, windowLength } from "@/blocks/data";
 
+import { shiftLocalDate, type DayRange } from "./period";
 import type { RoundsDay } from "./rounds-grid";
 
 const MINUTES_IN_DAY = 24 * 60;
@@ -50,29 +51,11 @@ export interface RoundsDaysInput {
   readonly versions: readonly ReportVersion[];
   /** В порядке перестановки: последняя за сутки и действует. */
   readonly shiftModes: readonly ReportShiftMode[];
-  /** Сколько местных суток показывает отчёт, считая сегодняшние. */
-  readonly dayCount: number;
-}
-
-/**
- * Местная дата со сдвигом на целые сутки. Считается по календарю, а не вычитанием
- * суток из момента: сутки перевода часов длятся 23 или 25 часов, а дата от этого
- * не меняется.
- */
-export function shiftLocalDate(localDate: string, deltaDays: number): string {
-  const [year, month, day] = localDate.split("-").map(Number);
-  if (
-    year === undefined ||
-    month === undefined ||
-    day === undefined ||
-    !Number.isFinite(year) ||
-    !Number.isFinite(month) ||
-    !Number.isFinite(day)
-  ) {
-    throw new RangeError(`Местная дата не разобрана: «${localDate}»`);
-  }
-  const shifted = new Date(Date.UTC(year, month - 1, day + deltaDays));
-  return shifted.toISOString().slice(0, 10);
+  /**
+   * Период отчёта — местные даты КАЖДОЙ пиццерии: «6 сентября» значит 6 сентября по её
+   * часам. Сутки позже её сегодняшних в отчёт не попадают: их ещё не было.
+   */
+  readonly period: DayRange;
 }
 
 /** Местная дата в момент UTC-полуночи: сравнивать сутки по календарю, а не по часам. */
@@ -139,22 +122,28 @@ function modesOf(rows: readonly ReportShiftMode[]): Map<string, ShiftMode> {
  * (20:00–02:00) вечерний проход кончается уже следующими сутками, и по началу
  * управляющий не увидел бы в «сегодня» ровно ту смену, которая сейчас и работает.
  */
-function passDatesOf(checklist: ReportChecklist, dayCount: number): string[] {
+function passDatesOf(checklist: ReportChecklist, period: DayRange): string[] {
   const start = parseLocalTime(checklist.window.start);
   const length = windowLength(checklist.window);
   if (start === null || length === null) return [];
 
-  // Минуты считаются от местной полуночи сегодняшних суток: период — от начала
-  // первых суток до конца сегодняшних, как и у ленты (`resolvePeriod`).
-  const periodStart = -(dayCount - 1) * MINUTES_IN_DAY;
-  const periodEnd = MINUTES_IN_DAY;
+  const today = checklist.localDate;
+  const last = period.to < today ? period.to : today;
+  if (period.from > last) return [];
+
+  // Минуты считаются от местной полуночи сегодняшних суток пиццерии: период — от
+  // начала первых суток до конца последних, но не дальше сегодняшних.
+  const periodStart = daysBetween(today, period.from) * MINUTES_IN_DAY;
+  const periodEnd = (daysBetween(today, last) + 1) * MINUTES_IN_DAY;
 
   const dates: string[] = [];
   // На сутки глубже периода: проход, начавшийся тогда, ещё может задеть его край.
-  for (let back = dayCount; back >= 0; back -= 1) {
+  const deepest = daysBetween(period.from, today) + 1;
+  const nearest = daysBetween(last, today);
+  for (let back = deepest; back >= nearest; back -= 1) {
     const passStart = -back * MINUTES_IN_DAY + start;
     if (passStart >= periodEnd || passStart + length <= periodStart) continue;
-    dates.push(shiftLocalDate(checklist.localDate, -back));
+    dates.push(shiftLocalDate(today, -back));
   }
   return dates;
 }
@@ -198,7 +187,7 @@ export function buildRoundsDays(input: RoundsDaysInput): RoundsDay[] {
       (version) => version.checklistId === checklist.checklistId,
     );
 
-    for (const localDate of passDatesOf(checklist, input.dayCount)) {
+    for (const localDate of passDatesOf(checklist, input.period)) {
       const version = versionOnDate(versions, localDate);
       if (version === null) continue;
 

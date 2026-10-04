@@ -42,7 +42,7 @@ const CATALOG: FeedCatalog = {
 
 describe("resolveSelection", () => {
   it("без фильтров показывает весь справочник", () => {
-    const selection = resolveSelection({ period: "today" }, CATALOG);
+    const selection = resolveSelection({}, CATALOG);
 
     expect(selection.countryId).toBeNull();
     expect(selection.stores.map((store) => store.id)).toStrictEqual([
@@ -54,10 +54,7 @@ describe("resolveSelection", () => {
   });
 
   it("выбранная страна сужает список пиццерий и станций", () => {
-    const selection = resolveSelection(
-      { countryId: "c-kz", period: "today" },
-      CATALOG,
-    );
+    const selection = resolveSelection({ countryId: "c-kz" }, CATALOG);
 
     expect(selection.stores.map((store) => store.id)).toStrictEqual([
       "s-almaty",
@@ -71,10 +68,7 @@ describe("resolveSelection", () => {
   });
 
   it("выбранная пиццерия сужает станции до своих", () => {
-    const selection = resolveSelection(
-      { storeId: "s-almaty", period: "today" },
-      CATALOG,
-    );
+    const selection = resolveSelection({ storeId: "s-almaty" }, CATALOG);
 
     expect(selection.stations.map((station) => station.id)).toStrictEqual([
       "st-cash",
@@ -84,7 +78,7 @@ describe("resolveSelection", () => {
 
   it("пиццерия чужой страны из фильтра выпадает, а не даёт заведомо пустую ленту", () => {
     const selection = resolveSelection(
-      { countryId: "c-kz", storeId: "s-tashkent", period: "today" },
+      { countryId: "c-kz", storeId: "s-tashkent" },
       CATALOG,
     );
 
@@ -93,7 +87,7 @@ describe("resolveSelection", () => {
 
   it("станция чужой пиццерии из фильтра выпадает вместе с ней", () => {
     const selection = resolveSelection(
-      { storeId: "s-almaty", stationId: "st-pack", period: "today" },
+      { storeId: "s-almaty", stationId: "st-pack" },
       CATALOG,
     );
 
@@ -106,7 +100,6 @@ describe("resolveSelection", () => {
         countryId: "нет-такой",
         storeId: "нет",
         stationId: "нет",
-        period: "today",
       },
       CATALOG,
     );
@@ -117,10 +110,7 @@ describe("resolveSelection", () => {
   });
 
   it("станция без выбранной пиццерии оставляет и станцию, и её страну для запроса", () => {
-    const selection = resolveSelection(
-      { stationId: "st-pack", period: "today" },
-      CATALOG,
-    );
+    const selection = resolveSelection({ stationId: "st-pack" }, CATALOG);
 
     expect(selection.stationId).toBe("st-pack");
     expect(selection.storeId).toBeNull();
@@ -130,50 +120,66 @@ describe("resolveSelection", () => {
 describe("screenTimeZone", () => {
   it("пояс выбранной пиццерии", () => {
     expect(
-      screenTimeZone(
-        resolveSelection({ storeId: "s-tashkent", period: "today" }, CATALOG),
-      ),
+      screenTimeZone(resolveSelection({ storeId: "s-tashkent" }, CATALOG)),
     ).toBe("Asia/Tashkent");
   });
 
   it("страна с единственным поясом — этот пояс", () => {
     expect(
-      screenTimeZone(
-        resolveSelection({ countryId: "c-kz", period: "today" }, CATALOG),
-      ),
+      screenTimeZone(resolveSelection({ countryId: "c-kz" }, CATALOG)),
     ).toBe("Asia/Almaty");
   });
 
   it("пиццерии в разных поясах — пояс площадки, и экран его подписывает", () => {
     const fallback = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-    expect(screenTimeZone(resolveSelection({ period: "today" }, CATALOG))).toBe(
-      fallback,
-    );
+    expect(screenTimeZone(resolveSelection({}, CATALOG))).toBe(fallback);
   });
 
   it("справочник без пиццерий — тоже пояс площадки, а не отказ", () => {
     const empty: FeedCatalog = { countries: [], stores: [], stations: [] };
 
-    expect(screenTimeZone(resolveSelection({ period: "today" }, empty))).toBe(
+    expect(screenTimeZone(resolveSelection({}, empty))).toBe(
       Intl.DateTimeFormat().resolvedOptions().timeZone,
     );
+  });
+});
+
+describe("screenTimeZone с опечаткой в поясе", () => {
+  const BROKEN: FeedCatalog = {
+    ...CATALOG,
+    stores: CATALOG.stores.map((store) =>
+      store.id === "s-tashkent"
+        ? { ...store, timezone: "Asia/Almatyy" }
+        : store,
+    ),
+  };
+
+  it("выбранная пиццерия с неизвестным поясом — пояс площадки, а не падение", () => {
+    const selection = resolveSelection({ storeId: "s-tashkent" }, BROKEN);
+
+    expect(selection.periodNav).toBeDefined();
+    expect(screenTimeZone(selection)).toBe(
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+    );
+  });
+
+  it("неизвестный пояс не участвует в выборе единственного пояса", () => {
+    expect(screenTimeZone(resolveSelection({}, BROKEN))).toBe("Asia/Almaty");
   });
 });
 
 describe("screenTimeZone по выбранной станции", () => {
   it("станция задаёт пиццерию, а с ней и пояс экрана, даже когда пиццерия не выбрана", () => {
     expect(
-      screenTimeZone(
-        resolveSelection({ stationId: "st-uz", period: "today" }, CATALOG),
-      ),
+      screenTimeZone(resolveSelection({ stationId: "st-uz" }, CATALOG)),
     ).toBe("Asia/Tashkent");
   });
 });
 
 describe("названия станций в фильтре", () => {
   it("без выбранной пиццерии станция названа путём: «Кухня» есть в каждой", () => {
-    const selection = resolveSelection({ period: "today" }, CATALOG);
+    const selection = resolveSelection({}, CATALOG);
 
     expect(selection.stations.map((station) => station.name)).toStrictEqual([
       "Алматы, Абая 44 · Касса",
@@ -184,10 +190,7 @@ describe("названия станций в фильтре", () => {
   });
 
   it("с выбранной пиццерией путь не повторяется: список и так её", () => {
-    const selection = resolveSelection(
-      { storeId: "s-almaty", period: "today" },
-      CATALOG,
-    );
+    const selection = resolveSelection({ storeId: "s-almaty" }, CATALOG);
 
     expect(selection.stations.map((station) => station.name)).toStrictEqual([
       "Касса",
@@ -277,4 +280,54 @@ describe("подпись пояса под фильтрами", () => {
       );
     },
   );
+});
+
+describe("период экрана", () => {
+  const LATE_UTC = new Date("2026-09-30T20:00:00Z");
+
+  it("умолчание — текущий месяц по поясу экрана: в Алматы уже октябрь", () => {
+    const selection = resolveSelection(
+      { storeId: "s-almaty" },
+      CATALOG,
+      LATE_UTC,
+    );
+
+    expect(selection.period).toStrictEqual({
+      from: "2026-10-01",
+      to: "2026-10-31",
+    });
+    expect(selection.periodNav.next).toBeNull();
+  });
+
+  it("старый адрес «7 дней» разбирается в датах того же пояса", () => {
+    const selection = resolveSelection(
+      { storeId: "s-almaty", period: { kind: "lastDays", days: 7 } },
+      CATALOG,
+      LATE_UTC,
+    );
+
+    expect(selection.period).toStrictEqual({
+      from: "2026-09-25",
+      to: "2026-10-01",
+    });
+  });
+
+  it("предел экрана обрезает длинный период, считая от «по»", () => {
+    const selection = resolveSelection(
+      {
+        period: {
+          kind: "range",
+          range: { from: "2026-07-01", to: "2026-09-30" },
+        },
+      },
+      CATALOG,
+      LATE_UTC,
+      31,
+    );
+
+    expect(selection.period).toStrictEqual({
+      from: "2026-08-31",
+      to: "2026-09-30",
+    });
+  });
 });

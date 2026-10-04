@@ -1,6 +1,6 @@
 // «Мои чек-листы» (D148) на пульте: вошедший сразу видит СВОИ чек-листы, а когда их нет
 // вовсе — одно предложение сделать первый из шаблона. «Свои» — ровно то, что он видит в
-// разделе «Чек-листы» (D145), в той же области фильтра, что и весь пульт.
+// разделе «Чек-листы» (D145). Фильтра области у главной нет с D183.
 //
 // Перенесено из прежней главной `core/ui/AdminHome` (T315) при слиянии с пультом D174;
 // её полоса «станций без чек-листа» и лента заполнений у пульта свои — «Что не закрыто»
@@ -33,19 +33,13 @@ const DRAFT_CLASS =
 export async function HomeChecklists({
   checklists,
   total,
-  isFiltered,
 }: {
   readonly checklists: readonly HomeChecklist[];
   readonly total: number;
-  /** Область сужена фильтром: пусто здесь не значит «чек-листов нет вовсе». */
-  readonly isFiltered: boolean;
 }): Promise<ReactElement | null> {
   const t = await getTranslations("adminHome");
 
   if (total === 0) {
-    // В суженной области пустоту уже называет «Что не закрыто» (станции без чек-листа);
-    // призыв «сделайте первый» уместен, только когда чек-листов нет совсем.
-    if (isFiltered) return null;
     return (
       <StatusCard
         testId="home-empty"

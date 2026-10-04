@@ -18,7 +18,6 @@ import {
   createStation,
 } from "@/blocks/data/testing/fixtures";
 
-import { DEFAULT_PERIOD } from "../period";
 import { buildCountryModel } from "./build-country-model";
 import { buildStoreModel } from "./build-store-model";
 
@@ -27,6 +26,8 @@ afterAll(closeTestDb);
 
 /** 06.09.2026, 14:00 UTC: утреннее окно 06:00–12:00 закрыто, вечернее 18:00–22:00 впереди. */
 const NOW = new Date("2026-09-06T14:00:00Z");
+/** Прежние «7 дней» — старым адресом: экран разберёт его в даты своего пояса. */
+const WEEK = { kind: "lastDays", days: 7 } as const;
 
 const SECTIONS: Section[] = [
   {
@@ -81,7 +82,7 @@ describe("экран страны", () => {
   test("плитка пиццерии: заполнено, ждёт, пропущено, тревоги и цифры за период", async () => {
     const place = await store();
     const model = await buildCountryModel(
-      { countryId: place.countryId, days: 7 },
+      { countryId: place.countryId, period: WEEK },
       "ru",
       await hqViewer(),
       NOW,
@@ -97,7 +98,8 @@ describe("экран страны", () => {
       alarmCount: 2,
       submissionCount: 1,
       criticalFailedCount: 1,
-      href: `/admin/feed/stores/${place.storeId}`,
+      // Плитка несёт период экрана: пиццерия открывается тем же отрезком (D183 п.4).
+      href: `/admin/feed/stores/${place.storeId}?from=2026-08-31&to=2026-09-06`,
     });
     expect(model.summary?.submissionCount).toBe(1);
   });
@@ -108,7 +110,7 @@ describe("экран страны", () => {
     const partner = await partnerViewer([mine.countryId]);
 
     const model = await buildCountryModel(
-      { countryId: theirs.countryId, days: 7 },
+      { countryId: theirs.countryId, period: WEEK },
       "ru",
       partner,
       NOW,
@@ -126,7 +128,7 @@ describe("экран страны", () => {
 
   test("у партнёра без стран — пустой экран, а не чужая сеть", async () => {
     const model = await buildCountryModel(
-      { days: 7 },
+      { period: WEEK },
       "ru",
       await partnerViewer([]),
       NOW,
@@ -146,8 +148,7 @@ describe("экран пиццерии", () => {
     const model = await buildStoreModel(
       {
         storeId: place.storeId,
-        days: 7,
-        feed: { period: DEFAULT_PERIOD },
+        feed: { period: WEEK },
       },
       "ru",
       await hqViewer(),
@@ -166,7 +167,17 @@ describe("экран пиццерии", () => {
     });
     expect(model?.feed.rows).toHaveLength(1);
     expect(model?.feed.alarms.rows).toHaveLength(2);
-    expect(model?.backHref).toBe(`/admin/feed?country=${place.countryId}`);
+    expect(model?.backHref).toBe(
+      `/admin/feed?country=${place.countryId}&from=2026-08-31&to=2026-09-06`,
+    );
+    // Один период на весь экран: сводка и лента считают один и тот же отрезок.
+    expect(model?.stats.selection.period).toStrictEqual({
+      from: "2026-08-31",
+      to: "2026-09-06",
+    });
+    expect(model?.feed.selection.period).toStrictEqual(
+      model?.stats.selection.period,
+    );
   });
 
   test("чужая пиццерия — экрана нет", async () => {
@@ -176,7 +187,7 @@ describe("экран пиццерии", () => {
 
     expect(
       await buildStoreModel(
-        { storeId: theirs.storeId, days: 7, feed: { period: DEFAULT_PERIOD } },
+        { storeId: theirs.storeId, feed: { period: WEEK } },
         "ru",
         partner,
         NOW,

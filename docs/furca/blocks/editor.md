@@ -23,6 +23,7 @@ dismissTemplateUpdate(copyId, version)              // «оставить как
 saveDraft(checklistId, sections: Section[])
 publish(checklistId): Promise<ChecklistVersion>
 duplicateChecklist(checklistId, { toStationId? }): Promise<string>
+makeTemplateFromChecklist(checklistId): Promise<string>   // «Сделать шаблоном» (D174): только из чек-листа УК (D183 п.8), иначе MakeTemplateError('foreignTenant' | 'notChecklist' | 'noPublishedVersion' | 'alreadyFromTemplate')
 removeChecklist(checklistId): Promise<'deleted' | 'archived'>   // стереть или снять с работы — по наличию заполнений
 previewRemoval(checklistId): Promise<RemovalPreview>            // что произойдёт, для экрана подтверждения
 parsePastedList(text: string): Item[]      // строки → пункты, пустые строки и маркеры списка отброшены
@@ -47,6 +48,8 @@ parsePastedList(text: string): Item[]      // строки → пункты, п�
 
 | Файл | Что внутри |
 |---|---|
+| `src/blocks/editor/make-template.ts` | «Сделать шаблоном» (D174) и кандидаты пачки скрипта: исходник — только чек-лист тенанта УК (D183 п.8); отказ с причиной — `MakeTemplateError` |
+| `src/blocks/editor/ui/MakeTemplateButton.tsx` | Кнопка «Сделать шаблоном» под `useActionState`: отказ сервера называется словами рядом с кнопкой. Видна только УК и только на чек-листе УК |
 | `src/blocks/editor/template-diff.ts` | Ядро T336: `diffTemplateVersions` (отличия двух версий шаблона по опознавателям пунктов) и `applyTemplateChanges` (выбранное — на копию, свои пункты страны на месте) |
 | `src/blocks/editor/template-updates.ts` | Ядро T336 на базе: строка происхождения, отличия, «взять» в черновик, «оставить как есть» (`source_seen_version`, миграция 0015) |
 | `src/blocks/editor/ui/TemplateOrigin.tsx`, `ui/TemplateUpdatePanel.tsx`, `src/app/admin/checklists/[id]/template-update/` | Строка происхождения над свойствами копии и панель отличий поверх редактора (D162) |
@@ -423,7 +426,18 @@ T129 (список отправляет себя сам) там непримен
 
 ## Статус
 
-**03.10.2026 — T354 (#188).** На экране станции пункт-будильник и ручная панель D070
+**04.10.2026 — T362 (D183 п.8).** «Сделать шаблоном» — только из чек-листа сети УК. На
+чек-листе тенанта партнёра кнопки нет (и у партнёра-зрителя тоже), а действие отвергает
+сервер: `makeTemplateFromChecklist` бросает `foreignTenant`, экран показывает текст отказа
+(`editor.makeTemplate.*`); кандидаты пачки `templates-from-store` отфильтрованы так же.
+
+Чем проверено: тест до кода в `make-template.test.ts` (отказ, шаблон не создан, исходник
+не тронут, в кандидатах его нет) — красный до правки; порча (снятая проверка тенанта,
+снятый фильтр кандидатов) краснит. Живой прогон на 3350: на чек-листе партнёра кнопки нет;
+подменённый в форме идентификатор партнёрского чек-листа сервер отверг текстом, шаблон
+не появился; временные строки тенанта и чек-листа удалены.
+
+**03.10.2026 — T354 (#188).**** На экране станции пункт-будильник и ручная панель D070
 разведены словами, поведение не менялось. Пункт: строка «Этот будильник заложен в
 чек-лист…» (`fill-alarm-hint`), поля «Подпись» / «Время звонка» (свои ключи
 `fill.alarms.itemLabelLabel`, `itemTimeLabel`). Панель: заголовок «Будильники станции»,

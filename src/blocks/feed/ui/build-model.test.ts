@@ -149,7 +149,7 @@ describe("buildFeedModel — фильтры", () => {
         countryId: mine.countryId,
         storeId: mine.storeId,
         stationId: mine.stationId,
-        period: "today",
+        period: { kind: "lastDays", days: 1 },
       },
       "ru",
       await hqViewer(),
@@ -182,13 +182,13 @@ describe("buildFeedModel — фильтры", () => {
       .where(eq(submissions.id, yesterdayId));
 
     const todayOnly = await buildFeedModel(
-      { stationId: today.stationId, period: "today" },
+      { stationId: today.stationId, period: { kind: "lastDays", days: 1 } },
       "ru",
       await hqViewer(),
       NOW,
     );
     const week = await buildFeedModel(
-      { stationId: today.stationId, period: "week" },
+      { stationId: today.stationId, period: { kind: "lastDays", days: 7 } },
       "ru",
       await hqViewer(),
       NOW,
@@ -217,7 +217,11 @@ describe("buildFeedModel — фильтры", () => {
     });
 
     const model = await buildFeedModel(
-      { countryId: mine.countryId, storeId: alien.storeId, period: "today" },
+      {
+        countryId: mine.countryId,
+        storeId: alien.storeId,
+        period: { kind: "lastDays", days: 1 },
+      },
       "ru",
       await hqViewer(),
       NOW,
@@ -343,7 +347,7 @@ describe("buildFeedModel — показатели и результат стро
       .where(eq(submissions.id, secondId));
 
     const model = await buildFeedModel(
-      { stationId: first.stationId, period: "week" },
+      { stationId: first.stationId, period: { kind: "lastDays", days: 7 } },
       "ru",
       await hqViewer(),
       NOW,
@@ -373,7 +377,7 @@ describe("buildFeedModel — показатели и результат стро
     });
 
     const model = await buildFeedModel(
-      { stationId: seeded.stationId, period: "today" },
+      { stationId: seeded.stationId, period: { kind: "lastDays", days: 1 } },
       "ru",
       await hqViewer(),
       NOW,
@@ -392,7 +396,7 @@ describe("buildFeedModel — показатели и результат стро
     });
 
     const model = await buildFeedModel(
-      { stationId: seeded.stationId, period: "today" },
+      { stationId: seeded.stationId, period: { kind: "lastDays", days: 1 } },
       "ru",
       await hqViewer(),
       NOW,
@@ -411,7 +415,7 @@ describe("buildFeedModel — показатели и результат стро
     });
 
     const model = await buildFeedModel(
-      { stationId: seeded.stationId, period: "today" },
+      { stationId: seeded.stationId, period: { kind: "lastDays", days: 1 } },
       "ru",
       await hqViewer(),
       NOW,
@@ -432,7 +436,7 @@ describe("buildFeedModel — показатели и результат стро
     const station = await createStation();
 
     const model = await buildFeedModel(
-      { stationId: station.stationId, period: "month" },
+      { stationId: station.stationId, period: { kind: "lastDays", days: 30 } },
       "ru",
       await hqViewer(),
       NOW,
@@ -451,7 +455,7 @@ describe("buildFeedModel — показатели и результат стро
     });
 
     const model = await buildFeedModel(
-      { stationId: seeded.stationId, period: "week" },
+      { stationId: seeded.stationId, period: { kind: "lastDays", days: 7 } },
       "ru",
       await hqViewer(),
       NOW,
@@ -756,7 +760,7 @@ describe("предел выдачи ленты", () => {
     });
 
     const model = await buildFeedModel(
-      { stationId: seeded.stationId, period: "today" },
+      { stationId: seeded.stationId, period: { kind: "lastDays", days: 1 } },
       "ru",
       await hqViewer(),
       NOW,

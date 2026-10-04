@@ -3,6 +3,7 @@
 // иначе фильтры складываются в заведомо пустую ленту, и экран молча показывает
 // «заполнений нет» там, где их просто не может быть.
 import type { FeedSelection, FeedStoreOption, FilterOption } from "./model";
+import { MAX_RANGE_DAYS, periodNav, resolvePeriodAsk } from "./period";
 import type { FeedCatalog } from "./options";
 import type { FeedView } from "./view";
 
@@ -16,11 +17,17 @@ function exists(options: readonly FilterOption[], id: string | undefined) {
 
 /**
  * Раскладывает фильтр в то, что показывает экран: выбранные значения (только
- * существующие и согласованные между собой) и списки, уже суженные выбором.
+ * существующие и согласованные между собой), списки, уже суженные выбором, и период
+ * датами — в поясе экрана (`screenTimeZone`), поэтому он разбирается последним.
+ *
+ * `now` приходит параметром: умолчание «текущий месяц» иначе не проверить, не подменяя
+ * часы. `maxDays` — предел длины периода у экрана (у отчёта по обходам он короче).
  */
 export function resolveSelection(
   view: FeedView,
   catalog: FeedCatalog,
+  now: Date = new Date(),
+  maxDays: number = MAX_RANGE_DAYS,
 ): FeedSelection {
   const countries = [...catalog.countries].sort(byName);
   const countryId = exists(countries, view.countryId)
@@ -57,16 +64,13 @@ export function resolveSelection(
     ? (view.stationId ?? null)
     : null;
 
-  return {
-    countryId,
-    storeId,
-    stationId,
-    period: view.period,
-    countries,
-    stores,
-    stations,
-  };
+  const place = { countryId, storeId, stationId, countries, stores, stations };
+  const timeZone = screenTimeZone(place);
+  const period = resolvePeriodAsk(view.period, now, timeZone, maxDays);
+  return { ...place, period, periodNav: periodNav(period, now, timeZone) };
 }
+
+type Place = Omit<FeedSelection, "period" | "periodNav">;
 
 /**
  * Пояс, в котором считается «сегодня» и подписывается день.
@@ -75,7 +79,22 @@ export function resolveSelection(
  * общий у всех пиццерий в фильтре; иначе одного правильного ответа не существует, и
  * экран считает период по поясу площадки, честно подписывая, по какому именно.
  */
-export function screenTimeZone(selection: FeedSelection): string {
+/**
+ * Пояс, который знает Intl. Опечатку в поясе страны (`Asia/Almatyy`) база хранит, а
+ * Intl на ней бросает `RangeError` — и ронял бы весь экран. Такая пиццерия уже
+ * выпадает из отчёта отдельным счётом (`unknownTimezoneStores`), поэтому экран считает
+ * «сегодня» без неё, по поясу площадки, а не падает.
+ */
+function isIntlZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function screenTimeZone(selection: Place): string {
   const platformZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   // Станция однозначно задаёт пиццерию: выбрав «Кухню», управляющий выбрал и точку,
@@ -90,10 +109,16 @@ export function screenTimeZone(selection: FeedSelection): string {
     const store = selection.stores.find(
       (candidate) => candidate.id === storeId,
     );
-    if (store !== undefined) return store.timezone;
+    if (store !== undefined) {
+      return isIntlZone(store.timezone) ? store.timezone : platformZone;
+    }
   }
 
-  const zones = new Set(selection.stores.map((store) => store.timezone));
+  const zones = new Set(
+    selection.stores
+      .map((store) => store.timezone)
+      .filter((zone) => isIntlZone(zone)),
+  );
   const [only] = zones;
   return zones.size === 1 && only !== undefined ? only : platformZone;
 }
@@ -104,7 +129,7 @@ export function screenTimeZone(selection: FeedSelection): string {
  * подписывает пояс: в обычной работе (одна страна, один пояс) подпись была бы шумом,
  * которого нет и на эталоне.
  */
-export function isTimeZoneAmbiguous(selection: FeedSelection): boolean {
+export function isTimeZoneAmbiguous(selection: Place): boolean {
   const storeId =
     selection.storeId ??
     selection.stations.find((station) => station.id === selection.stationId)

@@ -1,18 +1,19 @@
 import Link from "next/link";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import { AdminShell } from "@/blocks/core/ui/AdminShell";
 
 import { storeStatsPath } from "../routes";
 import type { StoreStatsModel } from "../store-model";
-import { DAYS_PARAM, storeStatsHref } from "../stats-view";
+import { storeStatsHref } from "../stats-view";
+import { STATION_PARAM } from "../view";
 import { AlarmStrip } from "./AlarmStrip";
 import { FeedEmpty } from "./FeedEmpty";
 import { FeedFilters } from "./FeedFilters";
 import { FeedMetrics } from "./FeedMetrics";
 import { FeedTable } from "./FeedTable";
-import { PeriodSwitch } from "./PeriodSwitch";
+import { PeriodPicker } from "./PeriodPicker";
 import { StatsMetrics } from "./StatsMetrics";
 import { StatsSilentTable, StatsTopFailedTable } from "./StatsTables";
 import { StoreChecklistsTable } from "./StoreChecklistsTable";
@@ -22,7 +23,9 @@ import { TopbarActions } from "./TopbarActions";
  * Экран пиццерии раздела «Статистика» (D179). Владелец: «при проваливании в плитку он
  * видит все чеклисты что в пиццерии и статистику по ним + текущий статус». Сверху —
  * сводка пиццерии за период (D170) и её чек-листы, ниже — то, что «переехало» из
- * «Заполнений»: тревоги и лента заполнений этой пиццерии, со станцией и периодом ленты.
+ * «Заполнений»: тревоги и лента заполнений этой пиццерии со станцией. Период один на
+ * весь экран (D183 п.4) — календарь в верхней полосе; свой горизонт есть только у
+ * статуса «сегодня», тревог «сейчас» и молчащих станций, и он подписан на их блоках.
  *
  * Эталона в `docs/furca/design/` у экрана нет: он собран из деталей соседних экранов
  * блока (плитки сводки, таблицы, полоса тревог и лента — как были).
@@ -34,27 +37,6 @@ const META_CLASS = "text-[length:var(--fs-meta)] text-[var(--ink-3)]";
 const H2_CLASS =
   "m-0 text-[length:var(--fs-title)] leading-[var(--lh-title)] font-semibold";
 const CRUMB_LINK_CLASS = "text-[var(--ink-3)] no-underline hover:underline";
-
-type Formatter = Awaited<ReturnType<typeof getFormatter>>;
-type Translate = Awaited<ReturnType<typeof getTranslations>>;
-
-function periodText(
-  model: StoreStatsModel,
-  format: Formatter,
-  t: Translate,
-): string {
-  const day = (at: Date): string =>
-    format.dateTime(at, {
-      day: "numeric",
-      month: "long",
-      timeZone: model.timeZone,
-    });
-  return t("stats.period", {
-    days: model.days,
-    from: day(model.stats.from),
-    to: day(model.stats.to),
-  });
-}
 
 async function FeedPart({
   model,
@@ -87,9 +69,8 @@ async function FeedPart({
         timeZoneAmbiguous={false}
         action={path}
         withPlace={false}
-        hidden={{ [DAYS_PARAM]: String(model.days) }}
       />
-      <FeedMetrics metrics={feed.metrics} period={feed.selection.period} />
+      <FeedMetrics metrics={feed.metrics} />
       {feed.emptyKind === null ? (
         <FeedTable
           rows={feed.rows}
@@ -109,8 +90,8 @@ export async function StoreStatsScreen({
   readonly model: StoreStatsModel;
 }): Promise<ReactElement> {
   const t = await getTranslations("feed");
-  const format = await getFormatter();
   const { feed } = model;
+  const { stationId } = feed.selection;
 
   const breadcrumb = (
     <>
@@ -130,18 +111,13 @@ export async function StoreStatsScreen({
       title={model.storeName}
       topbarAction={
         <TopbarActions>
-          <span className={META_CLASS} data-testid="stats-period">
-            {periodText(model, format, t)}
-          </span>
-          <PeriodSwitch
-            days={model.days}
-            hrefOf={(days) =>
-              storeStatsHref(model.storeId, {
-                days,
-                stationId: feed.selection.stationId,
-                period: feed.selection.period,
-              })
+          <PeriodPicker
+            nav={feed.selection.periodNav}
+            hrefOf={(period) =>
+              storeStatsHref(model.storeId, { period, stationId })
             }
+            action={storeStatsPath(model.storeId)}
+            hidden={stationId === null ? {} : { [STATION_PARAM]: stationId }}
           />
           <Link
             href={model.reportHref}

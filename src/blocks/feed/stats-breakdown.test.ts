@@ -20,6 +20,7 @@ import {
   uniqueStationCode,
 } from "@/blocks/data/testing/fixtures";
 
+import { lastDays } from "./period";
 import { loadSummariesBy, summaryOf } from "./stats-breakdown";
 
 const db = getTestDb();
@@ -106,6 +107,30 @@ async function fill(
 }
 
 describe("по чек-листам", () => {
+  test("прошедший период: счёт — только его дни, последнее заполнение — на сейчас", async () => {
+    const station = await createStation();
+    const morning = await checklistOn(station);
+
+    await fill(morning, ago(1 * DAY), true); // сентябрь — вне периода
+    await fill(morning, ago(25 * DAY), false); // 26 августа
+    await fill(morning, ago(30 * DAY), true); // 21 августа
+
+    const byChecklist = await loadSummariesBy(
+      "checklist",
+      { visible: WHOLE_NETWORK, storeId: station.storeId },
+      { from: "2026-08-01", to: "2026-08-31" },
+      NOW,
+      "UTC",
+    );
+
+    expect(summaryOf(byChecklist, morning.checklistId)).toStrictEqual({
+      submissionCount: 2,
+      criticalFailedCount: 1,
+      criticalFailedShare: 1 / 2,
+      lastSubmittedAt: ago(1 * DAY),
+    });
+  });
+
   test("заполнения за период, доля с проваленным критичным и последнее заполнение", async () => {
     const station = await createStation();
     const morning = await checklistOn(station);
@@ -120,7 +145,7 @@ describe("по чек-листам", () => {
     const byChecklist = await loadSummariesBy(
       "checklist",
       { visible: WHOLE_NETWORK, storeId: station.storeId },
-      7,
+      lastDays(7, NOW, "UTC"),
       NOW,
       "UTC",
     );
@@ -147,7 +172,7 @@ describe("по чек-листам", () => {
     const byChecklist = await loadSummariesBy(
       "checklist",
       { visible: WHOLE_NETWORK, storeId: place.storeId },
-      30,
+      lastDays(30, NOW, "UTC"),
       NOW,
       "UTC",
     );
@@ -173,7 +198,7 @@ describe("по чек-листам", () => {
     const byChecklist = await loadSummariesBy(
       "checklist",
       { visible: WHOLE_NETWORK, storeId: place.storeId },
-      7,
+      lastDays(7, NOW, "Asia/Almaty"),
       NOW,
       "Asia/Almaty",
     );
@@ -188,7 +213,7 @@ describe("по чек-листам", () => {
     const byChecklist = await loadSummariesBy(
       "checklist",
       { visible: WHOLE_NETWORK, storeId: place.storeId },
-      7,
+      lastDays(7, NOW, "UTC"),
       NOW,
       "UTC",
     );
@@ -210,7 +235,7 @@ describe("по чек-листам", () => {
     const byChecklist = await loadSummariesBy(
       "checklist",
       { visible: WHOLE_NETWORK, storeId: place.storeId },
-      7,
+      lastDays(7, NOW, "UTC"),
       NOW,
       "UTC",
     );
@@ -228,7 +253,7 @@ describe("по чек-листам", () => {
     const byChecklist = await loadSummariesBy(
       "checklist",
       { visible: WHOLE_NETWORK, storeId: place.storeId },
-      7,
+      lastDays(7, NOW, "UTC"),
       NOW,
       "UTC",
     );
@@ -252,7 +277,7 @@ describe("по пиццериям страны", () => {
     const byStore = await loadSummariesBy(
       "store",
       { visible: WHOLE_NETWORK, countryId: first.countryId },
-      7,
+      lastDays(7, NOW, "UTC"),
       NOW,
       "UTC",
     );
@@ -276,7 +301,7 @@ describe("по пиццериям страны", () => {
     const byStore = await loadSummariesBy(
       "store",
       { visible: WHOLE_NETWORK, countryId: mine.countryId },
-      7,
+      lastDays(7, NOW, "UTC"),
       NOW,
       "UTC",
     );

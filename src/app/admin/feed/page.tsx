@@ -4,11 +4,15 @@ import { getLocale } from "next-intl/server";
 import { requireAdmin } from "@/blocks/auth/guard";
 import { redirectPath } from "@/blocks/core/base-path";
 import type { Locale } from "@/blocks/core/locale";
-import { parseStatsDays } from "@/blocks/feed/stats-view";
+import { countryStatsHref } from "@/blocks/feed/stats-view";
 import { CountryStatsScreen } from "@/blocks/feed/ui/CountryStatsScreen";
 import { buildCountryModel } from "@/blocks/feed/ui/build-country-model";
 import { legacyFeedTarget } from "@/blocks/feed/ui/legacy-feed";
-import { parseFeedView, type SearchParams } from "@/blocks/feed/view";
+import {
+  isLegacyPeriod,
+  parseFeedView,
+  type SearchParams,
+} from "@/blocks/feed/view";
 
 /**
  * Раздел «Статистика» (D179): страны слева, плитки пиццерий выбранной страны справа.
@@ -33,10 +37,22 @@ export default async function StatisticsPage({
 
   const locale = (await getLocale()) as Locale;
   const model = await buildCountryModel(
-    { countryId: view.countryId, days: parseStatsDays(params) },
+    { countryId: view.countryId, period: view.period },
     locale,
     viewer,
   );
+  // Старый период (`days=7|30`) открывается тем же отрезком, но адрес переводится в
+  // «с — по»: даты зависят от пояса страны, поэтому только после сборки модели.
+  if (isLegacyPeriod(params)) {
+    redirect(
+      redirectPath(
+        countryStatsHref({
+          countryId: model.isExplicit ? model.countryId : null,
+          period: model.period,
+        }),
+      ),
+    );
+  }
 
   return <CountryStatsScreen model={model} />;
 }

@@ -36,11 +36,12 @@ import {
   SNAPSHOT_ITEMS,
   epochMs,
   periodWindow,
+  timestampSql,
   scopeWhere,
   submissionsInWindow,
   type Window,
 } from "./stats-sql";
-import type { StatsPeriodDays } from "./stats-view";
+import type { DayRange } from "./period";
 
 /** Сколько пунктов в списке чаще всего проваливаемых (D170). */
 const TOP_FAILED_LIMIT = 5;
@@ -252,28 +253,29 @@ function shareOf(part: number, whole: number): number | null {
 }
 
 /**
- * Статистика области `scope` за `days` местных суток в поясе `timeZone`, считая
- * сегодняшние. `now` приходит параметром: границы периода и порог молчания иначе не
+ * Статистика области `scope` за период `period` — местные даты в поясе `timeZone`.
+ * Молчащие станции — не за период, а на момент просмотра: это состояние «сейчас», и
+ * экран так его и подписывает. `now` приходит параметром: границы периода и порог молчания иначе не
  * проверить, не подменяя часы.
  */
 export async function loadStats(
   scope: FeedScope,
-  days: StatsPeriodDays,
+  period: DayRange,
   now: Date,
   timeZone: string,
 ): Promise<Stats> {
-  const { from, window } = periodWindow(days, now, timeZone);
+  const { from, to, window } = periodWindow(period, now, timeZone);
 
   const [summary, topFailedItems, alarmCount, silent] = await Promise.all([
     loadSummary(scope, window),
     loadTopFailed(scope, window),
     loadAlarmCount(scope, window),
-    loadSilent(scope, window.to),
+    loadSilent(scope, timestampSql(now)),
   ]);
 
   return {
     from,
-    to: now,
+    to,
     submissionCount: summary.total,
     criticalFailedCount: summary.critical_failed,
     criticalFailedShare: shareOf(summary.critical_failed, summary.total),

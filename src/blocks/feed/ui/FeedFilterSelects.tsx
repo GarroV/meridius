@@ -5,13 +5,7 @@ import type { ReactElement } from "react";
 import { useLive } from "@/blocks/core/ui/use-live";
 
 import type { FeedSelection } from "../model";
-import { FEED_PERIODS } from "../period";
-import {
-  COUNTRY_PARAM,
-  PERIOD_PARAM,
-  STATION_PARAM,
-  STORE_PARAM,
-} from "../view";
+import { COUNTRY_PARAM, STATION_PARAM, STORE_PARAM } from "../view";
 
 /**
  * Четыре списка фильтра. Клиентские они по одной причине: на эталоне нет кнопки
@@ -61,11 +55,7 @@ interface FilterLabels {
   readonly country: string;
   readonly store: string;
   readonly station: string;
-  readonly period: string;
   readonly all: string;
-  readonly periodToday: string;
-  readonly periodWeek: string;
-  readonly periodMonth: string;
 }
 
 interface FeedFilterSelectsProps {
@@ -137,12 +127,6 @@ export function FeedFilterSelects({
 }: FeedFilterSelectsProps): ReactElement {
   const live = useLive();
 
-  const periodLabels: Record<string, string> = {
-    today: labels.periodToday,
-    week: labels.periodWeek,
-    month: labels.periodMonth,
-  };
-
   return (
     <>
       {withPlace ? (
@@ -173,28 +157,6 @@ export function FeedFilterSelects({
         allLabel={labels.all}
         options={selection.stations}
       />
-
-      <div className={FIELD_CLASS}>
-        <label className={LABEL_CLASS} htmlFor="feed-filter-period">
-          {labels.period}
-        </label>
-        <select
-          key={selection.period}
-          id="feed-filter-period"
-          name={PERIOD_PARAM}
-          defaultValue={selection.period}
-          onChange={applyOnChange}
-          data-live={live ? "true" : undefined}
-          className={SELECT_CLASS}
-          style={SELECT_ARROW}
-        >
-          {FEED_PERIODS.map((period) => (
-            <option key={period} value={period}>
-              {periodLabels[period]}
-            </option>
-          ))}
-        </select>
-      </div>
     </>
   );
 }

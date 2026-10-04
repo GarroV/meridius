@@ -11,7 +11,7 @@ import { scopeOf as scopeOfViewer, type Viewer } from "@/blocks/auth/scope";
 import { checklistHref } from "../checklist-link";
 import type { FeedScope } from "../scope";
 import { loadSummariesBy, summaryOf } from "../stats-breakdown";
-import { countryStatsHref, type StatsPeriodDays } from "../stats-view";
+import { countryStatsHref } from "../stats-view";
 import type { StoreChecklistRow, StoreStatsModel } from "../store-model";
 import { pickText } from "../text";
 import { todayStatusOf } from "../today-status";
@@ -27,8 +27,7 @@ function hhmm(time: string): string {
 
 export interface StoreView {
   readonly storeId: string;
-  readonly days: StatsPeriodDays;
-  /** Станция и период ленты; страну и пиццерию задаёт адрес экрана. */
+  /** Станция и период экрана; страну и пиццерию задаёт адрес экрана. */
   readonly feed: FeedView;
 }
 
@@ -75,15 +74,18 @@ export async function buildStoreModel(
     visible: scopeOfViewer(viewer),
     storeId: store.id,
   };
+  // Один период на весь экран (D183 п.4): сводка и чек-листы считают тот же, что и
+  // лента, — уже датами, разобранными в поясе пиццерии.
+  const { period } = feed.selection;
   const [stats, live, summaries] = await Promise.all([
     buildStatsModel(
-      { storeId: store.id, days: view.days },
+      { storeId: store.id, period: { kind: "range", range: period } },
       locale,
       viewer,
       now,
     ),
     listLiveChecklists(scope, now),
-    loadSummariesBy("checklist", scope, view.days, now, store.timezone),
+    loadSummariesBy("checklist", scope, period, now, store.timezone),
   ]);
   const context: RowContext = { locale, now, summaries };
 
@@ -94,15 +96,14 @@ export async function buildStoreModel(
       feed.selection.countries.find((row) => row.id === store.countryId)
         ?.name ?? null,
     timeZone: store.timezone,
-    days: view.days,
-    backHref: countryStatsHref({ countryId: store.countryId, days: view.days }),
+    backHref: countryStatsHref({ countryId: store.countryId, period }),
     reportHref: roundsReportHref({
       countryId: store.countryId,
       storeId: store.id,
       ...(feed.selection.stationId === null
         ? {}
         : { stationId: feed.selection.stationId }),
-      period: feed.selection.period,
+      period: { kind: "range", range: period },
     }),
     stats,
     checklists: live.rows.map((row) => toRow(row, context)),

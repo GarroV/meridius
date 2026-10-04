@@ -6,13 +6,15 @@ import { Icon } from "@/blocks/core/ui/Icon";
 import { requireChecklistEditable } from "@/blocks/auth/access";
 import { requireAdmin } from "@/blocks/auth/guard";
 
-import { submitDuplicate, submitMakeTemplate } from "../actions";
+import { submitDuplicate } from "../actions";
 import { loadEditor } from "../drafts";
+import type { MakeTemplateRefusal } from "../make-template";
 import { pickEditorText } from "../localized-text";
 import { checklistDeletePath, checklistPreviewPath } from "../routes";
 import { loadTemplateOrigin } from "../template-updates";
 import type { WindowValue } from "../window-field";
 import { ChecklistEditor } from "./ChecklistEditor";
+import { MakeTemplateButton } from "./MakeTemplateButton";
 import { TemplateOrigin } from "./TemplateOrigin";
 
 /** Время базы «06:00:00» на экране показывается и правится как «06:00». */
@@ -34,29 +36,27 @@ function ChecklistActions({
   checklistId,
   duplicateLabel,
   deleteLabel,
-  makeTemplateLabel,
+  makeTemplate,
 }: {
   readonly checklistId: string;
   readonly duplicateLabel: string;
   readonly deleteLabel: string;
-  /** Есть, только когда шаблон из чек-листа сделать можно (D174). */
-  readonly makeTemplateLabel?: string;
+  /** Есть, только когда шаблон из чек-листа сделать можно (D174, D183 п.8). */
+  readonly makeTemplate?:
+    | {
+        readonly label: string;
+        readonly refusals: Readonly<Record<MakeTemplateRefusal, string>>;
+      }
+    | undefined;
 }) {
   return (
     <>
-      {makeTemplateLabel === undefined ? null : (
-        <form action={submitMakeTemplate}>
-          <input type="hidden" name="checklistId" value={checklistId} />
-          <button
-            type="submit"
-            data-testid="make-template"
-            className="icon-btn"
-            aria-label={makeTemplateLabel}
-            title={makeTemplateLabel}
-          >
-            <Icon name="spark" />
-          </button>
-        </form>
+      {makeTemplate === undefined ? null : (
+        <MakeTemplateButton
+          checklistId={checklistId}
+          label={makeTemplate.label}
+          refusals={makeTemplate.refusals}
+        />
       )}
       <form action={submitDuplicate}>
         <input type="hidden" name="checklistId" value={checklistId} />
@@ -121,8 +121,12 @@ export async function EditorScreen({
   // над заголовком ведут туда, откуда его открыли.
   const isTemplate = state.checklist.isTemplate;
   // Шаблон снимается с опубликованного и только с чек-листа без источника: копия шаблона
-  // шаблон уже имеет, а черновик шаблоном не становится (`make-template.ts`).
+  // шаблон уже имеет, а черновик шаблоном не становится (`make-template.ts`). И только
+  // УК и только с чек-листа самой УК (D149, D183 п.8): чек-лист станции партнёра шаблоном
+  // сети не становится — сервер это отвергает, а кнопки там нет вовсе.
   const canMakeTemplate =
+    viewer.tenantKind === "hq" &&
+    state.checklist.tenantId === viewer.tenantId &&
     !isTemplate &&
     state.checklist.sourceChecklistId === null &&
     state.versions.some((version) => version.status === "published");
@@ -178,8 +182,22 @@ export async function EditorScreen({
               checklistId={checklistId}
               duplicateLabel={t("list.duplicate")}
               deleteLabel={t("list.delete")}
-              makeTemplateLabel={
-                canMakeTemplate ? t("list.makeTemplate") : undefined
+              makeTemplate={
+                canMakeTemplate
+                  ? {
+                      label: t("list.makeTemplate"),
+                      refusals: {
+                        foreignTenant: t("makeTemplate.foreignTenant"),
+                        notChecklist: t("makeTemplate.notChecklist"),
+                        noPublishedVersion: t(
+                          "makeTemplate.noPublishedVersion",
+                        ),
+                        alreadyFromTemplate: t(
+                          "makeTemplate.alreadyFromTemplate",
+                        ),
+                      },
+                    }
+                  : undefined
               }
             />
           )
