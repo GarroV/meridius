@@ -145,6 +145,30 @@ describe("screenTimeZone", () => {
   });
 });
 
+describe("screenTimeZone с опечаткой в поясе", () => {
+  const BROKEN: FeedCatalog = {
+    ...CATALOG,
+    stores: CATALOG.stores.map((store) =>
+      store.id === "s-tashkent"
+        ? { ...store, timezone: "Asia/Almatyy" }
+        : store,
+    ),
+  };
+
+  it("выбранная пиццерия с неизвестным поясом — пояс площадки, а не падение", () => {
+    const selection = resolveSelection({ storeId: "s-tashkent" }, BROKEN);
+
+    expect(selection.periodNav).toBeDefined();
+    expect(screenTimeZone(selection)).toBe(
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+    );
+  });
+
+  it("неизвестный пояс не участвует в выборе единственного пояса", () => {
+    expect(screenTimeZone(resolveSelection({}, BROKEN))).toBe("Asia/Almaty");
+  });
+});
+
 describe("screenTimeZone по выбранной станции", () => {
   it("станция задаёт пиццерию, а с ней и пояс экрана, даже когда пиццерия не выбрана", () => {
     expect(

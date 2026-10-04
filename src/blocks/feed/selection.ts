@@ -79,6 +79,21 @@ type Place = Omit<FeedSelection, "period" | "periodNav">;
  * общий у всех пиццерий в фильтре; иначе одного правильного ответа не существует, и
  * экран считает период по поясу площадки, честно подписывая, по какому именно.
  */
+/**
+ * Пояс, который знает Intl. Опечатку в поясе страны (`Asia/Almatyy`) база хранит, а
+ * Intl на ней бросает `RangeError` — и ронял бы весь экран. Такая пиццерия уже
+ * выпадает из отчёта отдельным счётом (`unknownTimezoneStores`), поэтому экран считает
+ * «сегодня» без неё, по поясу площадки, а не падает.
+ */
+function isIntlZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function screenTimeZone(selection: Place): string {
   const platformZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -94,10 +109,16 @@ export function screenTimeZone(selection: Place): string {
     const store = selection.stores.find(
       (candidate) => candidate.id === storeId,
     );
-    if (store !== undefined) return store.timezone;
+    if (store !== undefined) {
+      return isIntlZone(store.timezone) ? store.timezone : platformZone;
+    }
   }
 
-  const zones = new Set(selection.stores.map((store) => store.timezone));
+  const zones = new Set(
+    selection.stores
+      .map((store) => store.timezone)
+      .filter((zone) => isIntlZone(zone)),
+  );
   const [only] = zones;
   return zones.size === 1 && only !== undefined ? only : platformZone;
 }
