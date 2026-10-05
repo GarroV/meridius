@@ -42,8 +42,9 @@ import { ThemeToggle } from "./ThemeToggle";
 // (T352): сверху полоса марки (`.mbar`), снизу панель разделов под большой палец
 // (`.tabbar`). Вид обеих — `globals.css`, слой `components`.
 //
-// Пункты делятся надвое (D183, как в Swarm): рабочие — строками рейки, вспомогательные —
-// пиктограммами внизу, над темой и языком, подпись — при наведении и в доступном имени.
+// Пункты делятся надвое (D183, как в Swarm): рабочие сверху, вспомогательные — второй
+// группой под чертой, тоже строками с подписью. Пиктограммами в подвале они были день —
+// владелец вернул их строками (D187): «в подвале никто не будет пользоваться».
 // На телефоне — четыре таба (Главная, Станции, Статистика, «Ещё»), остальное в листе
 // «Ещё» вместе с темой и языком: в полосе марки шириной 375 px рядом с поиском они не
 // помещаются (марка, поиск, тема и язык — 388 px).
@@ -96,34 +97,6 @@ function NavItem({
     >
       <Icon name={icon} />
       <span className="sidenav__label">{label}</span>
-    </Link>
-  );
-}
-
-/** Вспомогательный пункт внизу рейки: пиктограмма, подпись — при наведении и для читалки. */
-function ToolItem({
-  href,
-  icon,
-  label,
-  isActive,
-  testId,
-}: {
-  readonly href: string;
-  readonly icon: IconName;
-  readonly label: string;
-  readonly isActive: boolean;
-  readonly testId: string;
-}): ReactElement {
-  return (
-    <Link
-      className="sidenav__tool"
-      href={href}
-      title={label}
-      aria-label={label}
-      data-testid={testId}
-      {...(isActive ? { "aria-current": "page" as const } : {})}
-    >
-      <Icon name={icon} />
     </Link>
   );
 }
@@ -298,6 +271,21 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
               testId={`nav-${key}`}
             />
           ))}
+          {/* Вспомогательные (D183, D187) — те же строки, второй группой под чертой. */}
+          <hr className="sidenav__sep" />
+          {tools.map(({ key, href, icon, label }) =>
+            visibleTo(
+              key,
+              <NavItem
+                key={key}
+                href={href}
+                icon={icon}
+                label={label}
+                isActive={key === active}
+                testId={`nav-${key}`}
+              />,
+            ),
+          )}
         </div>
 
         <div className="sidenav__foot">
@@ -306,26 +294,6 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
           кабинета. Слова переводит меню, а не сами переключатели (T254).
         */}
           {prefs()}
-          {/*
-          Вспомогательные разделы (D183) — строкой пиктограмм, как «Настройки» и «Админ»
-          у Swarm. Подпись — в `title` (при наведении) и в `aria-label`: без неё ссылка
-          из одной картинки для читалки безымянна.
-        */}
-          <div className="sidenav__tools" data-testid="nav-tools">
-            {tools.map(({ key, href, icon, label }) =>
-              visibleTo(
-                key,
-                <ToolItem
-                  key={key}
-                  href={href}
-                  icon={icon}
-                  label={label}
-                  isActive={key === active}
-                  testId={`nav-${key}`}
-                />,
-              ),
-            )}
-          </div>
         </div>
 
         {/*
