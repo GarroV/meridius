@@ -337,32 +337,42 @@ test.describe("каркас кабинета на настольной шири�
     expect(Math.round(nav)).toBe(NAV_COLUMN);
   });
 
-  // D183: вспомогательные разделы — пиктограммами внизу рейки, с подписью при
-  // наведении и доступным именем; рабочие — строками. «Где шаблоны?» — один клик.
-  test("вспомогательные разделы — пиктограммами внизу рейки", async ({
+  // D183, D187: вспомогательные разделы — строками рейки с подписью, второй группой
+  // под рабочими, а не пиктограммами в подвале. «Где шаблоны?» — один клик по слову.
+  test("вспомогательные разделы — строками рейки под рабочими", async ({
     page,
   }) => {
     await signIn(page);
     await page.goto("/admin");
 
     const list = page.locator("nav.sidenav .sidenav__list");
-    for (const key of ["home", "checklists", "stations", "feed"]) {
+    for (const key of [
+      "home",
+      "checklists",
+      "stations",
+      "feed",
+      "templates",
+      "library",
+      "catalog",
+      "partners",
+    ]) {
       await expect(list.getByTestId(`nav-${key}`)).toBeVisible();
     }
-    const tools = page.getByTestId("nav-tools");
     for (const [key, name] of [
       ["templates", "Шаблоны"],
       ["library", "Библиотека блоков"],
       ["catalog", "Страны и пиццерии"],
       ["partners", "Партнёры"],
     ] as const) {
-      const tool = tools.getByTestId(`nav-${key}`);
-      await expect(tool).toHaveAccessibleName(name);
-      await expect(tool).toHaveAttribute("title", name);
+      await expect(
+        list.getByTestId(`nav-${key}`).locator(".sidenav__label"),
+      ).toHaveText(name);
     }
-    await expect(list.getByTestId("nav-templates")).toHaveCount(0);
+    await expect(
+      page.locator("nav.sidenav .sidenav__foot").getByRole("link"),
+    ).toHaveCount(0);
 
-    await tools.getByRole("link", { name: "Шаблоны" }).click();
+    await list.getByRole("link", { name: "Шаблоны" }).click();
     await expect(page.getByTestId("templates-screen")).toBeVisible();
   });
 });
