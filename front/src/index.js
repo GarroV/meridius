@@ -74,7 +74,10 @@ export default {
       try {
         response = await send((u, init) => env.EDGE.fetch(u, init), request);
       } catch (error) {
-        console.error("tunnel failed, falling back to public path", String(error));
+        console.error(
+          "tunnel failed, falling back to public path",
+          String(error),
+        );
       }
     }
     if (!response) {
