@@ -7,5 +7,8 @@
   "main": "src/index.js",
   "compatibility_date": "2026-09-01",
   "workers_dev": true,
+  // Туннель к Caddy на VPS (Workers VPC, decimus D304): сервис vps-edge-caddy
+  // в учётке Cloudflare, один на все проекты VPS (GarroV/vps-infra edge/compose.yml).
+  "vpc_services": [{ "binding": "EDGE", "service_id": "01a11a74-ba20-7ea3-a9c1-581681d0c341" }],
   "vars": { "ORIGIN_HOST": "meridius.95-111-249-216.sslip.io" },
 }
