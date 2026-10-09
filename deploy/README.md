@@ -5,8 +5,8 @@
 | Что              | Где                                                                                                                   |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------- |
 | Сервер           | VPS Contabo, Ubuntu 24.04, клон в `/srv/meridius`                                                                     |
-| Адрес            | https://meridius.95-111-249-216.sslip.io — временный; постоянный домен будет на Cloudflare                            |
-| Фронт Cloudflare | https://meridius.vasiliy-garro.workers.dev — там, где sslip.io заблокирован (как у decimus, D236); код — `front/`     |
+| Адрес            | https://meridius.vasiliy-garro.workers.dev — постоянно (D188); до сервера туннелем `vps-edge`                         |
+| Внутреннее имя   | `meridius.95-111-249-216.sslip.io` — имя сайта в Caddy и запасной путь Worker'а, не адрес для людей; код — `front/`   |
 | Сеть к прокси    | `edge-meridius`, алиас `meridius-app`; надстройка — канон в `GarroV/vps-infra`, `projects/meridius/compose.edge.yaml` |
 | Бэкап            | Ночной, VPS → restic на MUSPELHEIM (`GarroV/vps-infra`, `backup/`)                                                    |
 | Стенд разработки | MUSPELHEIM, compose-проект `mac-stands`; на Маке порт 5433 — туннель на него (#174)                                   |
