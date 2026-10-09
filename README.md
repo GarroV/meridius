@@ -100,8 +100,8 @@ Next.js (App Router) на TypeScript, PostgreSQL через Drizzle, Tailwind п
 миграций), `deploy/compose.yaml`, окружение по `deploy/.env.example`. Порядок первого
 запуска и обновления, ключи и подключение к прокси — [`deploy/README.md`](deploy/README.md).
 
-Сейчас прод — VPS: https://meridius.95-111-249-216.sslip.io (временный адрес, постоянный
-домен будет на Cloudflare). Стенд разработки — на MUSPELHEIM, локальный порт 5433 ведёт
+Сейчас прод — VPS, адрес для людей — https://meridius.vasiliy-garro.workers.dev (Worker
+Cloudflare, постоянно, D188). Стенд разработки — на MUSPELHEIM, локальный порт 5433 ведёт
 на него туннелем.
 
 ## Проверки

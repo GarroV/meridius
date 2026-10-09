@@ -140,7 +140,7 @@ JUnit XML в `reports/`: `reports/vitest.junit.xml` (`vitest run --reporter=juni
 
 | Что | Как |
 |---|---|
-| Прод | VPS Contabo, https://meridius.95-111-249-216.sslip.io, клон в `/srv/meridius` (с 26.09.2026, #175) |
+| Прод | VPS Contabo, вход https://meridius.vasiliy-garro.workers.dev (D188), клон в `/srv/meridius` (с 26.09.2026, #175) |
 | Состав | `deploy/compose.yaml`: `db` → одноразовый `migrate` → `app`. Приложение стартует только после успешного наката миграций |
 | Сеть наружу | Порты не публикуются. Общий Caddy (TLS) ходит на `app:3000` через сеть `edge-meridius`, алиас `meridius-app`. Надстройка сети — канон в `GarroV/vps-infra`, `projects/meridius/` |
 | Обновление | `git pull`, затем `up -d --build` (команда целиком — `deploy/README.md`). Раскатка — только по явному «да» владельца |
