@@ -110,7 +110,7 @@ try {
     warnedAfterFailure = true;
     await dialog.dismiss();
   });
-  await page.locator('a[href$="/admin/stations"]').first().click();
+  await page.locator('a[href$="/admin/stations"]:visible').first().click();
   assert.ok(warnedAfterFailure, "Failed publish keeps the unsaved warning");
   assert.equal(await titleField.inputValue(), "");
   await titleField.fill(savedTitle);
