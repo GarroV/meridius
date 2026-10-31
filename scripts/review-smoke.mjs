@@ -99,6 +99,21 @@ try {
     path: "reports/ui-review/editor-phone.png",
     fullPage: true,
   });
+  // Ошибка публикации после успешного сохранения не должна снимать защиту правок.
+  const titleField = page.getByTestId("checklist-title");
+  const savedTitle = await titleField.inputValue();
+  await titleField.fill("");
+  await page.getByTestId("publish").click();
+  await page.getByTestId("editor-error").waitFor();
+  let warnedAfterFailure = false;
+  page.once("dialog", async (dialog) => {
+    warnedAfterFailure = true;
+    await dialog.dismiss();
+  });
+  await page.locator('a[href$="/admin/stations"]').first().click();
+  assert.ok(warnedAfterFailure, "Failed publish keeps the unsaved warning");
+  assert.equal(await titleField.inputValue(), "");
+  await titleField.fill(savedTitle);
   await page.goto(`${base}/admin`);
   assert.ok(
     await page.evaluate(
@@ -117,7 +132,7 @@ try {
   });
   assert.deepEqual(errors, [], "No browser errors");
   console.log(
-    "PASS: login, pizzerias, detail, multiline editor, settings, unsaved warning, save/reload, 375px, both themes; no browser errors.",
+    "PASS: login, pizzerias, detail, multiline editor, settings, unsaved warning, save/reload, failed publish warning, 375px, both themes; no browser errors.",
   );
 } finally {
   await browser.close();
