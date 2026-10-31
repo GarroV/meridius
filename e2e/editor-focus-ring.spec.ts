@@ -1,3 +1,4 @@
+import { revealItemSettings } from "./item-settings";
 // Кольцо фокуса на ПОЛЯХ редактора видно человеку (T284).
 //
 // Дефект был ровно противоположен тому, что ловил `focus-ring.spec.ts` на кнопках. Там
@@ -228,6 +229,7 @@ async function createNumberChecklist(page: Page): Promise<void> {
   await expect(page.getByTestId("editor-screen")).toBeVisible();
 
   await page.getByTestId("item-title").first().fill("Температура печи");
+  await revealItemSettings(page.getByTestId("item-type").first());
   await page.getByTestId("item-type").first().selectOption("number");
   await expect(page.getByTestId("item-min").first()).toBeVisible();
 }

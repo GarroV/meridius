@@ -1,3 +1,4 @@
+import { revealItemSettings } from "./item-settings";
 // Экран редактора обязан помещаться в окно — и на телефоне, и когда строка пункта
 // нагружена всем сразу (T211 дефект #87, T222 дефект #99).
 //
@@ -124,11 +125,16 @@ test.describe("ширина экрана редактора", () => {
     await page.keyboard.type("Чистота стола выдачи и зоны упаковки");
     await expect(page.getByTestId("item-title")).toHaveCount(2);
 
+    await revealItemSettings(page.getByTestId("item-type").first());
     await page.getByTestId("item-type").first().selectOption("number");
     await page.getByTestId("item-min").first().fill("-18");
     await page.getByTestId("item-max").first().fill("-12");
+    await revealItemSettings(
+      page.getByTestId("item-severity-critical").first(),
+    );
     await page.getByTestId("item-severity-critical").first().click();
 
+    await revealItemSettings(page.getByTestId("item-schedule-chip").first());
     await page
       .locator('[data-testid="item-schedule-chip"][data-live="true"]')
       .first()

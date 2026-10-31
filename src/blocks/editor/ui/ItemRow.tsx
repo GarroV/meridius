@@ -75,8 +75,12 @@ export interface ItemRowProps {
   readonly onTitle: (text: string) => void;
   readonly onPatch: (patch: Partial<Item>) => void;
   readonly onRemove: () => void;
-  readonly onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
-  readonly onPaste: (event: ClipboardEvent<HTMLInputElement>) => void;
+  readonly onKeyDown: (
+    event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => void;
+  readonly onPaste: (
+    event: ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => void;
 }
 
 export function itemInputId(itemId: string): string {
@@ -108,12 +112,12 @@ export function itemInputId(itemId: string): string {
  * месту делал высоту строки зависящей от длины регулярности пункта.
  */
 const ROW_CLASS =
-  "grid grid-cols-[28px_minmax(0,1fr)] items-center gap-[var(--space-5)] px-[var(--space-6)] py-[var(--space-4)] @[56rem]/item:grid-cols-[28px_minmax(0,1fr)_auto]";
+  "grid grid-cols-[28px_minmax(0,1fr)] items-start gap-[var(--space-5)] px-[var(--space-6)] py-[var(--space-4)]";
 /** Линия под строкой. У табличного пункта она уезжает под панель колонок: панель —
     продолжение той же строки, а не соседняя. */
 const ROW_LINE_CLASS = "border-b border-[var(--line)]";
 const TITLE_CLASS =
-  "text-ink h-[var(--control-h)] w-full rounded-[var(--r-control)] border border-transparent bg-transparent pl-[var(--space-3)] text-[length:var(--fs-lead)] hover:border-[var(--line)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
+  "text-ink min-h-[var(--tap-min)] resize-y [field-sizing:content] w-full rounded-[var(--r-control)] border border-transparent bg-transparent pl-[var(--space-3)] text-[length:var(--fs-lead)] hover:border-[var(--line)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const SELECT_CLASS =
   "text-ink bg-surface h-[var(--control-h-sm)] w-auto rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-4)] text-[length:var(--fs-dense)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const BOUND_CLASS =
@@ -270,160 +274,160 @@ export function ItemRow({
           {ordinal}
         </div>
 
-        <input
+        <textarea
+          rows={2}
           id={itemInputId(item.id)}
           data-testid="item-title"
           className={TITLE_CLASS}
           value={pickEditorText(item.title, locale)}
           placeholder={t("placeholder")}
           aria-label={t("placeholder")}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => {
+          onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
             onTitle(event.target.value);
           }}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
         />
 
-        {/* Раскладку строки выбирает ширина САМОЙ строки (контейнер `item`), а не
-          окна: рядом стоят колонка чек-листов и колонка версий, и при окне 1440 px
-          строке остаётся около 700 px. Раньше управление переносилось по месту, и
-          высота зависела от содержимого: длинная регулярность («08:00–23:00, каждый
-          час») уносила «×» на вторую строку, короткая («Один раз») — нет. Теперь
-          правило одно на все пункты: строка шире 56rem — всё в одну линию, уже —
-          название сверху целиком, управление под ним. */}
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-[var(--space-4)] @max-[56rem]/item:col-span-2 @max-[56rem]/item:justify-start @[56rem]/item:flex-nowrap">
-          <select
-            data-testid="item-type"
-            className={`${SELECT_CLASS} pr-[var(--space-8)]`}
-            style={SELECT_ARROW_SMALL}
-            value={item.type}
-            aria-label={t("typeBool")}
-            onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-              onPatch({ type: event.target.value as ItemType });
-            }}
-          >
-            {types.map((type) => (
-              <option key={type} value={type}>
-                {t(typeKey(type))}
-              </option>
-            ))}
-          </select>
+        {/* Настройки раскрываются отдельно и не отнимают ширину у формулировки. */}
+        <details className="col-span-2 min-w-0">
+          <summary className="cursor-pointer text-[length:var(--fs-meta)] text-[var(--ink-2)]">
+            {t("settings")} · {t(typeKey(item.type))} · {t(severity)}
+          </summary>
+          <div className="flex flex-wrap items-center gap-[var(--space-4)] py-[var(--space-4)]">
+            <select
+              data-testid="item-type"
+              className={`${SELECT_CLASS} pr-[var(--space-8)]`}
+              style={SELECT_ARROW_SMALL}
+              value={item.type}
+              aria-label={t("typeBool")}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                onPatch({ type: event.target.value as ItemType });
+              }}
+            >
+              {types.map((type) => (
+                <option key={type} value={type}>
+                  {t(typeKey(type))}
+                </option>
+              ))}
+            </select>
 
-          {item.type === "number" ? (
-            <span className="flex items-center gap-[var(--space-3)] text-[length:var(--fs-meta)] text-[var(--ink-3)]">
-              {t("from")}
-              <input
-                data-testid="item-min"
-                className={BOUND_CLASS}
-                inputMode="decimal"
-                aria-label={t("min")}
-                value={minRaw}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  setMinRaw(event.target.value);
-                }}
-              />
-              {t("to")}
-              <input
-                data-testid="item-max"
-                className={BOUND_CLASS}
-                inputMode="decimal"
-                aria-label={t("max")}
-                value={maxRaw}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  setMaxRaw(event.target.value);
-                }}
-              />
-              {/* Единица измерения (D110): свободный текст методиста, а не список,
+            {item.type === "number" ? (
+              <span className="flex items-center gap-[var(--space-3)] text-[length:var(--fs-meta)] text-[var(--ink-3)]">
+                {t("from")}
+                <input
+                  data-testid="item-min"
+                  className={BOUND_CLASS}
+                  inputMode="decimal"
+                  aria-label={t("min")}
+                  value={minRaw}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                    setMinRaw(event.target.value);
+                  }}
+                />
+                {t("to")}
+                <input
+                  data-testid="item-max"
+                  className={BOUND_CLASS}
+                  inputMode="decimal"
+                  aria-label={t("max")}
+                  value={maxRaw}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                    setMaxRaw(event.target.value);
+                  }}
+                />
+                {/* Единица измерения (D110): свободный текст методиста, а не список,
                 зашитый в код, — набор зависит от станции, а не от разработчика.
                 Пустое значение законно и означает «без единицы». Через `onPatch`,
                 как границы: отдельного прохода через `onTitle` не нужно, а строка
                 правится тем же приёмом, что уже есть у этого пункта. */}
-              <input
-                data-testid="item-unit"
-                className={UNIT_CLASS}
-                aria-label={t("unit")}
-                placeholder={t("unitPlaceholder")}
-                value={pickEditorText(item.unit, locale)}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  onPatch({
-                    unit: { ...item.unit, [locale]: event.target.value },
-                  });
-                }}
-              />
-            </span>
-          ) : null}
-
-          <span
-            data-testid="item-severity"
-            role="group"
-            aria-label={t("severityLabel")}
-            className="inline-flex gap-[2px] rounded-[var(--r-control)] bg-[var(--seg-track)] p-[2px] whitespace-nowrap"
-          >
-            {SEVERITIES.map((level) => (
-              <label
-                key={level}
-                className="cursor-pointer"
-                data-testid={`item-severity-${level}`}
-                data-selected={severity === level ? "true" : "false"}
-              >
                 <input
-                  type="radio"
-                  name={`severity-${item.id}`}
-                  value={level}
-                  checked={severity === level}
-                  onChange={() => {
-                    onPatch({ severity: level });
+                  data-testid="item-unit"
+                  className={UNIT_CLASS}
+                  aria-label={t("unit")}
+                  placeholder={t("unitPlaceholder")}
+                  value={pickEditorText(item.unit, locale)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                    onPatch({
+                      unit: { ...item.unit, [locale]: event.target.value },
+                    });
                   }}
-                  className="peer sr-only"
                 />
-                <span
-                  className={`inline-flex h-[19px] items-center rounded-[var(--r-mark)] px-[var(--space-4)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] uppercase transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-[var(--accent)] ${
-                    severity === level
-                      ? SEVERITY_TONE[level]
-                      : // Не `--ink-3`: на дорожке `--seg-track` он даёт 4,4:1 — ниже
-                        // порога. `--ink-2` даёт 4,7:1 и не спорит с выбранным положением,
-                        // которое отличается фоном и тенью, а не только цветом подписи.
-                        "text-[var(--ink-2)]"
-                  }`}
-                >
-                  {t(level)}
-                </span>
-              </label>
-            ))}
-          </span>
+              </span>
+            ) : null}
 
-          {/* Порядок управления в строке взят у эталона (`design/screens/editor.html`,
+            <span
+              data-testid="item-severity"
+              role="group"
+              aria-label={t("severityLabel")}
+              className="inline-flex gap-[2px] rounded-[var(--r-control)] bg-[var(--seg-track)] p-[2px] whitespace-nowrap"
+            >
+              {SEVERITIES.map((level) => (
+                <label
+                  key={level}
+                  className="cursor-pointer"
+                  data-testid={`item-severity-${level}`}
+                  data-selected={severity === level ? "true" : "false"}
+                >
+                  <input
+                    type="radio"
+                    name={`severity-${item.id}`}
+                    value={level}
+                    checked={severity === level}
+                    onChange={() => {
+                      onPatch({ severity: level });
+                    }}
+                    className="peer sr-only"
+                  />
+                  <span
+                    className={`inline-flex h-[19px] items-center rounded-[var(--r-mark)] px-[var(--space-4)] text-[length:var(--fs-micro)] font-semibold tracking-[var(--tracking-micro)] uppercase transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-1 peer-focus-visible:outline-[var(--accent)] ${
+                      severity === level
+                        ? SEVERITY_TONE[level]
+                        : // Не `--ink-3`: на дорожке `--seg-track` он даёт 4,4:1 — ниже
+                          // порога. `--ink-2` даёт 4,7:1 и не спорит с выбранным положением,
+                          // которое отличается фоном и тенью, а не только цветом подписи.
+                          "text-[var(--ink-2)]"
+                    }`}
+                  >
+                    {t(level)}
+                  </span>
+                </label>
+              ))}
+            </span>
+
+            {/* Порядок управления в строке взят у эталона (`design/screens/editor.html`,
             `.editor-item__ctl`): тип → диапазон → важность → регулярность → «×».
             Прежде чип стоял ПЕРЕД важностью — расхождение было молчаливым, а эталон
             каноничен для того, что на экране (`spec.md`, «Граница со экранным эталоном»).
             Довод прежнего порядка («сперва род ответа, потом как часто его дают, и
             только потом вес пункта») предпочтением и остался: требованием он не был. */}
-          {/* Табличный пункт расписания не имеет ни в каком виде: `parseItem`
+            {/* Табличный пункт расписания не имеет ни в каком виде: `parseItem`
             отвергает его, и чип обещал бы настройку, которой не бывает. */}
-          {/* Будильник — тоже: его ставят один раз, когда пункт открыли (D070, D156). */}
-          {item.type === "table" || showAlarm ? null : schedule !==
-            undefined ? (
-            <ScheduleChip
-              item={item}
-              window={schedule.window}
-              live={schedule.live}
-              onApply={schedule.onApply}
-              onApplyToSection={schedule.onApplyToSection}
-            />
-          ) : (
-            scheduleView
-          )}
+            {/* Будильник — тоже: его ставят один раз, когда пункт открыли (D070, D156). */}
+            {item.type === "table" || showAlarm ? null : schedule !==
+              undefined ? (
+              <ScheduleChip
+                item={item}
+                window={schedule.window}
+                live={schedule.live}
+                onApply={schedule.onApply}
+                onApplyToSection={schedule.onApplyToSection}
+              />
+            ) : (
+              scheduleView
+            )}
 
-          <button
-            type="button"
-            data-testid="item-remove"
-            aria-label={t("remove")}
-            className="text-err flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] hover:border-[var(--err-line)] hover:bg-[var(--err-soft)] @max-[56rem]/item:ml-auto"
-            onClick={onRemove}
-          >
-            ×
-          </button>
-        </div>
+            <button
+              type="button"
+              data-testid="item-remove"
+              aria-label={t("remove")}
+              className="text-err flex h-[var(--control-h-sm)] cursor-pointer items-center rounded-[var(--r-control)] border border-transparent bg-transparent px-[var(--space-5)] hover:border-[var(--err-line)] hover:bg-[var(--err-soft)] @max-[56rem]/item:ml-auto"
+              onClick={onRemove}
+            >
+              ×
+            </button>
+          </div>
+        </details>
       </div>
 
       {showColumns ? (

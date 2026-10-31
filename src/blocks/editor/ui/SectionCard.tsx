@@ -77,11 +77,11 @@ export interface SectionCardProps {
   readonly onRemoveItem: (itemId: string) => void;
   readonly onItemKeyDown: (
     itemId: string,
-    event: KeyboardEvent<HTMLInputElement>,
+    event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => void;
   readonly onItemPaste: (
     itemId: string,
-    event: ClipboardEvent<HTMLInputElement>,
+    event: ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => void;
   readonly onPasteText: (text: string) => void;
 }

@@ -230,7 +230,10 @@
       "saved": "Draft saved",
       "published": "Version {number} published",
       "notFound": "Checklist not found",
-      "crumbsTemplates": "Templates"
+      "crumbsTemplates": "Templates",
+      "unsaved": "Unsaved changes",
+      "leave": "Changes are not saved. Leave this page?",
+      "tools": "Versions and library"
     },
     "section": {
       "titlePlaceholder": "Section title",
@@ -270,7 +273,8 @@
       "moveDown": "Down",
       "normal": "Normal",
       "major": "Major",
-      "severityLabel": "How critical the item is"
+      "severityLabel": "How critical the item is",
+      "settings": "Item settings"
     },
     "alarm": {
       "label": "Alarm label",
@@ -1041,7 +1045,8 @@
       "openScreen": "Open the code on a tablet"
     },
     "pairing": {
-      "factReissue": "Reissuing the QR sticker does not touch the tablet pairing. They are different things: the sticker is an address for phones, the pairing is the tablet itself."
+      "factReissue": "Reissuing the QR sticker does not touch the tablet pairing. They are different things: the sticker is an address for phones, the pairing is the tablet itself.",
+      "help": "How to pair a tablet"
     },
     "rollout": {
       "label": "Roll out a template",
@@ -1091,7 +1096,21 @@
     "statsHint": "Numbers for a period — submissions, failures, time — are in",
     "statsLink": "Statistics",
     "alarmsMore": "{count, plural, one {# more alarm} other {# more alarms}} — in Statistics",
-    "alarmsMoreUncounted": "More alarms than fit here — see Statistics"
+    "alarmsMoreUncounted": "More alarms than fit here — see Statistics",
+    "country": "Country",
+    "show": "Show",
+    "todayHint": "Today, in each pizzeria’s local time",
+    "partial": "Some data is not shown. Open pizzeria statistics for details.",
+    "notConfigured": "Checklists not configured",
+    "filled": "Completed: {count}",
+    "open": "Available now: {count}",
+    "missed": "Not completed in time: {count}",
+    "upcoming": "Scheduled later: {count}",
+    "notExpected": "Not required this shift: {count}",
+    "unknown": "Time could not be determined: {count}",
+    "remarks": "Submissions with critical remarks: {count}",
+    "details": "Details",
+    "noStores": "No pizzerias in this country yet."
   },
   "partners": {
     "title": "Partners",

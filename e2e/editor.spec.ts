@@ -1,3 +1,4 @@
+import { revealItemSettings } from "./item-settings";
 // Сквозной сценарий редактора: то, ради чего блок и строился. Чек-лист набирается
 // с клавиатуры, список вставляется из буфера одним нажатием, черновик сохраняется,
 // версия публикуется, предпросмотр показывает то же, что увидит сотрудник.
@@ -228,6 +229,9 @@ async function insertBlockByTitle(page: Page, title: string): Promise<void> {
  * нажатия, что у кнопки «Вставить блок» (T121).
  */
 async function openSchedule(page: Page, itemIndex: number): Promise<void> {
+  await revealItemSettings(
+    page.getByTestId("item-schedule-chip").nth(itemIndex),
+  );
   await page
     .locator('[data-testid="item-schedule-chip"][data-live="true"]')
     .nth(itemIndex)
@@ -350,12 +354,16 @@ test.describe("редактор чек-листа", () => {
     await items.first().click();
     await page.keyboard.type("Температура фритюра");
 
+    await revealItemSettings(page.getByTestId("item-type").first());
     await page.getByTestId("item-type").first().selectOption("number");
     await page.getByTestId("item-min").first().fill("160");
     await page.getByTestId("item-max").first().fill("180");
     // Единица измерения (D110): свободный текст методиста, не список из кода.
     await page.getByTestId("item-unit").first().fill("°C");
     // Переключатель уровня: три положения вместо тумблера критичности (D056).
+    await revealItemSettings(
+      page.getByTestId("item-severity-critical").first(),
+    );
     await page.getByTestId("item-severity-critical").first().click();
 
     await expect(page.getByTestId("editor-item").first()).toHaveAttribute(
@@ -405,6 +413,7 @@ test.describe("редактор чек-листа", () => {
 
     await page.getByTestId("item-title").first().click();
     await page.keyboard.type("Морозильник");
+    await revealItemSettings(page.getByTestId("item-type").first());
     await page.getByTestId("item-type").first().selectOption("number");
 
     const min = page.getByTestId("item-min").first();
@@ -436,6 +445,7 @@ test.describe("редактор чек-листа", () => {
 
     await page.getByTestId("item-title").first().click();
     await page.keyboard.type("Журнал замесов");
+    await revealItemSettings(page.getByTestId("item-type").first());
     await page.getByTestId("item-type").first().selectOption("table");
 
     // Первая колонка заводится вместе с типом: курсору сразу есть куда встать.
@@ -488,6 +498,11 @@ test.describe("редактор чек-листа", () => {
     await page.getByTestId("attach-checklist").click();
     await expect(page.getByTestId("attached-checklist")).toContainText(title);
     await page.goto(editorUrl);
+    await page
+      .getByTestId("station-notice")
+      .locator("xpath=ancestor::details[1]")
+      .locator(":scope > summary")
+      .click();
     await expect(page.getByTestId("station-notice")).toContainText(
       station.stationName,
     );

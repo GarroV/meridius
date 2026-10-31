@@ -96,7 +96,7 @@ export function BlockEditor(props: BlockEditorProps) {
 
   function handleKeyDown(
     itemId: string,
-    event: KeyboardEvent<HTMLInputElement>,
+    event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ): void {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -118,7 +118,7 @@ export function BlockEditor(props: BlockEditorProps) {
 
   function handlePaste(
     itemId: string,
-    event: ClipboardEvent<HTMLInputElement>,
+    event: ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ): void {
     const text = event.clipboardData.getData("text/plain");
     // Одна строка — обычная вставка текста в поле: перехватывать её незачем.

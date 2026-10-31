@@ -1,3 +1,4 @@
+import { revealItemSettings } from "./item-settings";
 // Будильник как пункт чек-листа (D156, T317): одна цепочка целиком — составитель
 // закладывает будильник в редакторе, пункт доезжает до опубликованной версии, на
 // станции он показан кнопкой «Поставить будильник» с подставленными подписью и
@@ -87,6 +88,7 @@ test.describe("будильник как пункт чек-листа", () => {
     await expect(page.getByTestId("editor-screen")).toBeVisible();
 
     await page.getByTestId("item-title").first().fill(ITEM);
+    await revealItemSettings(page.getByTestId("item-type").first());
     await page.getByTestId("item-type").first().selectOption("alarm");
     await page.getByTestId("item-alarm-label").fill(LABEL);
     await page.getByTestId("item-alarm-after").fill(String(DELAY_MINUTES));

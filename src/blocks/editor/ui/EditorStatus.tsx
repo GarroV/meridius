@@ -19,10 +19,12 @@ const WARN_CLASS =
  */
 export function EditorStatus({
   versions,
+  dirty,
   saveState,
   publishState,
 }: {
   readonly versions: readonly VersionSummary[];
+  readonly dirty: boolean;
   readonly saveState: EditorActionState;
   readonly publishState: EditorActionState;
 }) {
@@ -49,6 +51,29 @@ export function EditorStatus({
       </span>
     );
   }
+
+  const publishedMeta =
+    published === undefined
+      ? t("screen.neverPublished")
+      : t("screen.publishedMeta", {
+          number: published.versionNumber ?? 0,
+          date:
+            published.publishedAt === null
+              ? ""
+              : format.dateTime(published.publishedAt, {
+                  day: "numeric",
+                  month: "long",
+                }),
+        });
+  if (dirty)
+    return (
+      <>
+        <span role="status" className={WARN_CLASS}>
+          {t("screen.unsaved")}
+        </span>
+        <span className={META_CLASS}>{publishedMeta}</span>
+      </>
+    );
 
   if (publishState.status === "published") {
     const closed = publishState.closedWindow;
@@ -92,19 +117,8 @@ export function EditorStatus({
       <span className={TAG_DRAFT}>{t("screen.draftTag")}</span>
       <span data-testid="editor-meta" className={META_CLASS}>
         {saveState.status === "saved"
-          ? t("screen.saved")
-          : published === undefined
-            ? t("screen.neverPublished")
-            : t("screen.publishedMeta", {
-                number: published.versionNumber ?? 0,
-                date:
-                  published.publishedAt === null
-                    ? ""
-                    : format.dateTime(published.publishedAt, {
-                        day: "numeric",
-                        month: "long",
-                      }),
-              })}
+          ? `${t("screen.saved")} · ${publishedMeta}`
+          : publishedMeta}
       </span>
     </>
   );

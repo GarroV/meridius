@@ -9,12 +9,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useRef, useState } from "react";
-import type {
-  ClipboardEvent,
-  KeyboardEvent,
-  ReactNode,
-  RefObject,
-} from "react";
+import type { ClipboardEvent, KeyboardEvent, ReactNode } from "react";
 
 import { ADMIN_CONTENT_CLASS } from "@/blocks/core/ui/admin-frame";
 import { useLive } from "@/blocks/core/ui/use-live";
@@ -125,6 +120,44 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
     INITIAL_EDITOR_STATE,
   );
 
+  const snapshot = JSON.stringify({ title, window, sections });
+  const [savedSnapshot, setSavedSnapshot] = useState(snapshot);
+  const submittedSnapshot = useRef(snapshot);
+  const dirty = snapshot !== savedSnapshot;
+  useEffect(() => {
+    if (saveState.status === "saved" || publishState.status === "published") {
+      setSavedSnapshot(submittedSnapshot.current);
+    }
+  }, [saveState, publishState]);
+  useEffect(() => {
+    if (!dirty) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    const beforeLink = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return;
+      const link = event.target.closest("a");
+      if (link === null || link.target === "_blank") return;
+      const url = new URL(link.href, globalThis.location.href);
+      const here = globalThis.location.pathname;
+      if (
+        url.origin === globalThis.location.origin &&
+        (url.pathname === here || url.pathname.startsWith(`${here}/`))
+      )
+        return;
+      if (!globalThis.confirm(t("screen.leave"))) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
+    globalThis.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("click", beforeLink, true);
+    return () => {
+      globalThis.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", beforeLink, true);
+    };
+  }, [dirty, t]);
+
   // Курсор идёт за пунктом: после Enter — в новый, после Alt+стрелки — за переставленным.
   useEffect(() => {
     if (focusItemId === null) return;
@@ -147,7 +180,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
   function handleKeyDown(
     sectionId: string,
     itemId: string,
-    event: KeyboardEvent<HTMLInputElement>,
+    event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ): void {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -182,7 +215,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
   function handlePaste(
     sectionId: string,
     itemId: string,
-    event: ClipboardEvent<HTMLInputElement>,
+    event: ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>,
   ): void {
     const text = event.clipboardData.getData("text/plain");
     // Одна строка — обычная вставка текста в поле: перехватывать её незачем.
@@ -198,7 +231,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
     setPickingBlock(false);
   }
 
-  const [headRef, headHeight] = useHeight<HTMLElement>();
+  const headRef = useRef<HTMLElement>(null);
   const total = itemCount(sections);
   let ordinal = 0;
 
@@ -222,6 +255,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
         <div className="ml-auto flex flex-wrap items-center gap-[var(--space-4)] max-md:ml-0 max-md:w-full">
           <EditorStatus
             versions={props.versions}
+            dirty={dirty}
             saveState={saveState}
             publishState={publishState}
           />
@@ -234,7 +268,12 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
           >
             {t("screen.preview")}
           </Link>
-          <form action={saveAction}>
+          <form
+            action={saveAction}
+            onSubmit={() => {
+              submittedSnapshot.current = snapshot;
+            }}
+          >
             <HiddenState
               checklistId={props.checklistId}
               locale={locale}
@@ -246,12 +285,17 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               type="submit"
               data-testid="save-draft"
               className={BUTTON_CLASS}
-              disabled={saving}
+              disabled={saving || publishing}
             >
               {saving ? t("screen.saving") : t("screen.save")}
             </button>
           </form>
-          <form action={publishAction}>
+          <form
+            action={publishAction}
+            onSubmit={() => {
+              submittedSnapshot.current = snapshot;
+            }}
+          >
             <HiddenState
               checklistId={props.checklistId}
               locale={locale}
@@ -263,7 +307,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
               type="submit"
               data-testid="publish"
               className={PRIMARY_BUTTON_CLASS}
-              disabled={publishing}
+              disabled={publishing || saving}
             >
               {publishing
                 ? t("screen.publishing")
@@ -281,7 +325,7 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
         {/* Правая колонка уходит вниз по ширине РАБОЧЕЙ ЗОНЫ, а не окна: с D162 слева
             стоит колонка чек-листов, и на окне 1280 px секциям при правой колонке
             оставалось 440 px — длинное название секции обрезалось посреди слова. */}
-        <div className="grid items-start gap-[var(--space-8)] [grid-template-columns:minmax(0,1fr)_268px] @max-5xl:[grid-template-columns:1fr]">
+        <div className="flex min-w-0 flex-col gap-[var(--space-8)]">
           <div>
             {props.origin}
             <PropertiesCard
@@ -437,24 +481,24 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
             </div>
           </div>
 
-          <aside
-            style={{ top: `calc(${String(headHeight)}px + var(--space-9))` }}
-            className="sticky flex w-[268px] flex-col gap-[var(--space-6)] self-start @max-5xl:static @max-5xl:w-full"
-          >
-            <VersionsPanel versions={props.versions} />
-            <LibraryPanel
-              library={props.library}
-              insertedBlockIds={insertedBlockIds}
-              locale={locale}
-              onInsert={insertBlock}
-            />
-            {/* У шаблона станции не бывает: подсказка о станции звала бы туда, куда
+          <details className="w-full">
+            <summary className={BUTTON_CLASS}>{t("screen.tools")}</summary>
+            <div className="grid gap-[var(--space-6)] pt-[var(--space-6)] md:grid-cols-2">
+              <VersionsPanel versions={props.versions} />
+              <LibraryPanel
+                library={props.library}
+                insertedBlockIds={insertedBlockIds}
+                locale={locale}
+                onInsert={insertBlock}
+              />
+              {/* У шаблона станции не бывает: подсказка о станции звала бы туда, куда
                 шаблону нельзя (D154). Повесить чек-лист на станцию и привязать планшет
                 можно только в разделе «Станции» (T312, D163) — подсказка ведёт туда. */}
-            {props.isTemplate ? null : (
-              <StationNotice station={props.station} window={window} />
-            )}
-          </aside>
+              {props.isTemplate ? null : (
+                <StationNotice station={props.station} window={window} />
+              )}
+            </div>
+          </details>
         </div>
       </div>
     </div>
@@ -503,28 +547,4 @@ function HiddenState({
       <input type="hidden" name="sections" value={JSON.stringify(sections)} />
     </>
   );
-}
-
-// Шапка редактора (название, статус, «Сохранить» и «Опубликовать») прилипает к верху:
-// чек-лист длинный, и без неё кнопки сохранения уезжали за край. Боковая колонка тоже
-// липкая, поэтому ей нужна настоящая высота шапки — а шапка переносится и на узком
-// экране становится выше. Высота меряется, а не угадывается константой, и уходит
-// колонке прямо в `top`: своя переменная CSS не прошла бы сторож токенов.
-
-function useHeight<T extends HTMLElement>(): [RefObject<T | null>, number] {
-  const ref = useRef<T>(null);
-  const [height, setHeight] = useState(0);
-  useEffect(() => {
-    const node = ref.current;
-    if (node === null) return;
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry !== undefined)
-        setHeight(entry.borderBoxSize[0]?.blockSize ?? 0);
-    });
-    observer.observe(node);
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-  return [ref, height];
 }

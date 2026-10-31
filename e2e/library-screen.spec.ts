@@ -1,3 +1,4 @@
+import { revealItemSettings } from "./item-settings";
 // Экран библиотеки блоков охраняем от двух дефектов, которые только что чинились и
 // умеют возвращаться.
 //
@@ -334,6 +335,7 @@ test.describe("чип регулярности ничего не обещает 
     // На экране библиотеки чип-показ один на пункт (в отличие от редактора чек-листа,
     // где рядом может стоять панель библиотеки с тем же testid чужого чипа).
     const chip = page.locator('[data-testid="item-schedule-chip"]').first();
+    await revealItemSettings(chip);
     await expect(chip).toBeVisible();
 
     // 1. Не кнопка и не фокусируемый элемент.
@@ -422,6 +424,7 @@ test.describe("чип регулярности ничего не обещает 
     const chip = page
       .locator('[data-testid="item-schedule-chip"][data-live="true"]')
       .first();
+    await revealItemSettings(chip);
     await expect(chip).toBeVisible();
 
     await expect(chip).toHaveJSProperty("tagName", "BUTTON");

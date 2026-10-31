@@ -73,7 +73,7 @@ const STORE_CLASS =
 const LINK_CLASS =
   "flex min-w-0 flex-1 flex-col gap-[var(--space-1)] rounded-[var(--r-mark)] text-[inherit] no-underline hover:text-[inherit] hover:no-underline focus-visible:shadow-[0_0_0_2px_var(--accent)] focus-visible:outline-none";
 const GAP_CLASS =
-  "text-err rounded-[var(--r-mark)] bg-[var(--err-soft)] px-[var(--space-3)] text-[length:var(--fs-meta)] font-medium";
+  "text-[var(--ink-2)] rounded-[var(--r-mark)] bg-[var(--surface-3)] px-[var(--space-3)] text-[length:var(--fs-meta)] font-medium";
 const EMPTY_CLASS =
   "px-[var(--space-5)] py-[var(--space-8)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)] text-[var(--ink-2)]";
 

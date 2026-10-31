@@ -1,3 +1,4 @@
+import { revealItemSettings } from "./item-settings";
 // Сквозной сценарий библиотеки переиспользуемых блоков: заведение блока, явная пометка
 // «нигде не используется», появление ссылки на чек-лист после вставки, изменение сводки
 // после публикации и переход секции из связанной в обычную при отвязке.
@@ -215,6 +216,7 @@ test.describe("библиотека переиспользуемых блоко�
     const chip = page.getByTestId("item-schedule-chip");
     await expect(chip).toHaveCount(1);
     await expect(chip).toHaveAttribute("data-kind", "none");
+    await revealItemSettings(chip);
     await expect(chip).toHaveText("Один раз");
   });
 
@@ -242,6 +244,7 @@ test.describe("библиотека переиспользуемых блоко�
     const chip = editor.getByTestId("item-schedule-chip");
     await expect(chip).toHaveCount(1);
     await expect(chip).toHaveAttribute("data-kind", "every");
+    await revealItemSettings(chip);
     await expect(chip).toHaveText("каждые 2 часа");
 
     // Главное утверждение сценария: часы окна на экране блока не показываются ни в
