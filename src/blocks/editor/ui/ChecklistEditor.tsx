@@ -125,10 +125,15 @@ export function ChecklistEditor(props: ChecklistEditorProps) {
   const submittedSnapshot = useRef(snapshot);
   const dirty = snapshot !== savedSnapshot;
   useEffect(() => {
-    if (saveState.status === "saved" || publishState.status === "published") {
+    if (saveState.status === "saved") {
       setSavedSnapshot(submittedSnapshot.current);
     }
-  }, [saveState, publishState]);
+  }, [saveState]);
+  useEffect(() => {
+    if (publishState.status === "published") {
+      setSavedSnapshot(submittedSnapshot.current);
+    }
+  }, [publishState]);
   useEffect(() => {
     if (!dirty) return;
     const beforeUnload = (event: BeforeUnloadEvent) => {
