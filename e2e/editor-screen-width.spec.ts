@@ -1,4 +1,3 @@
-import { revealItemSettings } from "./item-settings";
 // Экран редактора обязан помещаться в окно — и на телефоне, и когда строка пункта
 // нагружена всем сразу (T211 дефект #87, T222 дефект #99).
 //
@@ -12,8 +11,10 @@ import { revealItemSettings } from "./item-settings";
 //
 // `admin-mobile.spec.ts` сюда не годится: он про каркас кабинета и его шесть разделов,
 // а экран редактора — не раздел, он лежит глубже и рисует свою колонку сам.
+
 import { expect, test, type Page } from "@playwright/test";
 
+import { revealItemSettings } from "./item-settings";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 
 /** Телефон из решения D092 — самая узкая ширина, на которой продукт обязан работать. */

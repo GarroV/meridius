@@ -1,4 +1,3 @@
-import { revealItemSettings } from "./item-settings";
 // Экран библиотеки блоков охраняем от двух дефектов, которые только что чинились и
 // умеют возвращаться.
 //
@@ -20,6 +19,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { revealItemSettings } from "./item-settings";
 import { themeTokens } from "../src/blocks/core/design-reference";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 

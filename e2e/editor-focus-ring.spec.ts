@@ -1,4 +1,3 @@
-import { revealItemSettings } from "./item-settings";
 // Кольцо фокуса на ПОЛЯХ редактора видно человеку (T284).
 //
 // Дефект был ровно противоположен тому, что ловил `focus-ring.spec.ts` на кнопках. Там
@@ -27,6 +26,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { revealItemSettings } from "./item-settings";
 import { THEME_COOKIE_NAME } from "../src/blocks/core/theme";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 

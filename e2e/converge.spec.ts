@@ -1,4 +1,3 @@
-import { revealItemSettings } from "./item-settings";
 // ОДНА цепочка целиком: критерий готовности 3 спеки, от пустого справочника до ленты.
 //
 // Зачем отдельный файл, когда сквозных сценариев уже тридцать шесть. Те нарезаны по
@@ -20,6 +19,7 @@ import { revealItemSettings } from "./item-settings";
 import { expect, test } from "@playwright/test";
 import type { Browser, Page } from "@playwright/test";
 
+import { revealItemSettings } from "./item-settings";
 import { decodeQrSvg } from "../src/blocks/qr/testing/decode-svg";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 

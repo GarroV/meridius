@@ -1,4 +1,3 @@
-import { revealItemSettings } from "./item-settings";
 // Сквозной сценарий редактора: то, ради чего блок и строился. Чек-лист набирается
 // с клавиатуры, список вставляется из буфера одним нажатием, черновик сохраняется,
 // версия публикуется, предпросмотр показывает то же, что увидит сотрудник.
@@ -9,6 +8,7 @@ import { revealItemSettings } from "./item-settings";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { revealItemSettings } from "./item-settings";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { seedStation } from "./database";
 

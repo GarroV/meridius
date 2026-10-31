@@ -1,4 +1,3 @@
-import { revealItemSettings } from "./item-settings";
 // Будильник как пункт чек-листа (D156, T317): одна цепочка целиком — составитель
 // закладывает будильник в редакторе, пункт доезжает до опубликованной версии, на
 // станции он показан кнопкой «Поставить будильник» с подставленными подписью и
@@ -10,8 +9,10 @@ import { revealItemSettings } from "./item-settings";
 // `fill/validation.test.ts`, `fill/answers.test.ts`); здесь то, чего они не видят:
 // что поля редактора пишут разметку, а экран станции её читает и ставит будильник
 // серверным действием.
+
 import { expect, test, type Page } from "@playwright/test";
 
+import { revealItemSettings } from "./item-settings";
 import { stationScanUrl } from "../src/blocks/qr/scan-url";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { e2eDatabaseUrl } from "./database";

@@ -1,4 +1,3 @@
-import { revealItemSettings } from "./item-settings";
 // Сквозной сценарий библиотеки переиспользуемых блоков: заведение блока, явная пометка
 // «нигде не используется», появление ссылки на чек-лист после вставки, изменение сводки
 // после публикации и переход секции из связанной в обычную при отвязке.
@@ -11,6 +10,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { Pool } from "pg";
 
+import { revealItemSettings } from "./item-settings";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { e2eDatabaseUrl } from "./database";
 
