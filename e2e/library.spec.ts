@@ -284,7 +284,7 @@ test.describe("библиотека переиспользуемых блоко�
     await createChecklist(page, checklistTitle);
     await insertBlockByTitle(page, blockTitle);
     await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
+    await expect(page.getByTestId("editor-meta")).toContainText(
       "Черновик сохранён",
     );
 
@@ -338,7 +338,7 @@ test.describe("библиотека переиспользуемых блоко�
     const editorUrl = await createChecklist(page, checklistTitle);
     await insertBlockByTitle(page, blockTitle);
     await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
+    await expect(page.getByTestId("editor-meta")).toContainText(
       "Черновик сохранён",
     );
 

@@ -182,3 +182,24 @@ docker image rm meridius-tools
 Код: `git checkout <прошлый коммит>` и та же команда `up -d --build`. Миграции сами
 не откатываются: `npm run db:rollback` снимает последнюю, и делать это надо осознанно, до
 отката кода, с `DATABASE_URL` до базы площадки.
+
+## Проверка UI-выпуска 02.11.2026
+
+Принятый UI выпущен на VPS сборкой `0438987` (PR #234). Внешняя проверка без сохранений в базе:
+
+```sh
+PRODUCTION_URL=https://meridius.vasiliy-garro.workers.dev \
+PRODUCTION_SESSION_FILE=<приватный файл с короткоживущей сессией> \
+CHROME_FOR_TESTING=<исполняемый файл Chrome for Testing> \
+node scripts/production-ui-smoke.mjs
+```
+
+Сессия проверочного браузера выпускается на сервере штатной `packSignedToken` из `core/signed-token.ts`, с форматом `auth/session.ts` и сроком 30 минут; секрет подписи не покидает сервер. Сам файл с сессией остаётся приватным и удаляется после проверки. Проверяются главная, переход в статистику, редактор и предупреждение о правках, 375 px и обе темы; тест ничего не сохраняет. Парольный и Google-вход этим смоуком не проверяются.
+
+Перед обновлением: приватный каталог `~/backups/meridius-ui-20261102/` на VPS, дамп `database.dump` проверен `pg_restore --list`, прежний коммит и image ID сохранены. Образ отката — `meridius-app:before-ui-20261102`. Для возврата именно прежнего исполняемого образа без сборки и без изменения схемы:
+
+```sh
+cd /srv/meridius
+docker tag meridius-app:before-ui-20261102 meridius-app:latest
+docker compose -f deploy/compose.yaml -f deploy/compose.edge.yaml up -d --no-build --no-deps --wait app
+```

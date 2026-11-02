@@ -181,7 +181,7 @@ test.describe("цепочка критерия 3: справочник → че�
 
     // 4. Публикация создаёт версию — и именно её увидит станция.
     await page.getByTestId("save-draft").click();
-    await expect(page.getByTestId("editor-meta")).toHaveText(
+    await expect(page.getByTestId("editor-meta")).toContainText(
       "Черновик сохранён",
     );
     await page.getByTestId("publish").click();

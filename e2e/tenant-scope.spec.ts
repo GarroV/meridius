@@ -224,11 +224,13 @@ const params = (entries: Record<string, string>) =>
   `?${new URLSearchParams(entries).toString()}`;
 
 const PROBES: Record<string, Probe> = {
-  // Главная (T315) показывает «моё»: имя своего чек-листа видно (строкой чек-листов или
-  // заполнений — оба несут его, проверено порчей обоих), чужие имена — нет.
+  // Главная показывает свои пиццерии; чужая страна в адресе не расширяет доступ.
   "/admin": {
-    foreign: () => ["/admin"],
-    own: ({ mine }) => ({ url: "/admin", text: mine.checklistTitle }),
+    foreign: ({ theirs }) => [
+      "/admin",
+      `/admin${params({ country: theirs.countryId })}`,
+    ],
+    own: ({ mine }) => ({ url: "/admin", text: mine.storeName }),
   },
   "/admin/[...unknown]": { foreign: () => ["/admin/sample"] },
   "/admin/catalog": {

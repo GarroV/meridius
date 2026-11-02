@@ -81,6 +81,11 @@ test.describe("раздел «Шаблоны»", () => {
     // Открылась копия, а не сам шаблон: у копии другой адрес и есть подсказка о
     // станции — копию, в отличие от шаблона, вешают на станцию.
     await expect(page).not.toHaveURL(new RegExp(templateId));
+    await page
+      .getByTestId("station-notice")
+      .locator("xpath=ancestor::details[1]")
+      .locator(":scope > summary")
+      .click();
     await expect(page.getByTestId("station-notice")).toBeVisible();
     await expect(page.getByTestId("checklist-title")).toHaveValue(title);
     await expect(page.getByTestId("item-title").first()).toHaveValue(
