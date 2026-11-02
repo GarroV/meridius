@@ -278,6 +278,7 @@ async function createChecklist(page, catalog) {
   await waitForCount(items, 3);
   await page.keyboard.type("Check labels on the sauces");
 
+  await page.getByTestId("editor-item").nth(1).locator("summary").click();
   await page.getByTestId("item-type").nth(1).selectOption("number");
   await page.getByTestId("item-min").first().fill("160");
   await page.getByTestId("item-max").first().fill("180");
@@ -286,6 +287,7 @@ async function createChecklist(page, catalog) {
   // прежнего `item-critical` в разметке нет вовсе. Смоук на него всё ещё нажимал и
   // потому падал в редакторе — то есть сквозной сценарий не проходил с 07.09.2026,
   // и заметно это стало только когда смоук снова прогнали целиком.
+  await page.getByTestId("editor-item").nth(2).locator("summary").click();
   await page.getByTestId("item-severity-critical").nth(2).click();
   check(
     (await page
