@@ -178,57 +178,29 @@ test.describe("главная кабинета — пульт сети", () => {
   // прогона он английский.
   test.use({ locale: "ru-RU" });
 
-  test("каждая строка главной приводит туда, куда зовёт", async ({ page }) => {
+  test("пиццерия на главной открывает свою статистику", async ({ page }) => {
     const world = await seedWorkingPartner();
     await signInAs(page, world.login, PASSWORD);
     const home = page.getByTestId("admin-home");
-
-    // Призыва «с нуля» нет: чек-лист у партнёра есть, и два первых шага не спорят.
-    await expect(home.getByTestId("home-from-template")).toHaveCount(0);
-
-    // Своих цифр-итогов у главной нет (D183): ни фильтра периода, ни плиток, ни сводки.
-    await expect(home.getByTestId("feed-filters")).toHaveCount(0);
-    await expect(home.getByTestId("feed-metrics")).toHaveCount(0);
-    await expect(home.getByTestId("home-working")).toHaveCount(0);
-    // В мире партнёра ровно одна станция без чек-листа — её и считает строка.
-    await expect(home.getByTestId("home-todo-noChecklist")).toContainText("1");
-
-    // Дырка в «Что не закрыто», и её ссылка открывает «Станции» уже отфильтрованными.
-    await home.getByTestId("home-todo-noChecklist").click();
-    await expect(page).toHaveURL(/\/admin\/stations\?gap=noChecklist$/);
-    await expect(
-      page.getByTestId("master-rail").getByText(world.emptyStationName),
-    ).toBeVisible();
-    await backHome(page);
-
-    // Свой чек-лист — строкой, и она открывает его редактор.
-    await home
-      .getByTestId("home-checklists")
-      .getByRole("link", { name: new RegExp(world.checklistTitle) })
-      .click();
-    await expect(page).toHaveURL(
-      new RegExp(`/admin/checklists/${world.checklistId}$`),
-    );
-    await backHome(page);
-
-    // Цифры — в «Статистике»: ссылка ведёт туда.
-    await home.getByTestId("home-stats-link").click();
-    await expect(page).toHaveURL(/\/admin\/feed$/);
+    await expect(home.getByLabel("Страна")).toBeVisible();
+    await expect(home.getByRole("link")).toHaveCount(1);
+    await expect(home).toContainText("Заполнено: 1");
+    await home.getByRole("link").click();
+    await expect(page).toHaveURL(/\/admin\/feed\/stores\//);
     await backHome(page);
   });
 
-  test("без чек-листов — один призыв, и он ведёт в «Шаблоны»", async ({
+  test("пустая страна спокойно объясняет отсутствие пиццерий", async ({
     page,
   }) => {
     const login = await seedEmptyPartner();
     await signInAs(page, login, PASSWORD);
-    const home = page.getByTestId("admin-home");
-
-    await expect(home.getByTestId("home-checklists")).toHaveCount(0);
-
-    await home.getByTestId("home-from-template").click();
-    await expect(page).toHaveURL(/\/admin\/templates$/);
-    await expect(page.getByTestId("templates-screen")).toBeVisible();
+    await expect(page.getByTestId("admin-home")).toContainText(
+      "В этой стране пока нет пиццерий",
+    );
+    await expect(page.getByTestId("admin-home").getByRole("link")).toHaveCount(
+      0,
+    );
   });
 
   test("из главной меню ведёт в каждый раздел, а выйти по-прежнему можно", async ({

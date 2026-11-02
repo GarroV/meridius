@@ -19,6 +19,7 @@
 import { expect, test } from "@playwright/test";
 import type { Browser, Page } from "@playwright/test";
 
+import { revealItemSettings } from "./item-settings";
 import { decodeQrSvg } from "../src/blocks/qr/testing/decode-svg";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 
@@ -171,6 +172,7 @@ test.describe("цепочка критерия 3: справочник → че�
     const second = page.getByTestId("editor-section").nth(1);
     await second.getByTestId("section-title").fill(`Безопасность ${mark}`);
     await second.getByTestId("item-title").first().fill(criticalTitle);
+    await revealItemSettings(second.getByTestId("item-severity-critical"));
     await second.getByTestId("item-severity-critical").click();
     await expect(second.getByTestId("item-severity-critical")).toHaveAttribute(
       "data-selected",

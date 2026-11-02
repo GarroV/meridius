@@ -181,6 +181,11 @@ test.describe("привязанный планшет", () => {
     );
 
     // Инструкция видна на самой карточке — четыре шага и настоящий адрес привязки.
+    await admin
+      .getByTestId("pair-guide")
+      .locator("xpath=ancestor::details[1]")
+      .locator(":scope > summary")
+      .click();
     const guide = admin.getByTestId("pair-guide");
     await expect(guide).toBeVisible();
     await expect(guide.getByTestId("pair-guide-step")).toHaveCount(4);

@@ -26,6 +26,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { revealItemSettings } from "./item-settings";
 import { THEME_COOKIE_NAME } from "../src/blocks/core/theme";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 
@@ -228,6 +229,7 @@ async function createNumberChecklist(page: Page): Promise<void> {
   await expect(page.getByTestId("editor-screen")).toBeVisible();
 
   await page.getByTestId("item-title").first().fill("Температура печи");
+  await revealItemSettings(page.getByTestId("item-type").first());
   await page.getByTestId("item-type").first().selectOption("number");
   await expect(page.getByTestId("item-min").first()).toBeVisible();
 }

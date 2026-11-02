@@ -12,7 +12,7 @@ const TAG_CLASS: Record<TodayStatusKind, string> = {
   filled: "tag tag--ok",
   upcoming: "tag tag--neutral",
   open: "tag tag--accent",
-  missed: "tag tag--err",
+  missed: "tag tag--neutral",
   notExpected: "tag tag--neutral tag--dashed",
   unknownZone: "tag tag--warn",
 };

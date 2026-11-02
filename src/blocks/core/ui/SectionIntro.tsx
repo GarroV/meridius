@@ -11,13 +11,7 @@
 // Серверный компонент со своим пространством словаря `sectionIntro`: на клиент словарь
 // не уходит. Разделам мастер-детали (`MasterDetail`) блок передаётся готовой разметкой.
 //
-// На телефоне (≤640 px) видна только первая строка — «зачем», — а «что здесь» и «что
-// дальше» раскрываются по «Подробнее» (D172): полный блок занимал ~240 из 812 px, и
-// в «Станциях» работа начиналась ниже середины экрана. Раскрытие — родной `<details>`,
-// без скрипта. Открыть `<details>` одной разметкой на широком экране нельзя (закрытое
-// содержимое браузер не рисует, а `::details-content` есть не везде), поэтому две
-// строки лежат дважды: открытыми — для широкого экрана, под `<details>` — для узкого.
-// Невидимая копия снята `display: none` и чтецом не читается.
+// D189: первая строка видна постоянно, подробности раскрываются на любой ширине.
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
@@ -29,9 +23,6 @@ const NOTICE_CLASS =
 const WHY_CLASS = "m-0 font-semibold text-ink";
 const TEXT_CLASS = "m-0 text-[var(--ink-2)]";
 const REST_CLASS = "flex flex-col gap-[var(--space-2)]";
-// Граница D172 — «≤640 px»: `max-[641px]` — это «уже 641», то есть ровно до 640 включительно.
-const WIDE_ONLY_CLASS = `${REST_CLASS} max-[641px]:hidden`;
-const PHONE_ONLY_CLASS = "min-[641px]:hidden";
 const MORE_CLASS =
   "w-fit cursor-pointer font-medium text-[var(--accent)] marker:text-[var(--ink-3)]";
 
@@ -57,11 +48,7 @@ export async function SectionIntro({
       />
       <div className="flex min-w-0 flex-col gap-[var(--space-2)]">
         <p className={WHY_CLASS}>{t(`${section}.why`)}</p>
-        <div className={WIDE_ONLY_CLASS} data-testid="section-intro-rest">
-          <p className={TEXT_CLASS}>{t(`${section}.what`)}</p>
-          <p className={TEXT_CLASS}>{t(`${section}.next`)}</p>
-        </div>
-        <details className={PHONE_ONLY_CLASS} data-testid="section-intro-more">
+        <details data-testid="section-intro-more">
           <summary className={MORE_CLASS}>{t("more")}</summary>
           <div className={`${REST_CLASS} pt-[var(--space-2)]`}>
             <p className={TEXT_CLASS}>{t(`${section}.what`)}</p>

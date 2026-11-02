@@ -1,0 +1,54 @@
+# Отдельный стенд UI с синтетическими данными, без боевых подключений.
+name: meridius-ui-review
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: review
+      POSTGRES_PASSWORD: ${REVIEW_DB_PASSWORD:?}
+      POSTGRES_DB: meridius_review
+    volumes: [review-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U review -d meridius_review"]
+      interval: 3s
+      retries: 20
+  migrate:
+    build: { context: ../.., target: migrate }
+    environment:
+      DATABASE_URL: postgres://review:${REVIEW_DB_PASSWORD}@db:5432/meridius_review
+    depends_on:
+      db: { condition: service_healthy }
+  verify:
+    build:
+      context: ../..
+      target: build
+      args:
+        PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?}
+        BUILD_COMMIT: ${BUILD_COMMIT:-review}
+    profiles: [tools]
+    environment:
+      DATABASE_URL: postgres://review:${REVIEW_DB_PASSWORD}@db:5432/meridius_review
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+    depends_on:
+      db: { condition: service_healthy }
+  app:
+    build:
+      context: ../..
+      target: runner
+      args:
+        PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?}
+        BUILD_COMMIT: ${BUILD_COMMIT:-review}
+    environment:
+      DATABASE_URL: postgres://review:${REVIEW_DB_PASSWORD}@db:5432/meridius_review
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      ADMIN_PASSWORD_HASH: ${REVIEW_ADMIN_HASH:?}
+      SESSION_SECRET: ${REVIEW_SESSION_SECRET:?}
+      DEVICE_SESSION_SECRET: ${REVIEW_DEVICE_SECRET:?}
+    ports: ["127.0.0.1:8378:3000"]
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+volumes:
+  review-data:

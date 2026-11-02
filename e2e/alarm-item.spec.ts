@@ -9,8 +9,10 @@
 // `fill/validation.test.ts`, `fill/answers.test.ts`); здесь то, чего они не видят:
 // что поля редактора пишут разметку, а экран станции её читает и ставит будильник
 // серверным действием.
+
 import { expect, test, type Page } from "@playwright/test";
 
+import { revealItemSettings } from "./item-settings";
 import { stationScanUrl } from "../src/blocks/qr/scan-url";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { e2eDatabaseUrl } from "./database";
@@ -87,6 +89,7 @@ test.describe("будильник как пункт чек-листа", () => {
     await expect(page.getByTestId("editor-screen")).toBeVisible();
 
     await page.getByTestId("item-title").first().fill(ITEM);
+    await revealItemSettings(page.getByTestId("item-type").first());
     await page.getByTestId("item-type").first().selectOption("alarm");
     await page.getByTestId("item-alarm-label").fill(LABEL);
     await page.getByTestId("item-alarm-after").fill(String(DELAY_MINUTES));

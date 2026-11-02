@@ -13,3 +13,6 @@ playwright-report
 coverage
 tsconfig.tsbuildinfo
 *.pdf
+
+# Окружение отдельного проверочного стенда
+stand.env

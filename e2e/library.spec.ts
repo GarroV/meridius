@@ -10,6 +10,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { Pool } from "pg";
 
+import { revealItemSettings } from "./item-settings";
 import { E2E_ADMIN_PASSWORD } from "./admin-credentials";
 import { e2eDatabaseUrl } from "./database";
 
@@ -215,6 +216,7 @@ test.describe("библиотека переиспользуемых блоко�
     const chip = page.getByTestId("item-schedule-chip");
     await expect(chip).toHaveCount(1);
     await expect(chip).toHaveAttribute("data-kind", "none");
+    await revealItemSettings(chip);
     await expect(chip).toHaveText("Один раз");
   });
 
@@ -242,6 +244,7 @@ test.describe("библиотека переиспользуемых блоко�
     const chip = editor.getByTestId("item-schedule-chip");
     await expect(chip).toHaveCount(1);
     await expect(chip).toHaveAttribute("data-kind", "every");
+    await revealItemSettings(chip);
     await expect(chip).toHaveText("каждые 2 часа");
 
     // Главное утверждение сценария: часы окна на экране блока не показываются ни в

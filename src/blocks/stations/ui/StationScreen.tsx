@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactElement, ReactNode } from "react";
 
+import { checklistPath } from "@/blocks/editor/routes";
 import { listUnassignedChecklists } from "@/blocks/catalog";
 import type { LocalizedText } from "@/blocks/data";
 import { asLocale } from "@/blocks/core/locale";
@@ -196,9 +197,12 @@ export async function StationScreen({
                 <input type="hidden" name="stationId" value={station.id} />
                 <input type="hidden" name="checklistId" value={checklist.id} />
                 <span className="flex flex-col">
-                  <span className="font-medium">
+                  <Link
+                    href={checklistPath(checklist.id)}
+                    className="font-medium text-[var(--accent)]"
+                  >
                     {localized(checklist.title, locale)}
-                  </span>
+                  </Link>
                   {/* Происхождение (T310, D149): копию правят как свою, но человек
                       обязан видеть, с какого шаблона и какой его версии она снята. */}
                   <span
@@ -371,7 +375,12 @@ export async function StationScreen({
             Шаги — общие с продуктом (`device/ui/PairGuide`), с настоящим адресом
             страницы привязки (D167). Факт про перевыпуск наклейки — свой у карточки:
             наклейка и планшет стоят на ней рядом, и их путают. */}
-        <PairGuide address={pairAddress} minutes={pinMinutes()} compact />
+        <details>
+          <summary className="cursor-pointer text-[var(--accent)]">
+            {t("pairing.help")}
+          </summary>
+          <PairGuide address={pairAddress} minutes={pinMinutes()} compact />
+        </details>
         <p className={FACTS_CLASS} data-testid="pair-facts">
           {t("pairing.factReissue")}
         </p>
