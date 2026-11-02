@@ -90,19 +90,19 @@
 
 | есть? | что именно | имя переменной | где значение | смоук-команда | результат |
 |---|---|---|---|---|---|
-| да | Целевая площадка — домашний сервер MUSPELHEIM (D038), площадка общая с чужими проектами. Разработка остаётся на машине владельца (D008), контур компании — за горизонтом MVP | — | — | `ssh muspelheim "powershell -NoProfile -File C:\bootstrap\status.ps1"` | ✅ проверено 2026-09-06: сервер живой, Docker 29.6.1, 20 чужих контейнеров; порт 3100 свободен, 5433 занят чужим проектом — базу наружу не публикуем |
+| да | VPS Contabo, `/srv/meridius` (D160/D161, D192). MUSPELHEIM — отдельные проверочные стенды | — | SSH `contabo`; окружение `deploy/.env` на сервере | `ssh contabo "cd /srv/meridius && docker compose -f deploy/compose.yaml ps"` | ✅ 02.11.2026: app и db healthy до обновления; резервный дамп проверен через pg_restore --list |
 
 ### E3. База данных
 
 | есть? | что именно | имя переменной | где значение | смоук-команда | результат |
 |---|---|---|---|---|---|
-| нет, поднимаем | PostgreSQL в Docker Compose, порт 5433 (5432 оставлен другим проектам) | `DATABASE_URL` | `.env` | `psql "$DATABASE_URL" -c 'select 1'` | ❌ не поднята, задача стройки |
+| да | PostgreSQL 17, Compose `meridius`, том `meridius_pgdata`; порт наружу не опубликован | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`; `DATABASE_URL` собирает Compose | `/srv/meridius/deploy/.env` | `docker exec meridius-db-1 pg_isready` | ✅ 02.11.2026: база healthy, дамп создан и проверен, данные сохранены до выкладки |
 
 ### E4. Домены
 
 | есть? | что именно | имя переменной | где значение | смоук-команда | результат |
 |---|---|---|---|---|---|
-| нет | Домена нет. Наружу продукт публикуется `tailscale funnel` на своём порту (D034): корень `:443` площадки занят чужим продуктом | — | — | `tailscale funnel status` на площадке | не проверялось |
+| да | Постоянный адрес `https://meridius.vasiliy-garro.workers.dev` (D188), Worker → туннель → Caddy → сеть `edge-meridius` | `PUBLIC_BASE_URL`, `GOOGLE_FRONT_REDIRECT_URI` | `deploy/.env`; настройки фронта — `front/` | `curl -fsS https://meridius.vasiliy-garro.workers.dev/healthz` | ✅ 02.11.2026: HTTP 200, status ok до выкладки |
 
 ### E5. Сторонние API
 
