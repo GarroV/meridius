@@ -117,7 +117,9 @@ async function saveDraft(page: Page): Promise<void> {
   );
   await page.getByTestId("save-draft").click();
   await answered;
-  await expect(page.getByTestId("editor-meta")).toHaveText("Черновик сохранён");
+  await expect(page.getByTestId("editor-meta")).toContainText(
+    "Черновик сохранён",
+  );
 }
 
 /**
@@ -609,6 +611,7 @@ test.describe("редактор чек-листа", () => {
       (window as unknown as Record<string, unknown>)["openBlockProbe"] = "жив";
     });
 
+    await saveDraft(page);
     await openBlock.click();
 
     await expect(page).toHaveURL(

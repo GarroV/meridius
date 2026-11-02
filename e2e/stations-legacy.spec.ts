@@ -79,6 +79,10 @@ test.describe("старые точки привязки", () => {
 
     // Подсказка называет станцию и ведёт на её карточку.
     const notice = page.getByTestId("station-notice");
+    await notice
+      .locator("xpath=ancestor::details[1]")
+      .locator(":scope > summary")
+      .click();
     await expect(notice).toContainText(stand.stationName);
     await notice.getByTestId("station-notice-link").click();
     await expect(page).toHaveURL(
