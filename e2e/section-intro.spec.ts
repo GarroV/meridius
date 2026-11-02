@@ -36,9 +36,6 @@ function introTexts(language: "ru" | "en"): IntroTexts {
   return dictionary.sectionIntro;
 }
 
-/** Граница D172: до 640 px включительно блок показывает только первую строку. */
-const PHONE_MAX = 640;
-
 const WIDTHS = [
   { name: "стол", width: 1280, height: 900 },
   { name: "телефон", width: 375, height: 812 },
@@ -81,21 +78,15 @@ test.describe("вводный блок разделов кабинета (D152)"
           const [first, ...rest] = INTRO_PARTS;
           await expect(block.getByText(intro[section][first])).toBeVisible();
 
-          // D172: на телефоне «что здесь» и «что дальше» раскрываются по «Подробнее»,
-          // на широком экране видны сразу, а «Подробнее» там нет.
+          // Подробности открываются по запросу на любой ширине (D189).
           const more = block.locator("summary").filter({ visible: true });
-          if (width <= PHONE_MAX) {
-            for (const part of rest) {
-              await expect(
-                block.getByText(intro[section][part]).filter({ visible: true }),
-                `«${part}» раздела «${section}» виден до «Подробнее» (${name}, ${locale})`,
-              ).toHaveCount(0);
-            }
-            await expect(more).toHaveText(intro.more);
-            await more.click();
-          } else {
-            await expect(more).toHaveCount(0);
+          for (const part of rest) {
+            await expect(
+              block.getByText(intro[section][part]).filter({ visible: true }),
+            ).toHaveCount(0);
           }
+          await expect(more).toHaveText(intro.more);
+          await more.click();
           for (const part of rest) {
             await expect(
               block.getByText(intro[section][part]).filter({ visible: true }),

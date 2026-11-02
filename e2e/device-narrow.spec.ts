@@ -161,6 +161,11 @@ test.describe("экраны планшета на 375 px", () => {
     // больше нет).
     const card = `/admin/stations/${stand.stationId}`;
     await admin.goto(card);
+    await admin
+      .getByTestId("pair-guide")
+      .locator("xpath=ancestor::details[1]")
+      .locator(":scope > summary")
+      .click();
     await expect(admin.getByTestId("pair-guide")).toBeVisible();
     await expectNoOverflow(admin, card);
     await shot(admin, "station-card-375");

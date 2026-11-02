@@ -474,6 +474,11 @@ test.describe("доступность: админка", () => {
       .filter({ hasText: seeded.stationName })
       .getByTestId("station-link")
       .click();
+    await page
+      .getByTestId("pair-guide")
+      .locator("xpath=ancestor::details[1]")
+      .locator(":scope > summary")
+      .click();
     await page.getByTestId("pair-guide").waitFor();
     expectAccessible(await runAxe(page));
 
