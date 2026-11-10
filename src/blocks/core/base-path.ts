@@ -54,6 +54,14 @@ export function formActionPath<T extends string>(path: T): T {
   return withBasePath(path);
 }
 
+/**
+ * Адрес статического файла из `public/` и ссылки внутри продукта в обычной разметке
+ * `<a>`/`<img>`: Next не приставляет базовый путь атрибутам `href`/`src` сам.
+ */
+export function publicPath<T extends string>(path: T): T {
+  return withBasePath(path);
+}
+
 function withBasePath<T extends string>(path: T): T {
   const base = basePath();
   return (base === "" ? path : `${base}${path}`) as T;

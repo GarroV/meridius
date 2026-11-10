@@ -7,6 +7,9 @@ import { expect, test } from "@playwright/test";
 // `<html lang>` отсюда убран (T271): он читался после гидратации, то есть не отличал
 // верный ответ сервера от правки, приехавшей на клиенте. Язык ОТДАННОГО документа для
 // этих же адресов проверяет `e2e/page-lang.spec.ts` — по сырому ответу сервера.
+//
+// Корень `/` анониму ничего не показывает и уводит на посадочную (D193): слова проверяются
+// на ней, а сам переход — `e2e/welcome.spec.ts`.
 test.describe("язык страницы по заголовку браузера", () => {
   test.describe("русский телефон", () => {
     test.use({ locale: "ru-RU" });
@@ -17,7 +20,9 @@ test.describe("язык страницы по заголовку браузер�
     }) => {
       await page.goto("/");
 
-      await expect(page.getByTestId("title")).toHaveText("Цифровые чек-листы");
+      await expect(page.getByTestId("title")).toHaveText(
+        "Чек-листы, которые кухня действительно заполняет",
+      );
       expect(await context.cookies()).toHaveLength(0);
     });
   });
@@ -31,7 +36,9 @@ test.describe("язык страницы по заголовку браузер�
     }) => {
       await page.goto("/");
 
-      await expect(page.getByTestId("title")).toHaveText("Digital checklists");
+      await expect(page.getByTestId("title")).toHaveText(
+        "Checklists the kitchen actually fills in",
+      );
       expect(await context.cookies()).toHaveLength(0);
     });
   });

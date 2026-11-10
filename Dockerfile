@@ -67,6 +67,8 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
+# Статика из public/ (снимки и скрипт посадочной): standalone-сборка её сама не несёт.
+COPY --from=build --chown=node:node /app/public ./public
 USER node
 EXPOSE 3000
 # Здоровье — это «процесс отвечает И база отвечает» (src/app/healthz/route.ts). curl в

@@ -1,32 +1,28 @@
-import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { redirect } from "next/navigation";
 
-import { ADMIN_HOME } from "@/blocks/core/admin-sections";
+import { hasAdminSession } from "@/blocks/auth/guard";
+import { ADMIN_HOME_PATH } from "@/blocks/auth/routes";
+import { redirectPath } from "@/blocks/core/base-path";
+import { isLocale } from "@/blocks/core/locale";
 
-// Входная точка продукта. Держит два обещания: показывает язык, выбранный по настройке
-// браузера (без cookie — сценарий кухни, e2e/locale.spec.ts), и ведёт в рабочий кабинет.
-// Без ссылки корень был заглушкой каркаса: адрес открывался, а попасть в продукт с него
-// было нельзя — нужно было знать путь /admin наизусть.
-export default async function HomePage() {
-  const t = await getTranslations("home");
-  return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-[var(--space-5)] p-[var(--space-8)]">
-      <h1
-        className="text-accent text-[length:var(--fs-display)] leading-[var(--lh-display)] font-semibold"
-        data-testid="title"
-      >
-        {t("title")}
-      </h1>
-      <p className="text-ink-2" data-testid="subtitle">
-        {t("subtitle")}
-      </p>
-      <Link
-        href={ADMIN_HOME.path}
-        data-testid="enter"
-        className="bg-accent flex h-[var(--control-h)] w-fit items-center justify-center rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)]"
-      >
-        {t("enter")}
-      </Link>
-    </main>
-  );
+/** Адрес посадочной (D193); сам маршрут — `src/app/welcome/`. */
+const WELCOME_PATH = "/welcome";
+
+// Корень продукта разводит двоих. Вошедший идёт в кабинет, как и раньше. Анонимному
+// корень ничего не показывает — отправляет на посадочную, сохраняя явно названный
+// язык (`?lang=`): без него ссылка «по-русски» с корня теряла бы выбор.
+//
+// Показать язык, выбранный настройкой браузера, без куки (сценарий кухни,
+// `e2e/locale.spec.ts`) теперь обязана посадочная, а не корень.
+export default async function RootPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  if (await hasAdminSession()) redirect(redirectPath(ADMIN_HOME_PATH));
+
+  const { lang } = await searchParams;
+  const query =
+    typeof lang === "string" && isLocale(lang) ? `?lang=${lang}` : "";
+  redirect(redirectPath(`${WELCOME_PATH}${query}`));
 }

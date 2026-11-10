@@ -19,6 +19,7 @@
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:rollback": "node scripts/db-rollback.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
+    "landing-shots": "node scripts/landing-shots.mjs",
     "import:checklists": "node scripts/import-checklists.mjs",
     "import:network": "node scripts/import-network.mjs",
     "templates:from-store": "node scripts/templates-from-store.mjs"
