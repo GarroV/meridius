@@ -1,0 +1,16 @@
+// Фронт открытого демо Meridius (D193): https://meridius-demo.vasiliy-garro.workers.dev.
+// Тот же код, что у прода (src/index.js), другой сайт Caddy: demo-meridius.<…>.sslip.io
+// (GarroV/vps-infra, edge/sites/meridius-demo.caddy) → meridius-demo-app:3000.
+// Выкладка: `npx wrangler deploy -c wrangler.demo.jsonc` из `front/`.
+// FRONT_KEY — свой случайный секрет (`npx wrangler secret put FRONT_KEY -c wrangler.demo.jsonc`):
+// Caddy демо ключ не проверяет и заголовки фронта срезает, но Worker без ключа не пересылает.
+{
+  "name": "meridius-demo",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": true,
+  "vpc_services": [
+    { "binding": "EDGE", "service_id": "01a11a74-ba20-7ea3-a9c1-581681d0c341" },
+  ],
+  "vars": { "ORIGIN_HOST": "demo-meridius.95-111-249-216.sslip.io" },
+}

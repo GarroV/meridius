@@ -1,0 +1,47 @@
+# Стенд открытого демо (D193) на VPS: /srv/meridius-demo, проект compose `meridius-demo`.
+#
+# Поверх deploy/compose.yaml (как прод), вторым файлом:
+#   docker compose -p meridius-demo -f deploy/compose.yaml -f deploy/demo/compose.demo.yaml ...
+# Руками не зовётся: deploy/demo/update.sh и deploy/demo/reset.sh.
+#
+# Отличия от прода:
+# * своя база (том meridius-demo_pgdata) — с продом стенд не делит ничего, кроме сети
+#   edge-meridius к общему Caddy; в ней приложение демо — под алиасом meridius-demo-app;
+# * DEMO_MODE=1: вход /demo без пароля выбором роли, учётки и внешние службы закрыты;
+# * вход через Google выключен: реквизиты пустые, даже если окружение принесло их;
+# * посев `seed` — одноразовый сервис из стадии build образа, его зовёт reset.sh раз в час.
+name: meridius-demo
+
+services:
+  app:
+    environment:
+      DEMO_MODE: "1"
+      GOOGLE_CLIENT_ID: ""
+      GOOGLE_CLIENT_SECRET: ""
+      GOOGLE_REDIRECT_URI: ""
+      GOOGLE_FRONT_REDIRECT_URI: ""
+    networks:
+      default:
+      edge-meridius:
+        aliases: [meridius-demo-app]
+
+  seed:
+    build:
+      # Пути в надстройке считаются от каталога первого файла (deploy/), а не от этого.
+      context: ..
+      target: build
+    profiles: ["seed"]
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      BASE_PATH: ${BASE_PATH:-}
+      DEMO_MODE: "1"
+    command: ["node", "scripts/seed-demo.mjs"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+networks:
+  edge-meridius:
+    external: true
