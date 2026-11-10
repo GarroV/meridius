@@ -25,6 +25,8 @@ const DEPS = {
   // а раздел — «где по сети дырки», и второе знает про планшеты и наклейки, до которых
   // справочнику дела нет.
   stations: ["qr", "catalog", "device", "editor", "data", "auth", "core"],
+  // landing — посадочная /welcome: режим демо, адрес входа (auth/routes) и общее ядро.
+  landing: ["demo", "auth", "core"],
   demo: ["catalog", "editor", "fill", "feed", "data", "core"],
   // home — главная кабинета (D174): пульт, который собирает, а не строит. Станции и их
   // дырки берёт у stations, планшеты у device, заполнения и тревоги у feed, черновики у

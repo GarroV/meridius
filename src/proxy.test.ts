@@ -44,7 +44,39 @@ describe("охрана перед рендером", () => {
       "/s/:path*",
       "/pair",
       "/station",
+      "/welcome",
     ]);
+  });
+
+  describe("посадочная /welcome: язык из адреса", () => {
+    test("без ?lang= пропускает как есть, без куки и перенаправления", () => {
+      const response = proxy(requestTo("/welcome"));
+
+      expect(response.status).toBe(200);
+      expect(response.cookies.get("NEXT_LOCALE")).toBeUndefined();
+    });
+
+    test("?lang=ru ставит куку выбора и убирает параметр из адреса", () => {
+      const response = proxy(requestTo("/welcome?lang=ru"));
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(`${ORIGIN}/welcome`);
+      expect(response.cookies.get("NEXT_LOCALE")?.value).toBe("ru");
+    });
+
+    test("чужой язык отбрасывается: адрес очищен, куки нет", () => {
+      const response = proxy(requestTo("/welcome?lang=xx"));
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(`${ORIGIN}/welcome`);
+      expect(response.cookies.get("NEXT_LOCALE")).toBeUndefined();
+    });
+
+    test("посадочная не читает сессию кабинета: ни секрета, ни куки не нужно", () => {
+      delete process.env["SESSION_SECRET"];
+
+      expect(proxy(requestTo("/welcome")).status).toBe(200);
+    });
   });
 
   test("страница привязки и вкладка планшета не читают сессию кабинета", () => {

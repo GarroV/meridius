@@ -46,14 +46,19 @@ function tokenRgb(name: string): string {
 }
 
 test.describe("Tailwind 4 поверх токенов дизайн-системы", () => {
+  // Раньше акцентным был заголовок корня; корень теперь уводит на посадочную (D193), где
+  // акцента нет, а кнопка входа при Google в прогоне вторичная. Проверяется утилита
+  // `bg-accent` на кнопке экрана «такого адреса нет» — тот же мост `--color-accent`.
   test("утилита из @theme inline даёт цвет токена --accent", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/такой-страницы-нет");
 
     const color = await page
-      .getByTestId("title")
-      .evaluate((element) => globalThis.getComputedStyle(element).color);
+      .getByTestId("not-found-home")
+      .evaluate(
+        (element) => globalThis.getComputedStyle(element).backgroundColor,
+      );
 
     expect(color).toBe(tokenRgb("--accent"));
   });

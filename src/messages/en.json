@@ -1,9 +1,4 @@
 {
-  "home": {
-    "title": "Digital checklists",
-    "subtitle": "Build a checklist for a store, print the station QR code, and see what the kitchen submitted.",
-    "enter": "Open the workspace"
-  },
   "login": {
     "brand": "MERIDIUS",
     "brandMuted": "Dodo",
@@ -1211,6 +1206,71 @@
       "why": "A partner is a pizzeria network that works in the cabinet with its own countries.",
       "what": "Create a partner account here and give it countries: signed in with its own login, the partner sees only those. Passwords are changed and reset and accounts removed here too.",
       "next": "Hand the login and password to the partner yourself — the product does not send them."
+    }
+  },
+  "welcome": {
+    "title": "MERIDIUS — digital checklists for pizzerias",
+    "description": "Build a checklist, print the QR sticker, and see what the kitchen submitted. No sign-in for staff, about 20 seconds per checklist.",
+    "login": "Sign in",
+    "demo": "Open demo",
+    "demoNote": "No sign-up, no password",
+    "language": "Language",
+    "hero": {
+      "title": "Checklists the kitchen actually fills in",
+      "sub": "Scan the sticker at the station, tick the items, done. Nobody signs in.",
+      "lead": "Your methodologist builds a checklist on the web and prints a QR sticker for each station. Staff scan it with a phone or use the station tablet and finish in about 20 seconds. Managers and partners see what was filled in, what was missed and what failed."
+    },
+    "build": {
+      "tab": "Build",
+      "title": "Build the checklist",
+      "body": "A methodologist assembles a checklist from reusable blocks: sections, items, critical points, photo and number fields. Every change makes a new version, so a running checklist is never edited under the kitchen's hands."
+    },
+    "print": {
+      "tab": "Print",
+      "title": "Print the QR",
+      "body": "Each station gets its own sticker: one code, one place, one checklist. The sticker speaks the language of the pizzeria, not of whoever printed it, and a lost code can be reissued in one click."
+    },
+    "fill": {
+      "tab": "Fill",
+      "title": "Fill in 20 seconds",
+      "body": "No app, no account, no password. The phone camera opens the checklist, or a tablet pinned to the station shows it all day.",
+      "phone": "On a phone",
+      "phone1": "Scan the sticker at the station",
+      "phone2": "Tick the items, add a number or a photo",
+      "phone3": "Send. No sign-in at any point",
+      "tablet": "On a tablet",
+      "tablet1": "Pin the tablet to the station once",
+      "tablet2": "The right checklist is always on screen",
+      "tablet3": "Staff only tick and send"
+    },
+    "see": {
+      "tab": "Results",
+      "title": "See what happened",
+      "body": "A pizzeria screen shows how the checklists went: completion, failed items, trends. The feed lists every submission, and alarms flag a checklist nobody filled in or a critical item that failed."
+    },
+    "net": {
+      "tab": "Network",
+      "title": "One view over the whole network",
+      "body": "Countries, pizzerias and stations in one structure. The management company sees the whole chain; each partner sees only their own pizzerias.",
+      "more1": "Statistics by pizzeria and by country",
+      "more2": "Alarms: not filled in, critical item failed",
+      "more3": "Management company templates that partners take as their own copy",
+      "more4": "A library of blocks and versions of every checklist"
+    },
+    "cta": {
+      "title": "See it yourself in five minutes",
+      "body": "Open the demo: a ready network with checklists, stations and submissions. Click through it as a methodologist and as a manager.",
+      "login": "Already have an account? Sign in"
+    },
+    "alt": {
+      "fill": "The checklist filling screen of a station on a phone: items to tick and a send button",
+      "editor": "The checklist editor with sections, items and a published version",
+      "qr": "A station with its printable QR sticker",
+      "tablet": "The station checklist on a tablet",
+      "stats": "Pizzeria statistics: completion and failed items over a period",
+      "feed": "The feed of submitted checklists with alarms",
+      "network": "The network: countries and pizzerias with their completion",
+      "templates": "Management company templates available to partners"
     }
   }
 }

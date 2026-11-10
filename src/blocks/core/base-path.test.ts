@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { formActionPath, redirectPath } from "./base-path";
+import { formActionPath, publicPath, redirectPath } from "./base-path";
 
 const previous = process.env["BASE_PATH"];
 
@@ -49,5 +49,20 @@ describe("адрес отправки обычной формы при опуб�
   it("не двоит косые, как бы путь ни записали в окружении", () => {
     process.env["BASE_PATH"] = "qr/";
     expect(formActionPath("/admin/feed")).toBe("/qr/admin/feed");
+  });
+});
+
+describe("адрес статического файла при опубликованном базовом пути", () => {
+  it("на обычной площадке путь не меняется", () => {
+    delete process.env["BASE_PATH"];
+    expect(publicPath("/landing/fill-en.webp")).toBe("/landing/fill-en.webp");
+  });
+
+  it("приставляет базовый путь площадки", () => {
+    // Иначе снимок посадочной просится с корня адреса, где живёт соседний сервис.
+    process.env["BASE_PATH"] = "/qr";
+    expect(publicPath("/landing/fill-en.webp")).toBe(
+      "/qr/landing/fill-en.webp",
+    );
   });
 });
