@@ -4,9 +4,11 @@ import { getLocale } from "next-intl/server";
 import type { ReactNode } from "react";
 
 import { requireAdmin } from "@/blocks/auth/guard";
+import { isDemoMode } from "@/blocks/core/demo-mode";
 import { asLocale, type Locale } from "@/blocks/core/locale";
 import { themeFromCookieHeader } from "@/blocks/core/theme";
 import { AdminViewerProvider } from "@/blocks/core/ui/admin-viewer";
+import { DemoBanner } from "@/blocks/demo/ui/DemoBanner";
 import { ThemeProvider } from "@/blocks/core/ui/ThemeProvider";
 import en from "@/messages/en.json";
 import ru from "@/messages/ru.json";
@@ -55,8 +57,11 @@ export default async function AdminLayout({
         admin: MESSAGES[locale].admin,
       }}
     >
-      <AdminViewerProvider role={viewer.tenantKind}>
-        <ThemeProvider choice={themeChoice}>{children}</ThemeProvider>
+      <AdminViewerProvider role={viewer.tenantKind} isDemo={isDemoMode()}>
+        <ThemeProvider choice={themeChoice}>
+          <DemoBanner />
+          {children}
+        </ThemeProvider>
       </AdminViewerProvider>
     </NextIntlClientProvider>
   );

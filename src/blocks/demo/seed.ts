@@ -6,10 +6,13 @@
 // строки с описанием и разбирать частичные расхождения — а это ровно тот код,
 // который тихо расходится с данными. Опознаватели контура постоянны (см. model.ts),
 // поэтому снятие точечное: чужой строки сид не касается ни одной.
+import { randomBytes } from "node:crypto";
+
 import { and, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 
 import type { Answer, Database, Section } from "@/blocks/data";
 import {
+  accounts,
   alarms,
   blocks,
   checklistVersions,
@@ -21,16 +24,35 @@ import {
   storeShiftModes,
   stores,
   submissions,
+  tenantCountries,
   tenants,
 } from "@/blocks/data";
 
 import { DEMO } from "./dataset";
 import { DemoSeedError } from "./failure";
 import type { DemoDataset } from "./model";
+import { showcaseDatasets } from "./showcase";
 
 const HOUR_MS = 3_600_000;
 const MINUTE_MS = 60_000;
 const MS_PER_SECOND = 1000;
+const INSERT_CHUNK = 200;
+
+/**
+ * Хэш, которому не соответствует никакой пароль: правильной формы (учётка проходит
+ * ограничение базы), но ключ — случайные байты, а не результат scrypt от чего-либо.
+ * Вход демо-учёток — только выбором роли, пароля у них нет и быть не должно (D193).
+ */
+function unusablePasswordHash(): string {
+  return [
+    "scrypt",
+    "32768",
+    "8",
+    "3",
+    randomBytes(16).toString("base64url"),
+    randomBytes(32).toString("base64url"),
+  ].join(".");
+}
 
 export interface DemoStationCode {
   readonly station: string;
@@ -59,6 +81,9 @@ export interface SeedOptions {
   readonly now?: Date;
   readonly dataset?: DemoDataset;
 }
+
+/** Описание контура, снятого и заведённого одной транзакцией: демо-режим сажает несколько стран разом. */
+type DatasetList = readonly DemoDataset[];
 
 function hoursBefore(now: Date, hours: number): Date {
   return new Date(now.getTime() - hours * HOUR_MS);
@@ -146,6 +171,8 @@ async function contourOf(tx: Transaction, data: DemoDataset): Promise<Contour> {
     attachedChecklists.map((row) => row.id),
     publishedOnContour.map((row) => row.id),
     data.checklists.map((checklist) => checklist.id),
+    // Шаблоны УК на станции не висят, и найти их по станции нельзя: только по описанию.
+    (data.templates ?? []).map((template) => template.id),
   );
 
   const versionRows = await tx
@@ -158,6 +185,10 @@ async function contourOf(tx: Transaction, data: DemoDataset): Promise<Contour> {
     data.checklists.flatMap((checklist) =>
       checklist.versions.map((version) => version.id),
     ),
+    (data.templates ?? []).flatMap((template) => [
+      template.draft.id,
+      ...template.versions.map((version) => version.id),
+    ]),
   );
 
   return { storeIds, stationIds, checklistIds, versionIds };
@@ -350,6 +381,7 @@ async function insertContour(
     name: data.country.name,
     locale: data.country.locale,
   });
+  await insertTenants(tx, data);
   await tx.insert(stores).values(
     data.stores.map((store) => ({
       id: store.id,
@@ -383,18 +415,48 @@ async function insertContour(
   if (hq === undefined) {
     throw new Error("В базе нет тенанта УК: миграция 0016 не накатана");
   }
-  await tx.insert(checklists).values(
-    data.checklists.map((checklist) => ({
+  const templates = data.templates ?? [];
+  await tx.insert(checklists).values([
+    ...data.checklists.map((checklist) => ({
       id: checklist.id,
       stationId: checklist.stationId,
-      tenantId: hq.id,
+      tenantId: checklist.tenantId ?? hq.id,
       title: checklist.title,
       windowStart: checklist.window.start,
       windowEnd: checklist.window.end,
     })),
-  );
+    ...templates.map((template) => ({
+      id: template.id,
+      stationId: null,
+      tenantId: hq.id,
+      isTemplate: true,
+      title: template.title,
+      windowStart: template.window.start,
+      windowEnd: template.window.end,
+    })),
+  ]);
 
   await tx.insert(checklistVersions).values([
+    ...templates.flatMap((template) => [
+      {
+        id: template.draft.id,
+        checklistId: template.id,
+        status: "draft" as const,
+        versionNumber: null,
+        stationId: null,
+        sections: [...template.draft.sections],
+        publishedAt: null,
+      },
+      ...template.versions.map((version) => ({
+        id: version.id,
+        checklistId: template.id,
+        status: version.status,
+        versionNumber: version.versionNumber,
+        stationId: null,
+        sections: [...version.sections],
+        publishedAt: hoursBefore(now, version.publishedHoursAgo),
+      })),
+    ]),
     // Черновик методиста: он живёт рядом с опубликованной версией и правится дальше.
     ...data.checklists.map((checklist) => ({
       id: checklist.draft.id,
@@ -431,35 +493,37 @@ async function insertContour(
 
   const times = await submittedTimes(tx, data, now);
 
-  await tx.insert(submissions).values(
-    data.submissions.map((submission) => {
-      const submittedAt = times.get(submission.id);
-      if (submittedAt === undefined) {
-        throw new Error(
-          `Момент отправки заполнения ${submission.id} не посчитан`,
-        );
-      }
-      const durationMs = submission.durationMinutes * MINUTE_MS;
-      const startedAt = new Date(submittedAt.getTime() - durationMs);
-      const snapshot = sectionsByVersion.get(submission.versionId);
-      if (snapshot === undefined) {
-        throw new Error(
-          `Заполнение ${submission.id} ссылается на версию ${submission.versionId}, которой нет в описании контура`,
-        );
-      }
-      return {
-        id: submission.id,
-        versionId: submission.versionId,
-        stationId: submission.stationId,
-        // Снимок — это разметка той версии, что была отдана на станцию (D002).
-        snapshot,
-        answers: withAnswerTimes(submission.answers, startedAt, durationMs),
-        startedAt,
-        submittedAt,
-        mode: submission.mode ?? "normal",
-      };
-    }),
-  );
+  const rows = data.submissions.map((submission) => {
+    const submittedAt = times.get(submission.id);
+    if (submittedAt === undefined) {
+      throw new Error(
+        `Момент отправки заполнения ${submission.id} не посчитан`,
+      );
+    }
+    const durationMs = submission.durationMinutes * MINUTE_MS;
+    const startedAt = new Date(submittedAt.getTime() - durationMs);
+    const snapshot = sectionsByVersion.get(submission.versionId);
+    if (snapshot === undefined) {
+      throw new Error(
+        `Заполнение ${submission.id} ссылается на версию ${submission.versionId}, которой нет в описании контура`,
+      );
+    }
+    return {
+      id: submission.id,
+      versionId: submission.versionId,
+      stationId: submission.stationId,
+      // Снимок — это разметка той версии, что была отдана на станцию (D002).
+      snapshot,
+      answers: withAnswerTimes(submission.answers, startedAt, durationMs),
+      startedAt,
+      submittedAt,
+      mode: submission.mode ?? "normal",
+    };
+  });
+  // Порциями: история демо-режима — тысячи строк, а у драйвера предел параметров запроса.
+  for (let from = 0; from < rows.length; from += INSERT_CHUNK) {
+    await tx.insert(submissions).values(rows.slice(from, from + INSERT_CHUNK));
+  }
 }
 
 /**
@@ -504,6 +568,9 @@ async function insertShiftModes(
  *
  * Момент в будущем подрезается до «сейчас»: если контур сажают до того часа, который
  * задан сегодняшнему заполнению, лента показала бы заполнение, которого ещё не было.
+ *
+ * Одним запросом на весь контур, а не по запросу на заполнение: история демо-режима —
+ * около тысячи заполнений, и по туннелю к базе тысяча запросов шла бы минуту.
  */
 async function submittedTimes(
   tx: Transaction,
@@ -511,65 +578,165 @@ async function submittedTimes(
   now: Date,
 ): Promise<Map<string, Date>> {
   const times = new Map<string, Date>();
+  if (data.submissions.length === 0) return times;
 
+  const wanted = JSON.stringify(
+    data.submissions.map((item) => ({
+      id: item.id,
+      station_id: item.stationId,
+      days_ago: item.daysAgo,
+      at: item.at,
+    })),
+  );
+  const result = await tx.execute<{ id: string; at: number }>(sql`
+    select w.id,
+           extract(epoch from least(
+             ((((${now.toISOString()}::timestamptz at time zone s.timezone)::date
+                 - w.days_ago) + w.at::time) at time zone s.timezone),
+             ${now.toISOString()}::timestamptz
+           ))::float8 as at
+    from jsonb_to_recordset(${wanted}::jsonb)
+         as w(id uuid, station_id uuid, days_ago int, at text)
+    join stations st on st.id = w.station_id
+    join stores s on st.store_id = s.id
+  `);
+
+  for (const row of result.rows) {
+    times.set(row.id, new Date(row.at * MS_PER_SECOND));
+  }
   for (const item of data.submissions) {
-    const result = await tx.execute<{ at: number }>(sql`
-      select extract(epoch from least(
-               ((((${now.toISOString()}::timestamptz at time zone s.timezone)::date
-                   - ${item.daysAgo}::int) + ${item.at}::time) at time zone s.timezone),
-               ${now.toISOString()}::timestamptz
-             ))::float8 as at
-      from stations st
-      join stores s on st.store_id = s.id
-      where st.id = ${item.stationId}::uuid
-    `);
-
-    const seconds = result.rows[0]?.at;
-    if (seconds === undefined) {
+    if (!times.has(item.id)) {
       throw new Error(
         `Заполнение ${item.id} ссылается на станцию ${item.stationId}, которой нет в описании контура`,
       );
     }
-    times.set(item.id, new Date(seconds * MS_PER_SECOND));
+  }
+  return times;
+}
+
+/**
+ * Партнёры и учётки выбора роли (D193). Тенанты и учётки НЕ снимаются вместе с контуром:
+ * сессия живёт в куке по номеру учётки, и снятая на часовом сбросе учётка выкидывала бы
+ * посетителя из кабинета посреди показа. Заводятся «вставить или обновить» по
+ * постоянному номеру; страны партнёра уходят каскадом со страной и ставятся заново.
+ */
+async function insertTenants(
+  tx: Transaction,
+  data: DemoDataset,
+): Promise<void> {
+  for (const tenant of data.tenants ?? []) {
+    await tx
+      .insert(tenants)
+      .values({ id: tenant.id, kind: "partner", name: tenant.name })
+      .onConflictDoUpdate({ target: tenants.id, set: { name: tenant.name } });
+    await tx
+      .insert(tenantCountries)
+      .values(
+        tenant.countryIds.map((countryId) => ({
+          tenantId: tenant.id,
+          countryId,
+        })),
+      )
+      .onConflictDoNothing();
   }
 
-  return times;
+  const people = data.accounts ?? [];
+  if (people.length === 0) return;
+
+  const [hq] = await tx
+    .select({ id: tenants.id })
+    .from(tenants)
+    .where(eq(tenants.kind, "hq"));
+  if (hq === undefined) {
+    throw new Error("В базе нет тенанта УК: миграция 0016 не накатана");
+  }
+  for (const account of people) {
+    const tenantId = account.tenantId ?? hq.id;
+    await tx
+      .insert(accounts)
+      .values({
+        id: account.id,
+        tenantId,
+        login: account.login,
+        passwordHash: unusablePasswordHash(),
+      })
+      .onConflictDoUpdate({
+        target: accounts.id,
+        // Хэш не трогаем: он и так непригоден. Снятую кем-то учётку возвращаем в строй.
+        set: { tenantId, login: account.login, disabledAt: null },
+      });
+  }
+}
+
+function summarize(
+  datasets: DatasetList,
+  removedRows: number,
+): DemoSeedSummary {
+  const storeNames = new Map(
+    datasets.flatMap((data) =>
+      data.stores.map((store) => [store.id, store.name] as const),
+    ),
+  );
+  const sum = (count: (data: DemoDataset) => number): number =>
+    datasets.reduce((total, data) => total + count(data), 0);
+
+  return {
+    removedRows,
+    country: datasets.map((data) => data.country.name).join(", "),
+    stores: sum((data) => data.stores.length),
+    stations: sum((data) => data.stations.length),
+    blocks: sum((data) => data.blocks.length),
+    checklists: sum(
+      (data) => data.checklists.length + (data.templates?.length ?? 0),
+    ),
+    versions: sum(
+      (data) =>
+        data.checklists.length +
+        data.checklists.reduce((n, item) => n + item.versions.length, 0) +
+        (data.templates ?? []).reduce(
+          (n, item) => n + 1 + item.versions.length,
+          0,
+        ),
+    ),
+    submissions: sum((data) => data.submissions.length),
+    codes: datasets.flatMap((data) =>
+      data.stations.map((station) => ({
+        station: station.name,
+        store: storeNames.get(station.storeId) ?? "",
+        code: station.code,
+      })),
+    ),
+  };
+}
+
+async function seedDatasets(
+  datasets: DatasetList,
+  now: Date,
+): Promise<DemoSeedSummary> {
+  const removedRows = await getDb().transaction(async (tx) => {
+    let removed = 0;
+    // Сначала всё снимается, потом всё заводится: блок библиотеки живёт в первом описании,
+    // а чек-листы остальных стран ссылаются на него.
+    for (const data of datasets) removed += await removeContour(tx, data);
+    for (const data of datasets) await insertContour(tx, data, now);
+    return removed;
+  });
+  return summarize(datasets, removedRows);
 }
 
 export async function seedDemo(
   options: SeedOptions = {},
 ): Promise<DemoSeedSummary> {
-  const data = options.dataset ?? DEMO;
-  const now = options.now ?? new Date();
+  return seedDatasets([options.dataset ?? DEMO], options.now ?? new Date());
+}
 
-  const removedRows = await getDb().transaction(async (tx) => {
-    const removed = await removeContour(tx, data);
-    await insertContour(tx, data, now);
-    return removed;
-  });
-
-  const storeNames = new Map(
-    data.stores.map((store) => [store.id, store.name]),
-  );
-
-  return {
-    removedRows,
-    country: data.country.name,
-    stores: data.stores.length,
-    stations: data.stations.length,
-    blocks: data.blocks.length,
-    checklists: data.checklists.length,
-    versions:
-      data.checklists.length +
-      data.checklists.reduce(
-        (total, checklist) => total + checklist.versions.length,
-        0,
-      ),
-    submissions: data.submissions.length,
-    codes: data.stations.map((station) => ({
-      station: station.name,
-      store: storeNames.get(station.storeId) ?? "",
-      code: station.code,
-    })),
-  };
+/**
+ * Демо-режим (D193): три страны, семь пиццерий, шаблоны УК, учётки выбора роли и
+ * 60 дней истории. Расширяет тот же контур, а не заводит второй: первая страна — прежняя
+ * Demoland, у неё добавляется история.
+ */
+export async function seedShowcase(
+  options: Pick<SeedOptions, "now"> = {},
+): Promise<DemoSeedSummary> {
+  return seedDatasets(showcaseDatasets(), options.now ?? new Date());
 }

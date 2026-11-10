@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
 
+import { isDemoMode } from "@/blocks/core/demo-mode";
 import {
   isLocale,
   LOCALE_COOKIE,
@@ -34,6 +35,8 @@ export default getRequestConfig(async ({ locale: requested }) => {
   if (isLocale(requested)) {
     return { locale: requested, messages: MESSAGES[requested] };
   }
+  // Демо всегда английское (D193): ни кука, ни браузер языка не меняют.
+  if (isDemoMode()) return { locale: "en", messages: MESSAGES.en };
   const locale: Locale = resolveLocale({
     chosen: (await cookies()).get(LOCALE_COOKIE)?.value,
     acceptLanguage: (await headers()).get("accept-language"),

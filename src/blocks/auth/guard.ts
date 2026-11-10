@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 
 import { redirectPath } from "@/blocks/core/base-path";
+import { hideInDemo } from "@/blocks/core/demo-gate";
 
 import { loadViewer } from "./accounts";
 import { sessionSecret } from "./config";
@@ -51,6 +52,16 @@ export async function requireHq(): Promise<Viewer> {
   const viewer = await requireAdmin();
   if (viewer.tenantKind !== "hq") notFound();
   return viewer;
+}
+
+/**
+ * Требует учётку УК и закрыт целиком в демо-режиме (D193): всё, что заводит, правит или
+ * снимает учётки и партнёров, отвечает «такого адреса нет» — в демо входят выбором роли,
+ * а учётки общие для всех посетителей, и их правка ломала бы вход остальным.
+ */
+export async function requireHqOutsideDemo(): Promise<Viewer> {
+  hideInDemo();
+  return requireHq();
 }
 
 /** Есть ли действующая сессия. Нужна форме входа, чтобы не показываться вошедшему. */

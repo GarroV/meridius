@@ -32,6 +32,7 @@ bindAccountEmail(accountId, email)       // почта для входа чер�
 findEmailAccount(email)                  // действующая учётка по привязанной почте, иначе null
 provisionHqMember({ login, email })      // сотрудник УК: учётка в тенанте УК, вход через Google
 startGoogleSignIn() / finishGoogleSignIn(url)  // маршруты /admin/login/google[/callback]
+requireHqOutsideDemo()                   // requireHq, закрытый целиком при DEMO_MODE=1: действия и экран «Партнёры» (D193)
 ```
 
 | Что | Файл |
@@ -124,6 +125,10 @@ startGoogleSignIn() / finishGoogleSignIn(url)  // маршруты /admin/login/
 
 - Заголовков `Content-Security-Policy` и `X-Frame-Options` нет — файл блока `core` (T065).
 - **D145 правит чужие блоки:** область видимости навешена точечно в `catalog`, `editor`, `library`, `feed`, `qr`, `stations`, `device`, `data`, `demo` и в `src/app/admin/**` — это их файлы, правки нужно показать их владельцам.
+
+## Демо-режим (D193)
+
+При `DEMO_MODE=1` вход паролем (`signIn` отвечает «отказ»), Google (маршруты — 403), экран «Партнёры» и все его действия (404), смена и сброс пароля, привязка почт закрыты; `/admin/login` ведёт на `/demo`, «Выйти» — тоже на `/demo`. Входят выбором роли (`src/app/demo/enter/route.ts` ставит ту же сессионную куку). Список решений по каждому действию и маршруту — `src/app/demo/demo-locks.test.ts`.
 
 ## Расхождения с экранным эталоном
 

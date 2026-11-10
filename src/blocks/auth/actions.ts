@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 
 import { headers } from "next/headers";
 
+import { isDemoMode } from "@/blocks/core/demo-mode";
+
 import { ROOT_LOGIN, findLoginAccount, normalizeLogin } from "./accounts";
 import { adminPasswordHash, sessionSecret } from "./config";
 import { hashPassword, verifyPassword } from "./password";
@@ -130,6 +132,10 @@ export async function signIn(
   rawLogin: string,
   password: string,
 ): Promise<SignInResult> {
+  // Демо-режим (D193): вход паролем закрыт, входят выбором роли на `/demo`. Отказ здесь, а не
+  // только в форме: действие вызывается из браузера напрямую.
+  if (isDemoMode()) return { status: "rejected" };
+
   // Секрет подписи читается до проверки пароля: без него вход не может «получиться»
   // молча, без куки. Это отказ настройки площадки, а не неверный пароль.
   const secret = sessionSecret();

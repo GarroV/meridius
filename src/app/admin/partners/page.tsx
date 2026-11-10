@@ -1,6 +1,6 @@
 import { getLocale } from "next-intl/server";
 
-import { requireHq } from "@/blocks/auth/guard";
+import { requireHqOutsideDemo } from "@/blocks/auth/guard";
 import {
   listCountryNames,
   listPartnerAccounts,
@@ -14,7 +14,7 @@ import { PartnersScreen } from "@/blocks/auth/ui/PartnersScreen";
  * Партнёру адрес отвечает 404, как несуществующий.
  */
 export default async function PartnersPage() {
-  await requireHq();
+  await requireHqOutsideDemo();
 
   const [accounts, tenantNames, countryNames, locale] = await Promise.all([
     listPartnerAccounts(),

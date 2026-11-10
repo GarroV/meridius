@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { CHECKLIST_PARAM } from "@/blocks/fill/params";
+import { DemoBanner } from "@/blocks/demo/ui/DemoBanner";
 import { FillScreen } from "@/blocks/fill/ui/FillScreen";
 
 /**
@@ -38,9 +39,12 @@ export default async function StationFillPage({
   const { code } = await params;
   const chosen = (await searchParams)[CHECKLIST_PARAM];
   return (
-    <FillScreen
-      code={code}
-      checklistId={typeof chosen === "string" ? chosen : undefined}
-    />
+    <>
+      <DemoBanner />
+      <FillScreen
+        code={code}
+        checklistId={typeof chosen === "string" ? chosen : undefined}
+      />
+    </>
   );
 }

@@ -20,15 +20,33 @@ import {
 export type AdminViewerRole = "hq" | "partner";
 
 const AdminViewerContext = createContext<AdminViewerRole | null>(null);
+// Демо-режим (D193): клиентская сторона не видит окружения процесса, поэтому признак
+// приезжает от разметки кабинета, как и роль.
+const AdminDemoContext = createContext(false);
 
 export function AdminViewerProvider({
   role,
+  isDemo = false,
   children,
 }: {
   readonly role: AdminViewerRole;
+  readonly isDemo?: boolean;
   readonly children: ReactNode;
 }): ReactElement {
-  return <AdminViewerContext value={role}>{children}</AdminViewerContext>;
+  return (
+    <AdminViewerContext value={role}>
+      <AdminDemoContext value={isDemo}>{children}</AdminDemoContext>
+    </AdminViewerContext>
+  );
+}
+
+/** Скрывает содержимое в демо-режиме: экран, которого там нет (язык фиксирован, учётки закрыты). */
+export function HideInDemo({
+  children,
+}: {
+  readonly children: ReactNode;
+}): ReactNode {
+  return useContext(AdminDemoContext) ? null : children;
 }
 
 /**
@@ -40,7 +58,9 @@ export function HqOnly({
 }: {
   readonly children: ReactNode;
 }): ReactNode {
-  return useContext(AdminViewerContext) === "hq" ? children : null;
+  // В демо экран «Партнёры» закрыт целиком (учётки общие), пункт не ведёт в 404.
+  const isDemo = useContext(AdminDemoContext);
+  return useContext(AdminViewerContext) === "hq" && !isDemo ? children : null;
 }
 
 /** Подвал меню: кто вошёл. Слова отдаёт меню готовыми, как переключателям (T254). */

@@ -1212,5 +1212,30 @@
       "what": "Create a partner account here and give it countries: signed in with its own login, the partner sees only those. Passwords are changed and reset and accounts removed here too.",
       "next": "Hand the login and password to the partner yourself — the product does not send them."
     }
+  },
+  "demo": {
+    "banner": {
+      "text": "Demo — data resets every hour",
+      "switch": "Switch role"
+    },
+    "page": {
+      "title": "Try Meridius",
+      "lead": "An open demo with made-up pizzerias and 60 days of checklist history. Pick a role and look around — no password needed. Everything you change is reset every hour.",
+      "roles": "Choose a role",
+      "enter": "Open",
+      "hq": {
+        "title": "HQ / Methodologist",
+        "text": "The management company: the whole network, checklist templates, statistics and alarms across all countries."
+      },
+      "partner": {
+        "title": "Partner — {name}",
+        "text": "A partner sees only its own countries: its pizzerias, stations, checklists and statistics."
+      },
+      "kitchen": {
+        "title": "Kitchen",
+        "text": "What staff see on a station: scan the sticker and fill in the checklist on a phone. No sign-in."
+      },
+      "unavailable": "The demo accounts are not set up yet. Run the demo seed and reload the page."
+    }
   }
 }
