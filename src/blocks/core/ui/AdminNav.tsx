@@ -26,7 +26,7 @@ import {
 } from "../admin-sections";
 import brandMarkFile from "../brand/mark-small.svg";
 import { asLocale } from "../locale";
-import { HqOnly, NavViewer } from "./admin-viewer";
+import { HideInDemo, HqOnly, NavViewer } from "./admin-viewer";
 import { Icon, type IconName } from "./Icon";
 import { LocaleToggle } from "./LocaleToggle";
 import { MobileSearch } from "./MobileSearch";
@@ -204,11 +204,14 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
     // Тема (T236, D106) и язык (#161) — две капсулы ядра одной строкой, без подписей.
     <div className="sidenav__prefs">
       <ThemeToggle labels={themeLabels} testIdPrefix={testIdPrefix} />
-      <LocaleToggle
-        current={asLocale(locale)}
-        label={t("locale.label")}
-        testIdPrefix={testIdPrefix}
-      />
+      {/* Демо всегда английское (D193): переключатель ничего бы не переключил. */}
+      <HideInDemo>
+        <LocaleToggle
+          current={asLocale(locale)}
+          label={t("locale.label")}
+          testIdPrefix={testIdPrefix}
+        />
+      </HideInDemo>
     </div>
   );
 

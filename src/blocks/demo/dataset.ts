@@ -323,7 +323,7 @@ const VERSION_MORNING_V1: DemoVersion = {
   versionNumber: 1,
   status: "archived",
   sections: CHECKLIST_MORNING_SECTIONS_V1,
-  publishedHoursAgo: 720,
+  publishedHoursAgo: 1800,
 };
 const VERSION_MORNING_V2: DemoVersion = {
   id: VERSION_MORNING_V2_ID,
@@ -398,7 +398,7 @@ const VERSION_EVENING_V1: DemoVersion = {
   versionNumber: 1,
   status: "published",
   sections: CHECKLIST_EVENING_SECTIONS_V1,
-  publishedHoursAgo: 240,
+  publishedHoursAgo: 1800,
 };
 
 const CHECKLIST_EVENING: DemoChecklist = {
@@ -481,7 +481,7 @@ const VERSION_COUNTER_V1: DemoVersion = {
   versionNumber: 1,
   status: "published",
   sections: CHECKLIST_COUNTER_SECTIONS_V1,
-  publishedHoursAgo: 300,
+  publishedHoursAgo: 1800,
 };
 
 const CHECKLIST_COUNTER: DemoChecklist = {
