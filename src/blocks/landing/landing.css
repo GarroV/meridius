@@ -157,9 +157,16 @@ body:has(.lp) {
   align-items: center;
   gap: 20px;
 }
+/* Ядро сворачивает капсулу языка в столбик на узком окне (это рейка кабинета); в шапке
+   посадочной она всегда в строку. */
 .lp-bar__acts .sidenav__lang {
+  flex-direction: row;
+  flex-shrink: 0;
   margin: 0;
   padding: 0;
+}
+.lp-bar__acts .sidenav__lang .langpill {
+  flex-direction: row;
 }
 
 /* ── Колонки ────────────────────────────────────────────────────────────── */
