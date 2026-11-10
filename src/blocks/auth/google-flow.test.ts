@@ -6,6 +6,8 @@
 // ни кода, ни токена в строке журнала.
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { finishGoogleSignIn } from "./google-flow";
+
 const SETTINGS = {
   clientId: "meridius.apps.googleusercontent.com",
   clientSecret: "секрет-клиента",
@@ -29,11 +31,9 @@ vi.mock("next/headers", () => ({
   cookies: () =>
     Promise.resolve({
       get: () =>
-        mocks.cookieValue === undefined
-          ? undefined
-          : { value: mocks.cookieValue },
-      delete: () => undefined,
-      set: () => undefined,
+        mocks.cookieValue === undefined ? void 0 : { value: mocks.cookieValue },
+      delete: () => void 0,
+      set: () => void 0,
     }),
 }));
 vi.mock("./config", () => ({ sessionSecret: () => "x".repeat(40) }));
@@ -48,8 +48,6 @@ vi.mock("./google", async (importOriginal) => ({
   identityFromIdToken: mocks.identityFromIdToken,
 }));
 
-import { finishGoogleSignIn } from "./google-flow";
-
 function returnUrl(params: Record<string, string>): URL {
   const url = new URL("https://meridius.example/admin/login/google/callback");
   for (const [key, value] of Object.entries(params)) {
@@ -58,19 +56,21 @@ function returnUrl(params: Record<string, string>): URL {
   return url;
 }
 
-let warn: ReturnType<typeof vi.spyOn>;
-let error: ReturnType<typeof vi.spyOn>;
+/** Строки журнала по уровням: заглушки консоли складывают сюда всё, что написал flow. */
+let warned: string[] = [];
+let errored: string[] = [];
+
+function line(args: readonly unknown[]): string {
+  return args.map(String).join(" ");
+}
 
 /** Всё, что flow написал в журнал, одной строкой: по ней ищем утечки. */
 function logged(): string {
-  return [...warn.mock.calls, ...error.mock.calls]
-    .flat()
-    .map(String)
-    .join(" | ");
+  return [...warned, ...errored].join(" | ");
 }
 
 function warnedLines(): string[] {
-  return warn.mock.calls.map((call) => call.map(String).join(" "));
+  return warned;
 }
 
 function isRefusal(response: Response): boolean {
@@ -85,9 +85,15 @@ beforeEach(() => {
   mocks.exchangeCode.mockReset().mockResolvedValue(ID_TOKEN);
   mocks.identityFromIdToken.mockReset().mockReturnValue({ email: EMAIL });
   mocks.findEmailAccount.mockReset().mockResolvedValue({ id: "учётка-1" });
-  mocks.setSessionCookie.mockReset().mockResolvedValue(undefined);
-  warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-  error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  mocks.setSessionCookie.mockReset().mockResolvedValue(void 0);
+  warned = [];
+  errored = [];
+  vi.spyOn(console, "warn").mockImplementation((...args: unknown[]) => {
+    warned.push(line(args));
+  });
+  vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+    errored.push(line(args));
+  });
 });
 
 afterEach(() => {
@@ -95,11 +101,11 @@ afterEach(() => {
 });
 
 describe("причина отказа в журнале", () => {
-  const cases: ReadonlyArray<{
+  const cases: readonly {
     name: string;
     reason: string;
     arrange: () => URL;
-  }> = [
+  }[] = [
     {
       name: "метка не та",
       reason: "state-mismatch",
@@ -192,16 +198,16 @@ describe("причина отказа в журнале", () => {
     );
 
     expect(response.headers.get("location")).toBe("/admin");
-    expect(warn).not.toHaveBeenCalled();
+    expect(warned).toEqual([]);
     expect(mocks.setSessionCookie).toHaveBeenCalledOnce();
   });
 });
 
-describe("повтор обмена кода", () => {
-  function timeout(): Error {
-    return new DOMException("The operation timed out.", "TimeoutError");
-  }
+function timeout(): Error {
+  return new DOMException("The operation timed out.", "TimeoutError");
+}
 
+describe("повтор обмена кода", () => {
   test("тайм-аут с первого раза и успех со второго — вход проходит", async () => {
     mocks.exchangeCode
       .mockRejectedValueOnce(timeout())
