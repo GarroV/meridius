@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 
 import { formActionPath } from "@/blocks/core/base-path";
 
+import { demoUrl } from "../config";
 import { googleSettings } from "../google";
 import { GOOGLE_START_PATH } from "../routes";
 import { GoogleMark } from "./GoogleMark";
@@ -40,6 +41,8 @@ export async function LoginScreen({
 }) {
   const t = await getTranslations("login");
   const isGoogleEnabled = googleSettings() !== null;
+  // Адрес открытого демо (D194): задан на проде — под карточкой ссылка, не задан — ничего.
+  const demoHref = demoUrl();
 
   const form = (
     <LoginForm
@@ -115,6 +118,19 @@ export async function LoginScreen({
             form
           )}
         </div>
+
+        {demoHref === null ? null : (
+          <p className="mt-[var(--space-7)] mb-0 text-center text-[length:var(--fs-meta)]">
+            <a
+              href={demoHref}
+              data-testid="login-demo"
+              rel="noopener"
+              className="text-[var(--accent)] underline"
+            >
+              {t("openDemo")}
+            </a>
+          </p>
+        )}
       </div>
     </main>
   );
