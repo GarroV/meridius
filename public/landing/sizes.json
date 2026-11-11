@@ -1,10 +1,18 @@
 {
   "editor-en": [2560, 1640],
+  "editor-ru": [2560, 1640],
   "feed-en": [2560, 1640],
+  "feed-ru": [2560, 1640],
   "fill-en": [780, 1688],
+  "fill-ru": [780, 1688],
   "network-en": [2560, 1640],
+  "network-ru": [2560, 1640],
   "qr-en": [2560, 1640],
+  "qr-ru": [2560, 1640],
   "stats-en": [2560, 1640],
+  "stats-ru": [2560, 1640],
   "tablet-en": [2048, 1536],
-  "templates-en": [2560, 1640]
+  "tablet-ru": [2048, 1536],
+  "templates-en": [2560, 1640],
+  "templates-ru": [2560, 1640]
 }
