@@ -35,14 +35,10 @@ export const config = {
   //
   // Страница привязки и привязанная вкладка — та же публичная сторона и тот же ключ:
   // на вкладке живёт экран заполнения целиком, а значит и его инлайновые скрипты.
-  matcher: [
-    "/admin/:path*",
-    "/s/:path*",
-    "/pair",
-    "/station",
-    "/welcome",
-    "/demo",
-  ],
+  // Одной строкой, а не столбцом: сторож префикса `/s/` (`public-routes.test.ts`)
+  // пропускает только строку, где есть `matcher: [`.
+  // prettier-ignore
+  matcher: ["/admin/:path*", "/s/:path*", "/pair", "/station", "/welcome", "/demo"],
 };
 
 const NONCE_BYTES = 16;

@@ -205,8 +205,10 @@ try {
 const ordered = Object.fromEntries(
   Object.entries(sizes).sort(([a], [b]) => a.localeCompare(b)),
 );
-await writeFile(
-  path.join(OUT, "sizes.json"),
-  `${JSON.stringify(ordered, null, 2)}\n`,
+// Формат — как у prettier (пара размеров в одну строку): иначе проверка формата краснеет
+// после каждой пересъёмки.
+const lines = Object.entries(ordered).map(
+  ([key, [width, height]]) => `  ${JSON.stringify(key)}: [${width}, ${height}]`,
 );
+await writeFile(path.join(OUT, "sizes.json"), `{\n${lines.join(",\n")}\n}\n`);
 console.log(`готово: ${Object.keys(ordered).length} снимков в ${OUT}`);
