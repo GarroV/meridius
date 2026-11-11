@@ -11,6 +11,7 @@ import { LocaleToggle } from "@/blocks/core/ui/LocaleToggle";
 
 import "./landing.css";
 import { demoHref } from "./demo-link";
+import { LandingEnhance } from "./LandingEnhance";
 import {
   loadShotSizes,
   shotKey,
@@ -361,7 +362,7 @@ export async function LandingPage({
           </div>
         </Sheet>
       </main>
-      <script src={publicPath(`/${SHOTS_DIR}/landing.js`)} defer />
+      <LandingEnhance src={publicPath(`/${SHOTS_DIR}/landing.js`)} />
     </div>
   );
 }
