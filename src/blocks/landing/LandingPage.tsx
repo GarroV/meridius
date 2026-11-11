@@ -4,7 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 
 import { LOGIN_PATH } from "@/blocks/auth/routes";
 import { publicPath } from "@/blocks/core/base-path";
-import type { Locale } from "@/blocks/core/locale";
+import { DEFAULT_LOCALE, type Locale } from "@/blocks/core/locale";
 
 import "./landing.css";
 import { demoHref } from "./demo-link";
@@ -40,8 +40,9 @@ interface ShotProps {
 }
 
 /**
- * Снимок настоящего экрана демо-стенда. Файла в `sizes.json` ещё нет — пустая рамка с
- * тем же описанием для чтеца: страница выглядит законченной и до первой съёмки.
+ * Снимок настоящего экрана демо-стенда. Файла в `sizes.json` нет ни на языке страницы,
+ * ни на английском — пустая рамка с тем же описанием для чтеца: страница выглядит
+ * законченной и до первой съёмки.
  */
 function Shot({
   name,
@@ -50,7 +51,11 @@ function Shot({
   alt,
   isEager = false,
 }: ShotProps): ReactElement {
-  const size = sizes[shotKey(name, locale)];
+  // Русского снимка нет (его снимают со стенда, где уже есть переключатель языка) —
+  // показываем английский: настоящий экран на другом языке лучше пустой рамки.
+  const shotLocale =
+    sizes[shotKey(name, locale)] === undefined ? DEFAULT_LOCALE : locale;
+  const size = sizes[shotKey(name, shotLocale)];
   if (size === undefined) {
     return (
       <div
@@ -65,7 +70,7 @@ function Shot({
   return (
     <img
       className="lp-shot"
-      src={shotSrc(name, locale)}
+      src={shotSrc(name, shotLocale)}
       width={size[0]}
       height={size[1]}
       alt={alt}

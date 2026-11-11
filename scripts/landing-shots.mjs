@@ -3,6 +3,7 @@
 //
 //   npm run landing-shots
 //   LANDING_SHOTS_BASE=https://meridius-demo.vasiliy-garro.workers.dev npm run landing-shots
+//   LANDING_SHOTS_LANGS=en npm run landing-shots   (только один язык)
 //
 // Скрипт сам входит на демо-стенд (`/demo` → выбор роли), открывает настоящие экраны
 // продукта и пишет обрезанные ретина-снимки (deviceScaleFactor 2) в
@@ -24,7 +25,7 @@ import { promisify } from "node:util";
 import { chromium } from "@playwright/test";
 
 register("./src-resolve-hook.mjs", import.meta.url);
-const { DEMO } = await import("../src/blocks/demo/index.ts");
+const { KITCHEN_STATION_CODE } = await import("../src/blocks/demo/roles.ts");
 
 const run = promisify(execFile);
 
@@ -33,20 +34,20 @@ const BASE = (
   "https://meridius-demo.vasiliy-garro.workers.dev"
 ).replace(/\/$/, "");
 const OUT = path.resolve(import.meta.dirname, "../public/landing");
-const LANGS = ["en", "ru"];
+const ALL_LANGS = ["en", "ru"];
+// LANDING_SHOTS_LANGS=en — снять только английские (пока стенд не выложен с переключателем языка).
+const LANGS = (process.env.LANDING_SHOTS_LANGS ?? ALL_LANGS.join(","))
+  .split(",")
+  .map((lang) => lang.trim())
+  .filter((lang) => ALL_LANGS.includes(lang));
 const LOCALES = { en: "en-US", ru: "ru-RU" };
 const SCALE = 2;
 const WEBP_QUALITY = "86";
 const DESKTOP = { width: 1280, height: 820 };
-const PHONE = { width: 390, height: 844 };
+const PHONE = { width: 390, height: 844, isMobile: true };
 const TABLET = { width: 1024, height: 768 };
 // Плашка демо и всё служебное, что к смыслу снимка не относится.
 const HIDE_CSS = '[data-testid="demo-banner"] { display: none !important; }';
-
-const [kitchen, dough] = DEMO.stations;
-if (kitchen === undefined || dough === undefined) {
-  throw new Error("В демо-наборе меньше двух станций: снимать нечего");
-}
 
 /** Размер png из заголовка IHDR: ширина и высота — по 4 байта с 16-го. */
 function pngSize(buffer) {
@@ -74,11 +75,10 @@ async function toWebp(png, file) {
 /** Вход на демо-стенд: `/demo` и выбор роли (кнопка формы, без пароля). */
 async function enterDemo(page, lang) {
   await page.goto(`${BASE}/demo?lang=${lang}`);
-  const role = page.locator('[data-testid="demo-role-hq"]');
-  const button =
-    (await role.count()) > 0
-      ? role.first()
-      : page.locator('main form button[type="submit"]').first();
+  // `demo-role-hq` — сама форма карточки, нажимать надо её кнопку отправки.
+  const button = page
+    .locator('[data-testid="demo-role-hq"] button[type="submit"]')
+    .first();
   await button.click();
   await page.waitForURL(/\/admin/);
 }
@@ -103,13 +103,13 @@ const SHOTS = [
     name: "fill",
     isPublic: true,
     viewport: PHONE,
-    open: (page) => page.goto(`${BASE}/s/${kitchen.code}`),
+    open: (page) => page.goto(`${BASE}/s/${KITCHEN_STATION_CODE}`),
   },
   {
     name: "tablet",
     isPublic: true,
     viewport: TABLET,
-    open: (page) => page.goto(`${BASE}/s/${dough.code}`),
+    open: (page) => page.goto(`${BASE}/s/${KITCHEN_STATION_CODE}`),
   },
   {
     name: "editor",
@@ -174,7 +174,9 @@ try {
       // чем пересаживать окно, и куки демо-роли не текут между экранами.
       const context = await browser.newContext({
         locale: LOCALES[lang],
-        viewport: shot.viewport,
+        viewport: { width: shot.viewport.width, height: shot.viewport.height },
+        isMobile: shot.viewport.isMobile === true,
+        hasTouch: shot.viewport.isMobile === true,
         deviceScaleFactor: SCALE,
         colorScheme: "light",
       });
