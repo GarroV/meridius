@@ -76,6 +76,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       GOOGLE_FRONT_REDIRECT_URI: ${GOOGLE_FRONT_REDIRECT_URI:-}
+      DEMO_URL: ${DEMO_URL:-}
     expose:
       - "3000"
     depends_on:
