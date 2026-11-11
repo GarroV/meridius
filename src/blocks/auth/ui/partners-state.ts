@@ -15,6 +15,7 @@ export type PartnerFormError =
   | "email-taken"
   | "not-found"
   | "removed"
+  | "demo-locked"
   | "unknown";
 
 export interface PartnerFormState {

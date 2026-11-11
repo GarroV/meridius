@@ -59,6 +59,7 @@ const ERROR_KEYS = [
   "email-taken",
   "not-found",
   "removed",
+  "demo-locked",
   "unknown",
 ] as const;
 
