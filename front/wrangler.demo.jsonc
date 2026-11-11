@@ -12,5 +12,9 @@
   "vpc_services": [
     { "binding": "EDGE", "service_id": "01a11a74-ba20-7ea3-a9c1-581681d0c341" },
   ],
-  "vars": { "ORIGIN_HOST": "demo-meridius.95-111-249-216.sslip.io" },
+  // RESET_PAGE: на 502/503/504 от источника — страница «демо обновляется» вместо голой ошибки.
+  "vars": {
+    "ORIGIN_HOST": "demo-meridius.95-111-249-216.sslip.io",
+    "RESET_PAGE": "1",
+  },
 }
