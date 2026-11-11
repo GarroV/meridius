@@ -92,14 +92,4 @@ describe("проверка окружения при старте", () => {
       /BASE_PATH/,
     );
   });
-
-  it("называет включённое демо вслух и не принимает «true» молча", () => {
-    expect(checkStartupConfig({ DEMO_MODE: "1" }).join(" · ")).toMatch(
-      /DEMO_MODE=1.*БЕЗ ПАРОЛЯ/,
-    );
-    expect(checkStartupConfig({ DEMO_MODE: "true" }).join(" · ")).toMatch(
-      /DEMO_MODE=true не включает демо/,
-    );
-    expect(checkStartupConfig({}).join(" · ")).not.toMatch(/DEMO_MODE/);
-  });
 });

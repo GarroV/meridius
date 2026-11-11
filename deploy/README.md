@@ -76,7 +76,6 @@ Meridius пока в разработке: изменения выкладыва
 | `GOOGLE_CLIENT_SECRET`      | Секрет того же клиента                                                                                  | там же, рядом с идентификатором                                                                                                                |
 | `GOOGLE_REDIRECT_URI`       | Адрес возврата; побуквенно как в консоли Google                                                         | `<PUBLIC_BASE_URL><BASE_PATH>/admin/login/google/callback`                                                                                     |
 | `GOOGLE_FRONT_REDIRECT_URI` | Адрес возврата для входа через фронт Cloudflare; пусто — через фронт тот же прямой                      | `https://meridius.vasiliy-garro.workers.dev/admin/login/google/callback`                                                                       |
-| `DEMO_URL`                  | Адрес открытого демо (D194): задан — на экране входа ссылка «Открыть демо»; пусто — ссылки нет          | адрес Worker'а демо, см. «Открытое демо»                                                                                                       |
 
 `DATABASE_URL` не задаётся: compose собирает его сам из трёх ключей базы.
 
@@ -134,38 +133,6 @@ docker compose -f deploy/compose.yaml logs --tail 30 app
 Сквозной смоук на площадке — `node scripts/mvp-smoke.mjs --url <PUBLIC_BASE_URL> --password
 <пароль>`: он сверяет базу напрямую, поэтому ему нужен `DATABASE_URL` до базы площадки, и
 работает он только на демо-контуре (`npm run seed:demo`). На боевой базе его не гонять.
-
-## Открытое демо
-
-Решение D194, образец — демо DECIMUS. Отдельный стенд на том же VPS: клон `/srv/meridius-demo`, проект compose `meridius-demo`, **своя база и свой том**; с продом общая только внешняя сеть `edge-meridius` к Caddy. Вход без пароля с выбором роли, выдуманные данные (страна Demoland), сброс раз в час, интерфейс по заголовку браузера (по умолчанию английский), переключатель языка на странице входа.
-
-| Что             | Где                                                                                                                                                                                                                                                                                                           |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Сборка          | `deploy/compose.yaml` + `deploy/demo/compose.demo.yaml`, окружение `--env-file deploy/demo/.env`                                                                                                                                                                                                              |
-| Окружение       | `/srv/meridius-demo/deploy/demo/.env` (вне git), шаблон `deploy/demo/.env.example`: свои пароль базы и секреты, `DEMO_MODE=1`. Боевой `deploy/.env` стенд не читает                                                                                                                                           |
-| Флаг            | `DEMO_MODE=1` включает `/demo`, плашку «Демо» и запреты. Без флага `/demo` отвечает 404 (страница и обработчик), поведение продукта не меняется                                                                                                                                                               |
-| Роли            | «Управляющая компания» (`demo-hq`, тенант УК, вся сеть) и «Партнёр» (`demo-partner`, тенант «Demoland Partner» со страной Demoland, D145/D169). Контракт — `src/blocks/core/demo.ts`. Учётка `admin` в демо не используется                                                                                   |
-| Вход            | `GET /demo` — выбор роли, `POST /demo/<hq\|partner>` — сессия выбранной учётки без пароля, переход в `/admin`. Нет учётки (идёт пересев) — страница «демо готовится», 503                                                                                                                                     |
-| Учётки          | Заводит `scripts/seed-demo.mjs` ТОЛЬКО при `DEMO_MODE=1`, со случайным паролем, который нигде не печатается. На проде сид Demoland учёток `demo-*` не заводит                                                                                                                                                 |
-| Что закрыто     | Всё, что меняет доступ или выходит наружу: экран «Партнёры» (учётки, пароли, почта для Google, сотрудники УК) и вход через Google. Закрытое отвечает «в демо это выключено». Остальное открыто — данные сбрасываются. Два списка OPEN/LOCKED — `src/blocks/auth/demo-locks.ts`, сторож — `demo-locks.test.ts` |
-| Сброс           | `deploy/demo/reset.sh`: контейнеры `app` и `db` и том `meridius-demo_pgdata` заново → миграции → `seed` (контур Demoland и учётки) → подъём приложения, около минуты. Сносит только проект `meridius-demo`, имя — константа в скрипте                                                                         |
-| Обновление      | `deploy/demo/update.sh`: `git pull --ff-only`, сборка, затем `reset.sh`. Оба скрипта отказывают (`deploy/demo/guard.sh`), если дерево не `/srv/meridius-demo` или в `deploy/demo/.env` нет `DEMO_MODE=1`                                                                                                      |
-| Caddy           | `GarroV/vps-infra`: сайт демо `<DEMO_ORIGIN_HOST>` → `meridius-demo-app:3000` по сети `edge-meridius`; заголовки фронта срезаются, ключ фронта сайт не проверяет (как у стенда)                                                                                                                               |
-| Адрес           | Worker `meridius-demo`: шаблон `front/wrangler.demo.template.jsonc`, код тот же, что `front/src/index.js`. Секрет `FRONT_KEY` свой, случайный                                                                                                                                                                 |
-| Кнопка на проде | `DEMO_URL` в `deploy/.env` прода — адрес Worker'а демо; на `/admin/login` появляется ссылка «Открыть демо». Пусто — ссылки нет                                                                                                                                                                                |
-
-### Что сделать на сервере
-
-1. Клон: `git clone https://github.com/GarroV/meridius.git /srv/meridius-demo`.
-2. Окружение: `cp deploy/demo/.env.example deploy/demo/.env`, заполнить: `openssl rand -hex 24` (пароль базы), `openssl rand -hex 32` дважды (`SESSION_SECRET`, `DEVICE_SESSION_SECRET` — разные), `PUBLIC_BASE_URL` — адрес Worker'а демо, `ADMIN_PASSWORD_HASH` — хэш случайного пароля (`node scripts/hash-admin-password.mjs`), пароль не сохранять.
-3. Caddy: сайт демо в `vps-infra` (`edge/sites/meridius-demo.caddy`), применить.
-4. Первый подъём: `cd /srv/meridius-demo && deploy/demo/update.sh`. Сеть `edge-meridius` уже есть от прода (`docker network ls`); создавать заново не нужно.
-5. Worker: скопировать шаблон в `front/wrangler.demo.jsonc` (в git не попадает), подставить `<VPC_SERVICE_ID>` и `<DEMO_ORIGIN_HOST>`; из `front/` — `npx wrangler deploy -c wrangler.demo.jsonc`; секрет — `openssl rand -hex 32 | npx wrangler secret put FRONT_KEY --name meridius-demo`.
-6. Cron пользователя `garva`: `23 * * * * /srv/meridius-demo/deploy/demo/reset.sh >> ~/meridius-demo-reset.log 2>&1`.
-7. Прод: `DEMO_URL=<адрес Worker'а демо>` в `/srv/meridius/deploy/.env`, затем `docker compose -f deploy/compose.yaml -f "$EDGE" up -d` (значение читается при запуске, пересборка не нужна).
-8. Карточка проекта в хабе imf-vc: адрес демо и шаги входа (см. `CLAUDE.md`).
-
-Проверка: `https://<демо>/demo` — выбор роли; обе кнопки ведут в кабинет с плашкой «Демо»; под «Партнёром» видна только страна Demoland; на экране «Партнёры» («Управляющая компания») любое действие отвечает отказом; `https://<прод>/demo` — 404; на `/admin/login` прода — ссылка «Открыть демо».
 
 ## Журнал
 
