@@ -1,8 +1,6 @@
 // Значения живут только в окружении: в git попадает лишь .env.example с именами (принципы проекта).
 const HASH_VARIABLE = "ADMIN_PASSWORD_HASH";
 const SECRET_VARIABLE = "SESSION_SECRET";
-const DEMO_VARIABLE = "DEMO_MODE";
-const DEMO_URL_VARIABLE = "DEMO_URL";
 
 // 32 знака ≈ 192 бита при base64: подпись сессии перестаёт быть подбираемой.
 const MIN_SECRET_LENGTH = 32;
@@ -68,35 +66,4 @@ export function sessionSecret(): string {
     );
   }
   return value;
-}
-
-/**
- * Стенд открытого демо (D194): `DEMO_MODE=1`. Включает вход `/demo` без пароля, плашку
- * «Демо» и запреты на всё, что меняет доступ или выходит наружу. Любое другое значение,
- * включая пустое и «true», — выключено: флаг, который включается случайной опечаткой в
- * `.env` прода, открыл бы кабинет всем.
- */
-export function isDemoMode(
-  env: Record<string, string | undefined> = process.env,
-): boolean {
-  return env[DEMO_VARIABLE] === "1";
-}
-
-/**
- * Адрес демо для кнопки на экране входа прода (`DEMO_URL`). Не задан или не адрес
- * http(s) — null, и кнопки нет: `javascript:` и прочее в `href` не попадает никогда.
- */
-export function demoUrl(
-  env: Record<string, string | undefined> = process.env,
-): string | null {
-  const raw = (env[DEMO_URL_VARIABLE] ?? "").trim();
-  if (raw === "") return null;
-  try {
-    const url = new URL(raw);
-    return url.protocol === "https:" || url.protocol === "http:"
-      ? url.toString()
-      : null;
-  } catch {
-    return null;
-  }
 }
