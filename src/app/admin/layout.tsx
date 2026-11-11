@@ -57,7 +57,11 @@ export default async function AdminLayout({
         admin: MESSAGES[locale].admin,
       }}
     >
-      <AdminViewerProvider role={viewer.tenantKind} isDemo={isDemoMode()}>
+      <AdminViewerProvider
+        role={viewer.tenantKind}
+        name={viewer.tenantKind === "partner" ? viewer.tenantName : null}
+        isDemo={isDemoMode()}
+      >
         <ThemeProvider choice={themeChoice}>
           <DemoBanner />
           {children}

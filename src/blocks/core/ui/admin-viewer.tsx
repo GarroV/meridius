@@ -20,22 +20,29 @@ import {
 export type AdminViewerRole = "hq" | "partner";
 
 const AdminViewerContext = createContext<AdminViewerRole | null>(null);
+// Как назвать вошедшего в подвале меню: название партнёра. У УК имени нет — там остаётся
+// «Вошли как» и роль. Приезжает от разметки кабинета, как и роль.
+const AdminViewerNameContext = createContext<string | null>(null);
 // Демо-режим (D193): клиентская сторона не видит окружения процесса, поэтому признак
 // приезжает от разметки кабинета, как и роль.
 const AdminDemoContext = createContext(false);
 
 export function AdminViewerProvider({
   role,
+  name = null,
   isDemo = false,
   children,
 }: {
   readonly role: AdminViewerRole;
+  readonly name?: string | null;
   readonly isDemo?: boolean;
   readonly children: ReactNode;
 }): ReactElement {
   return (
     <AdminViewerContext value={role}>
-      <AdminDemoContext value={isDemo}>{children}</AdminDemoContext>
+      <AdminViewerNameContext value={name}>
+        <AdminDemoContext value={isDemo}>{children}</AdminDemoContext>
+      </AdminViewerNameContext>
     </AdminViewerContext>
   );
 }
@@ -74,19 +81,20 @@ export function NavViewer({
 }): ReactElement {
   const role = useContext(AdminViewerContext);
   const roleLabel = role === null ? "" : labels.roles[role];
+  const name = useContext(AdminViewerNameContext);
 
   return (
     <div
       className="sidenav__user"
-      title={roleLabel}
+      title={name === null ? roleLabel : `${name} — ${roleLabel}`}
       data-testid="nav-viewer"
       data-role={role ?? ""}
     >
       <span className="avatar" aria-hidden="true">
-        {roleLabel.slice(0, 1).toUpperCase()}
+        {(name ?? roleLabel).slice(0, 1).toUpperCase()}
       </span>
       <span className="sidenav__who">
-        <b>{labels.signedIn}</b>
+        <b data-testid="nav-name">{name ?? labels.signedIn}</b>
         <small data-testid="nav-role">{roleLabel}</small>
       </span>
     </div>
