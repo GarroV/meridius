@@ -21,7 +21,7 @@ export async function DemoScreen() {
   return (
     <main
       data-testid="demo-screen"
-      className="mx-auto flex min-h-screen w-[960px] max-w-full flex-col justify-center gap-[var(--space-8)] p-[var(--space-8)]"
+      className="mx-auto flex w-[960px] max-w-full flex-col gap-[var(--space-8)] px-[var(--space-8)] pt-[var(--space-10)] pb-[var(--space-10)]"
     >
       <header className="flex flex-col gap-[var(--space-3)]">
         <h1 className="m-0 text-[length:var(--fs-display)] leading-[var(--lh-display)] font-semibold">

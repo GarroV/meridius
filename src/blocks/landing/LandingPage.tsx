@@ -1,16 +1,14 @@
-import type { StaticImageData } from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactElement, ReactNode } from "react";
 
 import { LOGIN_PATH } from "@/blocks/auth/routes";
 import { publicPath } from "@/blocks/core/base-path";
-import brandMarkFile from "@/blocks/core/brand/mark-small.svg";
 import type { Locale } from "@/blocks/core/locale";
-import { LocaleToggle } from "@/blocks/core/ui/LocaleToggle";
 
 import "./landing.css";
 import { demoHref } from "./demo-link";
+import { LandingBar } from "./LandingBar";
 import { LandingEnhance } from "./LandingEnhance";
 import {
   loadShotSizes,
@@ -20,8 +18,6 @@ import {
   type ShotName,
   type ShotSizes,
 } from "./shots";
-
-const brandMark = brandMarkFile as StaticImageData;
 
 /** Рамка-заглушка до съёмки: пропорции снимка, а не битая картинка. */
 const PLACEHOLDER_RATIO: Readonly<Record<ShotName, string>> = {
@@ -172,34 +168,7 @@ export async function LandingPage({
 
   return (
     <div className="lp" data-testid="welcome" lang={locale}>
-      <header className="lp-bar">
-        <Link className="lp-bar__brand" href="/welcome">
-          <img
-            src={brandMark.src}
-            width={28}
-            height={28}
-            alt=""
-            data-testid="brand-mark"
-          />
-          <span>MERIDIUS</span>
-        </Link>
-        <div className="lp-bar__acts">
-          <LocaleToggle current={locale} label={t("language")} />
-          <Link className="lp-link" href={login} data-testid="welcome-login">
-            {t("login")}
-          </Link>
-          {demo === null ? null : (
-            <Link
-              className="lp-cta lp-cta--sm lp-bar__demo"
-              href={demo}
-              prefetch={false}
-              data-testid="welcome-demo-bar"
-            >
-              {t("demo")}
-            </Link>
-          )}
-        </div>
-      </header>
+      <LandingBar locale={locale} login={login} demo={demo} />
 
       <main>
         <Sheet tone="white" labelledBy="lp-h1" className="lp-hero">
