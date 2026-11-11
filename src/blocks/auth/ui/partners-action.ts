@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 
 import { normalizeLogin } from "../accounts";
 import { bindAccountEmail } from "../emails";
+import { demoLocked } from "../demo-locks";
 import { requireHq } from "../guard";
 import { provisionHqMember } from "../hq-members";
 import {
@@ -25,6 +26,12 @@ const MAX_FIELD_LENGTH = 512;
 const MAX_COUNTRIES = 500;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Открытое демо (D194): учётки общие, поэтому ничего из этого экрана там не работает. */
+const DEMO_REFUSAL: PartnerFormState = {
+  status: "failed",
+  error: "demo-locked",
+};
 
 function field(form: FormData, name: string): string {
   const value = form.get(name);
@@ -52,6 +59,7 @@ export async function submitCreatePartner(
 ): Promise<PartnerFormState> {
   void previous;
   await requireHq();
+  if (demoLocked()) return DEMO_REFUSAL;
 
   const countryNames = form
     .getAll("country")
@@ -81,6 +89,7 @@ export async function submitChangePassword(
 ): Promise<PartnerFormState> {
   void previous;
   await requireHq();
+  if (demoLocked()) return DEMO_REFUSAL;
 
   const accountId = accountIdOf(form);
   if (accountId === null) return { status: "failed", error: "not-found" };
@@ -103,6 +112,7 @@ export async function submitResetPassword(
 ): Promise<PartnerFormState> {
   void previous;
   await requireHq();
+  if (demoLocked()) return DEMO_REFUSAL;
 
   const accountId = accountIdOf(form);
   if (accountId === null) return { status: "failed", error: "not-found" };
@@ -122,6 +132,7 @@ export async function submitDisableAccount(
 ): Promise<PartnerFormState> {
   void previous;
   await requireHq();
+  if (demoLocked()) return DEMO_REFUSAL;
 
   const accountId = accountIdOf(form);
   if (accountId === null) return { status: "failed", error: "not-found" };
@@ -143,6 +154,7 @@ export async function submitBindEmail(
 ): Promise<PartnerFormState> {
   void previous;
   await requireHq();
+  if (demoLocked()) return DEMO_REFUSAL;
 
   const accountId = accountIdOf(form);
   if (accountId === null) return { status: "failed", error: "not-found" };
@@ -164,6 +176,7 @@ export async function submitCreateHqMember(
 ): Promise<PartnerFormState> {
   void previous;
   await requireHq();
+  if (demoLocked()) return DEMO_REFUSAL;
 
   const login = field(form, "login");
   try {

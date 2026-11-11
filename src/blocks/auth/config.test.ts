@@ -6,7 +6,12 @@ import path from "node:path";
 
 import { afterEach, describe, expect, test } from "vitest";
 
-import { adminPasswordHash, sessionSecret } from "./config";
+import {
+  adminPasswordHash,
+  demoUrl,
+  isDemoMode,
+  sessionSecret,
+} from "./config";
 import { verifyPassword } from "./password";
 
 const EXAMPLE = readFileSync(path.join(process.cwd(), ".env.example"), "utf8");
@@ -67,5 +72,31 @@ describe("значения из .env.example", () => {
   test("в примере нет знака $: подстановка загрузчика .env съедает такие значения", () => {
     expect(fromExample(HASH_VARIABLE)).not.toContain("$");
     expect(fromExample(SECRET_VARIABLE)).not.toContain("$");
+  });
+});
+
+describe("флаг открытого демо (D194)", () => {
+  test("включает только значение 1: «true», пусто и отсутствие — выключено", () => {
+    expect(isDemoMode({ DEMO_MODE: "1" })).toBe(true);
+    for (const value of ["true", "0", "", " 1", "yes", undefined]) {
+      expect(isDemoMode({ DEMO_MODE: value })).toBe(false);
+    }
+    expect(isDemoMode({})).toBe(false);
+  });
+
+  test("адрес демо для кнопки: только http(s), иначе кнопки нет", () => {
+    expect(demoUrl({ DEMO_URL: "https://demo.example/" })).toBe(
+      "https://demo.example/",
+    );
+    for (const value of [
+      "javascript:alert(1)",
+      "не адрес",
+      "",
+      "  ",
+      "ftp://x",
+    ]) {
+      expect(demoUrl({ DEMO_URL: value })).toBeNull();
+    }
+    expect(demoUrl({})).toBeNull();
   });
 });

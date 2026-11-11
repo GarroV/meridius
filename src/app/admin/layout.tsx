@@ -1,8 +1,9 @@
 import { NextIntlClientProvider } from "next-intl";
 import { headers } from "next/headers";
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
+import { isDemoMode } from "@/blocks/auth/config";
 import { requireAdmin } from "@/blocks/auth/guard";
 import { asLocale, type Locale } from "@/blocks/core/locale";
 import { themeFromCookieHeader } from "@/blocks/core/theme";
@@ -31,6 +32,10 @@ export default async function AdminLayout({
   const viewer = await requireAdmin();
 
   const locale = asLocale(await getLocale());
+  // Плашка открытого демо (D194) — на всех экранах кабинета сразу, потому что разметка одна.
+  const demoNote = isDemoMode()
+    ? (await getTranslations("demo"))("banner")
+    : null;
 
   /*
     Выбор темы читается здесь, а не самим переключателем: страницу в нужной теме уже
@@ -56,7 +61,18 @@ export default async function AdminLayout({
       }}
     >
       <AdminViewerProvider role={viewer.tenantKind}>
-        <ThemeProvider choice={themeChoice}>{children}</ThemeProvider>
+        <ThemeProvider choice={themeChoice}>
+          {demoNote === null ? null : (
+            <p
+              role="note"
+              data-testid="demo-banner"
+              className="m-0 bg-[var(--accent-soft)] px-[var(--space-7)] py-[var(--space-3)] text-center text-[length:var(--fs-meta)] font-medium text-[var(--ink)]"
+            >
+              {demoNote}
+            </p>
+          )}
+          {children}
+        </ThemeProvider>
       </AdminViewerProvider>
     </NextIntlClientProvider>
   );

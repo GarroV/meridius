@@ -17,7 +17,8 @@
     "lead": "Workspace for the management company and partners. Accounts are created by the management company.",
     "or": "or",
     "google": "Sign in with Google",
-    "googleFailed": "Google sign-in did not work: the email is not linked to an account, or sign-in was interrupted. Try again or use your login and password."
+    "googleFailed": "Google sign-in did not work: the email is not linked to an account, or sign-in was interrupted. Try again or use your login and password.",
+    "openDemo": "Open demo"
   },
   "notFound": {
     "title": "No such page",
@@ -1159,7 +1160,8 @@
       "removed": "The account has already been removed.",
       "unknown": "That did not work. Try again; if it keeps failing, tell the developers.",
       "email-shape": "That does not look like an email address: name@domain.",
-      "email-taken": "This email is already linked to another account."
+      "email-taken": "This email is already linked to another account.",
+      "demo-locked": "This is turned off in the demo: it would change access or reach outside services."
     },
     "hqTag": "HQ",
     "emailNone": "No email linked — password sign-in only.",
@@ -1212,5 +1214,26 @@
       "what": "Create a partner account here and give it countries: signed in with its own login, the partner sees only those. Passwords are changed and reset and accounts removed here too.",
       "next": "Hand the login and password to the partner yourself — the product does not send them."
     }
+  },
+  "demo": {
+    "banner": "Demo: the data is made up and reset every hour.",
+    "locked": "This is turned off in the demo: it would change access or reach outside services.",
+    "title": "MERIDIUS demo",
+    "lead": "Pick a role and look around — no password. The data is made up (the country Demoland) and is reset every hour.",
+    "enter": "Open as {role}",
+    "roles": {
+      "hq": {
+        "title": "Management company",
+        "note": "Sees the whole network: all countries, templates, the library, partners."
+      },
+      "partner": {
+        "title": "Partner",
+        "note": "Sees only its own space: the country Demoland and what belongs to it."
+      }
+    },
+    "preparingTitle": "The demo is getting ready",
+    "preparingText": "The demo data is being reloaded, this takes about a minute. Refresh the page shortly.",
+    "preparingRetry": "Back to role choice",
+    "foreignOrigin": "The request came from another site and was refused."
   }
 }

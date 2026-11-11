@@ -40,3 +40,8 @@ export const PUBLIC_PAIR_PATH = "/pair";
  * Кто пришёл, говорит подписанная кука, а что показать — строка устройства в базе.
  */
 export const PUBLIC_STATION_PATH = "/station";
+
+// Открытый вход в демо (`/demo`, `/demo/<роль>`) лежит в `core/demo.ts` вместе с ролями, а
+// публичным он остаётся тем, что `src/proxy.ts` его не перехватывает (его matcher —
+// `/admin/*`, `/s/*`, `/pair`, `/station`). Существует адрес только при `DEMO_MODE=1`:
+// без флага и страница, и обработчик отвечают 404 (`auth/demo-entry.ts`).

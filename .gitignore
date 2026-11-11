@@ -19,3 +19,6 @@ aitriage-reports/
 
 # Окружение отдельного проверочного стенда
 stand.env
+
+# Рабочий конфиг Worker'а демо: собирается из front/wrangler.demo.template.jsonc, адреса инфраструктуры в git не кладём
+front/wrangler.demo.jsonc
