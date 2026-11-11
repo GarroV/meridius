@@ -34,9 +34,13 @@ const KEY_ACTION_CANCEL = "actions.cancel";
 
 const CARD_CLASS =
   "bg-surface rounded-[var(--r-block)] border border-[var(--line-strong)] shadow-[var(--sh-xs)]";
-const GRID_CLASS = "grid grid-cols-[220px_300px_1fr] items-start";
-const COL_CLASS = "min-h-[420px]";
-const COL_BORDERED_CLASS = "min-h-[420px] border-r border-[var(--line)]";
+// На телефоне колонки идут столбиком, три в ряд — с планшета (768 px): иначе колонка
+// станций уезжала за край экрана.
+const GRID_CLASS =
+  "grid grid-cols-1 items-start md:grid-cols-[220px_300px_1fr]";
+const COL_CLASS = "min-w-0 md:min-h-[420px]";
+const COL_BORDERED_CLASS =
+  "border-b border-[var(--line)] md:min-h-[420px] md:border-r md:border-b-0";
 const COL_HEAD_CLASS =
   "flex items-center gap-[var(--space-4)] border-b border-[var(--line-strong)] bg-[var(--surface-3)] px-[var(--space-6)] py-[var(--space-5)] text-[length:var(--fs-micro)] leading-[var(--lh-micro)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-2)] uppercase";
 const EMPTY_COL_CLASS =
@@ -268,27 +272,29 @@ function StationsColumn({
       </div>
       {createForm}
       {stations.length > 0 && storeId !== null && countryId !== null ? (
-        <table className={TABLE_CLASS}>
-          <thead>
-            <tr>
-              <th className={TABLE_TH_CLASS}>{t("table.station")}</th>
-              <th className={TABLE_TH_CLASS}>{t("table.checklists")}</th>
-              <th className={TABLE_TH_CLASS}>{t("table.code")}</th>
-              <th className={TABLE_TH_CLASS} />
-            </tr>
-          </thead>
-          <tbody>
-            {stations.map((station) => (
-              <StationRow
-                key={station.id}
-                station={station}
-                countryId={countryId}
-                storeId={storeId}
-                t={t}
-              />
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className={TABLE_CLASS}>
+            <thead>
+              <tr>
+                <th className={TABLE_TH_CLASS}>{t("table.station")}</th>
+                <th className={TABLE_TH_CLASS}>{t("table.checklists")}</th>
+                <th className={TABLE_TH_CLASS}>{t("table.code")}</th>
+                <th className={TABLE_TH_CLASS} />
+              </tr>
+            </thead>
+            <tbody>
+              {stations.map((station) => (
+                <StationRow
+                  key={station.id}
+                  station={station}
+                  countryId={countryId}
+                  storeId={storeId}
+                  t={t}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <p className={EMPTY_COL_CLASS}>{t("empty.stations")}</p>
       )}
