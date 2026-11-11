@@ -165,20 +165,38 @@ describe("язык кабинета выбран человеком — выбо
   });
 });
 
-describe("демо-режим (D193) — язык всегда английский", () => {
+describe("демо-режим (D193) — по умолчанию английский, выбор человека сильнее", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it("русский заголовок и русская кука не меняют язык", async () => {
+  it("русский заголовок браузера язык не меняет", async () => {
     vi.stubEnv("DEMO_MODE", "1");
     requestHeaders.set("accept-language", "ru-RU,ru;q=0.9");
-    requestCookies.set(LOCALE_COOKIE, "ru");
 
     const config = await requestConfig(params());
 
     expect(config.locale).toBe("en");
     expect(config.messages).toBe(en);
+  });
+
+  it("русская кука выбора переключает демо на русский", async () => {
+    vi.stubEnv("DEMO_MODE", "1");
+    requestCookies.set(LOCALE_COOKIE, "ru");
+
+    const config = await requestConfig(params());
+
+    expect(config.locale).toBe("ru");
+    expect(config.messages).toBe(ru);
+  });
+
+  it("чужая метка в куке в демо — английский, а не пустая страница", async () => {
+    vi.stubEnv("DEMO_MODE", "1");
+    requestCookies.set(LOCALE_COOKIE, "xx");
+
+    const config = await requestConfig(params());
+
+    expect(config.locale).toBe("en");
   });
 
   it("без демо-режима кука по-прежнему решает", async () => {

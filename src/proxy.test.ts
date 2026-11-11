@@ -45,6 +45,7 @@ describe("охрана перед рендером", () => {
       "/pair",
       "/station",
       "/welcome",
+      "/demo",
     ]);
   });
 
@@ -70,6 +71,14 @@ describe("охрана перед рендером", () => {
       expect(response.status).toBe(307);
       expect(response.headers.get("location")).toBe(`${ORIGIN}/welcome`);
       expect(response.cookies.get("NEXT_LOCALE")).toBeUndefined();
+    });
+
+    test("выбор роли демо /demo?lang=ru — та же кука и очищенный адрес", () => {
+      const response = proxy(requestTo("/demo?lang=ru"));
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(`${ORIGIN}/demo`);
+      expect(response.cookies.get("NEXT_LOCALE")?.value).toBe("ru");
     });
 
     test("посадочная не читает сессию кабинета: ни секрета, ни куки не нужно", () => {
