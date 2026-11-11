@@ -10,7 +10,8 @@
  * - пароль случайный и нигде не печатается и не возвращается: войти в демо можно только
  *   через `/demo`, а подбирать нечего;
  * - повторный прогон ничего не меняет: существующая учётка остаётся как есть, а чужая
- *   под тем же логином (другой тенант) — отказ, а не тихий переезд;
+ *   под тем же логином (другой тенант или с привязанной почтой) — отказ, а не тихий
+ *   переезд; тенант с тем же именем, дублем или чужими странами — тоже отказ;
  * - всё в одной транзакции: отказ на любом шаге не оставляет половины демо.
  */
 import { randomBytes } from "node:crypto";
@@ -80,10 +81,29 @@ async function partnerTenantId(
     );
   }
 
-  const [existing] = await tx
+  const found = await tx
     .select({ id: tenants.id })
     .from(tenants)
     .where(and(eq(tenants.kind, "partner"), eq(tenants.name, tenantName)));
+  if (found.length > 1) {
+    throw new DemoAccountsRefused(
+      `Тенантов партнёра «${tenantName}» больше одного: демо не знает, какой из них свой, и не выбирает`,
+    );
+  }
+  const existing = found[0];
+  if (existing !== undefined) {
+    // Демо-учётка наследует всё, что видит тенант. Чужой тенант с тем же именем и со
+    // страной помимо демо-страны отдал бы посетителю без пароля чужие данные.
+    const linked = await tx
+      .select({ countryId: tenantCountries.countryId })
+      .from(tenantCountries)
+      .where(eq(tenantCountries.tenantId, existing.id));
+    if (linked.some((row) => row.countryId !== country.id)) {
+      throw new DemoAccountsRefused(
+        `У тенанта «${tenantName}» есть чужие страны, кроме демо-страны «${countryName}»: демо его не использует`,
+      );
+    }
+  }
   const tenantId =
     existing?.id ??
     (
@@ -145,7 +165,11 @@ export async function seedDemoAccounts(
       }
 
       const [existing] = await tx
-        .select({ id: accounts.id, tenantId: accounts.tenantId })
+        .select({
+          id: accounts.id,
+          tenantId: accounts.tenantId,
+          email: accounts.email,
+        })
         .from(accounts)
         .where(eq(accounts.login, role.login));
       if (existing === undefined) {
@@ -155,12 +179,17 @@ export async function seedDemoAccounts(
           passwordHash,
         });
         created.push(role.login);
-      } else if (existing.tenantId === tenantId) {
-        kept.push(role.login);
-      } else {
+      } else if (existing.tenantId !== tenantId) {
         throw new DemoAccountsRefused(
           `Логин ${role.login} уже занят учёткой другого тенанта: демо её не перезаписывает`,
         );
+      } else if (existing.email !== null) {
+        // Привязанная почта — второй вход в эту учётку, не демонстрационный.
+        throw new DemoAccountsRefused(
+          `У учётки ${role.login} привязана почта для входа через Google: демо её не принимает`,
+        );
+      } else {
+        kept.push(role.login);
       }
     }
     return { created, kept };
