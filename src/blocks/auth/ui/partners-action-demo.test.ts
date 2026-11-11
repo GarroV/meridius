@@ -4,12 +4,22 @@
 // что отказ стоит ДО работы, а без флага работа по-прежнему вызывается.
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import {
+  submitBindEmail,
+  submitChangePassword,
+  submitCreateHqMember,
+  submitCreatePartner,
+  submitDisableAccount,
+  submitResetPassword,
+} from "./partners-action";
+import { INITIAL_PARTNER_FORM } from "./partners-state";
+
 const work = vi.hoisted(() => ({ calls: 0 }));
 
 vi.mock("../guard", () => ({
   requireHq: () => Promise.resolve({ tenantKind: "hq" }),
 }));
-vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("../provision", () => ({
   provisionPartner: () => {
     work.calls += 1;
@@ -42,16 +52,6 @@ vi.mock("../hq-members", () => ({
     return Promise.resolve({ ok: false, reason: "login-taken" });
   },
 }));
-
-import {
-  submitBindEmail,
-  submitChangePassword,
-  submitCreateHqMember,
-  submitCreatePartner,
-  submitDisableAccount,
-  submitResetPassword,
-} from "./partners-action";
-import { INITIAL_PARTNER_FORM } from "./partners-state";
 
 const ACCOUNT = "9d3f6f2a-0f1e-4a8b-8c2d-1f2b3c4d5e6f";
 const ACTIONS = [

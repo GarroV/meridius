@@ -77,7 +77,7 @@ function serverActions(): { entries: Entry[]; offenders: string[] } {
       }
       entries.push({
         key: `${rel}#${name}`,
-        body: bodyOf(text, match.index ?? 0),
+        body: bodyOf(text, match.index),
       });
     }
   }
@@ -96,7 +96,7 @@ function routeHandlers(): Entry[] {
       const method = match[1] ?? match[2];
       entries.push({
         key: `${rel}#${method ?? ""}`,
-        body: bodyOf(text, match.index ?? 0),
+        body: bodyOf(text, match.index),
       });
     }
   }

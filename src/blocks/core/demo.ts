@@ -18,7 +18,7 @@ export const DEMO_COUNTRY_NAME = "Demoland";
 /** Тенант партнёра демо: привязан к стране Demoland (D145, D169). */
 export const DEMO_PARTNER_TENANT_NAME = "Demoland Partner";
 
-export type DemoRoleKey = "hq" | "partner";
+type DemoRoleKey = "hq" | "partner";
 
 export interface DemoRole {
   /** Ключ в адресе `/demo/<ключ>` и в словаре (`demo.roles.<ключ>`). */
