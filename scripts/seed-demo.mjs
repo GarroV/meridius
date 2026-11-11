@@ -5,6 +5,10 @@
 // дубликатов. Заполнения, сделанные на демо-станциях по ходу показа, снимаются вместе
 // с прежним контуром — на то он и показательный.
 //
+// С DEMO_MODE=1 (стенд открытого демо, D194) следом заводит учётки ролей демо — `demo-hq`
+// и `demo-partner` со случайным паролем, который нигде не печатается. Без флага учёток
+// не появляется: на проде сид Demoland тоже гоняется, а входа без пароля там быть не должно.
+//
 // Запуск:  npm run seed:demo
 import { register } from "node:module";
 
@@ -55,11 +59,24 @@ try {
       `  ${item.store} · ${item.station}\n    ${stationScanUrl(origin, item.code)}`,
     );
   }
+
+  if (process.env.DEMO_MODE === "1") {
+    const { seedDemoAccounts } =
+      await import("../src/blocks/auth/demo-accounts.ts");
+    const accounts = await seedDemoAccounts();
+    console.log(
+      `\nУчётки демо: заведено ${String(accounts.created.length)}, уже были ${String(accounts.kept.length)} (пароли случайные и не печатаются).`,
+    );
+  }
 } catch (error) {
   // Отказ печатается человеком читаемым текстом, а не трассой драйвера: сид запускают
   // перед показом, и `DrizzleQueryError` с `ri_triggers.c` не говорит запускающему
   // ни что помешало, ни что с этим делать (T173).
-  console.error(describeSeedFailure(error));
+  console.error(
+    error instanceof Error && error.name === "DemoAccountsRefused"
+      ? error.message
+      : describeSeedFailure(error),
+  );
   process.exitCode = 1;
 } finally {
   // Пул слоя доступа живёт на globalThis (см. src/blocks/data/client.ts): без его
