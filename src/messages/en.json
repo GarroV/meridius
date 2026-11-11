@@ -1211,7 +1211,8 @@
   "demo": {
     "banner": {
       "text": "Demo — data resets every hour",
-      "switch": "Switch role"
+      "switch": "Switch role",
+      "about": "About Meridius"
     },
     "page": {
       "title": "Try Meridius",

@@ -3,6 +3,9 @@ import { getTranslations } from "next-intl/server";
 
 import { DEMO_PATH, isDemoMode } from "@/blocks/core/demo-mode";
 
+/** Посадочная (D193): из кабинета демо туда есть путь, а не только наружу. */
+const WELCOME_PATH = "/welcome";
+
 /** Плашка демо-режима (D193): данные сбрасываются каждый час, роль меняют на `/demo`. Вне демо — ничего. */
 export async function DemoBanner() {
   if (!isDemoMode()) return null;
@@ -16,6 +19,14 @@ export async function DemoBanner() {
       <span aria-hidden="true">·</span>
       <Link href={DEMO_PATH} className="font-semibold underline">
         {t("switch")}
+      </Link>
+      <span aria-hidden="true">·</span>
+      <Link
+        href={WELCOME_PATH}
+        className="font-semibold underline"
+        data-testid="demo-about"
+      >
+        {t("about")}
       </Link>
     </div>
   );
