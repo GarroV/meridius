@@ -158,7 +158,7 @@
       "confirmationRequired": "Deletion needs confirmation",
       "notFound": "Record not found",
       "codeCollision": "This QR code is already taken — try again",
-      "storeCodeTaken": "Another pizzeria in this country already has this store code"
+      "storeCodeTaken": "Another pizzeria in this country already has this pizzeria code"
     }
   },
   "editor": {
@@ -171,11 +171,11 @@
       "makeTemplate": "Make a template — no station or country, for the whole network",
       "draftTag": "draft",
       "noStation": "no station",
-      "noStore": "No store",
+      "noStore": "No pizzeria",
       "empty": "No checklists yet",
       "emptyHint": "Create the first one: title, station, window — then start typing items.",
       "filterCountry": "Country",
-      "filterStore": "Store",
+      "filterStore": "Pizzeria",
       "filterStation": "Station",
       "filterAll": "All",
       "filterApply": "Show",
@@ -255,7 +255,7 @@
       "typeNumber": "Number",
       "typeText": "Text",
       "typeTable": "Table",
-      "typeAlarm": "Alarm",
+      "typeAlarm": "Reminder",
       "critical": "Critical",
       "from": "from",
       "to": "to",
@@ -272,7 +272,7 @@
       "settings": "Item settings"
     },
     "alarm": {
-      "label": "Alarm label",
+      "label": "Reminder label",
       "labelPlaceholder": "For example: take the dough out",
       "when": "When",
       "modeAfter": "A delay after opening",
@@ -342,16 +342,16 @@
       "empty": "No blocks yet"
     },
     "notice": {
-      "station": "The checklist is on station “{station}” of store “{store}”: the station’s QR code and tablet open the version published at the moment they are opened.",
+      "station": "The checklist is on station “{station}” of pizzeria “{store}”: the station’s QR code and tablet open the version published at the moment they are opened.",
       "noStation": "The checklist is not on a station: until it is, its QR code opens nothing. Checklists are put on stations in the Stations section.",
       "openStation": "The station, its sticker and its tablet are in Stations",
       "attach": "Put on a station",
-      "windowOpen": "Window {start}–{end}: it is {now} at the store and the window is open — the employee will see the published version right away.",
-      "windowClosedToday": "Window {start}–{end}: it is {now} at the store and the window is closed — the employee will see the published version today from {opensAt}.",
-      "windowClosedTomorrow": "Window {start}–{end}: it is {now} at the store and the window is closed — the employee will see the published version tomorrow from {opensAt}."
+      "windowOpen": "Window {start}–{end}: it is {now} at the pizzeria and the window is open — the employee will see the published version right away.",
+      "windowClosedToday": "Window {start}–{end}: it is {now} at the pizzeria and the window is closed — the employee will see the published version today from {opensAt}.",
+      "windowClosedTomorrow": "Window {start}–{end}: it is {now} at the pizzeria and the window is closed — the employee will see the published version tomorrow from {opensAt}."
     },
     "preview": {
-      "alarm": "Alarm “{label}” — {when}",
+      "alarm": "Reminder “{label}” — {when}",
       "alarmAt": "at {time}",
       "alarmAfter": "{minutes} min after opening",
       "title": "Preview",
@@ -389,7 +389,7 @@
       "nothingToPublish": "Nothing to publish: the checklist has no items.",
       "badSchedule": "The round schedule was not accepted: check the time ranges.",
       "tooManyColumns": "Too many columns: there can be no more than {limit}.",
-      "badAlarm": "The alarm needs a time: an hour or a number of minutes.",
+      "badAlarm": "The reminder needs a time: an hour or a number of minutes.",
       "unknownBlock": "The inserted library block was not found.",
       "unknown": "Could not save. Please try again."
     },
@@ -432,7 +432,7 @@
   "qr": {
     "title": "Station QR codes",
     "breadcrumb": {
-      "pick": "All stores"
+      "pick": "All pizzerias"
     },
     "actions": {
       "print": "Print",
@@ -447,7 +447,7 @@
     "sheet": {
       "title": "Print sheet",
       "meta": "A4 · {count, plural, one {# station} other {# stations}}",
-      "empty": "This store has no stations yet — nothing to print."
+      "empty": "This pizzeria has no stations yet — nothing to print."
     },
     "sticker": {
       "hint": "{store} · scan with a camera",
@@ -462,13 +462,13 @@
     "tablet": {
       "title": "QR on the station tablet",
       "hint": "The same link as on the sticker. The tablet keeps the screen awake; when the code is reissued the picture updates itself.",
-      "empty": "The store has no stations — nothing to show."
+      "empty": "The pizzeria has no stations — nothing to show."
     },
     "picker": {
-      "title": "Pick a store",
-      "hint": "A sheet is printed per store: it carries stickers for all of its stations.",
+      "title": "Pick a pizzeria",
+      "hint": "A sheet is printed per pizzeria: it carries stickers for all of its stations.",
       "stations": "{count, plural, one {# station} other {# stations}}",
-      "empty": "No stores yet — add them in Countries and pizzerias."
+      "empty": "No pizzerias yet — add them in Countries and pizzerias."
     },
     "errors": {
       "notFound": "That station is gone: refresh the page.",
@@ -600,28 +600,28 @@
       }
     },
     "alarms": {
-      "title": "Station alarms",
-      "lead": "All of the station’s alarms are here: those set from checklist items and those added by hand.",
+      "title": "Station reminders",
+      "lead": "All of the station’s reminders are here: those set from checklist items and those added by hand.",
       "timeLabel": "At what time",
       "labelLabel": "What for",
       "labelPlaceholder": "For example: take out the dough",
-      "ownTitle": "Your own alarm — one the checklist does not have",
+      "ownTitle": "Your own reminder — one the checklist does not have",
       "add": "Set",
-      "itemHint": "This alarm is built into the checklist. Adjust the label or the time if needed, then set it.",
+      "itemHint": "This reminder is built into the checklist. Adjust the label or the time if needed, then set it.",
       "itemLabelLabel": "Label",
       "itemTimeLabel": "Rings at",
-      "itemAdd": "Set the alarm",
-      "itemSet": "The alarm is set for {time} — it is in the «Station alarms» list below.",
-      "drop": "Remove the alarm «{label}»",
-      "ringing": "Alarm for {time}",
+      "itemAdd": "Set the reminder",
+      "itemSet": "The reminder is set for {time} — it is in the «Station reminders» list below.",
+      "drop": "Remove the reminder «{label}»",
+      "ringing": "Reminder for {time}",
       "acknowledge": "Got it",
       "noSound": "No sound: the tablet keeps a page silent until someone taps on it.",
-      "hint": "An alarm is one-off and lives until the checklist stops working. It rings while this screen is open.",
+      "hint": "A reminder is one-off and lives until the checklist stops working. It rings while this screen is open.",
       "refused": {
         "pastTime": "That time has already passed. Pick a later one.",
-        "outsideWindow": "An alarm can only be set within the station's working hours: {window}.",
-        "checklistClosed": "No checklist is open at this station right now — there is nowhere to put an alarm.",
-        "tooMany": "No more than {count} alarms at a time. Remove one you no longer need.",
+        "outsideWindow": "A reminder can only be set within the station's working hours: {window}.",
+        "checklistClosed": "No checklist is open at this station right now — there is nowhere to put an reminder.",
+        "tooMany": "No more than {count} reminders at a time. Remove one you no longer need.",
         "tooOften": "Too often. Try again in {minutes} min.",
         "broken": "Could not do it. Reload the page and try again.",
         "offline": "Connection lost. Try again."
@@ -632,16 +632,16 @@
     "title": "Statistics",
     "crumbs": {
       "allCountries": "Whole network",
-      "allStores": "all stores"
+      "allStores": "all pizzerias"
     },
     "filters": {
       "country": "Country",
-      "store": "Store",
+      "store": "Pizzeria",
       "station": "Station",
       "all": "All",
       "reset": "Reset",
       "apply": "Show",
-      "timeZoneMixed": "The stores in this filter are in different time zones: period boundaries are counted in a single zone for all of them — {zone} — not in the time of any one store. Times in the rows are shown in each store's own time."
+      "timeZoneMixed": "The pizzerias in this filter are in different time zones: period boundaries are counted in a single zone for all of them — {zone} — not in the time of any one pizzeria. Times in the rows are shown in each pizzeria's own time."
     },
     "metrics": {
       "submissions": "{count, plural, one {submission} other {submissions}} in the period",
@@ -665,7 +665,7 @@
       "title": "Feed",
       "count": "{count, plural, one {# record} other {# records}}",
       "columnWhen": "When",
-      "columnStore": "Store",
+      "columnStore": "Pizzeria",
       "columnStation": "Station",
       "columnChecklist": "Checklist",
       "columnOutcome": "Result",
@@ -693,7 +693,7 @@
       "periodText": "There are submissions for these filters, just on other days: widen the period or clear the filters.",
       "periodAction": "Clear filters",
       "noStationsTitle": "Nothing to fill yet",
-      "noStationsText": "First add a store and a station in Countries and pizzerias, then print the station QR code — that is what the employee scans to fill the checklist.",
+      "noStationsText": "First add a pizzeria and a station in Countries and pizzerias, then print the station QR code — that is what the employee scans to fill the checklist.",
       "noStationsAction": "Open Countries and pizzerias"
     },
     "card": {
@@ -717,7 +717,7 @@
       "yes": "yes",
       "no": "no",
       "noAnswer": "no answer",
-      "alarmAt": "Alarm at {time}",
+      "alarmAt": "Reminder at {time}",
       "notFoundTitle": "Submission not found",
       "notFoundText": "The link points to a submission that does not exist: the address may have a typo.",
       "notFoundAction": "Back to the feed",
@@ -750,7 +750,7 @@
       "cellPending": "Round still ahead",
       "cellNone": "No round expected at this hour",
       "stray": "Marks outside the grid: {count}. The round was done, but the schedule step was different at that moment — the methodologist changed it mid-shift.",
-      "unknownTimezone": "Stores with a time zone the database does not know: {count}. Their rounds are not in this report.",
+      "unknownTimezone": "Pizzerias with a time zone the database does not know: {count}. Their rounds are not in this report.",
       "empty": {
         "noChecklistsTitle": "Nothing to count yet",
         "noChecklistsText": "There is no active checklist under these filters. Create a checklist on a station — or clear the filters.",
@@ -768,7 +768,7 @@
       "submissions": "{count, plural, one {submission} other {submissions}} in the period",
       "criticalShare": "submissions with a failed critical item: {failed} of {total}",
       "criticalShareEmpty": "share with a failed critical item — no submissions",
-      "alarms": "{count, plural, one {alarm set} other {alarms set}}; alarms removed by staff are not counted",
+      "alarms": "{count, plural, one {reminder set} other {reminders set}}; reminders removed by staff are not counted",
       "silent": "{count, plural, one {station silent} other {stations silent}} for over 24 hours",
       "noValue": "—",
       "topTitle": "Failed most often",
@@ -886,7 +886,7 @@
   "device": {
     "pair": {
       "title": "Pair this tablet",
-      "text": "Ask the manager to open Devices in the workspace, pick this station and press “Pair a tablet”. Type the four digits here.",
+      "text": "Ask the manager to open Stations in the workspace, pick this station and press “Pair a tablet”. Type the four digits here.",
       "label": "Pairing code",
       "submit": "Pair",
       "refused": "This code does not work. Ask for a new one: a code lives five minutes and works once.",

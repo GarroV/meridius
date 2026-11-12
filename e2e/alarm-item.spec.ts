@@ -114,10 +114,10 @@ test.describe("будильник как пункт чек-листа", () => {
     // Две формы будильника на одном экране различимы словами (T354): пункт говорит,
     // что будильник заложен в чек-лист, панель — что ниже свой, ручной.
     await expect(kitchen.getByTestId("fill-alarm-hint")).toContainText(
-      "заложен в чек-лист",
+      "заложено в чек-лист",
     );
     await expect(kitchen.getByTestId("alarms-own-title")).toContainText(
-      "Свой будильник",
+      "Своё напоминание",
     );
     await expect(kitchen.getByTestId("fill-alarm-label")).toHaveValue(LABEL);
     const suggested = await kitchen.getByTestId("fill-alarm-time").inputValue();
@@ -156,7 +156,7 @@ test.describe("будильник как пункт чек-листа", () => {
     expect(submission.id).toBeDefined();
     await page.goto(`/admin/feed/${String(submission.id)}`);
     await expect(page.getByTestId("answers-card")).toContainText(
-      `Будильник на ${suggested}`,
+      `Напоминание на ${suggested}`,
     );
   });
 });
