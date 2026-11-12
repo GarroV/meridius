@@ -136,7 +136,7 @@ export async function StatsSilentTable({
   model,
 }: {
   readonly model: StatsModel;
-}): Promise<ReactElement> {
+}): Promise<ReactElement | null> {
   const t = await getTranslations("feed.stats");
   const format = await getFormatter();
 
@@ -150,7 +150,7 @@ export async function StatsSilentTable({
 
   // Молчащих нет — блока нет: число «0» уже стоит в сводке выше, а пустая рамка во всю
   // ширину читается как поломка и отнимает экран у того, что требует внимания.
-  if (model.silentStations.length === 0) return <></>;
+  if (model.silentStations.length === 0) return null;
 
   return (
     <section className={CARD_CLASS} aria-labelledby="stats-silent-title">
@@ -159,70 +159,62 @@ export async function StatsSilentTable({
         title={t("silentTitle")}
         lead={t("silentLead")}
       />
-      {model.silentStations.length === 0 ? (
-        <p className={NOTE_CLASS} data-testid="stats-silent-empty">
-          {t("silentEmpty")}
+      <div className={SCROLL_CLASS} {...scrollRegion("stats-silent-title")}>
+        <table
+          className={`${TABLE_CLASS} cards-sm`}
+          data-testid="stats-silent-list"
+        >
+          <thead>
+            <tr>
+              <th scope="col" className={TH_CLASS}>
+                {t("silentStation")}
+              </th>
+              <th scope="col" className={TH_NUM_CLASS}>
+                {t("silentFor")}
+              </th>
+              <th scope="col" className={TH_CLASS}>
+                {t("silentLast")}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {model.silentStations.map((station) => (
+              <tr key={station.stationId} data-testid="stats-silent-row">
+                <td className={TD_CLASS} data-label="">
+                  {station.stationName}
+                  <div className={META_CLASS}>{station.storeName}</div>
+                </td>
+                <td className={TD_NUM_CLASS} data-label={t("silentFor")}>
+                  {silentFor(station.silentHours)}
+                </td>
+                <td
+                  className={`${TD_CLASS} whitespace-nowrap`}
+                  data-label={t("silentLast")}
+                >
+                  {station.lastSignalAt === null
+                    ? t("silentNever")
+                    : format.dateTime(station.lastSignalAt, {
+                        day: "numeric",
+                        month: "long",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hourCycle: "h23",
+                        timeZone: station.timeZone,
+                      })}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {model.silentStationCount > model.silentStations.length ? (
+        <p className={NOTE_CLASS} data-testid="stats-silent-more">
+          {t("silentMore", {
+            shown: model.silentStations.length,
+            total: model.silentStationCount,
+          })}
         </p>
-      ) : (
-        <>
-          <div className={SCROLL_CLASS} {...scrollRegion("stats-silent-title")}>
-            <table
-              className={`${TABLE_CLASS} cards-sm`}
-              data-testid="stats-silent-list"
-            >
-              <thead>
-                <tr>
-                  <th scope="col" className={TH_CLASS}>
-                    {t("silentStation")}
-                  </th>
-                  <th scope="col" className={TH_NUM_CLASS}>
-                    {t("silentFor")}
-                  </th>
-                  <th scope="col" className={TH_CLASS}>
-                    {t("silentLast")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {model.silentStations.map((station) => (
-                  <tr key={station.stationId} data-testid="stats-silent-row">
-                    <td className={TD_CLASS} data-label="">
-                      {station.stationName}
-                      <div className={META_CLASS}>{station.storeName}</div>
-                    </td>
-                    <td className={TD_NUM_CLASS} data-label={t("silentFor")}>
-                      {silentFor(station.silentHours)}
-                    </td>
-                    <td
-                      className={`${TD_CLASS} whitespace-nowrap`}
-                      data-label={t("silentLast")}
-                    >
-                      {station.lastSignalAt === null
-                        ? t("silentNever")
-                        : format.dateTime(station.lastSignalAt, {
-                            day: "numeric",
-                            month: "long",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hourCycle: "h23",
-                            timeZone: station.timeZone,
-                          })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {model.silentStationCount > model.silentStations.length ? (
-            <p className={NOTE_CLASS} data-testid="stats-silent-more">
-              {t("silentMore", {
-                shown: model.silentStations.length,
-                total: model.silentStationCount,
-              })}
-            </p>
-          ) : null}
-        </>
-      )}
+      ) : null}
     </section>
   );
 }

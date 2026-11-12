@@ -4,10 +4,9 @@ import { useActionState } from "react";
 
 import { Icon } from "@/blocks/core/ui/Icon";
 
-import { MENU_ITEM_CLASS } from "./HeaderMenu";
-
 import { submitMakeTemplate, type MakeTemplateState } from "../actions";
 import type { MakeTemplateRefusal } from "../make-template";
+import { MENU_ITEM_CLASS } from "./HeaderMenu";
 
 const INITIAL: MakeTemplateState = { refused: null };
 

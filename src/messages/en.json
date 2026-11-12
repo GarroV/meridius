@@ -781,7 +781,6 @@
       "silentHours": "{hours} h",
       "silentDays": "{days} d {hours} h",
       "silentNever": "never",
-      "silentEmpty": "Every station with a working checklist sent a signal in the last 24 hours.",
       "silentMore": "Showing {shown} of {total}, longest silent first."
     },
     "country": {
