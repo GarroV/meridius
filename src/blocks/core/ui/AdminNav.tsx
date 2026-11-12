@@ -235,7 +235,7 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
         />
       </header>
       <nav
-        className="sidenav md:sticky md:top-0 md:h-screen"
+        className="sidenav md:sticky md:top-0 md:h-[calc(100dvh-var(--demo-banner-h,0px))]"
         aria-label={brand}
       >
         {/*

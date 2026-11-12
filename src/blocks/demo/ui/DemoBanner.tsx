@@ -13,7 +13,7 @@ export async function DemoBanner() {
   return (
     <div
       data-testid="demo-banner"
-      className="flex flex-wrap items-center justify-center gap-x-[var(--space-4)] bg-[var(--accent-soft)] px-[var(--space-5)] py-[var(--space-3)] text-[length:var(--fs-meta)] text-[var(--ink)]"
+      className="demo-banner flex flex-wrap items-center justify-center gap-x-[var(--space-4)] bg-[var(--accent-soft)] px-[var(--space-5)] py-[var(--space-3)] text-[length:var(--fs-meta)] text-[var(--ink)]"
     >
       <span>{t("text")}</span>
       <span aria-hidden="true">·</span>

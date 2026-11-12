@@ -203,7 +203,7 @@ function ItemRow({
           <span
             className={`ml-[var(--space-2)] font-bold ${
               severity === "critical"
-                ? "text-[var(--warn-mark)]"
+                ? "text-[var(--warn-ink)]"
                 : "text-[var(--ink-3)]"
             }`}
           >

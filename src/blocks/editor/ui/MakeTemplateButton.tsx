@@ -4,6 +4,8 @@ import { useActionState } from "react";
 
 import { Icon } from "@/blocks/core/ui/Icon";
 
+import { MENU_ITEM_CLASS } from "./HeaderMenu";
+
 import { submitMakeTemplate, type MakeTemplateState } from "../actions";
 import type { MakeTemplateRefusal } from "../make-template";
 
@@ -30,7 +32,7 @@ export function MakeTemplateButton({
   const [state, action, pending] = useActionState(submitMakeTemplate, INITIAL);
 
   return (
-    <form action={action} className="flex items-center gap-[var(--space-4)]">
+    <form action={action} className="flex flex-col gap-[var(--space-3)]">
       <input type="hidden" name="checklistId" value={checklistId} />
       {state.refused === null ? null : (
         <p
@@ -44,12 +46,11 @@ export function MakeTemplateButton({
       <button
         type="submit"
         data-testid="make-template"
-        className="icon-btn"
-        aria-label={label}
-        title={label}
+        className={MENU_ITEM_CLASS}
         aria-busy={pending}
       >
-        <Icon name="spark" />
+        <Icon name="spark" className="size-4 flex-none" />
+        {label}
       </button>
     </form>
   );

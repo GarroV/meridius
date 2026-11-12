@@ -26,7 +26,12 @@
 // и человек с телефона не узнал бы, зачем раздел: там блок стоит над колонкой списка.
 // Каркас получает его готовой разметкой (`intro`): он клиентский, а блок — серверный.
 import Link from "next/link";
-import { useSelectedLayoutSegment } from "next/navigation";
+import {
+  useRouter,
+  useSearchParams,
+  useSelectedLayoutSegment,
+} from "next/navigation";
+import { useEffect } from "react";
 import type { ReactElement, ReactNode } from "react";
 
 import { Icon } from "./Icon";
@@ -45,9 +50,9 @@ const WIDE_FRAME_CLASS =
 // утаскивает за собой рабочую зону, и выбранная строка остаётся там, где её нажали.
 // Ниже складки над колонкой стоит полоса меню (D092), и колонка — просто часть страницы.
 const RAIL_CLASS =
-  "bg-surface flex min-w-0 flex-col border-[var(--line)] md:sticky md:top-0 md:h-screen md:overflow-y-auto md:border-r";
+  "bg-surface flex min-w-0 flex-col border-[var(--line)] md:sticky md:top-0 md:h-[calc(100dvh-var(--demo-banner-h,0px))] md:overflow-y-auto md:border-r";
 const BACK_CLASS =
-  "bg-surface flex items-center gap-[var(--space-3)] border-b border-[var(--line)] px-[var(--space-7)] py-[var(--space-5)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] no-underline hover:text-ink md:hidden";
+  "bg-surface flex min-h-[var(--tap-min)] items-center gap-[var(--space-3)] border-b border-[var(--line)] px-[var(--space-7)] py-[var(--space-3)] text-[length:var(--fs-dense)] font-medium text-[var(--ink-2)] no-underline hover:text-ink md:hidden";
 
 export interface MasterDetailProps {
   readonly testId: string;
@@ -72,8 +77,18 @@ export interface MasterDetailProps {
    * Не задан — смотрит на сегмент, как в разделах с разметкой сегмента.
    */
   readonly hasDetail?: boolean | undefined;
+  /**
+   * Куда вести, когда ничего не выбрано: первый объект списка. На широком экране пустая
+   * рабочая зона справа — потраченное место, и эталон (Swarm) сразу открывает первую
+   * запись. Ниже складки список и есть экран, поэтому там каркас остаётся на списке.
+   * Выбор фильтров в адресе открытие не трогает: человек пришёл за конкретной выборкой.
+   */
+  readonly firstHref?: string | undefined;
   readonly children: ReactNode;
 }
+
+/** Тот же порог, что у каркаса: от `md` (768 px) список и рабочая зона стоят рядом. */
+const WIDE_QUERY = "(min-width: 768px)";
 
 export function MasterDetail({
   testId,
@@ -85,12 +100,21 @@ export function MasterDetail({
   intro,
   wide,
   hasDetail: detailFromQuery,
+  firstHref,
   children,
 }: MasterDetailProps): ReactElement {
+  const router = useRouter();
   const segment = useSelectedLayoutSegment();
+  const filtered = useSearchParams().size > 0;
   const hasDetail = detailFromQuery ?? segment !== null;
   const isWide =
     segment !== null && (wide?.segments.includes(segment) ?? false);
+
+  useEffect(() => {
+    if (firstHref === undefined || hasDetail || isWide || filtered) return;
+    if (!window.matchMedia(WIDE_QUERY).matches) return;
+    router.replace(firstHref);
+  }, [firstHref, hasDetail, isWide, filtered, router]);
 
   return (
     <div
@@ -128,8 +152,14 @@ export function MasterDetail({
         id={ADMIN_CONTENT_ID}
         tabIndex={-1}
         data-testid="admin-main"
-        className={`flex min-w-0 flex-col focus:outline-none${hasDetail || isWide ? "" : " max-md:hidden"}`}
+        className={`flex min-w-0 flex-col focus:outline-none${hasDetail || isWide ? "" : " max-md:h-0 max-md:overflow-hidden"}`}
       >
+        {/* Ниже складки без выбора на экране один список. Ориентир `main` и заголовок
+            первого уровня при этом остаются (читалке экрана без них раздел — сплошной
+            поток без названия), а сама рабочая зона спрятана целиком, вместе с фокусом. */}
+        {hasDetail || isWide ? null : (
+          <h1 className="sr-only md:hidden">{railLabel}</h1>
+        )}
         {hasDetail && !isWide ? (
           <Link
             href={backHref}
@@ -140,7 +170,11 @@ export function MasterDetail({
             {backLabel}
           </Link>
         ) : null}
-        {children}
+        {hasDetail || isWide ? (
+          children
+        ) : (
+          <div className="contents max-md:hidden">{children}</div>
+        )}
       </main>
     </div>
   );

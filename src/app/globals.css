@@ -525,3 +525,48 @@
     content: none;
   }
 }
+
+/* Плашка демо стоит над каркасом и съедает высоту: левая панель и колонка списка высотой
+   в окно уходили нижним краем под обрез («Вошли как» и поле «Выйти» не было видно на
+   1440×900). Высота плашки — одна строка мета-текста плюс два отступа; ниже 768 px
+   панелей нет, и плашка там переносится, но эта высота нужна только от `md`. */
+body:has(.demo-banner) {
+  --demo-banner-h: calc(var(--lh-meta) + 2 * var(--space-3));
+}
+
+/* Цели касания на телефоне — не меньше 44px (разбор доступности 12.11.2026: «Выйти»,
+   «Ещё», «Сохранить черновик», «Опубликовать», кнопки языка, «Сменить роль» были
+   18–40px). Правило одно на весь кабинет, а не по классу на каждую кнопку: новая кнопка
+   получает размер сама. Только ниже складки — на компьютере высоты контролов по канону.
+   Флажки и переключатели не трогаем: их цель задаёт подпись вокруг. */
+@media (max-width: 767.98px) {
+  main
+    :is(
+      button,
+      select,
+      summary,
+      .btn,
+      .icon-btn,
+      [role="button"],
+      input:not([type="checkbox"], [type="radio"], [type="hidden"])
+    ),
+  .mbar a,
+  .tabbar__item,
+  .sheet__list :is(a, button),
+  .langpill__item,
+  .sidenav__theme button {
+    min-height: var(--tap-min);
+  }
+  main .icon-btn {
+    min-width: var(--tap-min);
+  }
+  .demo-banner a,
+  .mbar__brand {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-min);
+  }
+  .langpill__item {
+    min-width: var(--tap-min);
+  }
+}

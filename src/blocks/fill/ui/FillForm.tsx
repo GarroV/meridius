@@ -221,7 +221,7 @@ function ItemBody({
           <span
             className={`ml-[var(--space-2)] font-bold ${
               item.severity === "critical"
-                ? "text-[var(--warn-mark)]"
+                ? "text-[var(--warn-ink)]"
                 : "text-[var(--ink-3)]"
             }`}
           >

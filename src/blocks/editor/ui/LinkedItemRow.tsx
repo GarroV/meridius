@@ -38,7 +38,7 @@ export function LinkedItemRow({
     <div
       data-testid="editor-item"
       data-linked="true"
-      className={`grid grid-cols-[28px_1fr_auto] items-center gap-[var(--space-5)] border-b border-[var(--line)] px-[var(--space-6)] py-[var(--space-4)] opacity-85 ${severity === "critical" ? "bg-[var(--warn-soft)]" : ""}`}
+      className={`grid grid-cols-[28px_1fr_auto] items-center gap-[var(--space-5)] border-b border-[var(--line)] px-[var(--space-6)] py-[var(--space-4)] ${severity === "critical" ? "bg-[var(--warn-soft)]" : ""}`}
     >
       <div className="text-right text-[length:var(--fs-meta)] text-[var(--ink-3)]">
         {ordinal}

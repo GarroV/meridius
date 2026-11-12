@@ -68,6 +68,10 @@ describe("вводные блоки разделов кабинета", () => {
         typeof intro["more"] === "string" && intro["more"].trim().length > 0,
         `sectionIntro.more (${language}) — подпись «Подробнее» пуста или отсутствует`,
       ).toBe(true);
+      expect(
+        typeof intro["hide"] === "string" && intro["hide"].trim().length > 0,
+        `sectionIntro.hide (${language}) — подпись «Скрыть» пуста или отсутствует`,
+      ).toBe(true);
       for (const section of INTRO_SECTIONS) {
         const parts = intro[section] as Record<string, unknown> | undefined;
         expect(parts, `sectionIntro.${section} (${language})`).toBeTypeOf(
@@ -82,7 +86,7 @@ describe("вводные блоки разделов кабинета", () => {
         }
       }
       // Лишний раздел в словаре — след переименования, которое код уже не зовёт.
-      const known = new Set<string>(["label", "more", ...INTRO_SECTIONS]);
+      const known = new Set<string>(["label", "more", "hide", ...INTRO_SECTIONS]);
       expect(Object.keys(intro).filter((key) => !known.has(key))).toEqual([]);
     });
   }

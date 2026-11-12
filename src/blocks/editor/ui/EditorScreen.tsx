@@ -14,6 +14,7 @@ import { checklistDeletePath, checklistPreviewPath } from "../routes";
 import { loadTemplateOrigin } from "../template-updates";
 import type { WindowValue } from "../window-field";
 import { ChecklistEditor } from "./ChecklistEditor";
+import { HeaderMenu, MENU_ITEM_CLASS } from "./HeaderMenu";
 import { MakeTemplateButton } from "./MakeTemplateButton";
 import { TemplateOrigin } from "./TemplateOrigin";
 
@@ -36,11 +37,13 @@ function ChecklistActions({
   checklistId,
   duplicateLabel,
   deleteLabel,
+  moreLabel,
   makeTemplate,
 }: {
   readonly checklistId: string;
   readonly duplicateLabel: string;
   readonly deleteLabel: string;
+  readonly moreLabel: string;
   /** Есть, только когда шаблон из чек-листа сделать можно (D174, D183 п.8). */
   readonly makeTemplate?:
     | {
@@ -50,7 +53,7 @@ function ChecklistActions({
     | undefined;
 }) {
   return (
-    <>
+    <HeaderMenu label={moreLabel}>
       {makeTemplate === undefined ? null : (
         <MakeTemplateButton
           checklistId={checklistId}
@@ -63,24 +66,22 @@ function ChecklistActions({
         <button
           type="submit"
           data-testid="duplicate-checklist"
-          className="icon-btn"
-          aria-label={duplicateLabel}
-          title={duplicateLabel}
+          className={MENU_ITEM_CLASS}
         >
-          <Icon name="doc" />
+          <Icon name="doc" className="size-4 flex-none" />
+          {duplicateLabel}
         </button>
       </form>
       <Link
         href={checklistDeletePath(checklistId)}
         scroll={false}
         data-testid="delete-checklist"
-        className="icon-btn icon-btn--danger"
-        aria-label={deleteLabel}
-        title={deleteLabel}
+        className={`${MENU_ITEM_CLASS} text-err hover:text-err`}
       >
-        <Icon name="trash" />
+        <Icon name="trash" className="size-4 flex-none" />
+        {deleteLabel}
       </Link>
-    </>
+    </HeaderMenu>
   );
 }
 
@@ -182,6 +183,7 @@ export async function EditorScreen({
               checklistId={checklistId}
               duplicateLabel={t("list.duplicate")}
               deleteLabel={t("list.delete")}
+              moreLabel={t("list.more")}
               makeTemplate={
                 canMakeTemplate
                   ? {
