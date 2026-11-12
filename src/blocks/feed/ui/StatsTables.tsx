@@ -86,7 +86,7 @@ export async function StatsTopFailedTable({
         </p>
       ) : (
         <div className={SCROLL_CLASS} {...scrollRegion("stats-top-title")}>
-          <table className={TABLE_CLASS} data-testid="stats-top">
+          <table className={`${TABLE_CLASS} cards-sm`} data-testid="stats-top">
             <thead>
               <tr>
                 <th scope="col" className={TH_CLASS}>
@@ -105,12 +105,20 @@ export async function StatsTopFailedTable({
             <tbody>
               {model.topFailedItems.map((item) => (
                 <tr key={item.itemId} data-testid="stats-top-row">
-                  <td className={TD_CLASS}>{item.title}</td>
-                  <td className={TD_NUM_CLASS} data-testid="stats-top-failures">
+                  <td className={TD_CLASS} data-label="">
+                    {item.title}
+                  </td>
+                  <td
+                    className={TD_NUM_CLASS}
+                    data-testid="stats-top-failures"
+                    data-label={t("topFailures")}
+                  >
                     {item.failures}
                   </td>
                   {showStores ? (
-                    <td className={TD_NUM_CLASS}>{item.storeCount}</td>
+                    <td className={TD_NUM_CLASS} data-label={t("topStores")}>
+                      {item.storeCount}
+                    </td>
                   ) : null}
                 </tr>
               ))}
@@ -154,7 +162,10 @@ export async function StatsSilentTable({
       ) : (
         <>
           <div className={SCROLL_CLASS} {...scrollRegion("stats-silent-title")}>
-            <table className={TABLE_CLASS} data-testid="stats-silent-list">
+            <table
+              className={`${TABLE_CLASS} cards-sm`}
+              data-testid="stats-silent-list"
+            >
               <thead>
                 <tr>
                   <th scope="col" className={TH_CLASS}>
@@ -171,14 +182,17 @@ export async function StatsSilentTable({
               <tbody>
                 {model.silentStations.map((station) => (
                   <tr key={station.stationId} data-testid="stats-silent-row">
-                    <td className={TD_CLASS}>
+                    <td className={TD_CLASS} data-label="">
                       {station.stationName}
                       <div className={META_CLASS}>{station.storeName}</div>
                     </td>
-                    <td className={TD_NUM_CLASS}>
+                    <td className={TD_NUM_CLASS} data-label={t("silentFor")}>
                       {silentFor(station.silentHours)}
                     </td>
-                    <td className={`${TD_CLASS} whitespace-nowrap`}>
+                    <td
+                      className={`${TD_CLASS} whitespace-nowrap`}
+                      data-label={t("silentLast")}
+                    >
                       {station.lastSignalAt === null
                         ? t("silentNever")
                         : format.dateTime(station.lastSignalAt, {
@@ -186,6 +200,7 @@ export async function StatsSilentTable({
                             month: "long",
                             hour: "2-digit",
                             minute: "2-digit",
+                            hourCycle: "h23",
                             timeZone: station.timeZone,
                           })}
                     </td>

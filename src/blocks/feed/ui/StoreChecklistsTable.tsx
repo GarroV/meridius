@@ -62,6 +62,7 @@ function lastText(
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    hourCycle: "h23",
     timeZone,
   });
 }
@@ -90,7 +91,7 @@ export async function StoreChecklistsTable({
         </p>
       ) : (
         <div className={SCROLL_CLASS} {...scrollRegion(HEAD_ID)}>
-          <table className={TABLE_CLASS}>
+          <table className={`${TABLE_CLASS} cards-sm`}>
             <thead>
               <tr>
                 <th className={TH_CLASS}>{t("store.colChecklist")}</th>
@@ -103,7 +104,7 @@ export async function StoreChecklistsTable({
             <tbody>
               {model.checklists.map((row) => (
                 <tr key={row.checklistId} data-testid="store-checklist-row">
-                  <td className={TD_CLASS}>
+                  <td className={TD_CLASS} data-label="">
                     <Link href={row.href} className={NAME_CLASS}>
                       {row.title}
                     </Link>
@@ -111,7 +112,7 @@ export async function StoreChecklistsTable({
                       {row.stationName} · {row.window}
                     </div>
                   </td>
-                  <td className={TD_CLASS}>
+                  <td className={TD_CLASS} data-label={t("store.colToday")}>
                     <TodayStatusTag
                       status={row.status}
                       timeZone={model.timeZone}
@@ -120,13 +121,21 @@ export async function StoreChecklistsTable({
                   <td
                     className={TD_NUM_CLASS}
                     data-testid="checklist-submissions"
+                    data-label={t("store.colSubmissions")}
                   >
                     {String(row.summary.submissionCount)}
                   </td>
-                  <td className={TD_NUM_CLASS} data-testid="checklist-critical">
+                  <td
+                    className={TD_NUM_CLASS}
+                    data-testid="checklist-critical"
+                    data-label={t("store.colCritical")}
+                  >
                     {criticalText(row, format, t)}
                   </td>
-                  <td className={`${TD_CLASS} whitespace-nowrap`}>
+                  <td
+                    className={`${TD_CLASS} whitespace-nowrap`}
+                    data-label={t("store.colLast")}
+                  >
                     {lastText(row, model.timeZone, format, t)}
                   </td>
                 </tr>

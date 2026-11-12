@@ -202,22 +202,26 @@ function StationRow({
       data-testid="station-row"
       className={station.selected ? TABLE_ROW_SELECTED_CLASS : TABLE_ROW_CLASS}
     >
-      <td className={TABLE_TD_CLASS}>
+      <td className={TABLE_TD_CLASS} data-label="">
         <Link href={station.href} className="text-ink no-underline">
           {station.name}
         </Link>
       </td>
-      <td className={TABLE_TD_CLASS}>
+      <td className={TABLE_TD_CLASS} data-label={t("table.checklists")}>
         {checklistText ?? (
           <span data-testid="station-unassigned" className={UNASSIGNED_CLASS}>
             {t("table.unassigned")}
           </span>
         )}
       </td>
-      <td data-testid="station-code" className={TABLE_TD_NUM_CLASS}>
+      <td
+        data-testid="station-code"
+        className={TABLE_TD_NUM_CLASS}
+        data-label={t("table.code")}
+      >
         {station.code}
       </td>
-      <td className={TABLE_TD_ACTIONS_CLASS}>
+      <td className={TABLE_TD_ACTIONS_CLASS} data-label="">
         <Link
           href={station.qrHref}
           data-testid="catalog-station-qr"
@@ -273,7 +277,7 @@ function StationsColumn({
       {createForm}
       {stations.length > 0 && storeId !== null && countryId !== null ? (
         <div className="overflow-x-auto">
-          <table className={TABLE_CLASS}>
+          <table className={`${TABLE_CLASS} cards-sm`}>
             <thead>
               <tr>
                 <th className={TABLE_TH_CLASS}>{t("table.station")}</th>

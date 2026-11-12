@@ -479,3 +479,49 @@
     --fs-num-sm: 12px;
   }
 }
+
+/* Таблица → карточки строк на телефоне (UX/UI-разбор 12.11.2026, P0). Ниже 640px
+   колонки не умещаются, и главное в строке («1 критичный провален») уезжало за край.
+   Класс `cards-sm` вешается на `<table>`, подпись колонки — в `data-label` ячейки
+   (пустая подпись — ячейка идёт без неё). Правила вне слоёв нарочно: утилиты ячеек
+   (`text-right`, `whitespace-nowrap`, отступы) лежат в слое utilities и иначе бы
+   перебивали эти. Шапка не пропадает для скринридера, а только прячется. */
+@media (max-width: 639px) {
+  .cards-sm,
+  .cards-sm tbody,
+  .cards-sm tr,
+  .cards-sm td {
+    display: block;
+    width: 100%;
+  }
+  .cards-sm thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .cards-sm tr {
+    padding: var(--space-5) var(--space-7);
+    border-bottom: 1px solid var(--line);
+  }
+  .cards-sm td {
+    padding: var(--space-2) 0;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+  }
+  .cards-sm td::before {
+    content: attr(data-label);
+    display: inline-block;
+    min-width: 38%;
+    padding-right: var(--space-4);
+    color: var(--ink-3);
+    font-size: var(--fs-meta);
+    vertical-align: baseline;
+  }
+  .cards-sm td[data-label=""]::before,
+  .cards-sm td:not([data-label])::before {
+    content: none;
+  }
+}

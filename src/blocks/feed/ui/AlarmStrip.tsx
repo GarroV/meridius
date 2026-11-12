@@ -52,7 +52,7 @@ function whatText(row: AlarmRow, format: Formatter, t: Translate): string {
   const time = format.dateTime(row.at, {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
     timeZone: row.timeZone,
   });
 
@@ -79,7 +79,7 @@ async function AlarmStripRow({
         {format.dateTime(row.at, {
           hour: "2-digit",
           minute: "2-digit",
-          hour12: false,
+          hourCycle: "h23",
           timeZone: row.timeZone,
         })}
       </span>

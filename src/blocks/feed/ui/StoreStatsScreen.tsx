@@ -76,6 +76,7 @@ async function FeedPart({
           rows={feed.rows}
           selection={feed.selection}
           limitReached={feed.limitReached}
+          hideStore
         />
       ) : (
         <FeedEmpty kind={feed.emptyKind} resetHref={path} />

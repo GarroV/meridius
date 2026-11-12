@@ -33,6 +33,7 @@ export async function TodayStatusTag({
           time: format.dateTime(status.at, {
             hour: "2-digit",
             minute: "2-digit",
+            hourCycle: "h23",
             timeZone,
           }),
         });
