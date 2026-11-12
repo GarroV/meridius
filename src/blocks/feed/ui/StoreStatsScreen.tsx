@@ -11,7 +11,6 @@ import { STATION_PARAM } from "../view";
 import { AlarmStrip } from "./AlarmStrip";
 import { FeedEmpty } from "./FeedEmpty";
 import { FeedFilters } from "./FeedFilters";
-import { FeedMetrics } from "./FeedMetrics";
 import { FeedTable } from "./FeedTable";
 import { PeriodPicker } from "./PeriodPicker";
 import { StatsMetrics } from "./StatsMetrics";
@@ -61,8 +60,6 @@ async function FeedPart({
           {t("feedLead")}
         </p>
       </div>
-      {/* Тревоги выше ленты: это единственное, что требует действия сегодня (D053). */}
-      <AlarmStrip alarms={feed.alarms} selection={feed.selection} />
       <FeedFilters
         selection={feed.selection}
         timeZone={feed.timeZone}
@@ -70,7 +67,6 @@ async function FeedPart({
         action={path}
         withPlace={false}
       />
-      <FeedMetrics metrics={feed.metrics} />
       {feed.emptyKind === null ? (
         <FeedTable
           rows={feed.rows}
@@ -137,7 +133,13 @@ export async function StoreStatsScreen({
         </TopbarActions>
       }
     >
-      <StatsMetrics model={model.stats} />
+      {/* Тревоги — первым блоком: это единственное, что требует действия сегодня (D053),
+          и на телефоне они не должны оказываться в трёх экранах от заголовка. */}
+      <AlarmStrip alarms={feed.alarms} selection={feed.selection} />
+      <StatsMetrics
+        model={model.stats}
+        averageDurationMs={feed.metrics.averageDurationMs}
+      />
       <StoreChecklistsTable model={model} />
       <StatsTopFailedTable model={model.stats} />
       <StatsSilentTable model={model.stats} />

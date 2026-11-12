@@ -148,6 +148,10 @@ export async function StatsSilentTable({
           hours: hours % HOURS_PER_DAY,
         });
 
+  // Молчащих нет — блока нет: число «0» уже стоит в сводке выше, а пустая рамка во всю
+  // ширину читается как поломка и отнимает экран у того, что требует внимания.
+  if (model.silentStations.length === 0) return <></>;
+
   return (
     <section className={CARD_CLASS} aria-labelledby="stats-silent-title">
       <SectionHead

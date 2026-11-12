@@ -643,12 +643,6 @@
       "apply": "Show",
       "timeZoneMixed": "The pizzerias in this filter are in different time zones: period boundaries are counted in a single zone for all of them — {zone} — not in the time of any one pizzeria. Times in the rows are shown in each pizzeria's own time."
     },
-    "metrics": {
-      "submissions": "{count, plural, one {submission} other {submissions}} in the period",
-      "failedCritical": "of them with a failed critical item",
-      "averageDuration": "average time to fill",
-      "noValue": "—"
-    },
     "alarms": {
       "title": "Alarms",
       "count": "{count, plural, one {# alarm} other {# alarms}}",
@@ -771,8 +765,9 @@
       "alarms": "{count, plural, one {reminder set} other {reminders set}}; reminders removed by staff are not counted",
       "silent": "{count, plural, one {station silent} other {stations silent}} for over 24 hours",
       "noValue": "—",
+      "averageDuration": "average time to fill",
       "topTitle": "Failed most often",
-      "topLead": "The five items failed most often — in submissions and in round marks.",
+      "topLead": "The items failed most often — in submissions and in round marks.",
       "topItem": "Item",
       "topFailures": "Failures",
       "topStores": "Pizzerias",
@@ -1075,6 +1070,13 @@
     "takeAlone": "Take without a station",
     "preview": "Preview",
     "edit": "Edit"
+  },
+  "duration": {
+    "seconds": "{seconds} s",
+    "minutes": "{minutes} min",
+    "minutesSeconds": "{minutes} min {seconds} s",
+    "hours": "{hours} h",
+    "hoursMinutes": "{hours} h {minutes} min"
   },
   "adminHome": {
     "todo": {

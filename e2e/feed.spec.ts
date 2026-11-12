@@ -390,9 +390,9 @@ test.describe("лента заполнений", () => {
     ).toHaveAttribute("data-kind", "ok");
 
     // Показатели обязаны совпадать с тем, что показано: это одна и та же выборка.
-    await expect(page.getByTestId("metric-submissions")).toHaveText("2");
-    await expect(page.getByTestId("metric-critical")).toHaveText("1");
-    await expect(page.getByTestId("metric-duration")).not.toHaveText("—");
+    await expect(page.getByTestId("stats-submissions")).toHaveText("2");
+    await expect(page.getByTestId("stats-critical-share")).not.toHaveText("—");
+    await expect(page.getByTestId("stats-duration")).not.toHaveText("—");
   });
 
   test("полоса тревог показывает проваленный критичный пункт и ведёт в карточку", async ({
@@ -493,7 +493,7 @@ test.describe("лента заполнений", () => {
 
     await page.setViewportSize(PHONE);
     await page.goto(storePath(seeded.storeId));
-    await expect(page.getByTestId("feed-metrics")).toBeVisible();
+    await expect(page.getByTestId("stats-metrics")).toBeVisible();
 
     const size = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
@@ -529,7 +529,7 @@ test.describe("лента заполнений", () => {
     // такой строки быть не должно, за этим следит `feed/routes.test.ts` (T118).
     await expect(empty.getByRole("link")).toHaveAttribute("href", "/admin/qr");
     // Показатели не исчезают вместе с лентой: ноль заполнений — это тоже ответ.
-    await expect(page.getByTestId("metric-submissions")).toHaveText("0");
+    await expect(page.getByTestId("stats-submissions")).toHaveText("0");
   });
 
   test("карточка показывает ответ и комментарий по каждому пункту", async ({

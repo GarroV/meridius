@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
-import { formatDuration } from "../../core/duration";
+import { describeDuration } from "../../core/duration";
 import type { FeedRow, FeedSelection } from "../model";
 import { submissionHref } from "../view";
 import { OutcomeTag } from "./OutcomeTag";
@@ -78,7 +78,9 @@ async function FeedTableRow({
   readonly hideStore: boolean;
 }): Promise<ReactElement> {
   const t = await getTranslations("feed.list");
+  const tDuration = await getTranslations("duration");
   const format = await getFormatter();
+  const words = describeDuration(row.durationMs);
 
   return (
     <tr
@@ -119,7 +121,7 @@ async function FeedTableRow({
         <OutcomeTag outcome={row.outcome} />
       </td>
       <td className={TD_NUM_CLASS} data-label={t("columnDuration")}>
-        {formatDuration(row.durationMs)}
+        {tDuration(words.key, words.values)}
       </td>
       <td className={TD_ACTIONS_CLASS} data-label="">
         <Link href={submissionHref(row.id, selection)} className={OPEN_CLASS}>
