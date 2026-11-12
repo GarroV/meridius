@@ -503,6 +503,10 @@
     },
     "failLabel": "What is wrong?",
     "failHint": "A short note is enough — the manager will see it today.",
+    "mark": {
+      "done": "Done",
+      "notDone": "Not done"
+    },
     "state": {
       "unanswered": "not answered",
       "yes": "done",

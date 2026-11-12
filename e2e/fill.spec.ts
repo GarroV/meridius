@@ -118,6 +118,15 @@ const FREEZER_SECTIONS = [
 async function answerBool(page: Page, itemId: string): Promise<void> {
   await page
     .locator(`[data-testid="fill-item"][data-item-id="${itemId}"]`)
+    .getByTestId("fill-done")
+    .tap();
+}
+
+/** Пункт «не выполнено»: отдельная кнопка со значком, а не второе касание. */
+async function failBool(page: Page, itemId: string): Promise<void> {
+  await page
+    .locator(`[data-testid="fill-item"][data-item-id="${itemId}"]`)
+    .getByTestId("fill-fail")
     .tap();
 }
 
@@ -236,9 +245,8 @@ test.describe("экран заполнения по QR", () => {
     await page.getByTestId("fill-number").fill("172");
     await page.getByTestId("fill-text").fill("заметка");
 
-    // Act: второе касание переводит пункт в «не выполнено».
-    await answerBool(page, "i-sauce");
-    await answerBool(page, "i-sauce");
+    // Act: кнопка «Не выполнено» у пункта.
+    await failBool(page, "i-sauce");
 
     // Assert: поле комментария появилось под самим пунктом, отдельного экрана нет (D018).
     const item = page.locator(

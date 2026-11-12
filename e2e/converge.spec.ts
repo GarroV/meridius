@@ -220,12 +220,11 @@ test.describe("цепочка критерия 3: справочник → че�
     );
 
     // 7. Заполнение: обычный пункт выполнен, критичный ПРОВАЛЕН с комментарием.
-    // Второе касание переводит пункт в «не выполнено» — так устроен экран.
+    // У пункта две кнопки: «Выполнено» и «Не выполнено».
     const items = kitchen.getByTestId("fill-item");
-    await items.first().tap();
+    await items.first().getByTestId("fill-done").tap();
     const critical = items.nth(1);
-    await critical.tap();
-    await critical.tap();
+    await critical.getByTestId("fill-fail").tap();
 
     // Комментарий к провалу спрашивается сам, и без него отправка не пускает (D014).
     await expect(kitchen.getByTestId("fill-comment")).toBeVisible();

@@ -310,14 +310,13 @@ test.describe("доступность: экран заполнения по QR",
     await page.goto(`/s/${stand.code}`);
     await page.getByTestId("fill-screen").waitFor();
 
-    // `i-sauce` из STAND_SECTIONS критичный: два касания переводят его в «не выполнено»
+    // `i-sauce` из STAND_SECTIONS критичный: кнопка «Не выполнено» переводит его в такое состояние
     // и раскрывают поле комментария под самим пунктом (D018) — это другое состояние
     // разметки, и axe обязан проверить именно его.
     const item = page.locator(
       '[data-testid="fill-item"][data-item-id="i-sauce"]',
     );
-    await item.tap();
-    await item.tap();
+    await item.getByTestId("fill-fail").tap();
     await page
       .locator('[data-testid="fill-comment"][data-item-id="i-sauce"]')
       .waitFor();

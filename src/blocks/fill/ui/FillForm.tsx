@@ -6,6 +6,7 @@ import type { ReactElement } from "react";
 
 import { formatDuration } from "@/blocks/core/duration";
 import { asLocale } from "@/blocks/core/locale";
+import { Icon } from "@/blocks/core/ui/Icon";
 import { StateScreen } from "@/blocks/core/ui/StateScreen";
 import type { Item, TableRow } from "@/blocks/data";
 
@@ -54,13 +55,14 @@ const SECTION_TITLE_CLASS =
   "px-[var(--space-7)] pt-[var(--space-8)] pb-[var(--space-4)] text-[length:var(--fs-micro)] leading-[var(--lh-body)] font-semibold tracking-[var(--tracking-micro)] text-[var(--ink-3)] uppercase";
 const ITEM_CLASS =
   "flex w-full min-h-[var(--tap-min)] items-start gap-[var(--space-6)] border-t border-[var(--line)] px-[var(--space-7)] py-[var(--space-6)] text-left";
-// Цвет фона задаётся ТОЛЬКО в `boxTone`: если оставить здесь `bg-surface`, две
-// утилиты фона спорят за одно свойство, и порядок решает не разметка, а порядок
-// правил в собранном CSS. Проверено в браузере — побеждал белый, отметка
-// выполненного пункта оставалась пустой рамкой, а белая галочка на белом фоне
-// не была видна вовсе.
-const BOX_CLASS =
-  "mt-[1px] h-[26px] w-[26px] flex-none rounded-[var(--r-control)] border-[1.5px] bg-center bg-no-repeat";
+// Две явные цели у пункта «да/нет» (D194): «выполнено» и «не выполнено» — каждая со
+// значком и словом, а не цветом одного квадрата и вторым тапом по той же кнопке.
+// Высота — от `--tap-min` с запасом: нажимают большим пальцем, часто в перчатке.
+const MARK_BUTTON_CLASS =
+  "flex min-h-[52px] items-center justify-center gap-[var(--space-3)] rounded-[var(--r-block)] border text-[length:var(--fs-lead)] leading-none font-medium";
+// Значок состояния у пункта без кнопок (число, заметка, журнал): пункт засчитывает само
+// значение, поэтому отдельного квадрата для отметки нет.
+const STATUS_ICON_CLASS = "mt-[2px] h-[20px] w-[20px] flex-none";
 const TEXT_CLASS =
   "flex-1 text-[length:var(--fs-lead)] leading-[21px] break-words";
 const HINT_CLASS =
@@ -69,7 +71,7 @@ const HINT_CLASS =
 // элементе спорят в собранном CSS, а не в строке классов, и кто победит — из разметки не
 // видно вовсе (поймано сторожем геройского вида, `e2e/fill.spec.ts`).
 const FIELD_CLASS =
-  "w-full rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface px-[var(--space-5)] text-ink focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
+  "w-full scroll-mb-[112px] rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface px-[var(--space-5)] text-ink placeholder:text-[var(--ink-3)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 const INPUT_CLASS = `${FIELD_CLASS} text-[length:var(--fs-lead)]`;
 /**
  * Геройский вид числового значения — эталон `app.css`, `.item__num .input`. Вид висит
@@ -80,15 +82,13 @@ const INPUT_CLASS = `${FIELD_CLASS} text-[length:var(--fs-lead)]`;
 const NUMBER_LOOK_CLASS =
   "font-num h-[48px] w-full max-w-[120px] text-center text-[length:var(--fs-num-hero)] leading-none font-medium text-ink";
 const FOOT_CLASS =
-  "sticky bottom-0 mt-auto border-t border-[var(--line-strong)] bg-surface px-[var(--space-7)] pt-[var(--space-6)] pb-[var(--space-8)]";
+  "sticky bottom-0 mt-auto border-t border-[var(--line-strong)] bg-surface px-[var(--space-7)] pt-[var(--space-6)] pb-[max(var(--space-8),env(safe-area-inset-bottom))]";
+// Запас под липкую кнопку: последний пункт и панели под ним не должны оказаться под ней.
+const BODY_END_CLASS = "pb-[var(--space-6)]";
 const BUTTON_CLASS =
   "h-[52px] w-full rounded-[var(--r-block)] border border-[var(--accent)] bg-accent text-[length:var(--fs-title)] leading-none font-medium text-[var(--ink-inverse)] disabled:cursor-not-allowed disabled:opacity-45";
 const NOTICE_ERR_CLASS =
   "mb-[var(--space-6)] rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)] text-err";
-
-// Галочка выполненного пункта: тот же рисунок, что в эталоне (`.item--done .item__box`).
-const CHECK_MARK =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E\")";
 
 const MINUTE_SECONDS = 60;
 
@@ -146,18 +146,12 @@ export interface FillFormProps {
 
 type Translate = ReturnType<typeof useTranslations>;
 
-function boxTone(state: "unanswered" | "yes" | "no"): string {
-  if (state === "yes") {
-    return "border-[var(--ok)] bg-[var(--ok)] bg-[length:16px_16px]";
-  }
-  if (state === "no") return "border-[var(--err)] bg-[var(--err)]";
-  return "border-[var(--line-control-2)] bg-surface";
-}
-
-/** Один шаг по кругу: не отвечено → выполнено → не выполнено → не отвечено. */
-function nextBool(current: boolean | null): boolean | null {
-  if (current === null) return true;
-  return current ? false : null;
+/**
+ * Касание по одной из двух целей пункта. Повторное касание по уже нажатой снимает
+ * отметку: модель состояний прежняя — не отвечено, выполнено, не выполнено.
+ */
+function pressBool(current: boolean | null, pressed: boolean): boolean | null {
+  return current === pressed ? null : pressed;
 }
 
 function numberOf(entry: DraftAnswer | undefined): number | null {
@@ -210,18 +204,17 @@ function rangeLabel(
 function ItemBody({
   item,
   state,
+  withStatus,
   t,
 }: {
   readonly item: FillItemView;
   readonly state: "unanswered" | "yes" | "no";
+  /** Значок состояния справа — у пунктов без собственных кнопок «да/нет». */
+  readonly withStatus: boolean;
   readonly t: Translate;
 }): ReactElement {
   return (
     <>
-      <span
-        className={`${BOX_CLASS} ${boxTone(state)}`}
-        style={state === "yes" ? { backgroundImage: CHECK_MARK } : undefined}
-      />
       <span className={TEXT_CLASS}>
         {item.title}
         {item.severity === "normal" ? null : (
@@ -244,7 +237,71 @@ function ItemBody({
           </span>
         )}
       </span>
+      {withStatus && state !== "unanswered" ? (
+        <span
+          className={`${STATUS_ICON_CLASS} ${
+            state === "yes" ? "text-[var(--ok)]" : "text-[var(--err)]"
+          }`}
+        >
+          <Icon name={state === "yes" ? "check" : "x"} strokeWidth={2.4} />
+          <span className="sr-only">{t(`state.${state}`)}</span>
+        </span>
+      ) : null}
     </>
+  );
+}
+
+/** Две цели пункта «да/нет»: «Выполнено» и «Не выполнено» — значок плюс слово. */
+function MarkButtons({
+  item,
+  state,
+  onPress,
+  t,
+}: {
+  readonly item: FillItemView;
+  readonly state: "unanswered" | "yes" | "no";
+  readonly onPress: (pressed: boolean) => void;
+  readonly t: Translate;
+}): ReactElement {
+  return (
+    <div
+      role="group"
+      aria-label={item.title}
+      className="mx-[var(--space-7)] mb-[var(--space-6)] grid grid-cols-2 gap-[var(--space-5)]"
+    >
+      <button
+        type="button"
+        data-testid="fill-done"
+        aria-pressed={state === "yes"}
+        className={`${MARK_BUTTON_CLASS} ${
+          state === "yes"
+            ? "border-[var(--ok)] bg-[var(--ok)] text-[var(--ink-inverse)]"
+            : "border-[var(--line-control)] bg-surface text-ink"
+        }`}
+        onClick={() => {
+          onPress(true);
+        }}
+      >
+        <Icon name="check" strokeWidth={2.4} className="h-[20px] w-[20px]" />
+        {t("mark.done")}
+      </button>
+      <button
+        type="button"
+        data-testid="fill-fail"
+        aria-pressed={state === "no"}
+        className={`${MARK_BUTTON_CLASS} ${
+          state === "no"
+            ? "border-[var(--err)] bg-[var(--err)] text-[var(--ink-inverse)]"
+            : "border-[var(--line-control)] bg-surface text-ink"
+        }`}
+        onClick={() => {
+          onPress(false);
+        }}
+      >
+        <Icon name="x" strokeWidth={2.4} className="h-[20px] w-[20px]" />
+        {t("mark.notDone")}
+      </button>
+    </div>
   );
 }
 
@@ -386,9 +443,9 @@ export function FillForm({
   return (
     <main data-testid="fill-screen" className={SCREEN_CLASS}>
       <header className={HEAD_CLASS}>
-        <div data-testid="fill-title" className={TITLE_CLASS}>
+        <h1 data-testid="fill-title" className={TITLE_CLASS}>
           {view.checklistTitle}
-        </div>
+        </h1>
         <div className={WHERE_CLASS}>{view.where}</div>
         <div className="mt-[var(--space-4)]">
           <ShiftModeBar code={code} shift={shift} choose={choose} />
@@ -431,40 +488,41 @@ export function FillForm({
             // Одно условие на блок комментария и на уступающее ему поле ввода: два
             // условия про одно и то же разъезжаются, и экран показывает оба сразу.
             const commentOpen = failed && item.severity !== "normal";
-            const stateWord = t(`state.${state}`);
+            const isBool = item.type === "bool";
 
             return (
-              <div key={item.id}>
-                {item.type === "bool" ? (
-                  <button
-                    type="button"
-                    data-testid="fill-item"
-                    data-item-id={item.id}
-                    data-state={state}
-                    aria-label={`${item.title} — ${stateWord}`}
-                    className={ITEM_CLASS}
-                    onClick={() => {
+              <div
+                key={item.id}
+                data-testid="fill-item"
+                data-item-id={item.id}
+                data-state={state}
+              >
+                <div className={ITEM_CLASS}>
+                  <ItemBody
+                    item={item}
+                    state={state}
+                    withStatus={!isBool}
+                    t={t}
+                  />
+                </div>
+
+                {isBool ? (
+                  <MarkButtons
+                    item={item}
+                    state={state}
+                    t={t}
+                    onPress={(pressed) => {
                       setEntry(item.id, {
-                        value: nextBool(
+                        value: pressBool(
                           typeof entry?.value === "boolean"
                             ? entry.value
                             : null,
+                          pressed,
                         ),
                       });
                     }}
-                  >
-                    <ItemBody item={item} state={state} t={t} />
-                  </button>
-                ) : (
-                  <div
-                    data-testid="fill-item"
-                    data-item-id={item.id}
-                    data-state={state}
-                    className={ITEM_CLASS}
-                  >
-                    <ItemBody item={item} state={state} t={t} />
-                  </div>
-                )}
+                  />
+                ) : null}
 
                 {item.type === "alarm" && item.alarm !== undefined ? (
                   <AlarmItem
@@ -606,6 +664,8 @@ export function FillForm({
         add={addAlarm}
         drop={dropAlarm}
       />
+
+      <div aria-hidden="true" className={BODY_END_CLASS} />
 
       {/* Подвал с отправкой нужен только тем, кому есть что отправлять. Станция,
           где остались одни обходы, отправляет каждый обход отдельно, и кнопка
