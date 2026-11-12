@@ -16,13 +16,15 @@ import type { PairRefusal } from "./pair-action";
  */
 
 const FIELD_CLASS =
-  "font-num h-[56px] w-full max-w-[280px] rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface text-center text-[length:var(--fs-num-hero)] leading-none font-medium tracking-[0.2em] text-ink focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
+  "font-num h-[56px] w-full max-w-[280px] rounded-[var(--r-control)] border border-[var(--line-control)] bg-surface text-center text-[length:var(--fs-num-hero)] leading-none font-medium tracking-[0.2em] text-ink placeholder:text-[var(--ink-3)] focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--focus-soft)] focus:outline-none";
 
 const NOTICE_CLASS =
   "w-full max-w-[280px] rounded-[var(--r-block)] border border-[var(--err-line)] bg-[var(--err-soft)] px-[var(--space-6)] py-[var(--space-5)] text-left text-[length:var(--fs-dense)] leading-[var(--lh-dense)] text-err";
 
 export interface PairFormLabels {
   readonly field: string;
+  /** Подсказка формата в пустом поле: сколько цифр набирать. */
+  readonly placeholder: string;
   readonly submit: string;
   /** Что сказать, когда до сервера не достучались вовсе. */
   readonly broken: string;
@@ -78,6 +80,7 @@ export function PairForm({
         data-testid="pair-code"
         name="code"
         aria-label={labels.field}
+        placeholder={labels.placeholder}
         inputMode="numeric"
         autoComplete="one-time-code"
         // Клавиатура планшета обязана открыться цифрами: на кухне набирают одной рукой.

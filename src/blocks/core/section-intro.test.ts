@@ -86,7 +86,12 @@ describe("вводные блоки разделов кабинета", () => {
         }
       }
       // Лишний раздел в словаре — след переименования, которое код уже не зовёт.
-      const known = new Set<string>(["label", "more", "hide", ...INTRO_SECTIONS]);
+      const known = new Set<string>([
+        "label",
+        "more",
+        "hide",
+        ...INTRO_SECTIONS,
+      ]);
       expect(Object.keys(intro).filter((key) => !known.has(key))).toEqual([]);
     });
   }

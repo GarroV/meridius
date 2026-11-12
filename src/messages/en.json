@@ -884,6 +884,7 @@
       "title": "Pair this tablet",
       "text": "Ask the manager to open Stations in the workspace, pick this station and press “Pair a tablet”. Type the four digits here.",
       "label": "Pairing code",
+      "placeholder": "0000",
       "submit": "Pair",
       "refused": "This code does not work. Ask for a new one: a code lives five minutes and works once.",
       "tooOften": "Too many attempts. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
@@ -1230,13 +1231,19 @@
       "lead": "An open demo with made-up pizzerias and 60 days of checklist history. Pick a role and look around — no password needed. Everything you change is reset every hour.",
       "roles": "Choose a role",
       "enter": "Open",
+      "enterHq": "Open as HQ",
+      "enterPartner": "Open as partner",
+      "enterKitchen": "Open the kitchen",
+      "start": "Start here",
+      "startNote": "Three ways in: the management company, a partner and the kitchen. Two partners are here so you can see that each one sees only its own countries.",
       "hq": {
         "title": "HQ / Methodologist",
         "text": "The management company: the whole network, checklist templates, statistics and alarms across all countries."
       },
       "partner": {
         "title": "Partner — {name}",
-        "text": "A partner sees only its own countries: its pizzerias, stations, checklists and statistics."
+        "textSunrise": "Sees only Freedonia: its pizzerias, stations, checklists and statistics.",
+        "textLakeside": "Sees only Ruritania: its pizzerias, stations, checklists and statistics."
       },
       "kitchen": {
         "title": "Kitchen",

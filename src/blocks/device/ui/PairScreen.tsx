@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import { BrandLogo } from "@/blocks/core/ui/BrandLogo";
 import { StateScreen } from "@/blocks/core/ui/StateScreen";
 
 import { pairAction } from "./pair-action";
@@ -22,12 +23,16 @@ export async function PairScreen(): Promise<ReactElement> {
     <StateScreen
       testId="pair-screen"
       tone="plain"
+      mark={
+        <BrandLogo className="h-[44px] w-[44px] rounded-[var(--r-block)]" />
+      }
       title={t("title")}
       text={t("text")}
       action={
         <PairForm
           labels={{
             field: t("label"),
+            placeholder: t("placeholder"),
             submit: t("submit"),
             broken: t("broken"),
           }}

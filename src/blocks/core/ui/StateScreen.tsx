@@ -50,6 +50,8 @@ export interface StateScreenProps {
   readonly action?: ReactNode;
   /** Мелкая строка под действием — например, код ошибки для поддержки. */
   readonly note?: ReactNode;
+  /** Знак над заголовком — для экранов, где человек впервые видит продукт (привязка планшета). */
+  readonly mark?: ReactNode;
 }
 
 // Корень — аналог `.fill` из app.css: экран заполнения шириной не больше
@@ -152,6 +154,7 @@ export function StateScreen({
   noticeTone = "warn",
   action,
   note,
+  mark,
 }: StateScreenProps): ReactElement {
   // Пустой `meta` не должен оставлять в разметке пустой блок — только
   // непустой список строк превращается в текст с переносами.
@@ -161,6 +164,7 @@ export function StateScreen({
   return (
     <main data-testid={testId} className={ROOT_CLASS}>
       <div className={CENTER_CLASS}>
+        {mark}
         {tone === "ok" ? <OkMark /> : null}
         <h1 className={TITLE_CLASS}>{title}</h1>
         {metaText !== null ? <p className={META_CLASS}>{metaText}</p> : null}
