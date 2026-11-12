@@ -74,11 +74,11 @@ export interface ChecklistEditorProps {
 }
 
 const BUTTON_CLASS =
-  "bg-surface text-ink flex h-[var(--control-h)] cursor-pointer items-center rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium hover:border-[var(--line-control-2)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-45";
+  "bg-surface text-ink flex h-[var(--control-h)] max-md:h-[var(--tap-min)] cursor-pointer items-center rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium hover:border-[var(--line-control-2)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-45";
 const PRIMARY_BUTTON_CLASS =
-  "bg-accent flex h-[var(--control-h)] cursor-pointer items-center rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-45";
+  "bg-accent flex h-[var(--control-h)] max-md:h-[var(--tap-min)] cursor-pointer items-center rounded-[var(--r-control)] border border-[var(--accent)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium text-[var(--ink-inverse)] hover:border-[var(--accent-hover)] hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-45";
 const KBD_CLASS =
-  "rounded-[var(--r-mark)] border border-b-2 border-[var(--line-control)] bg-[var(--surface-3)] px-[5px] py-[1px] font-[family-name:var(--font-num)] text-[length:var(--fs-micro)] font-medium text-[var(--ink-2)]";
+  "rounded-[var(--r-mark)] border border-[var(--line-control)] bg-[var(--surface-3)] shadow-[0_1px_0_var(--line-control)] px-[5px] py-[1px] font-[family-name:var(--font-num)] text-[length:var(--fs-micro)] font-medium text-[var(--ink-2)]";
 
 /** Одна вставка из буфера превращает многострочный текст в пункты; одна строка — нет. */
 const MIN_PASTED_LINES = 2;

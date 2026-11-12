@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { formatDuration } from "./duration";
+import { describeDuration, formatDuration } from "./duration";
 import { repositoryRoot } from "./repo-copy";
 
 describe("formatDuration", () => {
@@ -73,5 +73,35 @@ describe("длительность форматируется в одном ме
         "вместо src/blocks/core/duration.ts. Две копии разъезжаются молча — " +
         "ровно так квитанция показала 0:03 там, где лента показывала 0:02.",
     ).toEqual([]);
+  });
+});
+
+describe("describeDuration", () => {
+  it("«8 мин 20 с»: минуты с секундами называет обе единицы", () => {
+    expect(describeDuration(500_000)).toStrictEqual({
+      key: "minutesSeconds",
+      values: { hours: 0, minutes: 8, seconds: 20 },
+    });
+  });
+
+  it("ровные минуты — без нулевых секунд", () => {
+    expect(describeDuration(420_000).key).toBe("minutes");
+  });
+
+  it("меньше минуты — только секунды", () => {
+    expect(describeDuration(20_900).key).toBe("seconds");
+    expect(describeDuration(20_900).values.seconds).toBe(20);
+  });
+
+  it("час и минуты; ровный час — без минут", () => {
+    expect(describeDuration(3_900_000).key).toBe("hoursMinutes");
+    expect(describeDuration(3_600_000).key).toBe("hours");
+  });
+
+  it("отрицательное время — ноль секунд, а не минус", () => {
+    expect(describeDuration(-5_000)).toStrictEqual({
+      key: "seconds",
+      values: { hours: 0, minutes: 0, seconds: 0 },
+    });
   });
 });

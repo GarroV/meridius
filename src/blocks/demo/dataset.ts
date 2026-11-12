@@ -323,7 +323,7 @@ const VERSION_MORNING_V1: DemoVersion = {
   versionNumber: 1,
   status: "archived",
   sections: CHECKLIST_MORNING_SECTIONS_V1,
-  publishedHoursAgo: 720,
+  publishedHoursAgo: 1800,
 };
 const VERSION_MORNING_V2: DemoVersion = {
   id: VERSION_MORNING_V2_ID,
@@ -398,7 +398,7 @@ const VERSION_EVENING_V1: DemoVersion = {
   versionNumber: 1,
   status: "published",
   sections: CHECKLIST_EVENING_SECTIONS_V1,
-  publishedHoursAgo: 240,
+  publishedHoursAgo: 1800,
 };
 
 const CHECKLIST_EVENING: DemoChecklist = {
@@ -481,7 +481,7 @@ const VERSION_COUNTER_V1: DemoVersion = {
   versionNumber: 1,
   status: "published",
   sections: CHECKLIST_COUNTER_SECTIONS_V1,
-  publishedHoursAgo: 300,
+  publishedHoursAgo: 1800,
 };
 
 const CHECKLIST_COUNTER: DemoChecklist = {
@@ -666,18 +666,13 @@ const SUBMISSIONS: DemoSubmission[] = [
 ];
 
 /**
- * Режим на сегодня у центральной пиццерии — с ограничениями. Показ открывается
- * сразу с сокращённой сменой: полная смена ничего нового не демонстрирует, а
- * щёлкать режим руками перед каждым показом — ровно то, от чего демо избавляет.
+ * Режимов смены на сегодня у центральной пиццерии нет: станция кухни, с которой
+ * открывается демо, показывает полный чек-лист. Раньше здесь стояла сокращённая смена
+ * (3 пункта из 10), и посетитель видел обрезанный чек-лист и решал, что демо сломано.
+ * Градация уровней смены показана в странах витрины (`showcase.ts`: сокращённая и
+ * критическая смена у отдельных пиццерий).
  */
-const SHIFT_MODES: readonly DemoShiftMode[] = [
-  {
-    storeId: STORE_CENTRAL_ID,
-    mode: "reduced",
-    staffPresent: 2,
-    staffExpected: 4,
-  },
-];
+const SHIFT_MODES: readonly DemoShiftMode[] = [];
 
 export const DEMO: DemoDataset = {
   country: COUNTRY,

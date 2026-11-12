@@ -465,3 +465,108 @@
     color: var(--accent);
   }
 }
+
+/* Нижняя граница размера текста в рабочих элементах — 12px (UX/UI-разбор 12.11.2026,
+   критерий читаемости: нижняя панель телефона, метки полей, бейджи версий, заголовки
+   блоков кухни). Канон линейки задаёт 11,5 и 10,5px; копия ядра здесь не правится,
+   поэтому нижняя граница поднята отдельным слоем поверх неё. Расхождение с каноном
+   сознательное — его надо отнести в forma, чтобы следующая раскатка не вернула мелкий
+   кегль. */
+@layer base {
+  :root {
+    --fs-meta: 12px;
+    --fs-micro: 12px;
+    --fs-num-sm: 12px;
+  }
+}
+
+/* Таблица → карточки строк на телефоне (UX/UI-разбор 12.11.2026, P0). Ниже 640px
+   колонки не умещаются, и главное в строке («1 критичный провален») уезжало за край.
+   Класс `cards-sm` вешается на `<table>`, подпись колонки — в `data-label` ячейки
+   (пустая подпись — ячейка идёт без неё). Правила вне слоёв нарочно: утилиты ячеек
+   (`text-right`, `whitespace-nowrap`, отступы) лежат в слое utilities и иначе бы
+   перебивали эти. Шапка не пропадает для скринридера, а только прячется. */
+@media (max-width: 639px) {
+  .cards-sm,
+  .cards-sm tbody,
+  .cards-sm tr,
+  .cards-sm td {
+    display: block;
+    width: 100%;
+  }
+  .cards-sm thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .cards-sm tr {
+    padding: var(--space-5) var(--space-7);
+    border-bottom: 1px solid var(--line);
+  }
+  .cards-sm td {
+    padding: var(--space-2) 0;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+  }
+  .cards-sm td::before {
+    content: attr(data-label);
+    display: inline-block;
+    min-width: 38%;
+    padding-right: var(--space-4);
+    color: var(--ink-3);
+    font-size: var(--fs-meta);
+    vertical-align: baseline;
+  }
+  .cards-sm td[data-label=""]::before,
+  .cards-sm td:not([data-label])::before {
+    content: none;
+  }
+}
+
+/* Плашка демо стоит над каркасом и съедает высоту: левая панель и колонка списка высотой
+   в окно уходили нижним краем под обрез («Вошли как» и поле «Выйти» не было видно на
+   1440×900). Высота плашки — одна строка мета-текста плюс два отступа; ниже 768 px
+   панелей нет, и плашка там переносится, но эта высота нужна только от `md`. */
+body:has(.demo-banner) {
+  --demo-banner-h: calc(var(--lh-meta) + 2 * var(--space-3));
+}
+
+/* Цели касания на телефоне — не меньше 44px (разбор доступности 12.11.2026: «Выйти»,
+   «Ещё», «Сохранить черновик», «Опубликовать», кнопки языка, «Сменить роль» были
+   18–40px). Правило одно на весь кабинет, а не по классу на каждую кнопку: новая кнопка
+   получает размер сама. Только ниже складки — на компьютере высоты контролов по канону.
+   Флажки и переключатели не трогаем: их цель задаёт подпись вокруг. */
+@media (max-width: 767.98px) {
+  main
+    :is(
+      button,
+      select,
+      summary,
+      .btn,
+      .icon-btn,
+      [role="button"],
+      input:not([type="checkbox"], [type="radio"], [type="hidden"])
+    ),
+  .mbar a,
+  .tabbar__item,
+  .sheet__list :is(a, button),
+  .langpill__item,
+  .sidenav__theme button {
+    min-height: var(--tap-min);
+  }
+  main .icon-btn {
+    min-width: var(--tap-min);
+  }
+  .demo-banner a,
+  .mbar__brand {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-min);
+  }
+  .langpill__item {
+    min-width: var(--tap-min);
+  }
+}

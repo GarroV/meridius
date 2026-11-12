@@ -9,7 +9,6 @@
 // Куда ведёт пункт и готов ли раздел — не решается здесь: это `core/admin-sections`.
 // Раздел, которого в продукте ещё нет, рисуется `<span aria-disabled>`, а не ссылкой:
 // ссылка вела бы в 404.
-import type { StaticImageData } from "next/image";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import type { ReactElement } from "react";
@@ -24,9 +23,9 @@ import {
   ADMIN_SECTIONS,
   type AdminSectionKey,
 } from "../admin-sections";
-import brandMarkFile from "../brand/mark-small.svg";
 import { asLocale } from "../locale";
-import { HqOnly, NavViewer } from "./admin-viewer";
+import { HideInDemo, HqOnly, NavViewer } from "./admin-viewer";
+import { BrandLogo } from "./BrandLogo";
 import { Icon, type IconName } from "./Icon";
 import { LocaleToggle } from "./LocaleToggle";
 import { MobileSearch } from "./MobileSearch";
@@ -127,36 +126,6 @@ function TabItem({
   );
 }
 
-// Next объявляет `*.svg` как `any` (на случай SVGR); у нас это обычный статический файл.
-const brandMark = brandMarkFile as StaticImageData;
-
-/**
- * Знак продукта — «Глитч-мрамор», малый уровень (D185). Один и тот же в панели и в
- * полосе. Файл — копия раскатки из forma (`dodo/brand/`), здесь не правится.
- *
- * Картинкой, а не встроенным SVG: знак держит свои `id` (литера, полосы обрезки), и две
- * встроенные копии на странице — панель и полоса — делили бы одни и те же `id`. Адрес
- * даёт статический импорт: Next сам приставляет базовый путь площадки (D045), а файл
- * едет в `.next/static`, который образ копирует, — в отличие от `public/`.
- * `alt` пустой: имя марки рядом произносит ссылка.
- */
-function BrandLogo({
-  className,
-}: {
-  readonly className: string;
-}): ReactElement {
-  return (
-    <img
-      className={className}
-      src={brandMark.src}
-      width={brandMark.width}
-      height={brandMark.height}
-      alt=""
-      data-testid="brand-mark"
-    />
-  );
-}
-
 /**
  * Меню кабинета. Экран говорит только, где находится человек, — всё остальное меню
  * знает само.
@@ -204,11 +173,14 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
     // Тема (T236, D106) и язык (#161) — две капсулы ядра одной строкой, без подписей.
     <div className="sidenav__prefs">
       <ThemeToggle labels={themeLabels} testIdPrefix={testIdPrefix} />
-      <LocaleToggle
-        current={asLocale(locale)}
-        label={t("locale.label")}
-        testIdPrefix={testIdPrefix}
-      />
+      {/* Демо всегда английское (D193): переключатель ничего бы не переключил. */}
+      <HideInDemo>
+        <LocaleToggle
+          current={asLocale(locale)}
+          label={t("locale.label")}
+          testIdPrefix={testIdPrefix}
+        />
+      </HideInDemo>
     </div>
   );
 
@@ -232,7 +204,7 @@ export function AdminNav({ active }: AdminNavProps): ReactElement {
         />
       </header>
       <nav
-        className="sidenav md:sticky md:top-0 md:h-screen"
+        className="sidenav md:sticky md:top-0 md:h-[calc(100dvh-var(--demo-banner-h,0px))]"
         aria-label={brand}
       >
         {/*

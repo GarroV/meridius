@@ -11,7 +11,7 @@ import { scopeOf } from "@/blocks/auth/scope";
 import { NO_FILTER } from "../filter";
 import { buildFilterCatalog } from "../filter-options";
 import { listChecklists, listStations } from "../listing";
-import { CHECKLISTS_PATH } from "../routes";
+import { CHECKLISTS_PATH, checklistPath } from "../routes";
 import { listTemplateIds } from "../templates";
 import { ChecklistRail } from "./ChecklistRail";
 
@@ -59,6 +59,9 @@ export async function ChecklistsWorkspace({
           <ChecklistRail rows={rows} catalog={buildFilterCatalog(stations)} />
         }
         railLabel={t("rail.label")}
+        firstHref={
+          rows[0] === undefined ? undefined : checklistPath(rows[0].id)
+        }
         backHref={CHECKLISTS_PATH}
         backLabel={t("rail.back")}
         intro={<SectionIntro section="checklists" />}

@@ -35,7 +35,7 @@ function breadcrumbText(model: SubmissionModel, format: Formatter): string {
   const time = format.dateTime(model.submittedAt, {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
     timeZone: model.timeZone,
   });
   return `${day}, ${time}`;

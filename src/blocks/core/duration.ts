@@ -37,3 +37,39 @@ export function formatDuration(durationMs: number): string {
   if (hours === 0) return `${String(minutes)}:${pad(seconds)}`;
   return `${String(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
+
+/** Как назвать длительность словами: ключ словаря `duration.*` и значения для него. */
+export interface DurationWords {
+  readonly key:
+    "seconds" | "minutes" | "minutesSeconds" | "hours" | "hoursMinutes";
+  readonly values: {
+    readonly hours: number;
+    readonly minutes: number;
+    readonly seconds: number;
+  };
+}
+
+/**
+ * Длительность с единицами — «8 мин 20 с», «7 мин», «20 с». Голое «8:20» не говорит,
+ * минуты это с секундами или часы с минутами, а продукт обещает «20 секунд» (разбор
+ * интерфейса 12.11.2026). Тут только разбор на части и выбор формы; слова — в словаре
+ * `duration`, чтобы русский и английский не делили одну склейку строк.
+ *
+ * Округление то же, что у `formatDuration`: секунды отбрасываются вниз, отрицательное
+ * время — это ноль.
+ */
+export function describeDuration(durationMs: number): DurationWords {
+  const total = Math.max(0, Math.floor(durationMs / SECOND_MS));
+  const seconds = total % MINUTE_S;
+  const minutes = Math.floor(total / MINUTE_S) % MINUTE_S;
+  const hours = Math.floor(total / HOUR_S);
+  const values = { hours, minutes, seconds };
+
+  if (hours > 0) {
+    return { key: minutes === 0 ? "hours" : "hoursMinutes", values };
+  }
+  if (minutes > 0) {
+    return { key: seconds === 0 ? "minutes" : "minutesSeconds", values };
+  }
+  return { key: "seconds", values };
+}

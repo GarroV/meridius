@@ -1,6 +1,7 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
+import { describeDuration } from "../../core/duration";
 import type { StatsModel } from "../stats-model";
 
 /**
@@ -14,6 +15,8 @@ const CARD_CLASS =
 // На телефоне друг под другом, на планшете по две, на широком — в ряд: сплюснутые подписи
 // раздвигают колонку каркаса и уносят вбок всю страницу (та же причина, что у ленты).
 const GRID_CLASS = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+// С пятым числом (среднее время заполнения — только на экране пиццерии) ряд шире.
+const GRID_FIVE_CLASS = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5";
 const CELL_CLASS =
   "border-t border-[var(--line)] p-[var(--space-7)] first:border-t-0 sm:[&:nth-child(2)]:border-t-0 lg:border-t-0 lg:[&:not(:first-child)]:border-l";
 const VALUE_CLASS =
@@ -46,10 +49,22 @@ function Cell({ testId, value, caption, alarming }: CellProps): ReactElement {
 
 export async function StatsMetrics({
   model,
+  averageDurationMs,
 }: {
   readonly model: StatsModel;
+  /** Среднее время заполнения; не задано — пятой цифры нет (экран страны). */
+  readonly averageDurationMs?: number | null;
 }): Promise<ReactElement> {
   const t = await getTranslations("feed.stats");
+  const tDuration = await getTranslations("duration");
+  const withDuration = averageDurationMs !== undefined;
+  const average =
+    averageDurationMs === undefined || averageDurationMs === null
+      ? t("noValue")
+      : (() => {
+          const words = describeDuration(averageDurationMs);
+          return tDuration(words.key, words.values);
+        })();
   const format = await getFormatter();
   const share =
     model.criticalFailedShare === null
@@ -61,7 +76,7 @@ export async function StatsMetrics({
 
   return (
     <div className={CARD_CLASS} data-testid="stats-metrics">
-      <div className={GRID_CLASS}>
+      <div className={withDuration ? GRID_FIVE_CLASS : GRID_CLASS}>
         <Cell
           testId="stats-submissions"
           value={String(model.submissionCount)}
@@ -91,6 +106,13 @@ export async function StatsMetrics({
           alarming={model.silentStationCount > 0}
           caption={t("silent", { count: model.silentStationCount })}
         />
+        {withDuration ? (
+          <Cell
+            testId="stats-duration"
+            value={average}
+            caption={t("averageDuration")}
+          />
+        ) : null}
       </div>
     </div>
   );

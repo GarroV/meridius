@@ -10,7 +10,7 @@ import { HomeScreen } from "@/blocks/home/ui/HomeScreen";
 // D189: спокойный обзор пиццерий на сегодня; история и подробности — в статистике.
 
 const SIGN_OUT_CLASS =
-  "bg-surface text-ink flex h-[var(--control-h)] items-center justify-center rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium hover:border-[var(--line-control-2)]";
+  "bg-surface text-ink flex h-[var(--control-h)] max-md:h-[var(--tap-min)] items-center justify-center rounded-[var(--r-control)] border border-[var(--line-control)] px-[var(--space-6)] text-[length:var(--fs-body)] font-medium hover:border-[var(--line-control-2)]";
 
 /**
  * `requireAdmin()` зовётся здесь, а не только в разметке `src/app/admin/layout.tsx`:
@@ -35,6 +35,12 @@ export default async function AdminHomePage({
       // Раздел не выбран намеренно: главная — единственный экран кабинета, который
       // не является разделом, и подсвечивать в меню ей нечего.
       title={t("home")}
+      // Партнёр видит, чья это зона: его название и его страны. У УК — вся сеть.
+      breadcrumb={
+        model.owner === null
+          ? undefined
+          : `${model.owner.name} · ${model.owner.countries.join(", ")}`
+      }
       topbarAction={
         <form action={submitSignOut}>
           <button

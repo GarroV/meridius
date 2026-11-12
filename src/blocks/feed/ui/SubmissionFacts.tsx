@@ -91,7 +91,7 @@ export async function SubmissionFacts({
     format.dateTime(at, {
       hour: "2-digit",
       minute: "2-digit",
-      hour12: false,
+      hourCycle: "h23",
       timeZone: model.timeZone,
     });
 

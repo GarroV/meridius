@@ -13,6 +13,7 @@ import {
 } from "@/blocks/fill/params";
 import { PUBLIC_FILL_PREFIX, securityHeaders } from "@/security-headers";
 import { LOGIN_PATH } from "@/blocks/auth/routes";
+import { isLocale, LOCALE_COOKIE } from "@/blocks/core/locale";
 import { SESSION_COOKIE_NAME, readSessionToken } from "@/blocks/auth/session";
 
 /**
@@ -34,7 +35,10 @@ export const config = {
   //
   // Страница привязки и привязанная вкладка — та же публичная сторона и тот же ключ:
   // на вкладке живёт экран заполнения целиком, а значит и его инлайновые скрипты.
-  matcher: ["/admin/:path*", "/s/:path*", "/pair", "/station"],
+  // Одной строкой, а не столбцом: сторож префикса `/s/` (`public-routes.test.ts`)
+  // пропускает только строку, где есть `matcher: [`.
+  // prettier-ignore
+  matcher: ["/admin/:path*", "/s/:path*", "/pair", "/station", "/welcome", "/demo"],
 };
 
 const NONCE_BYTES = 16;
@@ -93,8 +97,41 @@ function publicFillResponse(
   return response;
 }
 
+/** Адреса посадочной и выбора роли демо (D193): публичные страницы, которым посредник даёт язык. */
+const WELCOME_PATH = "/welcome";
+const DEMO_ENTRY_PATH = "/demo";
+/** Год: выбор языка — не сессия (как у переключателя, `core/ui/locale-action.ts`). */
+const LOCALE_CHOICE_SECONDS = 60 * 60 * 24 * 365;
+
+/**
+ * Посадочная и `/demo`: явный `?lang=` превращается в ту же куку выбора языка, что ставит
+ * переключатель, и адрес очищается. Язык документа решается на сервере по куке
+ * (`src/i18n/request.ts`), а параметр адреса ему не виден, — поэтому его читает
+ * посредник, а не страница: иначе `<html lang>` и текст разошлись бы. Чужое значение
+ * параметра отбрасывается молча, страница открывается на прежнем языке.
+ */
+function langResponse(request: NextRequest): NextResponse {
+  const lang = request.nextUrl.searchParams.get("lang");
+  if (lang === null) return NextResponse.next();
+
+  const target = request.nextUrl.clone();
+  target.searchParams.delete("lang");
+  const response = NextResponse.redirect(target, 307);
+  if (isLocale(lang)) {
+    response.cookies.set(LOCALE_COOKIE, lang, {
+      path: "/",
+      maxAge: LOCALE_CHOICE_SECONDS,
+      sameSite: "lax",
+    });
+  }
+  return response;
+}
+
 export function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
+
+  if (pathname === WELCOME_PATH || pathname === DEMO_ENTRY_PATH)
+    return langResponse(request);
 
   // Первым делом и без единого обращения к сессии: публичный маршрут о входе не знает.
   if (pathname.startsWith(PUBLIC_FILL_PREFIX))

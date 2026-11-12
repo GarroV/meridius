@@ -43,10 +43,55 @@ async function settingsForRequest(): Promise<GoogleSettings | null> {
   return googleSettings(viaFront);
 }
 
-function refused(): Response {
+/**
+ * Причина отказа возврата — только для журнала. Человеку отказ один на все причины
+ * (иначе экран входа перечислял бы, чьи почты здесь заведены), а по жалобе «Google не
+ * пускает» без причины в журнале не понять, на каком шаге оборвалось (#238). В строку
+ * журнала идёт одно слово из этого списка: ни почты, ни кода, ни токена, ни метки, ни
+ * текста ответа Google.
+ */
+type RefusalReason =
+  | "state-mismatch"
+  | "no-code"
+  | "google-error"
+  | "exchange-failed"
+  | "no-id-token"
+  | "bad-id-token"
+  | "email-unbound";
+
+function refused(reason: RefusalReason): Response {
+  console.warn(`Вход через Google: отказ, причина ${reason}`);
   return goTo(
     redirectPath(`${LOGIN_PATH}?${GOOGLE_FAILED_PARAM}=${GOOGLE_FAILED_VALUE}`),
   );
+}
+
+/**
+ * Сбой, который стоит повторить: Google не ответил за отведённое время или сеть
+ * оборвалась (`fetch` бросает `TypeError`). Разбор тела и прочее не повторяется.
+ */
+function isTransient(error: unknown): boolean {
+  return (
+    error instanceof TypeError ||
+    (error instanceof Error && error.name === "TimeoutError")
+  );
+}
+
+/**
+ * Обмен кода с одним повтором при тайм-ауте или сетевой ошибке: короткий сбой по пути к
+ * Google не должен стоить человеку нового круга по экранам Google. Второй сбой пробрасывается.
+ */
+async function exchangeWithRetry(
+  settings: GoogleSettings,
+  code: string,
+): Promise<string | null> {
+  try {
+    return await exchangeCode(settings, code);
+  } catch (error) {
+    if (!isTransient(error)) throw error;
+    console.warn("Вход через Google: обмен кода не удался, повтор");
+    return exchangeCode(settings, code);
+  }
 }
 
 /** Начало: метка в куку, человек — к Google. Без реквизитов — обратно на форму входа. */
@@ -85,30 +130,33 @@ export async function finishGoogleSignIn(url: URL): Promise<Response> {
   // Метка одноразовая: снимается при любом исходе, повтор того же возврата не пройдёт.
   store.delete({ name: STATE_COOKIE, path: "/" });
 
-  const code = url.searchParams.get("code");
-  if (!sameState(expected, url.searchParams.get("state")) || code === null) {
-    return refused();
+  // Значение `error` в журнал не идёт: оно приходит из адреса, то есть от кого угодно.
+  if (url.searchParams.has("error")) return refused("google-error");
+  if (!sameState(expected, url.searchParams.get("state"))) {
+    return refused("state-mismatch");
   }
+  const code = url.searchParams.get("code");
+  if (code === null) return refused("no-code");
 
   let idToken: string | null;
   try {
-    idToken = await exchangeCode(settings, code);
+    idToken = await exchangeWithRetry(settings, code);
   } catch (error) {
     // Google недоступен — человеку тот же отказ с формой входа и паролем под рукой,
     // а поломка остаётся в журнале.
     const reason = error instanceof Error ? error.name : typeof error;
     console.error("Вход через Google: Google не ответил на обмен кода", reason);
-    return refused();
+    return refused("exchange-failed");
   }
-  if (idToken === null) return refused();
+  if (idToken === null) return refused("no-id-token");
   const identity = identityFromIdToken(idToken, settings.clientId, new Date());
-  if (identity === null) return refused();
+  if (identity === null) return refused("bad-id-token");
 
   // Время выпуска — до чтения учётки, как у входа паролем (#198): сброс пароля,
   // пришедшийся на этот вход, делает выпущенную сессию негодной, а не наоборот.
   const issuedAt = new Date();
   const account = await findEmailAccount(identity.email);
-  if (account === null) return refused();
+  if (account === null) return refused("email-unbound");
 
   await setSessionCookie(account.id, secret, issuedAt);
   return goTo(redirectPath(ADMIN_HOME_PATH));

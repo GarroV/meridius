@@ -5,7 +5,7 @@
 // подписью под кодом, потому что решение о языке принимал браузер методиста. Поэтому
 // проверка стережёт не «функция вернула строку», а то, чей голос сильнее: явно
 // названный язык поверхности или заголовок запроса.
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LOCALE_COOKIE } from "@/blocks/core/locale";
 import en from "@/messages/en.json";
@@ -162,5 +162,48 @@ describe("язык кабинета выбран человеком — выбо
     // Assert
     expect(config.locale).toBe("ru");
     expect(config.messages).toBe(ru);
+  });
+});
+
+describe("демо-режим (D193) — по умолчанию английский, выбор человека сильнее", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("русский заголовок браузера язык не меняет", async () => {
+    vi.stubEnv("DEMO_MODE", "1");
+    requestHeaders.set("accept-language", "ru-RU,ru;q=0.9");
+
+    const config = await requestConfig(params());
+
+    expect(config.locale).toBe("en");
+    expect(config.messages).toBe(en);
+  });
+
+  it("русская кука выбора переключает демо на русский", async () => {
+    vi.stubEnv("DEMO_MODE", "1");
+    requestCookies.set(LOCALE_COOKIE, "ru");
+
+    const config = await requestConfig(params());
+
+    expect(config.locale).toBe("ru");
+    expect(config.messages).toBe(ru);
+  });
+
+  it("чужая метка в куке в демо — английский, а не пустая страница", async () => {
+    vi.stubEnv("DEMO_MODE", "1");
+    requestCookies.set(LOCALE_COOKIE, "xx");
+
+    const config = await requestConfig(params());
+
+    expect(config.locale).toBe("en");
+  });
+
+  it("без демо-режима кука по-прежнему решает", async () => {
+    requestCookies.set(LOCALE_COOKIE, "ru");
+
+    const config = await requestConfig(params());
+
+    expect(config.locale).toBe("ru");
   });
 });

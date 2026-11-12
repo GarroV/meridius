@@ -21,6 +21,74 @@
 // по которым Caddy выбирает сайт. Если туннель лёг, тот же запрос уходит
 // прежним путём через интернет: два независимых пути вместо одной точки отказа.
 
+// Только у демо-Worker'а (`wrangler.demo.jsonc`: RESET_PAGE = "1"): раз в час демо
+// пересаживается (`deploy/demo/reset.sh` гасит приложение), и минуту источник отвечает
+// 502/503/504 или не отвечает вовсе. Вместо голой ошибки браузеру уходит страница
+// «демо обновляется» с автообновлением. Прод-Worker переменной не имеет и отдаёт
+// ответ источника как есть.
+const RESETTING_STATUSES = [502, 503, 504];
+const RESET_RETRY_SECONDS = 20;
+const RESET_TEXT = {
+  en: {
+    title: "Demo is resetting",
+    body: "Demo is resetting, back in a minute. This page refreshes itself.",
+  },
+  ru: {
+    title: "Демо обновляется",
+    body: "Демо обновляется, через минуту вернётся. Страница обновится сама.",
+  },
+};
+
+/** Язык страницы: выбор человека (кука продукта), затем язык браузера, затем английский. */
+function resetLanguage(request) {
+  const cookie = /(?:^|;\s*)NEXT_LOCALE=(ru|en)\b/.exec(
+    request.headers.get("Cookie") || "",
+  );
+  if (cookie) return cookie[1];
+  const accept = (request.headers.get("Accept-Language") || "").toLowerCase();
+  return accept.trim().startsWith("ru") ? "ru" : "en";
+}
+
+/** Человек в браузере, а не скрипт: страницу получает только тот, кто просил HTML. */
+function wantsPage(request) {
+  return (
+    ["GET", "HEAD"].includes(request.method) &&
+    (request.headers.get("Accept") || "").includes("text/html")
+  );
+}
+
+function resetPage(request) {
+  const lang = resetLanguage(request);
+  const text = RESET_TEXT[lang];
+  const html = `<!doctype html>
+<html lang="${lang}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="${RESET_RETRY_SECONDS}">
+<title>${text.title}</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f7f9fb;color:#1b2028;font:16px/1.5 system-ui,sans-serif}
+main{max-width:420px;padding:24px;text-align:center}
+h1{margin:0 0 8px;font-size:22px}
+p{margin:0;color:#5c6672}
+</style>
+</head>
+<body>
+<main><h1>${text.title}</h1><p>${text.body}</p></main>
+</body>
+</html>
+`;
+  return new Response(request.method === "HEAD" ? null : html, {
+    status: 503,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Retry-After": String(RESET_RETRY_SECONDS),
+    },
+  });
+}
+
 const FRONT_KEY_HEADER = "X-Meridius-Front-Key";
 const CLIENT_IP_HEADER = "X-Meridius-Client-IP";
 
@@ -80,8 +148,19 @@ export default {
         );
       }
     }
+    const isResetPage = env.RESET_PAGE === "1" && wantsPage(request);
     if (!response) {
-      response = await send(fetch, fallback);
+      try {
+        response = await send(fetch, fallback);
+      } catch (error) {
+        // Источник не ответил вовсе (приложение погашено): демо-страница вместо ошибки Worker'а.
+        if (!isResetPage) throw error;
+        console.error("origin unreachable", String(error));
+        return resetPage(request);
+      }
+    }
+    if (isResetPage && RESETTING_STATUSES.includes(response.status)) {
+      return resetPage(request);
     }
 
     const location = response.headers.get("Location");

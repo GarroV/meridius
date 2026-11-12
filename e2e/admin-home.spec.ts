@@ -182,9 +182,10 @@ test.describe("главная кабинета — пульт сети", () => {
     const world = await seedWorkingPartner();
     await signInAs(page, world.login, PASSWORD);
     const home = page.getByTestId("admin-home");
-    await expect(home.getByLabel("Страна")).toBeVisible();
+    // Единственная страна партнёра — текстом, а не списком из одного пункта.
+    await expect(home).toContainText("Страна:");
     await expect(home.getByRole("link")).toHaveCount(1);
-    await expect(home).toContainText("Заполнено: 1");
+    await expect(home).toContainText("Выполнено 1 из");
     await home.getByRole("link").click();
     await expect(page).toHaveURL(/\/admin\/feed\/stores\//);
     await backHome(page);

@@ -59,6 +59,8 @@ export interface DemoVersion {
 export interface DemoChecklist {
   readonly id: string;
   readonly stationId: string;
+  /** Хозяин чек-листа: партнёр, чья страна. Без значения — УК (D145). */
+  readonly tenantId?: string;
   readonly title: LocalizedText;
   /** Окно времени в формате экрана редактора: «06:00». */
   readonly window: { readonly start: string; readonly end: string };
@@ -68,6 +70,26 @@ export interface DemoChecklist {
     readonly sections: readonly Section[];
   };
   readonly versions: readonly DemoVersion[];
+}
+
+/** Шаблон УК (D149): чек-лист без станции, образец для копирования. */
+export type DemoTemplate = Omit<DemoChecklist, "stationId" | "tenantId">;
+
+/** Партнёр демо-режима: тенант со своими странами (D145). */
+export interface DemoTenant {
+  readonly id: string;
+  readonly name: string;
+  readonly countryIds: readonly string[];
+}
+
+/**
+ * Учётка демо-режима: входят в неё выбором роли на `/demo`, пароля у неё нет.
+ * `tenantId` — тенант партнёра из `tenants` того же описания; без него — УК.
+ */
+export interface DemoAccount {
+  readonly id: string;
+  readonly login: string;
+  readonly tenantId?: string;
 }
 
 export interface DemoSubmission {
@@ -113,4 +135,8 @@ export interface DemoDataset {
   readonly checklists: readonly DemoChecklist[];
   readonly submissions: readonly DemoSubmission[];
   readonly shiftModes: readonly DemoShiftMode[];
+  /** Только демо-режим: шаблоны УК, партнёры и учётки выбора роли. */
+  readonly templates?: readonly DemoTemplate[];
+  readonly tenants?: readonly DemoTenant[];
+  readonly accounts?: readonly DemoAccount[];
 }

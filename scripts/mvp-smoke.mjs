@@ -371,14 +371,13 @@ async function fillFromPhone(browser, code) {
 
     const bools = page.locator('[data-testid="fill-item"][data-state]');
     const oven = bools.nth(0);
-    await oven.tap();
+    await oven.getByTestId("fill-done").tap();
     check(await hasState(oven, "yes"), "первый пункт отмечен выполненным");
     await page.getByTestId("fill-number").fill("172");
 
-    // Критичный пункт проваливается вторым касанием: «да» → «нет».
+    // Критичный пункт проваливается отдельной кнопкой «Не выполнено».
     const critical = bools.nth(2);
-    await critical.tap();
-    await critical.tap();
+    await critical.getByTestId("fill-fail").tap();
     // Состояние ЖДЁМ, а не читаем сразу: по внешнему адресу ответ идёт через туннель,
     // и мгновенное чтение атрибута ловит предыдущее состояние — смоук падал на этом
     // шаге на живой площадке, хотя продукт работал.

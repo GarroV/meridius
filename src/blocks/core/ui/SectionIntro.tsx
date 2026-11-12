@@ -4,9 +4,10 @@
 // раздел, какая цель и прочее». Текст стоит на самом экране, а не во всплывающей
 // подсказке и не в справке: читается один раз и дальше не мешает — три короткие строки.
 //
-// Вид — плашка `.notice` эталона (`design/screens/library.html`, `design/app.css`):
-// нейтральная, без акцента — это пояснение, а не тревога. До T316 три раздела рисовали
-// вводную строку каждый своей копией этого класса; копия теперь одна.
+// Вид — тихая строка без заливки и рамки: это пояснение, а не тревога и не содержание.
+// Блок закрывается и помнит это (`IntroFrame`): методисту, который знает раздел, он не
+// должен съедать верх экрана каждый день. До T316 три раздела рисовали вводную строку
+// каждый своей копией; копия теперь одна.
 //
 // Серверный компонент со своим пространством словаря `sectionIntro`: на клиент словарь
 // не уходит. Разделам мастер-детали (`MasterDetail`) блок передаётся готовой разметкой.
@@ -16,11 +17,9 @@ import { getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
 import type { IntroSectionKey } from "../section-intro";
-import { Icon } from "./Icon";
+import { IntroFrame } from "./IntroFrame";
 
-const NOTICE_CLASS =
-  "flex gap-[var(--space-5)] rounded-[var(--r-block)] border border-[var(--line-strong)] bg-[var(--surface-2)] px-[var(--space-7)] py-[var(--space-6)] text-[length:var(--fs-dense)] leading-[var(--lh-dense)]";
-const WHY_CLASS = "m-0 font-semibold text-ink";
+const WHY_CLASS = "m-0 text-[var(--ink-2)]";
 const TEXT_CLASS = "m-0 text-[var(--ink-2)]";
 const REST_CLASS = "flex flex-col gap-[var(--space-2)]";
 const MORE_CLASS =
@@ -36,26 +35,20 @@ export async function SectionIntro({
   const t = await getTranslations("sectionIntro");
 
   return (
-    <section
-      aria-label={t("label")}
-      data-testid="section-intro"
-      data-section={section}
-      className={NOTICE_CLASS}
+    <IntroFrame
+      section={section}
+      label={t("label")}
+      hideLabel={t("hide")}
+      showLabel={t("label")}
     >
-      <Icon
-        name="info"
-        className="mt-[var(--space-1)] size-4 flex-none text-[var(--ink-3)]"
-      />
-      <div className="flex min-w-0 flex-col gap-[var(--space-2)]">
-        <p className={WHY_CLASS}>{t(`${section}.why`)}</p>
-        <details data-testid="section-intro-more">
-          <summary className={MORE_CLASS}>{t("more")}</summary>
-          <div className={`${REST_CLASS} pt-[var(--space-2)]`}>
-            <p className={TEXT_CLASS}>{t(`${section}.what`)}</p>
-            <p className={TEXT_CLASS}>{t(`${section}.next`)}</p>
-          </div>
-        </details>
-      </div>
-    </section>
+      <p className={WHY_CLASS}>{t(`${section}.why`)}</p>
+      <details data-testid="section-intro-more">
+        <summary className={MORE_CLASS}>{t("more")}</summary>
+        <div className={`${REST_CLASS} pt-[var(--space-2)]`}>
+          <p className={TEXT_CLASS}>{t(`${section}.what`)}</p>
+          <p className={TEXT_CLASS}>{t(`${section}.next`)}</p>
+        </div>
+      </details>
+    </IntroFrame>
   );
 }

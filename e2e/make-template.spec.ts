@@ -40,6 +40,7 @@ test("опубликованный чек-лист становится шабл
   await signIn(page);
 
   await page.goto(`/admin/checklists/${checklistId}`);
+  await page.getByTestId("editor-more").click();
   await page.getByTestId("make-template").click();
 
   // Редактор шаблона: новый адрес, путь над заголовком — раздел «Шаблоны».

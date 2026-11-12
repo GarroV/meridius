@@ -42,6 +42,7 @@ async function askToRemove(page: Page, title: string): Promise<void> {
   await page.goto(CHECKLISTS_PATH);
   await rowOf(page, title).click();
   await expect(page.getByTestId("editor-screen")).toBeVisible();
+  await page.getByTestId("editor-more").click();
   await page.getByTestId("delete-checklist").click();
 }
 
@@ -117,6 +118,7 @@ test.describe("удаление чек-листа", () => {
     // Заведение уже привело в рабочую зону чек-листа: без JavaScript каждый шаг —
     // полная загрузка страницы с колонкой, лишний заход через список не нужен.
     const title = await createChecklist(page);
+    await page.getByTestId("editor-more").click();
     await page.getByTestId("delete-checklist").click();
     await page.getByTestId("remove-checklist-confirm").click();
 

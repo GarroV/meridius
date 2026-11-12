@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactElement } from "react";
 
-import { formatDuration } from "../../core/duration";
+import { describeDuration } from "../../core/duration";
 import type { FeedRow, FeedSelection } from "../model";
 import { submissionHref } from "../view";
 import { OutcomeTag } from "./OutcomeTag";
@@ -51,7 +51,7 @@ function whenText(row: FeedRow, format: Formatter, t: Translate): string {
   const time = format.dateTime(row.submittedAt, {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
     timeZone: row.timeZone,
   });
 
@@ -63,7 +63,7 @@ function whenText(row: FeedRow, format: Formatter, t: Translate): string {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
     timeZone: row.timeZone,
   });
 }
@@ -71,12 +71,16 @@ function whenText(row: FeedRow, format: Formatter, t: Translate): string {
 async function FeedTableRow({
   row,
   selection,
+  hideStore,
 }: {
   readonly row: FeedRow;
   readonly selection: FeedSelection;
+  readonly hideStore: boolean;
 }): Promise<ReactElement> {
   const t = await getTranslations("feed.list");
+  const tDuration = await getTranslations("duration");
   const format = await getFormatter();
+  const words = describeDuration(row.durationMs);
 
   return (
     <tr
@@ -84,17 +88,28 @@ async function FeedTableRow({
       data-testid="submission-row"
       data-submission-id={row.id}
     >
-      <td className={TD_WHEN_CLASS}>{whenText(row, format, t)}</td>
-      <td className={TD_CLASS}>
-        {row.storeName}
-        {row.mode === "normal" ? null : (
+      <td className={TD_WHEN_CLASS} data-label={t("columnWhen")}>
+        {whenText(row, format, t)}
+      </td>
+      {hideStore ? null : (
+        <td className={TD_CLASS} data-label={t("columnStore")}>
+          {row.storeName}
+          {row.mode === "normal" ? null : (
+            <span data-testid="row-mode" className={MODE_TAG_CLASS}>
+              {t(`mode.${row.mode}`)}
+            </span>
+          )}
+        </td>
+      )}
+      <td className={TD_CLASS} data-label={t("columnStation")}>
+        {row.stationName}
+        {hideStore && row.mode !== "normal" ? (
           <span data-testid="row-mode" className={MODE_TAG_CLASS}>
             {t(`mode.${row.mode}`)}
           </span>
-        )}
+        ) : null}
       </td>
-      <td className={TD_CLASS}>{row.stationName}</td>
-      <td className={TD_CLASS}>
+      <td className={TD_CLASS} data-label={t("columnChecklist")}>
         {row.checklistTitle}{" "}
         {row.versionNumber === null ? null : (
           <span className={META_CLASS}>
@@ -102,11 +117,13 @@ async function FeedTableRow({
           </span>
         )}
       </td>
-      <td className={TD_CLASS}>
+      <td className={TD_CLASS} data-label={t("columnOutcome")}>
         <OutcomeTag outcome={row.outcome} />
       </td>
-      <td className={TD_NUM_CLASS}>{formatDuration(row.durationMs)}</td>
-      <td className={TD_ACTIONS_CLASS}>
+      <td className={TD_NUM_CLASS} data-label={t("columnDuration")}>
+        {tDuration(words.key, words.values)}
+      </td>
+      <td className={TD_ACTIONS_CLASS} data-label="">
         <Link href={submissionHref(row.id, selection)} className={OPEN_CLASS}>
           {t("open")}
         </Link>
@@ -119,12 +136,15 @@ export interface FeedTableProps {
   readonly rows: readonly FeedRow[];
   readonly selection: FeedSelection;
   readonly limitReached: boolean;
+  /** На странице одной пиццерии колонка «пиццерия» повторяла бы одно и то же слово. */
+  readonly hideStore?: boolean;
 }
 
 export async function FeedTable({
   rows,
   selection,
   limitReached,
+  hideStore = false,
 }: FeedTableProps): Promise<ReactElement> {
   const t = await getTranslations("feed.list");
 
@@ -138,11 +158,13 @@ export async function FeedTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className={TABLE_CLASS}>
+        <table className={`${TABLE_CLASS} cards-sm`}>
           <thead>
             <tr>
               <th className={TH_CLASS}>{t("columnWhen")}</th>
-              <th className={TH_CLASS}>{t("columnStore")}</th>
+              {hideStore ? null : (
+                <th className={TH_CLASS}>{t("columnStore")}</th>
+              )}
               <th className={TH_CLASS}>{t("columnStation")}</th>
               <th className={TH_CLASS}>{t("columnChecklist")}</th>
               <th className={TH_CLASS}>{t("columnOutcome")}</th>
@@ -152,7 +174,12 @@ export async function FeedTable({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <FeedTableRow key={row.id} row={row} selection={selection} />
+              <FeedTableRow
+                key={row.id}
+                row={row}
+                selection={selection}
+                hideStore={hideStore}
+              />
             ))}
           </tbody>
         </table>

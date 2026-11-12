@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
 
+import { isDemoMode } from "@/blocks/core/demo-mode";
 import {
   isLocale,
   LOCALE_COOKIE,
@@ -34,8 +35,15 @@ export default getRequestConfig(async ({ locale: requested }) => {
   if (isLocale(requested)) {
     return { locale: requested, messages: MESSAGES[requested] };
   }
+  const chosen = (await cookies()).get(LOCALE_COOKIE)?.value;
+  // Демо по умолчанию английское (D193): язык браузера его не меняет, а вот явный выбор
+  // человека — кука от переключателя или `?lang=` — сильнее. Раньше демо игнорировало и
+  // куку, и переключатель лендинга молча не работал.
+  if (isDemoMode() && !isLocale(chosen)) {
+    return { locale: "en", messages: MESSAGES.en };
+  }
   const locale: Locale = resolveLocale({
-    chosen: (await cookies()).get(LOCALE_COOKIE)?.value,
+    chosen,
     acceptLanguage: (await headers()).get("accept-language"),
   });
   return { locale, messages: MESSAGES[locale] };

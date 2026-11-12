@@ -1,6 +1,7 @@
 "use server";
 
-// Действия экрана «Партнёры» (T337). Каждое зовёт requireHq() само: действия идут мимо
+// Действия экрана «Партнёры» (T337). Каждое зовёт requireHqOutsideDemo() само (в демо-режиме
+// они закрыты — D193): действия идут мимо
 // разметки, и охрана страницы их не закрывает. Партнёр получает 404, как на экран.
 //
 // Пароль не попадает ни в журнал, ни в ответ — кроме ответа на сброс, ради которого
@@ -9,7 +10,7 @@ import { revalidatePath } from "next/cache";
 
 import { normalizeLogin } from "../accounts";
 import { bindAccountEmail } from "../emails";
-import { requireHq } from "../guard";
+import { requireHqOutsideDemo } from "../guard";
 import { provisionHqMember } from "../hq-members";
 import {
   changePartnerPassword,
@@ -51,7 +52,7 @@ export async function submitCreatePartner(
   form: FormData,
 ): Promise<PartnerFormState> {
   void previous;
-  await requireHq();
+  await requireHqOutsideDemo();
 
   const countryNames = form
     .getAll("country")
@@ -80,7 +81,7 @@ export async function submitChangePassword(
   form: FormData,
 ): Promise<PartnerFormState> {
   void previous;
-  await requireHq();
+  await requireHqOutsideDemo();
 
   const accountId = accountIdOf(form);
   if (accountId === null) return { status: "failed", error: "not-found" };
@@ -102,7 +103,7 @@ export async function submitResetPassword(
   form: FormData,
 ): Promise<PartnerFormState> {
   void previous;
-  await requireHq();
+  await requireHqOutsideDemo();
 
   const accountId = accountIdOf(form);
   if (accountId === null) return { status: "failed", error: "not-found" };
@@ -121,7 +122,7 @@ export async function submitDisableAccount(
   form: FormData,
 ): Promise<PartnerFormState> {
   void previous;
-  await requireHq();
+  await requireHqOutsideDemo();
 
   const accountId = accountIdOf(form);
   if (accountId === null) return { status: "failed", error: "not-found" };
@@ -142,7 +143,7 @@ export async function submitBindEmail(
   form: FormData,
 ): Promise<PartnerFormState> {
   void previous;
-  await requireHq();
+  await requireHqOutsideDemo();
 
   const accountId = accountIdOf(form);
   if (accountId === null) return { status: "failed", error: "not-found" };
@@ -163,7 +164,7 @@ export async function submitCreateHqMember(
   form: FormData,
 ): Promise<PartnerFormState> {
   void previous;
-  await requireHq();
+  await requireHqOutsideDemo();
 
   const login = field(form, "login");
   try {

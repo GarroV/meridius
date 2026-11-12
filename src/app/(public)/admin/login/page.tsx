@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { redirectPath } from "@/blocks/core/base-path";
+import { DEMO_PATH, isDemoMode } from "@/blocks/core/demo-mode";
 import {
   GOOGLE_FAILED_PARAM,
   isGoogleFailure,
@@ -16,6 +17,9 @@ export default async function AdminLoginPage({
 }: {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // Демо-режим (D193): пароля и Google нет, вход — выбором роли.
+  if (isDemoMode()) redirect(redirectPath(DEMO_PATH));
+
   if (await hasAdminSession()) {
     redirect(redirectPath(ADMIN_HOME_PATH));
   }

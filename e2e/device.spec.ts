@@ -60,6 +60,7 @@ async function issuePin(page: Page, stationId: string): Promise<string> {
 async function answerBool(page: Page, itemId: string): Promise<void> {
   await page
     .locator(`[data-testid="fill-item"][data-item-id="${itemId}"]`)
+    .getByTestId("fill-done")
     .click();
 }
 

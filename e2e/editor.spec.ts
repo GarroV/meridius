@@ -564,6 +564,7 @@ test.describe("редактор чек-листа", () => {
     // строка только выбирает.
     await row.click();
     await expect(page.getByTestId("editor-screen")).toBeVisible();
+    await page.getByTestId("editor-more").click();
     await page.getByTestId("duplicate-checklist").click();
 
     // Копия открывается сразу в редакторе, с теми же пунктами и своим названием.

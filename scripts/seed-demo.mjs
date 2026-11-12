@@ -6,6 +6,10 @@
 // с прежним контуром — на то он и показательный.
 //
 // Запуск:  npm run seed:demo
+//
+// С DEMO_MODE=1 (стенд открытого демо, D193) сажается расширенный контур: три страны,
+// семь пиццерий, шаблоны УК, учётки выбора роли и 60 дней истории, отсчитанных назад от
+// дня посева. Так же идемпотентно: повторный запуск возвращает контур в то же состояние.
 import { register } from "node:module";
 
 // Хук ставится ДО первого импорта из src/: без него Node не знает ни псевдонима `@/`,
@@ -23,7 +27,7 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-const { seedDemo, describeSeedFailure } =
+const { seedDemo, seedShowcase, isDemoMode, describeSeedFailure } =
   await import("../src/blocks/demo/index.ts");
 const { stationScanUrl } = await import("../src/blocks/qr/scan-url.ts");
 // Порт — из общего источника, а не свой разбор process.env.PORT с числом-умолчанием
@@ -37,12 +41,17 @@ const origin =
   process.env.PUBLIC_BASE_URL || `http://localhost:${String(appPort())}`;
 
 try {
-  const summary = await seedDemo();
+  const isShowcase = isDemoMode();
+  const summary = isShowcase ? await seedShowcase() : await seedDemo();
 
-  console.log("Демонстрационный контур готов.");
+  console.log(
+    isShowcase
+      ? "Демонстрационный контур готов (демо-режим: расширенный набор)."
+      : "Демонстрационный контур готов.",
+  );
   console.log(`  снято строк прошлого контура: ${summary.removedRows}`);
   console.log(
-    `  страна ${summary.country} · пиццерий ${summary.stores} · станций ${summary.stations}`,
+    `  страны ${summary.country} · пиццерий ${summary.stores} · станций ${summary.stations}`,
   );
   console.log(
     `  блоков библиотеки ${summary.blocks} · чек-листов ${summary.checklists} · версий ${summary.versions} · заполнений ${summary.submissions}`,
