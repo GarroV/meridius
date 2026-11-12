@@ -2,7 +2,6 @@ import { getTranslations } from "next-intl/server";
 
 import { formActionPath } from "@/blocks/core/base-path";
 import { PUBLIC_FILL_PREFIX } from "@/blocks/core/public-routes";
-import { BrandLogo } from "@/blocks/core/ui/BrandLogo";
 
 import { DEMO_ROLES, KITCHEN_STATION_CODE } from "../roles";
 
@@ -31,7 +30,6 @@ export async function DemoScreen() {
       className="mx-auto flex w-[960px] max-w-full flex-col gap-[var(--space-8)] px-[var(--space-8)] pt-[var(--space-10)] pb-[var(--space-10)]"
     >
       <header className="flex flex-col gap-[var(--space-3)]">
-        <BrandLogo className="mb-[var(--space-3)] h-[44px] w-[44px] rounded-[var(--r-block)]" />
         <h1 className="m-0 text-[length:var(--fs-display)] leading-[var(--lh-display)] font-semibold">
           {t("title")}
         </h1>
