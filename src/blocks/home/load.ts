@@ -32,6 +32,12 @@ export async function loadHome(
   return {
     countries,
     countryId,
+    // Чья это зона: у партнёра — его название и его страны (D145). У УК — вся сеть,
+    // и подписывать нечего.
+    owner:
+      viewer.tenantKind === "partner"
+        ? { name: viewer.tenantName, countries: countries.map((c) => c.name) }
+        : null,
     capped: live.capped || alarms.capped,
     stores: catalog.stores
       .filter((row) => row.countryId === countryId)
@@ -53,6 +59,8 @@ export async function loadHome(
           missed: count("missed"),
           notExpected: count("notExpected"),
           unknown: count("unknownZone"),
+          alarms: alarms.alarms.filter((alarm) => alarm.storeId === store.id)
+            .length,
           remarks: new Set(
             alarms.alarms
               .filter(

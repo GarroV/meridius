@@ -35,6 +35,12 @@ export default async function AdminHomePage({
       // Раздел не выбран намеренно: главная — единственный экран кабинета, который
       // не является разделом, и подсвечивать в меню ей нечего.
       title={t("home")}
+      // Партнёр видит, чья это зона: его название и его страны. У УК — вся сеть.
+      breadcrumb={
+        model.owner === null
+          ? undefined
+          : `${model.owner.name} · ${model.owner.countries.join(", ")}`
+      }
       topbarAction={
         <form action={submitSignOut}>
           <button

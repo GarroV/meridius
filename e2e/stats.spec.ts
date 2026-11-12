@@ -235,8 +235,8 @@ test.describe("раздел «Статистика» (D179)", () => {
 
     // Календарь «с — по»: те же 30 дней, что раньше давала кнопка «30 дней».
     const month = { from: shiftDate(week.to, -29), to: week.to };
+    // Дата применяется сразу, без кнопки «Показать».
     await page.getByTestId("period-from").fill(month.from);
-    await page.getByTestId("period-apply").click();
     await expect(page).toHaveURL(
       new RegExp(`from=${month.from}&to=${month.to}`),
     );

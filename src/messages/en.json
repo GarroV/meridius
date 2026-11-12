@@ -1101,7 +1101,6 @@
     "todayHint": "Today, in each pizzeria’s local time",
     "partial": "Some data is not shown. Open pizzeria statistics for details.",
     "notConfigured": "Checklists not configured",
-    "filled": "Completed: {count}",
     "open": "Available now: {count}",
     "missed": "Not completed in time: {count}",
     "upcoming": "Scheduled later: {count}",
@@ -1109,6 +1108,10 @@
     "unknown": "Time could not be determined: {count}",
     "remarks": "Submissions with critical remarks: {count}",
     "details": "Details",
+    "alarmsTitle": "{count, plural, one {# alarm needs attention} other {# alarms need attention}}",
+    "alarmRow": "{count, plural, one {# alarm} other {# alarms}}",
+    "filledOf": "Completed {filled} of {total}",
+    "onTime": "All on time",
     "noStores": "No pizzerias in this country yet."
   },
   "partners": {
