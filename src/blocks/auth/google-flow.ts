@@ -43,7 +43,19 @@ async function settingsForRequest(): Promise<GoogleSettings | null> {
   return googleSettings(viaFront);
 }
 
-function refused(): Response {
+/**
+ * Причины отказа — только для журнала сервера, человеку отказ один (см. шапку).
+ * Без почты и без токенов: код причины говорит, где оборвалось, а не кто пришёл.
+ */
+type RefusalReason =
+  | "state-mismatch"
+  | "no-code"
+  | "no-id-token"
+  | "bad-id-token"
+  | "email-unbound";
+
+function refused(reason: RefusalReason): Response {
+  console.warn("Вход через Google: отказ", reason);
   return goTo(
     redirectPath(`${LOGIN_PATH}?${GOOGLE_FAILED_PARAM}=${GOOGLE_FAILED_VALUE}`),
   );
@@ -86,9 +98,10 @@ export async function finishGoogleSignIn(url: URL): Promise<Response> {
   store.delete({ name: STATE_COOKIE, path: "/" });
 
   const code = url.searchParams.get("code");
-  if (!sameState(expected, url.searchParams.get("state")) || code === null) {
-    return refused();
+  if (!sameState(expected, url.searchParams.get("state"))) {
+    return refused("state-mismatch");
   }
+  if (code === null) return refused("no-code");
 
   let idToken: string | null;
   try {
@@ -98,17 +111,21 @@ export async function finishGoogleSignIn(url: URL): Promise<Response> {
     // а поломка остаётся в журнале.
     const reason = error instanceof Error ? error.name : typeof error;
     console.error("Вход через Google: Google не ответил на обмен кода", reason);
-    return refused();
+    return goTo(
+      redirectPath(
+        `${LOGIN_PATH}?${GOOGLE_FAILED_PARAM}=${GOOGLE_FAILED_VALUE}`,
+      ),
+    );
   }
-  if (idToken === null) return refused();
+  if (idToken === null) return refused("no-id-token");
   const identity = identityFromIdToken(idToken, settings.clientId, new Date());
-  if (identity === null) return refused();
+  if (identity === null) return refused("bad-id-token");
 
   // Время выпуска — до чтения учётки, как у входа паролем (#198): сброс пароля,
   // пришедшийся на этот вход, делает выпущенную сессию негодной, а не наоборот.
   const issuedAt = new Date();
   const account = await findEmailAccount(identity.email);
-  if (account === null) return refused();
+  if (account === null) return refused("email-unbound");
 
   await setSessionCookie(account.id, secret, issuedAt);
   return goTo(redirectPath(ADMIN_HOME_PATH));
